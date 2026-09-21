@@ -9,6 +9,8 @@ import { LibraryService } from './libraryService';
 import { initLog, log } from './log';
 import { handleProtocol, registerSchemePrivileges } from './protocol';
 import { SettingsStore } from './settings';
+import { RenderWindow } from './thumbs/renderWindow';
+import { ThumbService } from './thumbs/service';
 import { defaultSize, loadWindowState, trackWindowState } from './windowState';
 
 const platform = (['darwin', 'win32'].includes(process.platform) ? process.platform : 'linux') as Platform;
@@ -20,14 +22,32 @@ else if (!app.isPackaged) app.setPath('userData', `${app.getPath('userData')}-de
 const dataDir = app.getPath('userData');
 initLog(join(dataDir, 'logs'));
 const settings = new SettingsStore(dataDir);
-const windows = () => BrowserWindow.getAllWindows();
+/** The app's own windows; the hidden render window isn't one of them. */
+const appWindows = new Set<BrowserWindow>();
+const windows = () => [...appWindows];
 const jobs = new Jobs((list) => broadcast(windows, 'jobs:changed', list));
 let indexVersion = 0;
 const library = new LibraryService({
   dataDir,
   jobs,
   onState: (state) => broadcast(windows, 'library:changed', state),
-  onIndexChanged: () => broadcast(windows, 'index:changed', ++indexVersion),
+  onIndexChanged: () => {
+    // Asset ids change with the index; queued thumbnails would answer to stale ids.
+    thumbs.reset();
+    broadcast(windows, 'index:changed', ++indexVersion);
+  },
+});
+
+const thumbDir = () => {
+  const state = library.getState();
+  return state.status === 'ready' ? join(dataDir, 'libraries', state.library.id, 'thumbs') : null;
+};
+let renderWindow: RenderWindow | null = null;
+const thumbs = new ThumbService({
+  queries: () => (library.getState().status === 'ready' ? library.require().queries : null),
+  thumbDir,
+  render: (job) => (renderWindow ??= new RenderWindow()).render(job),
+  publish: (states) => broadcast(windows, 'thumbs:ready', states),
 });
 
 registerSchemePrivileges();
@@ -36,7 +56,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    const w = BrowserWindow.getAllWindows()[0];
+    const w = windows()[0];
     if (w) {
       if (w.isMinimized()) w.restore();
       w.focus();
@@ -51,7 +71,7 @@ async function start(): Promise<void> {
   nativeTheme.themeSource = s.theme;
   settings.onChange((next) => {
     nativeTheme.themeSource = next.theme;
-    broadcast(() => BrowserWindow.getAllWindows(), 'settings:changed', next);
+    broadcast(windows, 'settings:changed', next);
   });
   registerHandlers();
   handleProtocol({
@@ -60,15 +80,12 @@ async function start(): Promise<void> {
       const folder = state.status === 'ready' ? library.require().index.known(id)?.folder : undefined;
       return state.status === 'ready' && folder ? join(state.library.path, DIRS.packs, folder) : null;
     },
-    thumbDir: () => {
-      const state = library.getState();
-      return state.status === 'ready' ? join(dataDir, 'libraries', state.library.id, 'thumbs') : null;
-    },
+    thumbDir,
   });
   if (s.libraryPath) void library.open(s.libraryPath);
   await createWindow();
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+    if (appWindows.size === 0) void createWindow();
   });
 }
 
@@ -83,7 +100,7 @@ function registerHandlers(): void {
   handle('settings:update', (patch) => settings.update(patch));
   handle('window:chrome', ({ background, foreground }) => {
     if (platform === 'darwin') return;
-    for (const w of BrowserWindow.getAllWindows()) w.setTitleBarOverlay({ color: background, symbolColor: foreground, height: 64 });
+    for (const w of windows()) w.setTitleBarOverlay({ color: background, symbolColor: foreground, height: 64 });
   });
 
   handle('dialog:folder', async (title) => {
@@ -128,6 +145,7 @@ function registerHandlers(): void {
   });
 
   handle('jobs:list', () => jobs.list());
+  handle('thumbs:get', (ids) => thumbs.get(ids.slice(0, 500)));
 }
 
 async function createWindow(): Promise<void> {
@@ -154,6 +172,11 @@ async function createWindow(): Promise<void> {
       spellcheck: false,
     },
   });
+  appWindows.add(win);
+  win.on('closed', () => {
+    appWindows.delete(win);
+    if (appWindows.size === 0 && platform !== 'darwin') app.quit();
+  });
   if (saved?.maximized) win.maximize();
   trackWindowState(win, dataDir);
   win.once('ready-to-show', () => win.show());
@@ -174,3 +197,4 @@ async function createWindow(): Promise<void> {
 app.on('window-all-closed', () => {
   if (platform !== 'darwin') app.quit();
 });
+app.on('before-quit', () => renderWindow?.close());

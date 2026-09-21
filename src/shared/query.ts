@@ -69,7 +69,7 @@ export interface PackRow {
   size: number;
   coverRef: string | null;
   /** A few of its assets (images first), for a cover mosaic when the pack ships no preview. */
-  samples: Pick<AssetRow, 'ref' | 'ext' | 'kind' | 'type'>[];
+  samples: Pick<AssetRow, 'id' | 'ref' | 'ext' | 'kind' | 'type'>[];
   /** Main assets by type, for the pack card's summary line. */
   types: Partial<Record<AssetType, number>>;
   genres: string[];

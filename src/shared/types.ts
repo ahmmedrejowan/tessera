@@ -51,3 +51,31 @@ export interface Job {
   state: 'running' | 'done' | 'failed';
   error?: string;
 }
+
+/**
+ * Thumbnail state of an asset:
+ * - a `tessera://thumb/…` URL when one is ready;
+ * - `direct` when the window can draw the file itself (small web images);
+ * - `pending` while it's being made; `failed` when it can't be; `none` for files without a picture.
+ */
+export type ThumbState = string | 'direct' | 'pending' | 'failed' | 'none';
+
+/** Work for the render window. */
+export interface RenderJob {
+  id: string;
+  /** What to draw: a model, an image (scaled), an HDR/EXR image (tone-mapped), a waveform, a font sample. */
+  kind: 'model' | 'image' | 'hdr' | 'audio' | 'font';
+  ext: string;
+  url: string;
+  /** Longest edge of the result, in pixels. */
+  size: number;
+  /** For models: every image in the pack by lower-case file name, to find textures an author's paths no longer point at. */
+  textures?: Record<string, string>;
+}
+
+export interface RenderResult {
+  id: string;
+  /** WebP bytes, or null when drawing failed. */
+  data: Uint8Array | null;
+  error?: string;
+}

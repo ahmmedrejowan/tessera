@@ -171,6 +171,17 @@ export class LibraryQueries {
     return r ? toAsset(r) : null;
   }
 
+  /** What the thumbnailer needs to know about assets. */
+  thumbInfo(ids: number[]): { id: number; packId: string; ref: string; ext: string; kind: string; type: string; size: number; mtime: number }[] {
+    if (!ids.length) return [];
+    return this.all(`SELECT id, pack_id AS packId, ref, ext, kind, type, size, mtime FROM assets WHERE id IN (${ids.map(() => '?').join(', ')})`, ids);
+  }
+
+  /** Every image in a pack, for finding a model's textures by file name. */
+  packImages(packId: string): { ref: string; name: string }[] {
+    return this.all(`SELECT ref, name FROM assets WHERE pack_id = ? AND kind = 'image'`, [packId]);
+  }
+
   /** Every file of an asset: the one that stands for it first, then its other formats and sizes. */
   variants(id: number): AssetRow[] {
     return this.all<RawAsset>(
@@ -244,14 +255,14 @@ export class LibraryQueries {
     }
     const samples = new Map<string, PackRow['samples']>();
     for (const a of this.all<{ packId: string } & PackRow['samples'][number]>(
-      `SELECT packId, ref, ext, kind, type FROM (
-         SELECT pack_id AS packId, ref, ext, kind, type,
+      `SELECT id, packId, ref, ext, kind, type FROM (
+         SELECT id, pack_id AS packId, ref, ext, kind, type,
            ROW_NUMBER() OVER (PARTITION BY pack_id ORDER BY (kind = 'image') DESC, dir, name) AS n
          FROM assets WHERE role = 'main' AND pack_id IN (${marks})) WHERE n <= 4`,
       ids,
     )) {
       const list = samples.get(a.packId) ?? [];
-      list.push({ ref: a.ref, ext: a.ext, kind: a.kind, type: a.type });
+      list.push({ id: a.id, ref: a.ref, ext: a.ext, kind: a.kind, type: a.type });
       samples.set(a.packId, list);
     }
     const terms = new Map<string, { genre: string[]; style: string[]; tag: string[] }>();

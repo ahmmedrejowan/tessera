@@ -6,7 +6,7 @@
  */
 import type { PackEdit, PackMeta } from './pack';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, Page, PackRow, PackSort } from './query';
-import type { AppInfo, FolderKind, Job, LibraryState, Platform, Settings, SettingsPatch } from './types';
+import type { AppInfo, FolderKind, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -38,6 +38,9 @@ export interface Invokes {
   'pack:reveal': (id: string, ref?: string) => void;
 
   'jobs:list': () => Job[];
+
+  /** Thumbnail states for assets by id; missing ones are queued, newest request first. */
+  'thumbs:get': (ids: number[]) => Record<number, ThumbState>;
 }
 
 export interface Events {
@@ -46,6 +49,8 @@ export interface Events {
   /** The index changed; the number only increases, so the window can tell stale data apart. */
   'index:changed': number;
   'jobs:changed': Job[];
+  /** Thumbnails that became ready (or failed) since the last event. */
+  'thumbs:ready': Record<number, ThumbState>;
 }
 
 export type InvokeChannel = keyof Invokes;
