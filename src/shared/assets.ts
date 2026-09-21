@@ -123,6 +123,8 @@ export function classify(path: string, size: number, ctx: PackContext): Classifi
     case 'archive':
       return { kind, type: 'other', role: 'support' };
     case 'audio': {
+      // A pack's own demo reel ("Preview.ogg") isn't one of its sounds.
+      if (/^(preview|demo|sample|showcase)$/.test(name.replace(/ (ogg|wav|mp3|flac|m4a|opus|aiff?)$/, ''))) return { kind, type: 'sfx', role: 'preview' };
       const music = MUSIC.test(words) || (size >= MUSIC_BYTES && !/\b(sfx|sound effects?|impact|hit|click)\b/.test(words));
       return { kind, type: music ? 'music' : 'sfx', role: 'main' };
     }
@@ -162,6 +164,10 @@ export function variantKey(kind: Kind, displayPath: string): string {
   const parts = displayPath.split('/');
   const file = parts.pop()!;
   const stem = file.includes('.') ? file.slice(0, file.lastIndexOf('.')) : file;
-  const dirs = parts.filter((d) => !VARIANT_DIR.test(d.trim()));
+  // "fbx(unity)", "OBJ (Blender)", "Default (64px)": the part in brackets only qualifies the folder.
+  const dirs = parts.filter((d) => {
+    const bare = d.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+    return bare !== '' && !VARIANT_DIR.test(bare) && !VARIANT_DIR.test(d.trim());
+  });
   return `${kind}|${dirs.join('/').toLowerCase()}|${stem.toLowerCase()}`;
 }

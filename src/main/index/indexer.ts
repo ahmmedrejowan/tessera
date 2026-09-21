@@ -13,6 +13,12 @@ import { displayPath, listPackFiles, type PackFile } from './files';
 
 const sha1 = (s: string) => createHash('sha1').update(s).digest('hex');
 
+/**
+ * Bump when classification or variant grouping changes: every pack's files are read again on the
+ * next sync, without throwing the rest of the index away.
+ */
+export const CLASSIFY_VERSION = 3;
+
 /** A quick fingerprint of a pack's files from sizes and times alone, so unchanged packs are skipped without opening archives. */
 async function filesSignature(packDir: string): Promise<string> {
   const root = join(packDir, PACK_DIRS.original);
@@ -28,7 +34,7 @@ async function filesSignature(packDir: string): Promise<string> {
     }
   };
   await walk(root);
-  return sha1(parts.sort().join('\n'));
+  return sha1(`classify ${CLASSIFY_VERSION}\n${parts.sort().join('\n')}`);
 }
 
 /** Words a pack is found by. */

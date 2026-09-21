@@ -25,6 +25,7 @@ describe('classification', () => {
     ['Backgrounds/sky.png', 0, noModels, 'sprite', 'main'],
     ['Audio/footstep_grass_000.ogg', 20_000, noModels, 'sfx', 'main'],
     ['Music/Night Theme.ogg', 20_000, noModels, 'music', 'main'],
+    ['Preview.ogg', 900_000, noModels, 'sfx', 'preview'],
     ['Audio/long_track.ogg', 3_000_000, noModels, 'music', 'main'],
     ['Fonts/Kenney Future.ttf', 0, noModels, 'font', 'main'],
     ['License.txt', 0, noModels, 'other', 'doc'],
@@ -44,6 +45,8 @@ describe('variant keys', () => {
     expect(k('Models/FBX format/car.fbx')).toBe(k('Models/OBJ/car.obj'));
     expect(k('PNG/Default (64px)/tile.png', 'image')).toBe(k('PNG/Double (128px)/tile.png', 'image'));
     expect(k('PNG/Default/tile.png', 'image')).toBe(k('Vector/tile.svg', 'image'));
+    expect(k('Assets/fbx(unity)/Bush_1.fbx')).toBe(k('Assets/gltf/Bush_1.gltf'));
+    expect(k('Assets/FBX (Blender)/Bush_1.fbx')).toBe(k('Assets/obj/Bush_1.obj'));
     expect(k('Trees/tree.fbx')).not.toBe(k('Rocks/tree.fbx'));
     expect(k('Models/car.fbx')).not.toBe(k('Models/car_large.fbx'));
   });
