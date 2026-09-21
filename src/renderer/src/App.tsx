@@ -6,6 +6,7 @@ import SportsEsportsOutlined from '@mui/icons-material/SportsEsportsOutlined';
 import CircularProgress from '@mui/material/CircularProgress';
 import { EmptyState } from './components/EmptyState';
 import { BrowsePage } from './pages/browse/BrowsePage';
+import { PackPage } from './pages/pack/PackPage';
 import { Page } from './pages/Placeholder';
 import { Welcome } from './pages/Welcome';
 import { AppShell } from './shell/AppShell';
@@ -23,7 +24,7 @@ const PLACEHOLDERS = {
 function Current() {
   const route = useNav((s) => s.route);
   if (route.to === 'browse') return <BrowsePage />;
-  if (route.to === 'pack') return <Page title="Pack">{null}</Page>;
+  if (route.to === 'pack') return <PackPage key={route.id} id={route.id} />;
   const p = PLACEHOLDERS[route.to];
   return (
     <Page title={p.title}>
