@@ -34,9 +34,6 @@ const TYPES: Record<string, string> = {
   woff: 'font/woff', woff2: 'font/woff2', glb: 'model/gltf-binary', gltf: 'model/gltf+json', txt: 'text/plain; charset=utf-8',
   md: 'text/plain; charset=utf-8', json: 'application/json', pdf: 'application/pdf',
 };
-/** Encode a ref for a URL path, segment by segment ("!" stays literal, so archives read like folders). */
-export const encodeRef = (ref: string) => ref.split('/').map((seg) => encodeURIComponent(seg).replace(/%21/g, '!')).join('/');
-
 const contentType = (name: string) => TYPES[extOf(name)] ?? 'application/octet-stream';
 
 function parseRange(header: string | null, size: number): { start: number; end: number } | null {
@@ -112,6 +109,3 @@ export function handleProtocol(d: ProtocolDeps): void {
     }
   });
 }
-
-/** URL for a pack file, as the window uses it. */
-export const packFileUrl = (packId: string, ref: string) => `${SCHEME}://pack/${encodeURIComponent(packId)}/${encodeRef(ref)}`;
