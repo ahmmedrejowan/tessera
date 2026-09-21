@@ -49,4 +49,5 @@ export function useStats() {
 }
 
 /** URL of a pack's file for <img>, <audio> and loaders. */
-export const fileUrl = (packId: string, ref: string) => `tessera://pack/${encodeURIComponent(packId)}/${encodeURIComponent(ref)}`;
+export const fileUrl = (packId: string, ref: string) =>
+  `tessera://pack/${encodeURIComponent(packId)}/${ref.split('/').map((seg) => encodeURIComponent(seg).replace(/%21/g, '!')).join('/')}`;

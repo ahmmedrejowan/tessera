@@ -10,7 +10,10 @@ import { log } from './log';
 /**
  * `tessera://` serves library files to the window without exposing the file system:
  *
- *   tessera://pack/<pack id>/<ref, URI-encoded>   a file of a pack, from disk or inside an archive
+ *   tessera://pack/<pack id>/<ref>                a file of a pack, from disk or inside an archive;
+ *                                                 each path segment is encoded on its own, so relative
+ *                                                 links in a model (a .bin, an .mtl, textures) resolve
+ *                                                 to the files beside it
  *   tessera://thumb/<name>                        a cached thumbnail
  *
  * Range requests are honoured so audio and video can seek.
@@ -31,6 +34,9 @@ const TYPES: Record<string, string> = {
   woff: 'font/woff', woff2: 'font/woff2', glb: 'model/gltf-binary', gltf: 'model/gltf+json', txt: 'text/plain; charset=utf-8',
   md: 'text/plain; charset=utf-8', json: 'application/json', pdf: 'application/pdf',
 };
+/** Encode a ref for a URL path, segment by segment ("!" stays literal, so archives read like folders). */
+export const encodeRef = (ref: string) => ref.split('/').map((seg) => encodeURIComponent(seg).replace(/%21/g, '!')).join('/');
+
 const contentType = (name: string) => TYPES[extOf(name)] ?? 'application/octet-stream';
 
 function parseRange(header: string | null, size: number): { start: number; end: number } | null {
@@ -83,7 +89,8 @@ export function handleProtocol(d: ProtocolDeps): void {
       const range = request.headers.get('Range');
       const parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
       if (url.host === 'pack') {
-        const [packId, ref] = parts;
+        const [packId, ...rest] = parts;
+        const ref = rest.join('/');
         const dir = packId ? d.packDir(packId) : null;
         if (!dir || !ref) return new Response('Not found', { status: 404 });
         const { file, inside } = parseRef(ref);
@@ -107,4 +114,4 @@ export function handleProtocol(d: ProtocolDeps): void {
 }
 
 /** URL for a pack file, as the window uses it. */
-export const packFileUrl = (packId: string, ref: string) => `${SCHEME}://pack/${encodeURIComponent(packId)}/${encodeURIComponent(ref)}`;
+export const packFileUrl = (packId: string, ref: string) => `${SCHEME}://pack/${encodeURIComponent(packId)}/${encodeRef(ref)}`;
