@@ -2,7 +2,7 @@ import SearchOffOutlined from '@mui/icons-material/SearchOffOutlined';
 import Button from '@mui/material/Button';
 import LinearProgress from '@mui/material/LinearProgress';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import type { AssetRow, PackRow } from '@shared/query';
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
@@ -11,6 +11,8 @@ import { activeFilterCount, browseQuery, useBrowse } from '../../state/browse';
 import { useIndexVersion, useLibraryId } from '../../state/library';
 import { useNav } from '../../state/nav';
 import { usePagedRows } from '../../state/paged';
+// The viewer brings three.js; it loads the first time something is opened.
+const Viewer = lazy(() => import('../../viewer/Viewer').then((m) => ({ default: m.Viewer })));
 import { AssetTile, TILE_LABEL_HEIGHT } from './AssetTile';
 import { BrowseToolbar } from './BrowseToolbar';
 import { DetailsSheet } from './DetailsSheet';
@@ -83,6 +85,13 @@ export function BrowsePage() {
     placeholderData: (p) => p,
   });
 
+  const [viewing, setViewing] = useState<number | null>(null);
+  const [cursor, setCursor] = useState<number | null>(null);
+  const columns = useRef(1);
+  const setColumns = useCallback((c: number) => {
+    columns.current = c;
+  }, []);
+
   const clickAsset = useSelection<number>((i) => assets.get(i)?.id);
   const clickPack = useSelection<string>((i) => packs.get(i)?.id);
   const current = s.mode === 'assets' ? assets : packs;
@@ -97,9 +106,13 @@ export function BrowsePage() {
           selected={!!a && s.selection.has(a.id)}
           onClick={(e, x) => {
             clickAsset(e, x.id, i);
+            setCursor(i);
             s.focus({ kind: 'asset', id: x.id });
           }}
-          onOpen={(x) => s.focus({ kind: 'asset', id: x.id })}
+          onOpen={() => {
+            setCursor(i);
+            setViewing(i);
+          }}
         />
       );
     },
@@ -115,6 +128,7 @@ export function BrowsePage() {
           selected={!!p && s.selection.has(p.id)}
           onClick={(e, x) => {
             clickPack(e, x.id, i);
+            setCursor(i);
             s.focus({ kind: 'pack', id: x.id });
           }}
           onOpen={(x) => go({ to: 'pack', id: x.id })}
@@ -124,17 +138,68 @@ export function BrowsePage() {
     [packs, s, clickPack, go],
   );
 
-  // Escape clears the selection and closes the details sheet.
+  // Results changed: the cursor and any open preview point at other things now.
   useEffect(() => {
+    setCursor(null);
+    setViewing(null);
+  }, [query, s.mode, assetSort, s.packSort]);
+
+  /** Move the cursor to an item: select it, show it in the details sheet, keep it in view. */
+  const moveTo = useCallback(
+    (i: number) => {
+      const total = s.mode === 'assets' ? assets.total : packs.total;
+      if (!total) return;
+      const next = Math.max(0, Math.min(total - 1, i));
+      setCursor(next);
+      if (s.mode === 'assets') {
+        const a = assets.get(next);
+        if (a) {
+          s.select([a.id], next);
+          s.focus({ kind: 'asset', id: a.id });
+        }
+      } else {
+        const p = packs.get(next);
+        if (p) {
+          s.select([p.id], next);
+          s.focus({ kind: 'pack', id: p.id });
+        }
+      }
+    },
+    [s, assets, packs],
+  );
+
+  // Keyboard: arrows move through the grid, Space previews, Enter opens, Escape clears.
+  useEffect(() => {
+    if (viewing !== null) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !(e.target instanceof HTMLInputElement)) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.metaKey || e.ctrlKey || e.altKey) return;
+      const cols = columns.current;
+      const at = cursor ?? -1;
+      const moves: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols };
+      if (e.key in moves) {
+        e.preventDefault();
+        moveTo(at < 0 ? 0 : at + moves[e.key]!);
+      } else if (e.key === ' ' && at >= 0 && s.mode === 'assets') {
+        e.preventDefault();
+        setViewing(at);
+      } else if (e.key === 'Enter' && at >= 0) {
+        e.preventDefault();
+        if (s.mode === 'assets') setViewing(at);
+        else {
+          const p = packs.get(at);
+          if (p) go({ to: 'pack', id: p.id });
+        }
+      } else if (e.key === 'Escape') {
         s.select([], null);
         s.focus(null);
+        setCursor(null);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [s]);
+  }, [s, cursor, viewing, moveTo, packs, go]);
+
+  const viewed = viewing !== null ? assets.get(viewing) : undefined;
 
   const empty = !current.loading && current.total === 0;
   const filtering = !!text || activeFilterCount(s.filters) > 0;
@@ -177,6 +242,8 @@ export function BrowsePage() {
               gap={8}
               render={renderAsset}
               onRangeChange={assets.setVisibleRange}
+              onColumns={setColumns}
+              scrollToIndex={viewing ?? cursor}
             />
           ) : (
             <VirtualGrid
@@ -187,11 +254,24 @@ export function BrowsePage() {
               gap={16}
               render={renderPack}
               onRangeChange={packs.setVisibleRange}
+              onColumns={setColumns}
+              scrollToIndex={cursor}
             />
           )}
         </div>
       </div>
       {s.focused && <DetailsSheet item={s.focused} />}
+      {viewed && viewing !== null && (
+        <Suspense fallback={null}>
+        <Viewer
+          asset={viewed}
+          position={{ index: viewing, total: assets.total }}
+          {...(viewing > 0 ? { onPrev: () => (moveTo(viewing - 1), setViewing(viewing - 1)) } : {})}
+          {...(viewing < assets.total - 1 ? { onNext: () => (moveTo(viewing + 1), setViewing(viewing + 1)) } : {})}
+          onClose={() => setViewing(null)}
+        />
+        </Suspense>
+      )}
     </div>
   );
 }
