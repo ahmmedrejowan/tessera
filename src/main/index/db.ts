@@ -8,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
  * deleted and rebuilt; a schema change simply rebuilds it.
  */
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 const SCHEMA = `
 CREATE TABLE packs (
@@ -51,8 +51,13 @@ CREATE TABLE assets (
   role    TEXT NOT NULL,
   size    INTEGER NOT NULL,
   mtime   INTEGER NOT NULL,
+  -- The asset this file belongs to: its own id, or for a variant the id of the file that stands for the group.
+  group_id INTEGER,
+  -- On the file that stands for a group: every format in the group, space separated.
+  formats TEXT NOT NULL DEFAULT '',
   UNIQUE (pack_id, ref)
 );
+CREATE INDEX assets_group ON assets(group_id);
 CREATE INDEX assets_pack ON assets(pack_id, role);
 CREATE INDEX assets_type ON assets(type, role);
 CREATE INDEX assets_ext ON assets(ext);

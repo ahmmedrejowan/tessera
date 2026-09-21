@@ -63,6 +63,10 @@ const PACK_SORT: Record<PackSort, string> = {
 
 const FACET_LIMIT = 300;
 
+const ASSET_FIELDS = `a.id, a.pack_id AS packId, p.name AS packName, a.ref, a.name, a.dir, a.ext, a.kind, a.type, a.role, a.size, a.formats`;
+type RawAsset = Omit<AssetRow, 'formats'> & { formats: string };
+const toAsset = (r: RawAsset): AssetRow => ({ ...r, formats: r.formats ? r.formats.split(' ') : [r.ext] });
+
 export class LibraryQueries {
   constructor(private readonly db: DatabaseSync) {}
 
@@ -79,15 +83,24 @@ export class LibraryQueries {
     const out: Clause[] = [];
     if (q.scope !== 'all') out.push({ sql: 'p.status = ?', params: [q.scope] });
     if (q.packIds) out.push(inList('p.id', q.packIds.length ? q.packIds : ['']));
-    const role = q.includeSupport ? null : "a.role = 'main'";
-    if (mode === 'assets' && role) out.push({ sql: role, params: [] });
+    // Variants are always shown through the asset they belong to.
+    const role = q.includeSupport ? "a.role != 'variant'" : "a.role = 'main'";
+    if (mode === 'assets') out.push({ sql: role, params: [] });
 
     for (const facet of FACETS) {
       const values = q.filters[facet];
       if (!values?.length || facet === skip) continue;
       const assetCol = ASSET_COLUMN[facet];
       const packCol = PACK_COLUMN[facet];
-      if (assetCol) {
+      if (facet === 'format') {
+        // An asset matches when any of its variants is in the format.
+        const c = inList('v.ext', values);
+        out.push(
+          mode === 'assets'
+            ? { sql: `EXISTS (SELECT 1 FROM assets v WHERE v.group_id = a.id AND ${c.sql})`, params: c.params }
+            : { sql: `EXISTS (SELECT 1 FROM assets v WHERE v.pack_id = p.id AND v.role IN ('main', 'variant') AND ${c.sql})`, params: c.params },
+        );
+      } else if (assetCol) {
         const c = inList(assetCol, values);
         // Packs match when they hold at least one such asset.
         out.push(mode === 'assets' ? c : { sql: `EXISTS (SELECT 1 FROM assets a WHERE a.pack_id = p.id AND a.role = 'main' AND ${c.sql})`, params: c.params });
@@ -128,12 +141,8 @@ export class LibraryQueries {
     const score = terms.length
       ? `(${terms.map(() => `(CASE WHEN ${hit} THEN 3 WHEN ${hit} THEN 2 WHEN ${hit} THEN 1 ELSE 0 END)`).join(' + ')}) DESC, `
       : '';
-    const rows = this.all<AssetRow>(
-      `SELECT a.id, a.pack_id AS packId, p.name AS packName, a.ref, a.name, a.dir, a.ext, a.kind, a.type, a.role, a.size
-       ${from} ORDER BY ${score}${ASSET_SORT[sort]} LIMIT ? OFFSET ?`,
-      [...w.params, ...exact, limit, offset],
-    );
-    return { rows, total };
+    const rows = this.all<RawAsset>(`SELECT ${ASSET_FIELDS} ${from} ORDER BY ${score}${ASSET_SORT[sort]} LIMIT ? OFFSET ?`, [...w.params, ...exact, limit, offset]);
+    return { rows: rows.map(toAsset), total };
   }
 
   packs(q: BrowseQuery, sort: PackSort, offset: number, limit: number): Page<PackRow> {
@@ -151,21 +160,24 @@ export class LibraryQueries {
 
   /** Every file of one pack, for its contents view. */
   packFiles(id: string): AssetRow[] {
-    return this.all<AssetRow>(
-      `SELECT a.id, a.pack_id AS packId, p.name AS packName, a.ref, a.name, a.dir, a.ext, a.kind, a.type, a.role, a.size
-       FROM assets a JOIN packs p ON p.id = a.pack_id WHERE a.pack_id = ? ORDER BY a.dir COLLATE NOCASE, a.name COLLATE NOCASE`,
+    return this.all<RawAsset>(
+      `SELECT ${ASSET_FIELDS} FROM assets a JOIN packs p ON p.id = a.pack_id WHERE a.pack_id = ? ORDER BY a.dir COLLATE NOCASE, a.name COLLATE NOCASE`,
       [id],
-    );
+    ).map(toAsset);
   }
 
   asset(id: number): AssetRow | null {
-    return (
-      this.get<AssetRow>(
-        `SELECT a.id, a.pack_id AS packId, p.name AS packName, a.ref, a.name, a.dir, a.ext, a.kind, a.type, a.role, a.size
-         FROM assets a JOIN packs p ON p.id = a.pack_id WHERE a.id = ?`,
-        [id],
-      ) ?? null
-    );
+    const r = this.get<RawAsset>(`SELECT ${ASSET_FIELDS} FROM assets a JOIN packs p ON p.id = a.pack_id WHERE a.id = ?`, [id]);
+    return r ? toAsset(r) : null;
+  }
+
+  /** Every file of an asset: the one that stands for it first, then its other formats and sizes. */
+  variants(id: number): AssetRow[] {
+    return this.all<RawAsset>(
+      `SELECT ${ASSET_FIELDS} FROM assets a JOIN packs p ON p.id = a.pack_id
+       WHERE a.group_id = (SELECT group_id FROM assets WHERE id = ?) ORDER BY a.id = ? DESC, a.ext, a.dir`,
+      [id, id],
+    ).map(toAsset);
   }
 
   /**
@@ -181,7 +193,11 @@ export class LibraryQueries {
       const params = [...w.params];
       const assetCol = ASSET_COLUMN[facet];
       const packCol = PACK_COLUMN[facet];
-      if (assetCol) {
+      if (facet === 'format') {
+        sql = mode === 'assets'
+          ? `SELECT v.ext AS value, count(DISTINCT a.id) AS count FROM assets a JOIN packs p ON p.id = a.pack_id JOIN assets v ON v.group_id = a.id ${w.sql} GROUP BY 1`
+          : `SELECT v.ext AS value, count(DISTINCT p.id) AS count FROM packs p JOIN assets v ON v.pack_id = p.id AND v.role IN ('main', 'variant') ${w.sql} GROUP BY 1`;
+      } else if (assetCol) {
         sql = mode === 'assets'
           ? `SELECT ${assetCol} AS value, ${count} AS count FROM assets a JOIN packs p ON p.id = a.pack_id ${w.sql} GROUP BY 1`
           : `SELECT ${assetCol} AS value, ${count} AS count FROM packs p JOIN assets a ON a.pack_id = p.id AND a.role = 'main' ${w.sql} GROUP BY 1`;
@@ -226,6 +242,18 @@ export class LibraryQueries {
       m[t.type] = t.n;
       types.set(t.packId, m);
     }
+    const samples = new Map<string, PackRow['samples']>();
+    for (const a of this.all<{ packId: string } & PackRow['samples'][number]>(
+      `SELECT packId, ref, ext, kind, type FROM (
+         SELECT pack_id AS packId, ref, ext, kind, type,
+           ROW_NUMBER() OVER (PARTITION BY pack_id ORDER BY (kind = 'image') DESC, dir, name) AS n
+         FROM assets WHERE role = 'main' AND pack_id IN (${marks})) WHERE n <= 4`,
+      ids,
+    )) {
+      const list = samples.get(a.packId) ?? [];
+      list.push({ ref: a.ref, ext: a.ext, kind: a.kind, type: a.type });
+      samples.set(a.packId, list);
+    }
     const terms = new Map<string, { genre: string[]; style: string[]; tag: string[] }>();
     for (const t of this.all<{ packId: string; facet: 'genre' | 'style' | 'tag'; value: string }>(
       `SELECT pack_id AS packId, facet, value FROM pack_terms WHERE pack_id IN (${marks}) ORDER BY value`,
@@ -248,6 +276,7 @@ export class LibraryQueries {
       assetCount: r.assetCount,
       size: r.size,
       coverRef: r.coverRef,
+      samples: samples.get(r.id) ?? [],
       types: types.get(r.id) ?? {},
       genres: terms.get(r.id)?.genre ?? [],
       styles: terms.get(r.id)?.style ?? [],

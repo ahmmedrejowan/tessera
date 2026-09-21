@@ -27,7 +27,11 @@ export const TYPE_LABELS: Record<AssetType, string> = {
   other: 'Other files',
 };
 
-export const ROLES = ['main', 'support', 'preview', 'doc'] as const;
+/**
+ * `variant` marks another copy of a main asset: the same model in another format, or the same
+ * sprite at another size. Variants are listed with their asset, not on their own.
+ */
+export const ROLES = ['main', 'variant', 'support', 'preview', 'doc'] as const;
 export type Role = (typeof ROLES)[number];
 
 const EXT: Record<string, Kind> = {};
@@ -41,7 +45,8 @@ add('font', 'ttf otf woff woff2');
 add('material', 'mtl');
 add('doc', 'txt md pdf html htm rtf url');
 // Sidecars that describe other files: spritesheet maps, glyph tables, engine import caches, checksums.
-add('data', 'json jsonl xml csv yaml yml plist atlas fnt md5 sha1 pb tres tscn stex oggstr gd import');
+// ("import" is kept away from the end of the string: the bundler's CommonJS shim mistakes `import'` for a statement.)
+add('data', 'json jsonl xml csv yaml yml plist atlas fnt md5 sha1 pb tres tscn stex oggstr import gd');
 add('archive', 'zip 7z rar tar gz tgz');
 
 /** Files that are never shown: OS clutter and engine sidecars that only mean something inside an engine. */
@@ -139,4 +144,24 @@ export function classify(path: string, size: number, ctx: PackContext): Classifi
       return { kind, type: 'other', role: 'main' };
     }
   }
+}
+
+/**
+ * Folder names that only say which format or size the files inside are ("FBX format", "PNG",
+ * "Double (128px)"). Files whose paths differ only in these folders and their extension are
+ * variants of one asset.
+ */
+const VARIANT_DIR = /^(fbx|obj|glb|gltf|gltf ?binary|dae|collada|blend|blender|stl|ply|usdz?|3ds|models? ?(fbx|obj|glb|gltf)|(fbx|obj|glb|gltf|dae|blend) ?(format|files|models?|export)?|png|jpe?g|svg|vector|vectors|webp|tga|psd|default|double|retina|hd|sd|x?[0-9]+x|@?[0-9]x|\(?[0-9]+ ?px\)?|(default|double|large|small) ?\(?[0-9]+ ?px\)?|ogg|wav|mp3|flac|ttf|otf|woff2?)$/i;
+
+/** Order of preference for the file that stands for a group of variants. */
+const PREFERRED: Record<string, number> = { glb: 0, gltf: 1, fbx: 2, obj: 3, dae: 4, blend: 5, png: 0, webp: 1, jpg: 2, jpeg: 2, svg: 3, ogg: 0, wav: 1, mp3: 2, flac: 3, ttf: 0, otf: 1, woff2: 2, woff: 3 };
+export const preference = (ext: string) => PREFERRED[ext] ?? 9;
+
+/** The key shared by all variants of one asset: its kind, its folders minus format/size folders, and its name without extension. */
+export function variantKey(kind: Kind, displayPath: string): string {
+  const parts = displayPath.split('/');
+  const file = parts.pop()!;
+  const stem = file.includes('.') ? file.slice(0, file.lastIndexOf('.')) : file;
+  const dirs = parts.filter((d) => !VARIANT_DIR.test(d.trim()));
+  return `${kind}|${dirs.join('/').toLowerCase()}|${stem.toLowerCase()}`;
 }

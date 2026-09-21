@@ -49,6 +49,8 @@ export interface AssetRow {
   type: AssetType;
   role: Role;
   size: number;
+  /** Every format this asset comes in (its variants included), e.g. ['fbx', 'glb', 'obj']. */
+  formats: string[];
 }
 
 export interface PackRow {
@@ -66,6 +68,8 @@ export interface PackRow {
   assetCount: number;
   size: number;
   coverRef: string | null;
+  /** A few of its assets (images first), for a cover mosaic when the pack ships no preview. */
+  samples: Pick<AssetRow, 'ref' | 'ext' | 'kind' | 'type'>[];
   /** Main assets by type, for the pack card's summary line. */
   types: Partial<Record<AssetType, number>>;
   genres: string[];

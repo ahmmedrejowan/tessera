@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readdir, stat } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
-import { baseName, classify, extOf, kindOf, pathWords } from '@shared/assets';
+import { baseName, classify, extOf, kindOf, pathWords, preference, variantKey } from '@shared/assets';
 import { licenceInfo } from '@shared/licences';
 import type { PackMeta } from '@shared/pack';
 import { sourceInfo } from '@shared/sources';
@@ -89,8 +89,9 @@ export class LibraryIndex {
       assetIds: p('SELECT id FROM assets WHERE pack_id = ?'),
       deleteAssetFts: p('DELETE FROM assets_fts WHERE rowid = ?'),
       deleteAssets: p('DELETE FROM assets WHERE pack_id = ?'),
-      insertAsset: p(`INSERT INTO assets (pack_id, ref, name, dir, ext, kind, type, role, size, mtime)
-        VALUES ($packId, $ref, $name, $dir, $ext, $kind, $type, $role, $size, $mtime)`),
+      insertAsset: p(`INSERT INTO assets (pack_id, ref, name, dir, ext, kind, type, role, size, mtime, group_id, formats)
+        VALUES ($packId, $ref, $name, $dir, $ext, $kind, $type, $role, $size, $mtime, $groupId, $formats)`),
+      selfGroups: p('UPDATE assets SET group_id = id WHERE pack_id = ? AND group_id IS NULL'),
       insertAssetFts: p('INSERT INTO assets_fts (rowid, name, path) VALUES (?, ?, ?)'),
       packFiles: p(`UPDATE packs SET files_sig = $sig, file_count = $fileCount, asset_count = $assetCount, size = $size,
         cover_ref = $cover, problems = $problems WHERE id = $id`),
@@ -173,29 +174,64 @@ export class LibraryIndex {
     for (const { id } of this.st.assetIds!.all(packId) as { id: number }[]) this.st.deleteAssetFts!.run(id);
     this.st.deleteAssets!.run(packId);
     const hasModels = files.some((f) => kindOf(f.ref) === 'model');
-    const classified = files.map((f) => ({ ...f, ...classify(displayPath(f.ref), f.size, { hasModels }) }));
+    const classified = files.map((f) => {
+      const shown = displayPath(f.ref);
+      return { ...f, shown, ext: extOf(f.ref), ...classify(shown, f.size, { hasModels }) };
+    });
+
+    // Group copies of one asset (same model as FBX/GLB/OBJ, same sprite at two sizes); the preferred
+    // file stands for the group and the rest become its variants.
+    type Item = (typeof classified)[number] & { groupOf?: Item; formats?: string };
+    const groups = new Map<string, Item[]>();
+    for (const f of classified as Item[]) {
+      if (f.role !== 'main' || f.kind === 'other') continue;
+      const key = variantKey(f.kind, f.shown);
+      const g = groups.get(key);
+      if (g) g.push(f);
+      else groups.set(key, [f]);
+    }
+    for (const g of groups.values()) {
+      if (g.length < 2) continue;
+      g.sort((a, b) => preference(a.ext) - preference(b.ext) || a.shown.localeCompare(b.shown));
+      const [lead, ...rest] = g as [Item, ...Item[]];
+      lead.formats = [...new Set(g.map((x) => x.ext))].sort().join(' ');
+      for (const v of rest) {
+        v.role = 'variant';
+        v.groupOf = lead;
+      }
+    }
+
+    const ids = new Map<Item, number>();
     let size = 0;
     let assetCount = 0;
-    for (const f of classified) {
-      const shown = displayPath(f.ref);
-      const slash = shown.lastIndexOf('/');
+    const insert = (f: Item) => {
+      const slash = f.shown.lastIndexOf('/');
       const { lastInsertRowid } = this.st.insertAsset!.run({
         $packId: packId,
         $ref: f.ref,
-        $name: baseName(shown),
-        $dir: slash >= 0 ? shown.slice(0, slash) : '',
-        $ext: extOf(f.ref),
+        $name: baseName(f.shown),
+        $dir: slash >= 0 ? f.shown.slice(0, slash) : '',
+        $ext: f.ext,
         $kind: f.kind,
         $type: f.type,
         $role: f.role,
         $size: f.size,
         $mtime: Math.round(f.mtimeMs),
+        $groupId: f.groupOf ? (ids.get(f.groupOf) ?? null) : null,
+        $formats: f.formats ?? f.ext,
       });
-      this.st.insertAssetFts!.run(Number(lastInsertRowid), `${pathWords(baseName(shown))} ${extOf(f.ref)}`, slash >= 0 ? pathWords(shown.slice(0, slash)) : '');
+      const id = Number(lastInsertRowid);
+      ids.set(f, id);
+      this.st.insertAssetFts!.run(id, `${pathWords(baseName(f.shown))} ${f.ext}`, slash >= 0 ? pathWords(f.shown.slice(0, slash)) : '');
       // An archive's size is already counted by the files it holds; a top-level archive on disk is what takes space.
       if (!f.ref.includes('!')) size += f.size;
       if (f.role === 'main') assetCount++;
-    }
+    };
+    // Group leads first, so variants can point at them.
+    for (const f of classified as Item[]) if (!f.groupOf) insert(f);
+    for (const f of classified as Item[]) if (f.groupOf) insert(f);
+    this.st.selfGroups!.run(packId);
+
     this.st.packFiles!.run({
       $id: packId,
       $sig: sig,

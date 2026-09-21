@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { classify } from '@shared/assets';
+import { classify, variantKey } from '@shared/assets';
 import type { BrowseQuery } from '@shared/query';
 import { displayPath, listPackFiles, parseRef, readPackFile } from '../src/main/index/files';
 import { LibraryIndex } from '../src/main/index/indexer';
@@ -34,6 +34,18 @@ describe('classification', () => {
     ['Maps/level1.tmx', 0, noModels, 'other', 'main'],
   ] as const)('%s', (path, size, ctx, type, role) => {
     expect(classify(path, size, ctx)).toMatchObject({ type, role });
+  });
+});
+
+describe('variant keys', () => {
+  it('matches the same asset across format and size folders', () => {
+    const k = (p: string, kind: 'model' | 'image' = 'model') => variantKey(kind, p);
+    expect(k('Models/FBX format/car.fbx')).toBe(k('Models/GLB format/car.glb'));
+    expect(k('Models/FBX format/car.fbx')).toBe(k('Models/OBJ/car.obj'));
+    expect(k('PNG/Default (64px)/tile.png', 'image')).toBe(k('PNG/Double (128px)/tile.png', 'image'));
+    expect(k('PNG/Default/tile.png', 'image')).toBe(k('Vector/tile.svg', 'image'));
+    expect(k('Trees/tree.fbx')).not.toBe(k('Rocks/tree.fbx'));
+    expect(k('Models/car.fbx')).not.toBe(k('Models/car_large.fbx'));
   });
 });
 
@@ -170,6 +182,28 @@ describe('index and queries', () => {
     const packsFacets = q.facets({ ...base, filters: { tag: ['impact'] } }, 'packs');
     expect(packsFacets.type).toEqual([{ value: 'sfx', count: 1 }]);
     expect(packsFacets.tag).toEqual([{ value: 'impact', count: 1 }, { value: 'roads', count: 1 }]);
+  });
+
+  it('groups formats of one model into a single asset with variants', async () => {
+    const kit = await createPack(root, 'Car Kit', { status: 'library' });
+    await writeZip(join(kit.dir, 'original', 'car-kit.zip'), {
+      'Models/FBX format/van.fbx': 'x',
+      'Models/GLB format/van.glb': 'x',
+      'Models/OBJ format/van.obj': 'x',
+      'Models/OBJ format/van.mtl': 'x',
+      'Models/GLB format/truck.glb': 'x',
+    });
+    await index.sync(root);
+    const vans = q.assets({ ...base, text: 'van' }, 'name', 0, 10).rows;
+    expect(vans).toHaveLength(1);
+    expect(vans[0]).toMatchObject({ ext: 'glb', formats: ['fbx', 'glb', 'obj'] });
+    expect(q.variants(vans[0]!.id).map((v) => v.ext)).toEqual(['glb', 'fbx', 'obj']);
+    // Filtering by a variant's format finds the asset; counts are per asset, not per file.
+    const fbx = q.assets({ ...base, packIds: [kit.meta.id], filters: { format: ['fbx'] } }, 'name', 0, 10).rows;
+    expect(fbx.map((r) => r.name)).toEqual(['van.glb']);
+    const formats = q.facets({ ...base, packIds: [kit.meta.id] }, 'assets').format;
+    expect(formats).toEqual([{ value: 'glb', count: 2 }, { value: 'fbx', count: 1 }, { value: 'obj', count: 1 }]);
+    expect(q.pack(kit.meta.id)).toMatchObject({ assetCount: 2 });
   });
 
   it('only re-reads packs that changed, and forgets removed ones', async () => {
