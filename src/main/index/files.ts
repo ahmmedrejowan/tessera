@@ -3,6 +3,7 @@ import { join, relative, sep } from 'node:path';
 import { isIgnored } from '@shared/assets';
 import { PACK_DIRS } from '../library/layout';
 import { isZip, listZip, readZipEntry } from './zip';
+import { readCachedEntry } from './zipCache';
 
 /**
  * A file in a pack, addressed by its `ref`: the path from the pack's folder with forward slashes,
@@ -85,15 +86,22 @@ export async function listPackFiles(packDir: string): Promise<{ files: PackFile[
   return { files, problems };
 }
 
-/** Read a file of a pack into memory, opening archives along its ref. */
-export async function readPackFile(packDir: string, ref: string, maxBytes?: number): Promise<Buffer> {
+/**
+ * Read a file of a pack into memory, opening archives along its ref. Archives stay open briefly
+ * (see zipCache), so reading many files from one pack is cheap.
+ */
+export async function readPackFile(packDir: string, ref: string, maxBytes = 512 * 1024 * 1024): Promise<Buffer> {
   const { file, inside } = parseRef(ref);
   if (file.split('/').includes('..')) throw new Error('invalid path');
-  let source: string | Buffer = join(packDir, ...file.split('/'));
-  if (!inside.length) return readFile(source);
-  for (let i = 0; i < inside.length; i++) {
-    const last = i === inside.length - 1;
-    source = await readZipEntry(source, inside[i]!, last ? maxBytes : NESTED_MAX);
-  }
-  return source as Buffer;
+  const path = join(packDir, ...file.split('/'));
+  if (!inside.length) return readFile(path);
+  // Each archive in the chain is read from the one before it; the outermost from disk. Keys of
+  // nested archives carry the outer file's size and time, so a replaced download isn't read stale.
+  const s = await stat(path);
+  const read = (depth: number): Promise<Buffer> => {
+    const key = depth === 0 ? path : [`${path}@${s.size}:${s.mtimeMs}`, ...inside.slice(0, depth)].join('!');
+    const source = depth === 0 ? path : () => read(depth - 1);
+    return readCachedEntry(key, source, inside[depth]!, depth === inside.length - 1 ? maxBytes : NESTED_MAX);
+  };
+  return read(inside.length - 1);
 }
