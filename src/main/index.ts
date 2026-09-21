@@ -1,8 +1,12 @@
-import { app, BrowserWindow, nativeTheme, shell } from 'electron';
+import { app, BrowserWindow, dialog, nativeTheme, shell } from 'electron';
 import { join } from 'node:path';
 import type { Platform } from '@shared/types';
 import { broadcast, handle } from './ipc';
+import { Jobs } from './jobs';
+import { DIRS } from './library/layout';
+import { LibraryService } from './libraryService';
 import { initLog, log } from './log';
+import { handleProtocol, registerSchemePrivileges } from './protocol';
 import { SettingsStore } from './settings';
 import { defaultSize, loadWindowState, trackWindowState } from './windowState';
 
@@ -15,6 +19,17 @@ else if (!app.isPackaged) app.setPath('userData', `${app.getPath('userData')}-de
 const dataDir = app.getPath('userData');
 initLog(join(dataDir, 'logs'));
 const settings = new SettingsStore(dataDir);
+const windows = () => BrowserWindow.getAllWindows();
+const jobs = new Jobs((list) => broadcast(windows, 'jobs:changed', list));
+let indexVersion = 0;
+const library = new LibraryService({
+  dataDir,
+  jobs,
+  onState: (state) => broadcast(windows, 'library:changed', state),
+  onIndexChanged: () => broadcast(windows, 'index:changed', ++indexVersion),
+});
+
+registerSchemePrivileges();
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -38,6 +53,18 @@ async function start(): Promise<void> {
     broadcast(() => BrowserWindow.getAllWindows(), 'settings:changed', next);
   });
   registerHandlers();
+  handleProtocol({
+    packDir: (id) => {
+      const state = library.getState();
+      const folder = state.status === 'ready' ? library.require().index.known(id)?.folder : undefined;
+      return state.status === 'ready' && folder ? join(state.library.path, DIRS.packs, folder) : null;
+    },
+    thumbDir: () => {
+      const state = library.getState();
+      return state.status === 'ready' ? join(dataDir, 'libraries', state.library.id, 'thumbs') : null;
+    },
+  });
+  if (s.libraryPath) void library.open(s.libraryPath);
   await createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
@@ -57,6 +84,42 @@ function registerHandlers(): void {
     if (platform === 'darwin') return;
     for (const w of BrowserWindow.getAllWindows()) w.setTitleBarOverlay({ color: background, symbolColor: foreground, height: 64 });
   });
+
+  handle('dialog:folder', async (title) => {
+    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
+    const options = { title, properties: ['openDirectory', 'createDirectory'] as ('openDirectory' | 'createDirectory')[] };
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    return result.canceled ? null : (result.filePaths[0] ?? null);
+  });
+  handle('library:state', () => library.getState());
+  handle('library:inspect', (path) => library.inspect(path));
+  handle('library:create', async (path, name) => {
+    const state = await library.create(path, name);
+    if (state.status === 'ready') await settings.update({ libraryPath: path });
+    return state;
+  });
+  handle('library:open', async (path) => {
+    const state = await library.open(path);
+    if (state.status === 'ready') await settings.update({ libraryPath: path });
+    return state;
+  });
+  handle('library:close', async () => {
+    library.close();
+    await settings.update({ libraryPath: null });
+  });
+  handle('library:refresh', () => library.sync());
+  handle('library:stats', () => library.require().queries.stats());
+
+  handle('browse:assets', (q, sort, offset, limit) => library.require().queries.assets(q, sort, offset, Math.min(limit, 1000)));
+  handle('browse:packs', (q, sort, offset, limit) => library.require().queries.packs(q, sort, offset, Math.min(limit, 1000)));
+  handle('browse:facets', (q, mode) => library.require().queries.facets(q, mode));
+
+  handle('pack:get', (id) => library.require().queries.pack(id));
+  handle('pack:files', (id) => library.require().queries.packFiles(id));
+  handle('pack:edit', (id, edit) => library.editPack(id, edit));
+  handle('asset:get', (id) => library.require().queries.asset(id));
+
+  handle('jobs:list', () => jobs.list());
 }
 
 async function createWindow(): Promise<void> {
