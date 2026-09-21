@@ -9,7 +9,7 @@
  *   `doc` for readmes and licences. Browsing shows main assets unless asked otherwise.
  */
 
-export const KINDS = ['model', 'image', 'audio', 'font', 'material', 'doc', 'archive', 'other'] as const;
+export const KINDS = ['model', 'image', 'audio', 'font', 'material', 'data', 'doc', 'archive', 'other'] as const;
 export type Kind = (typeof KINDS)[number];
 
 export const ASSET_TYPES = ['model', 'texture', 'sprite', 'ui', 'hdri', 'sfx', 'music', 'font', 'other'] as const;
@@ -40,11 +40,13 @@ add('audio', 'wav ogg mp3 flac aif aiff m4a opus');
 add('font', 'ttf otf woff woff2');
 add('material', 'mtl');
 add('doc', 'txt md pdf html htm rtf url');
+// Sidecars that describe other files: spritesheet maps, glyph tables, engine import caches, checksums.
+add('data', 'json jsonl xml csv yaml yml plist atlas fnt md5 sha1 pb tres tscn stex oggstr gd import');
 add('archive', 'zip 7z rar tar gz tgz');
 
 /** Files that are never shown: OS clutter and engine sidecars that only mean something inside an engine. */
 const IGNORED_NAME = /^(\.ds_store|thumbs\.db|desktop\.ini|\._.*)$/i;
-const IGNORED_EXT = new Set(['meta', 'import', 'uid']);
+const IGNORED_EXT = new Set(['meta', 'uid']);
 const IGNORED_DIR = /(^|\/)(__macosx|\.git|\.svn)(\/|$)/i;
 
 export const extOf = (name: string): string => {
@@ -109,6 +111,7 @@ export function classify(path: string, size: number, ctx: PackContext): Classifi
     case 'font':
       return { kind, type: 'font', role: 'main' };
     case 'material':
+    case 'data':
       return { kind, type: 'other', role: 'support' };
     case 'doc':
       return { kind, type: 'other', role: 'doc' };

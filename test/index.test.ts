@@ -30,6 +30,8 @@ describe('classification', () => {
     ['License.txt', 0, noModels, 'other', 'doc'],
     ['LICENSE', 0, noModels, 'other', 'doc'],
     ['model.bin', 0, withModels, 'other', 'support'],
+    ['Spritesheet/sheet.xml', 0, noModels, 'other', 'support'],
+    ['Maps/level1.tmx', 0, noModels, 'other', 'main'],
   ] as const)('%s', (path, size, ctx, type, role) => {
     expect(classify(path, size, ctx)).toMatchObject({ type, role });
   });
@@ -145,7 +147,16 @@ describe('index and queries', () => {
     expect(names('impact metal')).toEqual(['impactMetal_heavy_000.ogg']);
     expect(names('sed')).toEqual(['car_sedan.fbx']);
     expect(names('roads taxi')).toEqual(['car_taxi.fbx']);
+    expect(names('heavy')).toEqual(['impactMetal_heavy_000.ogg']);
     expect(q.packs({ ...base, text: 'sedan' }, 'name', 0, 10).rows.map((p) => p.name)).toEqual(['City Kit']);
+  });
+
+  it('ranks whole-word matches first when sorting by relevance', () => {
+    const names = (text: string) => q.assets({ ...base, text }, 'relevance', 0, 100).rows.map((r) => r.name);
+    // "cra" is only a prefix everywhere; "crash" is a whole word in one name.
+    expect(names('crash')).toEqual(['car_crash.ogg']);
+    expect(names('sedan car')[0]).toBe('car_sedan.fbx');
+    expect(names('ca')).toEqual(['car_crash.ogg', 'car_sedan.fbx', 'car_taxi.fbx']);
   });
 
   it('filters by facets and counts each facet without its own filter', () => {
