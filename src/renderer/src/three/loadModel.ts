@@ -90,7 +90,10 @@ async function parse(url: string, ext: string, m: TrackedManager): Promise<THREE
     case 'gltf': {
       const loader = new GLTFLoader(m);
       loader.setMeshoptDecoder(MeshoptDecoder);
-      return (await loader.loadAsync(url)).scene;
+      const gltf = await loader.loadAsync(url);
+      // Other loaders hang animations on the object they return; do the same for glTF.
+      gltf.scene.animations = gltf.animations;
+      return gltf.scene;
     }
     case 'fbx':
       return new FBXLoader(m).loadAsync(url);
