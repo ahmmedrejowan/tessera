@@ -14,10 +14,16 @@ mkdirSync(out, { recursive: true });
 writeFileSync(join(userData, 'settings.json'), JSON.stringify({ theme: dark ? 'dark' : 'light', ...(process.env.TESSERA_LIBRARY ? { libraryPath: process.env.TESSERA_LIBRARY } : {}) }));
 writeFileSync(join(userData, 'window.json'), JSON.stringify({ x: 40, y: 40, width: w, height: h, maximized: false }));
 
+// Never hang: a broken build shouldn't leave this waiting forever.
+setTimeout(() => {
+  console.error('timed out');
+  process.exit(1);
+}, 90_000).unref();
+
 const app = await electron.launch({ args: ['.'], env: { ...process.env, TESSERA_USER_DATA: userData } });
 const page = await app.firstWindow();
 await page.waitForLoadState('domcontentloaded');
-await page.waitForTimeout(800);
+await page.waitForTimeout(Number(process.env.SHOOT_WAIT ?? 800));
 const routes = (process.env.SHOOT_ROUTES ?? 'home,browse,collections,projects,inbox,settings').split(',');
 for (const r of routes) {
   const label = r[0].toUpperCase() + r.slice(1);

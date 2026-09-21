@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { useBrowse } from '../state/browse';
 import { useNav } from '../state/nav';
 import { md, SHAPE } from '../theme';
 import { NavigationRail } from './NavigationRail';
@@ -30,20 +31,35 @@ function useHistoryKeys() {
  * The window: app bar across the top, navigation rail down the left, and the current page on a
  * raised surface with a rounded corner — the chrome sits in the container colour, content above it.
  */
-export function AppShell({ children, onAdd, inboxCount }: { children: ReactNode; onAdd: () => void; inboxCount?: number }) {
+/** The search box searches the library: typing takes you to Browse. */
+function GlobalSearch() {
+  const text = useBrowse((s) => s.text);
+  const setText = useBrowse((s) => s.setText);
+  const go = useNav((s) => s.go);
+  return (
+    <SearchField
+      value={text}
+      onChange={(v) => {
+        setText(v);
+        if (useNav.getState().route.to !== 'browse') go({ to: 'browse' });
+      }}
+    />
+  );
+}
+
+export function AppShell({ children, onAdd, inboxCount, bare }: { children: ReactNode; onAdd: () => void; inboxCount?: number; bare?: boolean }) {
   useHistoryKeys();
-  const [query, setQuery] = useState('');
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: md('surfaceContainer') }}>
-      <TopAppBar search={<SearchField value={query} onChange={setQuery} />} />
+      <TopAppBar search={bare ? null : <GlobalSearch />} />
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-        <NavigationRail onAdd={onAdd} {...(inboxCount ? { inboxCount } : {})} />
+        {!bare && <NavigationRail onAdd={onAdd} {...(inboxCount ? { inboxCount } : {})} />}
         <main
           style={{
             flex: 1,
             minWidth: 0,
             background: md('surface'),
-            borderTopLeftRadius: SHAPE.lg,
+            borderTopLeftRadius: bare ? 0 : SHAPE.lg,
             overflow: 'hidden',
           }}
         >

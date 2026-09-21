@@ -16,7 +16,7 @@ import ButtonBase from '@mui/material/ButtonBase';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { ComponentType } from 'react';
-import { useNav, type Destination } from '../state/nav';
+import { railOf, useNav, type Destination } from '../state/nav';
 import { md, mdAlpha, SHAPE, STATE } from '../theme';
 
 interface Item {
@@ -38,7 +38,7 @@ const SETTINGS: Item = { to: 'settings', label: 'Settings', icon: SettingsOutlin
 export const RAIL_WIDTH = 88;
 
 function RailItem({ item, badge }: { item: Item; badge?: number }) {
-  const active = useNav((s) => s.route.to === item.to);
+  const active = useNav((s) => railOf(s.route) === item.to);
   const go = useNav((s) => s.go);
   const Icon = active ? item.activeIcon : item.icon;
   return (
@@ -59,12 +59,11 @@ function RailItem({ item, badge }: { item: Item; badge?: number }) {
           display: 'grid',
           placeItems: 'center',
           position: 'relative',
-          overflow: 'hidden',
           backgroundColor: active ? md('secondaryContainer') : 'transparent',
           color: active ? md('onSecondaryContainer') : md('onSurfaceVariant'),
           transition: 'background-color 150ms',
         },
-        '& .indicator::after': { content: '""', position: 'absolute', inset: 0, backgroundColor: md('onSurface'), opacity: 0, transition: 'opacity 150ms' },
+        '& .indicator::after': { content: '""', position: 'absolute', inset: 0, borderRadius: `${SHAPE.full}px`, backgroundColor: md('onSurface'), opacity: 0, transition: 'opacity 150ms' },
         '&:hover .indicator::after': { opacity: STATE.hover },
         '&:active .indicator::after': { opacity: STATE.pressed },
         '&.Mui-focusVisible .indicator': { outline: `2px solid ${md('secondary')}`, outlineOffset: 2 },

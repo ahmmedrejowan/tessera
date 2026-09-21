@@ -69,6 +69,17 @@ export function createAppTheme(scheme: Scheme, dark: boolean): Theme {
           },
           '*::-webkit-scrollbar-thumb:hover': { backgroundColor: mdAlpha('onSurface', 0.35) },
           '*::-webkit-scrollbar-corner': { background: 'transparent' },
+          // Hover state layer for grid tiles and list rows (selected ones keep their container colour).
+          '.tile:hover:not([aria-selected="true"])': { backgroundColor: mdAlpha('onSurface', STATE.hover) },
+        },
+      },
+      // The M3 variants render as block elements, like MUI's own body and heading variants.
+      MuiTypography: {
+        defaultProps: {
+          variantMapping: {
+            displaySmall: 'h1', headlineLarge: 'h1', headlineMedium: 'h2', headlineSmall: 'h2', titleLarge: 'h3', titleMedium: 'h4', titleSmall: 'h5',
+            labelLarge: 'p', labelMedium: 'p', labelSmall: 'p', bodyLarge: 'p', bodyMedium: 'p', bodySmall: 'p',
+          },
         },
       },
       MuiButtonBase: { defaultProps: { disableRipple: false } },

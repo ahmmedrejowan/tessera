@@ -3,9 +3,10 @@ import { create } from 'zustand';
 /** The top-level destinations on the navigation rail. */
 export type Destination = 'home' | 'browse' | 'collections' | 'projects' | 'inbox' | 'settings';
 
-export interface Route {
-  to: Destination;
-}
+export type Route = { to: Destination } | { to: 'pack'; id: string };
+
+/** The rail destination a route belongs under (a pack page sits under Browse). */
+export const railOf = (r: Route): Destination => (r.to === 'pack' ? 'browse' : r.to);
 
 interface NavState {
   route: Route;
