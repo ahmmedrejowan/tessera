@@ -45,8 +45,12 @@ export function VirtualGrid({ count, minItemWidth, itemHeight, gap = 12, padding
   const rows = Math.ceil(count / columns);
 
   const v = useVirtualizer({ count: rows, getScrollElement: () => ref.current, estimateSize: () => rowHeight, overscan: 4, paddingStart: padding, paddingEnd: padding });
-  useEffect(() => v.measure(), [rowHeight, columns, v]);
-  useEffect(() => onColumns?.(columns), [columns, onColumns]);
+  useEffect(() => {
+    v.measure();
+  }, [rowHeight, columns, v]);
+  useEffect(() => {
+    onColumns?.(columns);
+  }, [columns, onColumns]);
 
   const items = v.getVirtualItems();
   const firstRow = items[0]?.index ?? 0;
