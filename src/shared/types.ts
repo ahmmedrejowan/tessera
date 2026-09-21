@@ -79,3 +79,13 @@ export interface RenderResult {
   data: Uint8Array | null;
   error?: string;
 }
+
+/** What Tessera worked out about a pack from its files: suggestions, never applied silently. */
+export interface Detected {
+  licence: string | null;
+  /** Where the licence was found, e.g. "License.txt". */
+  licenceFrom: string | null;
+  site: string | null;
+  url: string | null;
+  creator: string | null;
+}
