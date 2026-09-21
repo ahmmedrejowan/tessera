@@ -12,12 +12,18 @@ export default defineConfig({
   preload: {
     resolve: { alias: shared },
     // CommonJS so the renderer can stay sandboxed.
-    build: { externalizeDeps: true, rollupOptions: { output: { format: 'cjs', entryFileNames: '[name].cjs' } } },
+    build: {
+      externalizeDeps: true,
+      rollupOptions: {
+        input: { index: resolve('src/preload/index.ts'), worker: resolve('src/preload/worker.ts') },
+        output: { format: 'cjs', entryFileNames: '[name].cjs' },
+      },
+    },
   },
   renderer: {
     root: 'src/renderer',
     resolve: { alias: { ...shared, '@': resolve('src/renderer/src') } },
     plugins: [react()],
-    build: { rollupOptions: { input: { index: resolve('src/renderer/index.html') } } },
+    build: { rollupOptions: { input: { index: resolve('src/renderer/index.html'), worker: resolve('src/renderer/worker.html') } } },
   },
 });
