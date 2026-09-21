@@ -91,7 +91,7 @@ export class LibraryIndex {
       deleteAssets: p('DELETE FROM assets WHERE pack_id = ?'),
       insertAsset: p(`INSERT INTO assets (pack_id, ref, name, dir, ext, kind, type, role, size, mtime)
         VALUES ($packId, $ref, $name, $dir, $ext, $kind, $type, $role, $size, $mtime)`),
-      insertAssetFts: p('INSERT INTO assets_fts (rowid, words) VALUES (?, ?)'),
+      insertAssetFts: p('INSERT INTO assets_fts (rowid, name, path) VALUES (?, ?, ?)'),
       packFiles: p(`UPDATE packs SET files_sig = $sig, file_count = $fileCount, asset_count = $assetCount, size = $size,
         cover_ref = $cover, problems = $problems WHERE id = $id`),
       deletePack: p('DELETE FROM packs WHERE id = ?'),
@@ -100,6 +100,13 @@ export class LibraryIndex {
 
   close(): void {
     this.db.close();
+  }
+
+  /** What the index last recorded for a pack, so a sync can tell what changed. */
+  known(id: string): { folder: string; metaSig: string; filesSig: string | null } | undefined {
+    return this.db.prepare('SELECT folder, meta_sig AS metaSig, files_sig AS filesSig FROM packs WHERE id = ?').get(id) as
+      | { folder: string; metaSig: string; filesSig: string | null }
+      | undefined;
   }
 
   /** Bring the index in line with the library folder. Only packs whose record or files changed are re-read. */
@@ -184,7 +191,7 @@ export class LibraryIndex {
         $size: f.size,
         $mtime: Math.round(f.mtimeMs),
       });
-      this.st.insertAssetFts!.run(Number(lastInsertRowid), `${pathWords(shown)} ${extOf(f.ref)}`);
+      this.st.insertAssetFts!.run(Number(lastInsertRowid), `${pathWords(baseName(shown))} ${extOf(f.ref)}`, slash >= 0 ? pathWords(shown.slice(0, slash)) : '');
       // An archive's size is already counted by the files it holds; a top-level archive on disk is what takes space.
       if (!f.ref.includes('!')) size += f.size;
       if (f.role === 'main') assetCount++;

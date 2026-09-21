@@ -21,7 +21,8 @@ export type Filters = Partial<Record<Facet, string[]>>;
 /** Which packs a query looks at. Browse shows the library; the Inbox page shows what's waiting. */
 export type Scope = 'library' | 'inbox' | 'all';
 
-export type AssetSort = 'name' | 'added' | 'size' | 'pack' | 'type';
+/** `relevance` puts whole-word matches of the search first; without search text it sorts by name. */
+export type AssetSort = 'relevance' | 'name' | 'added' | 'size' | 'pack' | 'type';
 export type PackSort = 'name' | 'added' | 'size' | 'count';
 
 export interface BrowseQuery {

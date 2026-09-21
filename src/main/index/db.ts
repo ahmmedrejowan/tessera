@@ -8,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
  * deleted and rebuilt; a schema change simply rebuilds it.
  */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 const SCHEMA = `
 CREATE TABLE packs (
@@ -57,8 +57,8 @@ CREATE INDEX assets_pack ON assets(pack_id, role);
 CREATE INDEX assets_type ON assets(type, role);
 CREATE INDEX assets_ext ON assets(ext);
 
--- Words of each asset's path; rowid is assets.id.
-CREATE VIRTUAL TABLE assets_fts USING fts5(words, content='', contentless_delete=1, tokenize='unicode61 remove_diacritics 2', prefix='2 3');
+-- Words of each asset's file name, and of the folders (and archives) it sits in; rowid is assets.id.
+CREATE VIRTUAL TABLE assets_fts USING fts5(name, path, content='', contentless_delete=1, tokenize='unicode61 remove_diacritics 2', prefix='2 3');
 -- Words describing each pack: name, source, creator, genres, styles, tags, description.
 CREATE VIRTUAL TABLE packs_fts USING fts5(pack_id UNINDEXED, words, tokenize='unicode61 remove_diacritics 2', prefix='2 3');
 `;

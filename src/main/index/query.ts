@@ -47,6 +47,7 @@ const PACK_COLUMN: Partial<Record<Facet, string>> = { source: 'p.source', creato
 const ASSET_COLUMN: Partial<Record<Facet, string>> = { type: 'a.type', format: 'a.ext' };
 
 const ASSET_SORT: Record<AssetSort, string> = {
+  relevance: 'a.name COLLATE NOCASE, a.id',
   name: 'a.name COLLATE NOCASE, a.id',
   added: 'p.added_at DESC, a.name COLLATE NOCASE, a.id',
   size: 'a.size DESC, a.id',
@@ -118,10 +119,19 @@ export class LibraryQueries {
     const w = this.where(this.clauses(q, 'assets'));
     const from = `FROM assets a JOIN packs p ON p.id = a.pack_id ${w.sql}`;
     const total = this.get<{ n: number }>(`SELECT count(*) AS n ${from}`, w.params)!.n;
+    // Relevance: a search word that is a whole word of the file name scores 3, the start of one 2,
+    // a whole word of its folders 1. Matches through the pack's own words score nothing extra.
+    const terms = sort === 'relevance' ? searchTerms(q.text) : [];
+    const exact: string[] = [];
+    for (const t of terms) exact.push(`name : ${t.slice(0, -1)}`, `name : ${t}`, `path : ${t.slice(0, -1)}`);
+    const hit = 'a.id IN (SELECT rowid FROM assets_fts WHERE assets_fts MATCH ?)';
+    const score = terms.length
+      ? `(${terms.map(() => `(CASE WHEN ${hit} THEN 3 WHEN ${hit} THEN 2 WHEN ${hit} THEN 1 ELSE 0 END)`).join(' + ')}) DESC, `
+      : '';
     const rows = this.all<AssetRow>(
       `SELECT a.id, a.pack_id AS packId, p.name AS packName, a.ref, a.name, a.dir, a.ext, a.kind, a.type, a.role, a.size
-       ${from} ORDER BY ${ASSET_SORT[sort]} LIMIT ? OFFSET ?`,
-      [...w.params, limit, offset],
+       ${from} ORDER BY ${score}${ASSET_SORT[sort]} LIMIT ? OFFSET ?`,
+      [...w.params, ...exact, limit, offset],
     );
     return { rows, total };
   }
