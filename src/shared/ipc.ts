@@ -33,6 +33,9 @@ export interface Invokes {
   'pack:files': (id: string) => AssetRow[];
   'pack:edit': (id: string, edit: PackEdit) => void;
   'asset:get': (id: number) => AssetRow | null;
+  'asset:variants': (id: number) => AssetRow[];
+  /** Show a pack's folder, or the file on disk that holds one of its files, in Finder / Explorer. */
+  'pack:reveal': (id: string, ref?: string) => void;
 
   'jobs:list': () => Job[];
 }

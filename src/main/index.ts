@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, nativeTheme, shell } from 'electron';
 import { join } from 'node:path';
 import type { Platform } from '@shared/types';
 import { broadcast, handle } from './ipc';
+import { parseRef } from './index/files';
 import { Jobs } from './jobs';
 import { DIRS } from './library/layout';
 import { LibraryService } from './libraryService';
@@ -118,6 +119,13 @@ function registerHandlers(): void {
   handle('pack:files', (id) => library.require().queries.packFiles(id));
   handle('pack:edit', (id, edit) => library.editPack(id, edit));
   handle('asset:get', (id) => library.require().queries.asset(id));
+  handle('asset:variants', (id) => library.require().queries.variants(id));
+  handle('pack:reveal', async (id, ref) => {
+    const pack = await library.packRecord(id);
+    // A file inside an archive can't be shown; the archive holding it can.
+    const onDisk = ref ? parseRef(ref).file : null;
+    shell.showItemInFolder(onDisk ? join(pack.dir, ...onDisk.split('/')) : join(pack.dir, 'pack.json'));
+  });
 
   handle('jobs:list', () => jobs.list());
 }
