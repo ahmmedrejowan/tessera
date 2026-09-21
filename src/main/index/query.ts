@@ -171,6 +171,14 @@ export class LibraryQueries {
     return r ? toAsset(r) : null;
   }
 
+  /** Words already used in the library for a pack field, most used first, for suggestions. */
+  terms(field: 'genre' | 'style' | 'tag' | 'creator'): { value: string; count: number }[] {
+    if (field === 'creator') {
+      return this.all('SELECT creator AS value, count(*) AS count FROM packs WHERE creator IS NOT NULL GROUP BY creator ORDER BY 2 DESC, 1 LIMIT 500');
+    }
+    return this.all('SELECT value, count(*) AS count FROM pack_terms WHERE facet = ? GROUP BY value ORDER BY 2 DESC, 1 LIMIT 500', [field]);
+  }
+
   /** What the thumbnailer needs to know about assets. */
   thumbInfo(ids: number[]): { id: number; packId: string; ref: string; ext: string; kind: string; type: string; size: number; mtime: number }[] {
     if (!ids.length) return [];
@@ -255,10 +263,17 @@ export class LibraryQueries {
     }
     const samples = new Map<string, PackRow['samples']>();
     for (const a of this.all<{ packId: string } & PackRow['samples'][number]>(
+      // Spread across the pack (every quarter of it) rather than its first folder, and skip
+      // animation rigs and sample scenes, which say little about what the pack holds.
       `SELECT id, packId, ref, ext, kind, type FROM (
          SELECT id, pack_id AS packId, ref, ext, kind, type,
-           ROW_NUMBER() OVER (PARTITION BY pack_id ORDER BY (kind = 'image') DESC, dir, name) AS n
-         FROM assets WHERE role = 'main' AND pack_id IN (${marks})) WHERE n <= 4`,
+           ROW_NUMBER() OVER w AS n, COUNT(*) OVER (PARTITION BY pack_id) AS c
+         FROM assets
+         WHERE role = 'main' AND pack_id IN (${marks})
+         WINDOW w AS (PARTITION BY pack_id ORDER BY
+           (lower(dir) GLOB '*anim*' OR lower(dir) GLOB '*rig*' OR lower(dir) GLOB '*sample*' OR lower(name) GLOB 'rig*'),
+           (kind = 'image') DESC, dir, name))
+       WHERE (n - 1) % MAX(1, c / 4) = 0 AND n <= MAX(1, c / 4) * 4`,
       ids,
     )) {
       const list = samples.get(a.packId) ?? [];
