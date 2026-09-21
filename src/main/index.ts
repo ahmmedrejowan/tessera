@@ -8,6 +8,7 @@ import { DIRS } from './library/layout';
 import { LibraryService } from './libraryService';
 import { initLog, log } from './log';
 import { handleProtocol, registerSchemePrivileges } from './protocol';
+import { packFileUrl } from '@shared/urls';
 import { SettingsStore } from './settings';
 import { RenderWindow } from './thumbs/renderWindow';
 import { ThumbService } from './thumbs/service';
@@ -137,6 +138,11 @@ function registerHandlers(): void {
   handle('pack:edit', (id, edit) => library.editPack(id, edit));
   handle('asset:get', (id) => library.require().queries.asset(id));
   handle('asset:variants', (id) => library.require().queries.variants(id));
+  handle('pack:textures', (id) => {
+    const out: Record<string, string> = {};
+    for (const img of library.require().queries.packImages(id)) out[img.name.toLowerCase()] ??= packFileUrl(id, img.ref);
+    return out;
+  });
   handle('pack:reveal', async (id, ref) => {
     const pack = await library.packRecord(id);
     // A file inside an archive can't be shown; the archive holding it can.
