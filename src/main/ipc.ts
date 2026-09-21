@@ -1,17 +1,9 @@
 import { ipcMain, type BrowserWindow } from 'electron';
 import type { EventChannel, Events, InvokeChannel, Invokes, Wire } from '@shared/ipc';
+import { UserError } from './errors';
 import { log } from './log';
 
-/** An error whose message is meant for the person using the app, with a stable code for the UI. */
-export class UserError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
-    super(message);
-    this.name = 'UserError';
-  }
-}
+export { UserError };
 
 type Handler<K extends InvokeChannel> = (...args: Parameters<Invokes[K]>) => ReturnType<Invokes[K]> | Promise<ReturnType<Invokes[K]>>;
 
