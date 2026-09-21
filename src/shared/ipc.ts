@@ -4,9 +4,9 @@
  * `Invokes` are request/response calls the window makes; `Events` are pushed from main. Both sides
  * are typed from these two maps, so a channel can't be misspelled or called with the wrong shape.
  */
-import type { PackEdit, PackMeta } from './pack';
+import type { PackEdit, PackMeta, PackStatus } from './pack';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, Page, PackRow, PackSort } from './query';
-import type { AppInfo, FolderKind, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { AppInfo, Detected, FolderKind, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -24,6 +24,8 @@ export interface Invokes {
   'library:close': () => void;
   'library:refresh': () => void;
   'library:stats': () => LibraryStats;
+  /** Words already used for a pack field, most used first. */
+  'library:terms': (field: 'genre' | 'style' | 'tag' | 'creator') => { value: string; count: number }[];
 
   'browse:assets': (query: BrowseQuery, sort: AssetSort, offset: number, limit: number) => Page<AssetRow>;
   'browse:packs': (query: BrowseQuery, sort: PackSort, offset: number, limit: number) => Page<PackRow>;
@@ -32,6 +34,15 @@ export interface Invokes {
   'pack:get': (id: string) => (PackRow & { meta: PackMeta }) | null;
   'pack:files': (id: string) => AssetRow[];
   'pack:edit': (id: string, edit: PackEdit) => void;
+  /** Licence, source and creator read from the pack's own files. */
+  'pack:detect': (id: string) => Detected;
+  /** Move a pack between the Inbox and the library; joining the library needs a licence and a source. */
+  'pack:status': (id: string, status: PackStatus) => void;
+  /** Files in the pack's licence/ folder: licence texts, receipts, screenshots. */
+  'pack:proof': (id: string) => { name: string; size: number; url: string }[];
+  /** Ask for files and copy them into the pack's licence/ folder; returns how many were added. */
+  'pack:addProof': (id: string) => number;
+  'pack:openProof': (id: string, name: string) => void;
   'asset:get': (id: number) => AssetRow | null;
   'asset:variants': (id: number) => AssetRow[];
   /** A pack's images by lower-case file name → URL, for finding a model's textures. */

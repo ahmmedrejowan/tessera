@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, nativeTheme, shell } from 'electron';
 import { join } from 'node:path';
 import type { Platform } from '@shared/types';
-import { broadcast, handle } from './ipc';
+import { broadcast, handle, UserError } from './ipc';
 import { parseRef } from './index/files';
 import { Jobs } from './jobs';
 import { DIRS } from './library/layout';
@@ -128,6 +128,7 @@ function registerHandlers(): void {
   });
   handle('library:refresh', () => library.sync());
   handle('library:stats', () => library.require().queries.stats());
+  handle('library:terms', (field) => library.require().queries.terms(field));
 
   handle('browse:assets', (q, sort, offset, limit) => library.require().queries.assets(q, sort, offset, Math.min(limit, 1000)));
   handle('browse:packs', (q, sort, offset, limit) => library.require().queries.packs(q, sort, offset, Math.min(limit, 1000)));
@@ -136,6 +137,19 @@ function registerHandlers(): void {
   handle('pack:get', (id) => library.require().queries.pack(id));
   handle('pack:files', (id) => library.require().queries.packFiles(id));
   handle('pack:edit', (id, edit) => library.editPack(id, edit));
+  handle('pack:detect', (id) => library.detect(id));
+  handle('pack:status', (id, status) => library.setStatus(id, status));
+  handle('pack:proof', async (id) => (await library.proofFiles(id)).map((f) => ({ ...f, url: packFileUrl(id, `licence/${f.name}`) })));
+  handle('pack:addProof', async (id) => {
+    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
+    const options = { title: 'Add licence proof', properties: ['openFile', 'multiSelections'] as ('openFile' | 'multiSelections')[] };
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    return result.canceled ? 0 : library.addProof(id, result.filePaths);
+  });
+  handle('pack:openProof', async (id, name) => {
+    const error = await shell.openPath(await library.proofPath(id, name));
+    if (error) throw new UserError('open-failed', error);
+  });
   handle('asset:get', (id) => library.require().queries.asset(id));
   handle('asset:variants', (id) => library.require().queries.variants(id));
   handle('pack:textures', (id) => {

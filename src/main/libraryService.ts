@@ -1,13 +1,17 @@
 import { watch, type FSWatcher } from 'node:fs';
-import { join } from 'node:path';
-import type { PackEdit } from '@shared/pack';
-import type { FolderKind, LibraryState } from '@shared/types';
+import { copyFile, mkdir, readdir, stat } from 'node:fs/promises';
+import { basename, extname, join } from 'node:path';
+import { missingForLibrary, type PackEdit, type PackStatus } from '@shared/pack';
+import type { Detected, FolderKind, LibraryState } from '@shared/types';
 import { UserError } from './errors';
+import { listPackFiles } from './index/files';
 import { LibraryIndex } from './index/indexer';
 import { LibraryQueries } from './index/query';
 import type { Jobs } from './jobs';
-import { createLibrary, DIRS, inspectFolder, readLibraryInfo } from './library/layout';
-import { editPack, readPack, type PackRecord } from './library/packs';
+import { detectPack } from './library/detect';
+import { createLibrary, DIRS, inspectFolder, PACK_DIRS, readLibraryInfo } from './library/layout';
+import { safeFolderName, uniqueName } from './library/names';
+import { editPack, readPack, writePack, type PackRecord } from './library/packs';
 import { log } from './log';
 
 interface Deps {
@@ -142,6 +146,64 @@ export class LibraryService {
     const row = lib.queries.pack(id);
     if (!row) throw new UserError('no-pack', 'That pack is no longer in the library.');
     return readPack(join(lib.root, DIRS.packs, row.folder), row.folder);
+  }
+
+  async detect(id: string): Promise<Detected> {
+    const pack = await this.packRecord(id);
+    const { files } = await listPackFiles(pack.dir);
+    return detectPack(pack.dir, files);
+  }
+
+  async setStatus(id: string, status: PackStatus): Promise<void> {
+    const lib = this.require();
+    const pack = await this.packRecord(id);
+    if (pack.meta.status === status) return;
+    if (status === 'library') {
+      const missing = missingForLibrary(pack.meta);
+      if (missing.length) throw new UserError('pack-incomplete', `Add ${missing.join(' and ')} before moving this pack to the library.`);
+    }
+    const meta = await writePack(pack.dir, { ...pack.meta, status });
+    await lib.index.syncPack({ ...pack, meta }, lib.index.known(id));
+    this.d.onIndexChanged();
+  }
+
+  async proofFiles(id: string): Promise<{ name: string; size: number }[]> {
+    const pack = await this.packRecord(id);
+    const dir = join(pack.dir, PACK_DIRS.licence);
+    const out: { name: string; size: number }[] = [];
+    for (const e of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+      if (e.isFile() && !e.name.startsWith('.')) out.push({ name: e.name, size: (await stat(join(dir, e.name))).size });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** Copy files into a pack's licence/ folder and record them as proof. */
+  async addProof(id: string, files: string[]): Promise<number> {
+    const lib = this.require();
+    const pack = await this.packRecord(id);
+    const dir = join(pack.dir, PACK_DIRS.licence);
+    await mkdir(dir, { recursive: true });
+    const taken = new Set((await readdir(dir)).map((n) => n.toLowerCase()));
+    const added: string[] = [];
+    for (const src of files) {
+      const ext = extname(src);
+      const name = uniqueName(safeFolderName(basename(src, ext)), (c) => taken.has(`${c}${ext}`.toLowerCase())) + ext;
+      await copyFile(src, join(dir, name));
+      taken.add(name.toLowerCase());
+      added.push(name);
+    }
+    if (added.length) {
+      const meta = await writePack(pack.dir, { ...pack.meta, licence: { ...pack.meta.licence, proof: [...new Set([...pack.meta.licence.proof, ...added])] } });
+      await lib.index.syncPack({ ...pack, meta }, lib.index.known(id));
+      this.d.onIndexChanged();
+    }
+    return added.length;
+  }
+
+  async proofPath(id: string, name: string): Promise<string> {
+    const pack = await this.packRecord(id);
+    if (name.includes('/') || name.includes('\\') || name.startsWith('.')) throw new UserError('bad-name', 'That file is not in the pack.');
+    return join(pack.dir, PACK_DIRS.licence, name);
   }
 
   async editPack(id: string, edit: PackEdit): Promise<void> {
