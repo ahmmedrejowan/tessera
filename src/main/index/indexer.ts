@@ -17,7 +17,7 @@ const sha1 = (s: string) => createHash('sha1').update(s).digest('hex');
  * Bump when classification or variant grouping changes: every pack's files are read again on the
  * next sync, without throwing the rest of the index away.
  */
-export const CLASSIFY_VERSION = 3;
+export const CLASSIFY_VERSION = 4;
 
 /** A quick fingerprint of a pack's files from sizes and times alone, so unchanged packs are skipped without opening archives. */
 async function filesSignature(packDir: string): Promise<string> {

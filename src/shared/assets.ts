@@ -156,7 +156,13 @@ export function classify(path: string, size: number, ctx: PackContext): Classifi
 const VARIANT_DIR = /^(fbx|obj|glb|gltf|gltf ?binary|dae|collada|blend|blender|stl|ply|usdz?|3ds|models? ?(fbx|obj|glb|gltf)|(fbx|obj|glb|gltf|dae|blend) ?(format|files|models?|export)?|png|jpe?g|svg|vector|vectors|webp|tga|psd|default|double|retina|hd|sd|x?[0-9]+x|@?[0-9]x|\(?[0-9]+ ?px\)?|(default|double|large|small) ?\(?[0-9]+ ?px\)?|ogg|wav|mp3|flac|ttf|otf|woff2?)$/i;
 
 /** Order of preference for the file that stands for a group of variants. */
-const PREFERRED: Record<string, number> = { glb: 0, gltf: 1, fbx: 2, obj: 3, dae: 4, blend: 5, png: 0, webp: 1, jpg: 2, jpeg: 2, svg: 3, ogg: 0, wav: 1, mp3: 2, flac: 3, ttf: 0, otf: 1, woff2: 2, woff: 3 };
+// Formats the app can preview come first; .blend (Blender only) and unknown ones last.
+const PREFERRED: Record<string, number> = {
+  glb: 0, gltf: 1, fbx: 2, obj: 3, dae: 4, '3ds': 5, stl: 6, ply: 7, usdz: 8, vox: 8, blend: 20,
+  png: 0, webp: 1, jpg: 2, jpeg: 2, svg: 3,
+  ogg: 0, wav: 1, mp3: 2, flac: 3,
+  ttf: 0, otf: 1, woff2: 2, woff: 3,
+};
 export const preference = (ext: string) => PREFERRED[ext] ?? 9;
 
 /** The key shared by all variants of one asset: its kind, its folders minus format/size folders, and its name without extension. */

@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { classify, variantKey } from '@shared/assets';
+import { classify, preference, variantKey } from '@shared/assets';
 import type { BrowseQuery } from '@shared/query';
 import { displayPath, listPackFiles, parseRef, readPackFile } from '../src/main/index/files';
 import { LibraryIndex } from '../src/main/index/indexer';
@@ -48,6 +48,8 @@ describe('variant keys', () => {
     expect(k('Assets/fbx(unity)/Bush_1.fbx')).toBe(k('Assets/gltf/Bush_1.gltf'));
     expect(k('Assets/FBX (Blender)/Bush_1.fbx')).toBe(k('Assets/obj/Bush_1.obj'));
     expect(k('Trees/tree.fbx')).not.toBe(k('Rocks/tree.fbx'));
+    expect(preference('blend')).toBeGreaterThan(preference('usdc'));
+    expect(preference('glb')).toBeLessThan(preference('fbx'));
     expect(k('Models/car.fbx')).not.toBe(k('Models/car_large.fbx'));
   });
 });
