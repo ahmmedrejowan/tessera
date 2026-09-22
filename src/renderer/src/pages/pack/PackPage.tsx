@@ -3,6 +3,7 @@ import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined';
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import EditOutlined from '@mui/icons-material/EditOutlined';
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
 import HighlightOffOutlined from '@mui/icons-material/HighlightOffOutlined';
 import InboxOutlined from '@mui/icons-material/InboxOutlined';
@@ -10,6 +11,10 @@ import SearchOutlined from '@mui/icons-material/SearchOutlined';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
 import InputBase from '@mui/material/InputBase';
 import Tab from '@mui/material/Tab';
@@ -25,6 +30,7 @@ import type { AssetRow } from '@shared/query';
 import { sourceInfo } from '@shared/sources';
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
+import { toast } from '../../components/Toast';
 import { formatBytes, formatCount, sourceName, typeSummary } from '../../components/labels';
 import { LicenceChip, licenceSummary } from '../../components/LicenceChip';
 import { VirtualGrid } from '../../components/VirtualGrid';
@@ -70,7 +76,7 @@ function Yes({ ok, children }: { ok: boolean; children: ReactNode }) {
 export function PackPage({ id }: { id: string }) {
   const lib = useLibraryId();
   const version = useIndexVersion();
-  const { goBack, back } = useNav();
+  const { goBack, back, go } = useNav();
   const tileSize = useBrowse((s) => s.tileSize);
   const [tab, setTab] = useState<TabId>('assets');
   const [editing, setEditing] = useState(false);
@@ -78,6 +84,7 @@ export function PackPage({ id }: { id: string }) {
   const [find, setFind] = useState('');
   const [viewing, setViewing] = useState<{ list: AssetRow[]; index: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   const pack = useQuery({ queryKey: ['pack', lib, version, id], queryFn: () => call('pack:get', id), enabled: !!lib, placeholderData: (p) => p }).data;
   const files = useQuery({ queryKey: ['pack-files', lib, version, id], queryFn: () => call('pack:files', id), enabled: !!lib }).data ?? [];
@@ -159,6 +166,9 @@ export function PackPage({ id }: { id: string }) {
             </Button>
             <Button variant="outlined" startIcon={<FolderOpenOutlined />} onClick={() => void call('pack:reveal', id)}>
               Show folder
+            </Button>
+            <Button color="error" startIcon={<DeleteOutlined />} onClick={() => setRemoving(true)}>
+              Remove
             </Button>
           </div>
         </div>
@@ -331,6 +341,33 @@ export function PackPage({ id }: { id: string }) {
         )}
       </div>
 
+      <Dialog open={removing} onClose={() => setRemoving(false)}>
+        <DialogTitle>Remove “{pack.name}”?</DialogTitle>
+        <DialogContent>
+          <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
+            The pack’s folder goes to the {window.tessera.platform === 'win32' ? 'Recycle Bin' : 'Trash'}, so you can put it back from there. Copies already in your game projects stay.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRemoving(false)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={async () => {
+              setRemoving(false);
+              try {
+                const name = await call('pack:remove', id);
+                toast(`Moved “${name}” to the ${window.tessera.platform === 'win32' ? 'Recycle Bin' : 'Trash'}.`);
+                go({ to: 'browse' });
+              } catch (e) {
+                toast(e instanceof Error ? e.message : String(e));
+              }
+            }}
+          >
+            Remove
+          </Button>
+        </DialogActions>
+      </Dialog>
       <PackEditor packId={id} meta={pack.meta} open={editing} onClose={() => setEditing(false)} />
       {viewing && viewed && (
         <Suspense fallback={null}>

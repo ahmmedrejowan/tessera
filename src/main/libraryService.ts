@@ -324,6 +324,21 @@ export class LibraryService {
     return join(pack.dir, PACK_DIRS.licence, name);
   }
 
+  /** Take a pack out of the library by moving its folder to the system trash (so it can be put back). */
+  async removePack(id: string, trash: (path: string) => Promise<void>): Promise<string> {
+    const lib = this.require();
+    const pack = await this.packRecord(id);
+    this.busyWriting++;
+    try {
+      await trash(pack.dir);
+      lib.index.removePack(id);
+    } finally {
+      this.busyWriting--;
+    }
+    this.d.onIndexChanged();
+    return pack.meta.name;
+  }
+
   async editPack(id: string, edit: PackEdit): Promise<void> {
     const lib = this.require();
     const updated = await editPack(await this.packRecord(id), edit);

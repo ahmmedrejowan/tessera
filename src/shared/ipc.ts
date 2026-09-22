@@ -8,7 +8,7 @@ import type { PackEdit, PackMeta, PackStatus } from './pack';
 import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } from './project';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
-import type { AppInfo, BackupStatus, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { AppInfo, BackupStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -48,6 +48,8 @@ export interface Invokes {
   'pack:detect': (id: string) => Detected;
   /** Move a pack between the Inbox and the library; joining the library needs a licence and a source. */
   'pack:status': (id: string, status: PackStatus) => void;
+  /** Move a pack to the system trash; returns its name. */
+  'pack:remove': (id: string) => string;
   /** Files in the pack's licence/ folder: licence texts, receipts, screenshots. */
   'pack:proof': (id: string) => { name: string; size: number; url: string }[];
   /** Ask for files and copy them into the pack's licence/ folder; returns how many were added. */
@@ -130,6 +132,7 @@ export interface Events {
   'backup:changed': number;
   /** Sync settings or state changed. */
   'sync:changed': number;
+  'menu:command': MenuCommand;
 }
 
 export type InvokeChannel = keyof Invokes;

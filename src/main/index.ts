@@ -9,6 +9,7 @@ import { DIRS } from './library/layout';
 import { LibraryService } from './libraryService';
 import { BackupService } from './backup/service';
 import { registerDrag } from './drag';
+import { installMenu } from './menu';
 import { fileSecret } from './secrets';
 import { SyncService } from './sync/service';
 import { initLog, log } from './log';
@@ -133,6 +134,7 @@ async function start(): Promise<void> {
     broadcast(windows, 'settings:changed', next);
   });
   registerHandlers();
+  installMenu(() => BrowserWindow.getFocusedWindow() ?? windows()[0], join(dataDir, 'logs'));
   registerDrag({
     cacheDir: () => {
       const state = library.getState();
@@ -235,6 +237,7 @@ function registerHandlers(): void {
   });
   handle('pack:detect', (id) => library.detect(id));
   handle('pack:status', (id, status) => library.setStatus(id, status));
+  handle('pack:remove', (id) => library.removePack(id, (path) => shell.trashItem(path)));
   handle('pack:proof', async (id) => (await library.proofFiles(id)).map((f) => ({ ...f, url: packFileUrl(id, `licence/${f.name}`) })));
   handle('pack:addProof', async (id) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
