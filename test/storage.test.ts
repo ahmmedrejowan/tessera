@@ -7,7 +7,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { describeTarget, targetProblem, withoutSecrets, type StorageTarget } from '../src/shared/storage';
 import { Kopia } from '../src/main/backup/kopia';
 import { RestoreService } from '../src/main/backup/restore';
-import { hostKeys, kopiaStorage, storageError } from '../src/main/backup/storage';
+import { kopiaStorage, storageError } from '../src/main/backup/storage';
+import { forgetHost, hostKeys, keyNeedsPassphrase, knownHostName } from '../src/main/backup/ssh';
 import { createLibrary } from '../src/main/library/layout';
 import { findTool } from '../src/main/tools/find';
 
@@ -29,7 +30,9 @@ describe('storage for Kopia', () => {
     expect(kopiaStorage(t('folder', { path: '/x' }), noRclone)).toEqual({ type: 'filesystem', args: ['--path=/x'], env: {} });
     expect(kopiaStorage(t('azure', { account: 'acc', container: 'c', key: 'K' }), noRclone)).toEqual({ type: 'azure', args: ['--container=c', '--storage-account=acc'], env: { AZURE_STORAGE_KEY: 'K' } });
     expect(kopiaStorage(t('webdav', { url: 'https://d/x', username: 'u', password: 'p' }), noRclone)).toMatchObject({ type: 'webdav', args: ['--url=https://d/x', '--webdav-username=u'], env: { KOPIA_WEBDAV_PASSWORD: 'p' } });
-    expect(kopiaStorage(t('sftp', { host: 'h', port: '2222', username: 'u', path: 'p', keyFile: '/k', knownHosts: 'h ssh-ed25519 AAA' }), noRclone).args).toEqual(['--host=h', '--port=2222', '--username=u', '--path=p', '--keyfile=/k', '--known-hosts-data=h ssh-ed25519 AAA']);
+    expect(kopiaStorage(t('sftp', { host: 'h', port: '2222', username: 'u', path: 'p', keyFile: '/nonexistent/k', knownHosts: 'h ssh-ed25519 AAA' }), noRclone).args).toEqual(['--host=h', '--port=2222', '--username=u', '--path=p', '--keyfile=/nonexistent/k', '--known-hosts-data=h ssh-ed25519 AAA']);
+    expect(knownHostName('h', '22')).toBe('h');
+    expect(knownHostName('h', '2222')).toBe('[h]:2222');
     expect(kopiaStorage(t('gdrive', { remote: 'r1', folder: 'Tessera Backups' }), { exe: '/bin/rclone', config: '/c/rclone.conf' }).args).toEqual(['--remote-path=r1:Tessera Backups', '--rclone-exe=/bin/rclone', '--rclone-env=RCLONE_CONFIG=/c/rclone.conf']);
     expect(() => kopiaStorage(t('gdrive', { folder: 'x' }), noRclone)).toThrow(/rclone/);
   });
@@ -146,6 +149,35 @@ describe.skipIf(!kopia || !rclone)('backing up to real servers', () => {
     const sources = await roundTrip(t('sftp', { host: '127.0.0.1', port: String(port), username: 'tess', password: 'pw-123456', path: 'tessera', knownHosts: key.data }));
     expect(sources.map((s) => s.name)).toEqual(['Lib']);
   }, 60_000);
+
+  it('SFTP with a passphrase key, through the SSH agent', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tessera-agent-'));
+    await mkdir(join(dir, 'data'));
+    execFileSync('ssh-keygen', ['-q', '-t', 'ed25519', '-N', 'open sesame', '-f', join(dir, 'key'), '-C', 'test']);
+    execFileSync('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', join(dir, 'plain'), '-C', 'test']);
+    const { readFileSync } = await import('node:fs');
+    expect(keyNeedsPassphrase(readFileSync(join(dir, 'key'), 'utf8'))).toBe(true);
+    expect(keyNeedsPassphrase(readFileSync(join(dir, 'plain'), 'utf8'))).toBe(false);
+    // A private agent holding the key, as the user's own agent would after ssh-add.
+    const sock = join(dir, 'agent.sock');
+    const agent = spawn('ssh-agent', ['-D', '-a', sock], { stdio: 'ignore' });
+    children.push(agent);
+    for (let i = 0; i < 50 && !(await import('node:fs')).existsSync(sock); i++) await new Promise((r) => setTimeout(r, 100));
+    await writeFile(join(dir, 'askpass'), '#!/bin/sh\necho "open sesame"\n', { mode: 0o755 });
+    execFileSync('ssh-add', [join(dir, 'key')], { env: { ...process.env, SSH_AUTH_SOCK: sock, SSH_ASKPASS: join(dir, 'askpass'), SSH_ASKPASS_REQUIRE: 'force', DISPLAY: ':0' }, stdio: 'ignore' });
+    const port = await freePort();
+    await serve('sftp', join(dir, 'data'), port, ['--authorized-keys', join(dir, 'key.pub')]);
+    const key = await hostKeys('127.0.0.1', String(port));
+    const before = process.env.SSH_AUTH_SOCK;
+    process.env.SSH_AUTH_SOCK = sock;
+    try {
+      const sources = await roundTrip(t('sftp', { host: '127.0.0.1', port: String(port), username: 'tess', path: 'tessera', keyFile: join(dir, 'key'), knownHosts: key.data }));
+      expect(sources.map((s) => s.name)).toEqual(['Lib']);
+    } finally {
+      process.env.SSH_AUTH_SOCK = before;
+      forgetHost(knownHostName('127.0.0.1', String(port)));
+    }
+  }, 90_000);
 
   it('a cloud drive through rclone (a local remote standing in)', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'tessera-rclone-'));

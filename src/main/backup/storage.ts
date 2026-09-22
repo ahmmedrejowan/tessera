@@ -1,7 +1,6 @@
-import { execFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { providerInfo, type StorageTarget } from '@shared/storage';
 import { UserError } from '../errors';
+import { keyFileNeedsPassphrase, rememberHost, TESSERA_KNOWN_HOSTS } from './ssh';
 
 /** How Kopia reaches a store: its storage type, the flags for it, and secrets passed by environment. */
 export interface KopiaStorage {
@@ -64,19 +63,17 @@ export function kopiaStorage(t: StorageTarget, rclone: RcloneSetup): KopiaStorag
       return { type: 'gcs', args: [`--bucket=${v.bucket}`, `--credentials-file=${v.credentials}`, ...(prefixOf(v.prefix) ? [`--prefix=${prefixOf(v.prefix)}`] : [])], env: {} };
     case 'azure':
       return { type: 'azure', args: [`--container=${v.container}`, `--storage-account=${v.account}`, ...(prefixOf(v.prefix) ? [`--prefix=${prefixOf(v.prefix)}`] : [])], env: { AZURE_STORAGE_KEY: v.key ?? '' } };
-    case 'sftp':
-      return {
-        type: 'sftp',
-        args: [
-          `--host=${v.host}`,
-          `--port=${v.port || '22'}`,
-          `--username=${v.username}`,
-          `--path=${v.path}`,
-          ...(v.keyFile ? [`--keyfile=${v.keyFile}`] : [`--sftp-password=${v.password ?? ''}`]),
-          `--known-hosts-data=${v.knownHosts ?? ''}`,
-        ],
-        env: {},
-      };
+    case 'sftp': {
+      const base = [`--host=${v.host}`, `--port=${v.port || '22'}`, `--username=${v.username}`, `--path=${v.path}`];
+      // A key with a passphrase can't be read by Kopia itself: the system ssh uses it from the SSH
+      // agent instead, checking the server against the keys fetched when it was set up.
+      if (v.keyFile && keyFileNeedsPassphrase(v.keyFile)) {
+        if (v.knownHosts) rememberHost(v.knownHosts);
+        const ssh = ['-p', v.port || '22', '-o', `UserKnownHostsFile=${TESSERA_KNOWN_HOSTS}`, '-o', 'StrictHostKeyChecking=yes', '-o', 'BatchMode=yes'];
+        return { type: 'sftp', args: [...base, '--external', '--ssh-command=ssh', `--ssh-args=${ssh.join(' ')}`], env: {} };
+      }
+      return { type: 'sftp', args: [...base, ...(v.keyFile ? [`--keyfile=${v.keyFile}`] : [`--sftp-password=${v.password ?? ''}`]), `--known-hosts-data=${v.knownHosts ?? ''}`], env: {} };
+    }
     case 'webdav':
       return { type: 'webdav', args: [`--url=${v.url}`, ...(v.username ? [`--webdav-username=${v.username}`] : [])], env: v.password ? { KOPIA_WEBDAV_PASSWORD: v.password } : {}, prepare: () => prepareStore(t) };
     default: {
@@ -117,25 +114,12 @@ export async function prepareStore(t: StorageTarget, fetcher: typeof fetch = fet
   }
 }
 
-/** A server's SSH host keys, for checking it's the same server every time, and their fingerprint. */
-export function hostKeys(host: string, port: string, keyscan = 'ssh-keyscan'): Promise<{ data: string; fingerprint: string }> {
-  return new Promise((resolve, reject) => {
-    execFile(keyscan, ['-p', port || '22', '-T', '8', host], { timeout: 15_000 }, (_err, stdout) => {
-      const lines = stdout.split('\n').filter((l) => l && !l.startsWith('#'));
-      if (!lines.length) return reject(new UserError('no-host-key', `Couldn’t reach ${host}. Check the server name and port.`));
-      const first = lines.find((l) => l.includes('ssh-ed25519')) ?? lines[0]!;
-      const key = first.split(/\s+/)[2] ?? '';
-      const fingerprint = `SHA256:${createHash('sha256').update(Buffer.from(key, 'base64')).digest('base64').replace(/=+$/, '')}`;
-      resolve({ data: lines.join('\n'), fingerprint });
-    });
-  });
-}
-
 /** Kopia's errors about a store, said plainly. */
 export function storageError(message: string): string {
   if (/invalid (repository )?password|incorrect password/i.test(message)) return 'That password doesn’t open these backups.';
   if (/RequestTimeTooSkewed|time.{0,20}skew|clock skew/i.test(message)) return 'This computer’s clock is off, so the storage service refused it. Set the date and time automatically, then try again.';
   if (/x509|certificate (signed by unknown|is not trusted|has expired|is valid for)|unknown authority|tls: failed to verify/i.test(message)) return 'The server’s certificate isn’t trusted by this computer. For a self-signed certificate, add its certificate authority under Advanced (S3), or to this computer’s trusted certificates (WebDAV).';
+  if (/Permission denied \(publickey|unable to authenticate|no supported methods remain/i.test(message)) return 'The server refused the key. A key with a passphrase is used through your SSH agent: add it with ssh-add (on a Mac, ssh-add --apple-use-keychain), then try again.';
   if (/rateLimitExceeded|userRateLimitExceeded|too many requests|429/i.test(message)) return 'The service is limiting how fast Tessera can go. It carries on later; for large backups, use your own client ID (Advanced).';
   if (/found existing data|already (exists|initialized)/i.test(message)) return 'There are backups here already. Choose “Use existing backups”.';
   if (/NoSuchBucket|bucket.*not exist/i.test(message)) return 'That bucket doesn’t exist.';

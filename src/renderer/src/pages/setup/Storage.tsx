@@ -222,6 +222,14 @@ export function StorageForm({ target, onChange, onBack, suggest = 'none', messag
     }
   };
   const Icon = GROUP_ICON[info.group];
+  // A key with a passphrase is used through the SSH agent, which has to hold it first.
+  const keyFile = target.provider === 'sftp' ? target.values.keyFile : undefined;
+  useEffect(() => {
+    if (!keyFile) return;
+    void call('backup:keyNeedsPassphrase', keyFile).then((needs) => {
+      if (needs) onMessage({ tone: 'info', text: <>This key has a passphrase, so it’s used through your SSH agent. Add it first: <code>{window.tessera.platform === 'darwin' ? 'ssh-add --apple-use-keychain' : 'ssh-add'} {keyFile}</code></> });
+    });
+  }, [keyFile]);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 36 }}>

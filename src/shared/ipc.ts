@@ -107,6 +107,8 @@ export interface Invokes {
   'backup:cancelSignIn': () => void;
   /** An SFTP server's host keys and fingerprint, to check it's the same server every time. */
   'backup:hostKey': (host: string, port: string) => { data: string; fingerprint: string };
+  /** Whether an SSH key file has a passphrase (then it's used through the SSH agent). */
+  'backup:keyNeedsPassphrase': (path: string) => boolean;
   /** Ask the user for a file; null when they cancel. */
   'dialog:file': (title: string) => string | null;
   /** Open a web page in the browser. */

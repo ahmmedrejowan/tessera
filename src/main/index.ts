@@ -12,7 +12,7 @@ import { describeFolder, locateLibrary } from './library/locate';
 import { bundledTool, installTool } from './tools/install';
 import { backupPlaces, findBackups, RestoreService, storeAt } from './backup/restore';
 import { RcloneAuth } from './backup/rclone';
-import { hostKeys } from './backup/storage';
+import { hostKeys, keyFileNeedsPassphrase } from './backup/ssh';
 import { providerInfo } from '@shared/storage';
 import { findTool } from './tools/find';
 import { applySystemProxy } from './tools/proxy';
@@ -425,6 +425,7 @@ function registerHandlers(): void {
   handle('backup:signIn', (provider, client) => rcloneAuth.signIn(providerInfo(provider), (url) => broadcast(windows, 'backup:signInUrl', url), client));
   handle('backup:cancelSignIn', () => rcloneAuth.cancel());
   handle('backup:hostKey', (host, port) => hostKeys(host, port));
+  handle('backup:keyNeedsPassphrase', (path) => keyFileNeedsPassphrase(path));
   handle('dialog:file', async (title) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
     const options: Electron.OpenDialogOptions = { title, message: title, properties: ['openFile', 'showHiddenFiles'] };
