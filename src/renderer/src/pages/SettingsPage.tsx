@@ -55,17 +55,36 @@ const SECTIONS: Section[] = [
   { id: 'about', title: 'About', part: 'app' },
 ];
 
-/** A part of Settings: the open library's, or the app's (every library). */
-function PartHeader({ icon, title, sub }: { icon: ReactNode; title: string; sub: string }) {
+/**
+ * Which half of Settings you are reading, kept at the top as you scroll: this library's own
+ * settings, or Tessera's, which every library on this computer shares.
+ */
+function PartBar({ part, libraryName }: { part: Section['part']; libraryName: string }) {
+  const library = part === 'library';
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', margin: '8px 0 20px', borderRadius: SHAPE.lg, background: md('secondaryContainer'), color: md('onSecondaryContainer') }}>
-      <span style={{ width: 40, height: 40, borderRadius: 12, display: 'grid', placeItems: 'center', background: mdAlpha('onSecondaryContainer', 0.1), flexShrink: 0 }}>{icon}</span>
+    <div
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 2,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 16px',
+        marginBottom: 24,
+        borderRadius: SHAPE.lg,
+        background: library ? md('secondaryContainer') : md('surfaceContainerHigh'),
+        color: library ? md('onSecondaryContainer') : md('onSurface'),
+        boxShadow: `0 1px 2px ${mdAlpha('shadow', 0.2)}`,
+      }}
+    >
+      <span style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', background: mdAlpha(library ? 'onSecondaryContainer' : 'onSurface', 0.1), flexShrink: 0 }}>{library ? <AutoStoriesOutlined sx={{ fontSize: 20 }} /> : <TuneRounded sx={{ fontSize: 20 }} />}</span>
       <div style={{ minWidth: 0 }}>
-        <Typography variant="titleMedium" noWrap>
-          {title}
+        <Typography variant="titleSmall" noWrap>
+          {library ? libraryName : 'Tessera'}
         </Typography>
-        <Typography variant="bodySmall" component="div" noWrap sx={{ opacity: 0.85 }}>
-          {sub}
+        <Typography variant="bodySmall" component="div" noWrap sx={{ opacity: 0.8 }}>
+          {library ? 'These settings belong to this library alone' : 'The same for every library on this computer'}
         </Typography>
       </div>
     </div>
@@ -96,7 +115,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
     const el = scroller.current;
     if (!el) return;
     const onScroll = () => {
-      const limit = el.getBoundingClientRect().top + 96;
+      const limit = el.getBoundingClientRect().top + 108;
       let at = SECTIONS[0]!.id;
       for (const s of SECTIONS) {
         const top = document.getElementById(`settings-${s.id}`)?.getBoundingClientRect().top;
@@ -131,14 +150,28 @@ export function SettingsPage({ section }: { section?: string } = {}) {
     }
   };
   const jump = (id: string) => document.getElementById(`settings-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  const at = (id: string) => ({ id: `settings-${id}`, style: { scrollMarginTop: 0 } });
+  const at = (id: string) => ({ id: `settings-${id}`, style: { scrollMarginTop: 84 } });
+
+  const NavGroup = ({ icon, label, name }: { icon: ReactNode; label: string; name?: string }) => (
+    <div style={{ padding: '18px 12px 6px' }}>
+      <Typography variant="labelLarge" noWrap sx={{ color: md('onSurface'), display: 'flex', alignItems: 'center', gap: 0.75 }}>
+        {icon}
+        {label}
+      </Typography>
+      {name && (
+        <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant'), pl: 2.5 }}>
+          {name}
+        </Typography>
+      )}
+    </div>
+  );
 
   const navItem = (s: Section) => (
     <ButtonBase
       key={s.id}
       onClick={() => jump(s.id)}
       aria-current={current === s.id ? 'true' : undefined}
-      sx={{ justifyContent: 'flex-start', height: 36, px: 1.5, borderRadius: `${SHAPE.full}px`, color: current === s.id ? md('onSecondaryContainer') : md('onSurfaceVariant'), backgroundColor: current === s.id ? md('secondaryContainer') : 'transparent', '&:hover': { backgroundColor: current === s.id ? md('secondaryContainer') : md('surfaceContainerHigh') } }}
+      sx={{ justifyContent: 'flex-start', height: 40, px: 1.5, borderRadius: `${SHAPE.full}px`, color: current === s.id ? md('onSecondaryContainer') : md('onSurfaceVariant'), backgroundColor: current === s.id ? md('secondaryContainer') : 'transparent', '&:hover': { backgroundColor: current === s.id ? md('secondaryContainer') : md('surfaceContainerHigh') } }}
     >
       <Typography variant="labelLarge" noWrap sx={{ fontWeight: current === s.id ? 600 : 500 }}>
         {s.title}
@@ -149,24 +182,18 @@ export function SettingsPage({ section }: { section?: string } = {}) {
   return (
     <Page title="Settings" flush>
       <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', height: '100%' }}>
-        <nav aria-label="Settings sections" style={{ padding: '8px 12px 24px 24px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
-          <Typography variant="labelMedium" noWrap sx={{ color: md('onSurfaceVariant'), px: 1.5, pb: 0.5, display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            <AutoStoriesOutlined sx={{ fontSize: 15 }} />
-            {lib?.name ?? 'This library'}
-          </Typography>
+        <nav aria-label="Settings sections" style={{ padding: '0 16px 32px 32px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+          <NavGroup icon={<AutoStoriesOutlined sx={{ fontSize: 15 }} />} label="This library" name={lib?.name} />
           {SECTIONS.filter((s) => s.part === 'library').map(navItem)}
-          <Typography variant="labelMedium" noWrap sx={{ color: md('onSurfaceVariant'), px: 1.5, pt: 2, pb: 0.5, display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            <TuneRounded sx={{ fontSize: 15 }} />
-            Tessera
-          </Typography>
+          <NavGroup icon={<TuneRounded sx={{ fontSize: 15 }} />} label="Tessera" name="Every library" />
           {SECTIONS.filter((s) => s.part === 'app').map(navItem)}
         </nav>
 
         <div ref={scroller} style={{ overflowY: 'auto', minHeight: 0 }}>
-          <div style={{ maxWidth: 820, padding: '0 32px 48px 8px' }}>
+          <div style={{ maxWidth: 880, padding: '0 40px 64px 8px' }}>
+            <PartBar part={SECTIONS.find((x) => x.id === current)?.part ?? 'library'} libraryName={lib?.name ?? 'This library'} />
             <div {...at('general')}>
-              <PartHeader icon={<AutoStoriesOutlined />} title={`These settings are for “${lib?.name ?? 'this library'}”`} sub="Every library has its own. Switch library to change another’s." />
-              <Group title="General">
+              <Group title="General" note="What this library is called, where it lives, and closing it.">
                 <Row title="Name" body={lib?.name}>
                   <Button onClick={() => setRenaming(true)}>Rename…</Button>
                 </Row>
@@ -182,19 +209,19 @@ export function SettingsPage({ section }: { section?: string } = {}) {
             </div>
 
             <div {...at('backups')}>
-              <Group title="Backups">
+              <Group title="Backups" note="Encrypted copies of this library, kept somewhere else. Each library is backed up on its own.">
                 <BackupSettings />
               </Group>
             </div>
 
             <div {...at('sync')}>
-              <Group title="Sync">
+              <Group title="Sync" note="Keep this library the same on your other computers, over your own network.">
                 <SyncSettings />
               </Group>
             </div>
 
             <div {...at('storage')}>
-              <Group title="Previews and index">
+              <Group title="Previews and index" note="What Tessera keeps to show and search this library quickly. Both can be made again.">
                 <Row title="Read the library again" body="Reads every pack from scratch. Useful after moving or editing files by hand; Tessera normally notices on its own.">
                   <Button disabled={busy === 'reindex'} onClick={() => void run('reindex', () => call('library:reindex'), 'The library has been read again.')}>
                     {busy === 'reindex' ? 'Reading…' : 'Read again'}
@@ -221,8 +248,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
             </div>
 
             <div {...at('appearance')}>
-              <PartHeader icon={<TuneRounded />} title="Tessera" sub="The same for every library on this computer." />
-              <Group title="Appearance">
+              <Group title="Appearance" note="How Tessera looks, whichever library is open.">
                 <Row title="Theme" body="Follow the system, or always light or dark.">
                   <SegmentedButton<ThemeMode>
                     label="Theme"
@@ -264,25 +290,25 @@ export function SettingsPage({ section }: { section?: string } = {}) {
             </div>
 
             <div {...at('sites')}>
-              <Group title="Sites">
+              <Group title="Sites" note="Licences Tessera should assume for the sites you download from.">
                 <SiteRules />
               </Group>
             </div>
 
             <div {...at('computers')}>
-              <Group title="Paired computers">
+              <Group title="Paired computers" note="The computers Tessera can sync libraries with.">
                 <PairedComputers />
               </Group>
             </div>
 
             <div {...at('helpers')}>
-              <Group title="Helpers">
+              <Group title="Helpers" note="Small official programs Tessera fetches for backups, cloud storage and sync.">
                 <Helpers />
               </Group>
             </div>
 
             <div {...at('privacy')}>
-              <Group title="Privacy and problems">
+              <Group title="Privacy and problems" note="What leaves this computer, and what to do when something goes wrong.">
                 {reports?.available ? (
                   <Row title="Error reports" body="Errors are always kept on this computer. Sending them helps fix problems; names of files, packs and folders are taken out first, and nothing says who you are.">
                     <SegmentedButton<ReportConsent>
