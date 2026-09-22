@@ -1,5 +1,6 @@
 import CircularProgress from '@mui/material/CircularProgress';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastHost } from './components/Toast';
 import { AddMenu } from './import/AddMenu';
 import { DropOverlay } from './import/DropOverlay';
@@ -11,6 +12,7 @@ import { HomePage } from './pages/HomePage';
 import { InboxPage } from './pages/InboxPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { CommandPalette } from './shell/CommandPalette';
+import { MenuCommands } from './shell/MenuCommands';
 import { CopyConfirm } from './pages/projects/CopyConfirm';
 import { ProjectPage } from './pages/projects/ProjectPage';
 import { ProjectsPage } from './pages/projects/ProjectsPage';
@@ -44,6 +46,12 @@ function Current() {
   }
 }
 
+/** An error boundary that resets when the page changes. */
+function RoutedBoundary({ children }: { children: ReactNode }) {
+  const route = useNav((s) => s.route);
+  return <ErrorBoundary resetKey={JSON.stringify(route)}>{children}</ErrorBoundary>;
+}
+
 export function App() {
   const state = useLibraryState().data;
   const inbox = useStats().data?.inbox;
@@ -68,12 +76,15 @@ export function App() {
   return (
     <>
       <AppShell onAdd={setAddAnchor} {...(inbox ? { inboxCount: inbox } : {})}>
-        <Current />
+        <RoutedBoundary>
+          <Current />
+        </RoutedBoundary>
       </AppShell>
       <AddMenu anchor={addAnchor} onClose={() => setAddAnchor(null)} />
       <ImportDialog />
       <CopyConfirm />
       <CommandPalette />
+      <MenuCommands />
       <DropOverlay enabled />
       <ToastHost />
     </>
