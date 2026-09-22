@@ -38,6 +38,10 @@ touch an installed copy. `TESSERA_USER_DATA=<folder>` points the app at any data
     per-project manifest and CREDITS.md.
   - `libraryService.ts` — the open library: opening, watching, syncing, and the operations the
     window asks for. `index.ts` wires IPC handlers to the services.
+  - `libraries.ts` — every library this computer knows (`settings.libraries`, by library id):
+    each keeps its own settings (Inbox rule, sync, backups); moving old app-wide settings over.
+  - `backup/`, `sync/` — Kopia backups and Syncthing sync, both per library: they read a
+    library's record, and run for libraries that aren't open when their settings allow.
   - `protocol.ts` — `tessera://` serves pack files and thumbnails to windows (with ranges).
   - `reports/` — errors nobody expected: kept locally in `logs/errors.jsonl`, cleaned by
     `scrub.ts` (paths, names, addresses), and sent to a Sentry-compatible service only with the
@@ -83,7 +87,12 @@ setting it in the environment works for development. Anything added to a report 
 the scrubber, and `test/scrub.test.ts` should gain a case for any new kind of text sent.
 
 The library folder is the source of truth. The index and thumbnails live in the app's data folder
-and can be deleted and rebuilt at any time.
+(`libraries/<id>/`) and can be deleted and rebuilt at any time.
+
+Settings come in two kinds, and new ones must pick one: a library's own (in its record, shown
+under "This library" in Settings) or the app's (theme, error reports, paired computers, helpers;
+shown under "Tessera"). Projects are the app's: a project records, per copied asset, the library
+it came from.
 
 ## Ground rules
 
