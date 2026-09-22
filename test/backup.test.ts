@@ -26,6 +26,10 @@ describe.skipIf(!exe)('kopia backups', () => {
     expect(snap.files).toBe(1);
     const list = await kopia.list(library, 'correct horse');
     expect(list.map((s) => s.id)).toEqual([snap.id]);
+    // A backup with nothing new still counts the whole library.
+    const again = await kopia.snapshot(library, 'correct horse');
+    const both = await kopia.list(library, 'correct horse');
+    expect(both.find((s) => s.id === again.id)?.files).toBe(1);
     await kopia.restore(snap.id, join(dir, 'restored'), 'correct horse');
     expect(readFileSync(join(dir, 'restored', 'packs', 'Kit', 'pack.json'), 'utf8')).toBe('{"name":"Kit"}');
 
@@ -33,7 +37,7 @@ describe.skipIf(!exe)('kopia backups', () => {
     const other = new Kopia(exe!, join(dir, 'config2'));
     await expect(other.connect(folder, 'wrong password', false)).rejects.toThrow();
     await other.connect(folder, 'correct horse', false);
-    expect((await other.list(library, 'correct horse')).length).toBe(1);
+    expect((await other.list(library, 'correct horse')).length).toBe(2);
 
     // The computer that made the store tidies it, until another takes over (after a restore, say).
     execFileSync(exe!, ['maintenance', 'set', '--owner=old@lost-laptop', `--config-file=${join(dir, 'config2', 'repository.config')}`], { env: { ...process.env, KOPIA_PASSWORD: 'correct horse' } });
