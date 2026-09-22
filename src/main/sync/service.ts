@@ -6,16 +6,23 @@ import { createServer } from 'node:net';
 import { join } from 'node:path';
 import type { SyncMode, SyncStatus } from '@shared/types';
 import { UserError } from '../errors';
+import { inspectFolder } from '../library/layout';
 import { log } from '../log';
 import type { SettingsStore } from '../settings';
 import { findTool } from '../tools/find';
 import { SyncthingApi, type StFolder } from './api';
+import { bundledSyncthing } from './install';
 
 /** How each mode maps to a Syncthing folder type. */
 export const FOLDER_TYPE: Record<SyncMode, StFolder['type']> = { push: 'sendonly', pull: 'receiveonly', full: 'sendreceive' };
 
 /** Starts Syncthing and says where its API is. Replaced in tests. */
-export type Launcher = (home: string) => Promise<{ base: string; key: string; stop: () => void }>;
+export type Launcher = (home: string, exe: string) => Promise<{ base: string; key: string; stop: () => void }>;
+
+const MAC_APP = '/Applications/Syncthing.app/Contents/Resources/syncthing/syncthing';
+
+/** Syncthing installed on the system, or the copy Tessera downloaded into its data folder. */
+export const findSyncthing = (dataDir: string) => findTool('syncthing', [MAC_APP, bundledSyncthing(dataDir)]);
 
 interface Deps {
   dataDir: string;
@@ -37,9 +44,7 @@ const freePort = () =>
   });
 
 /** Run Tessera's own Syncthing: its own settings folder, its own identity, API on localhost only. */
-export const launchSyncthing: Launcher = async (home) => {
-  const exe = findTool('syncthing', ['/Applications/Syncthing.app/Contents/Resources/syncthing/syncthing']);
-  if (!exe) throw new UserError('no-syncthing', 'Syncthing isn’t installed. Get it from syncthing.net, then try again.');
+export const launchSyncthing: Launcher = async (home, exe) => {
   await mkdir(home, { recursive: true });
   const env = { ...process.env, STNODEFAULTFOLDER: '1', STNOUPGRADE: '1' };
   if (!existsSync(join(home, 'config.xml'))) {
@@ -89,13 +94,20 @@ export class SyncService {
   }
 
   available(): boolean {
-    return !!(this.d.launcher ?? findTool('syncthing', ['/Applications/Syncthing.app/Contents/Resources/syncthing/syncthing']));
+    return !!(this.d.launcher ?? findSyncthing(this.d.dataDir));
+  }
+
+  /** Whether the Syncthing in use is Tessera's own downloaded copy. */
+  bundled(): boolean {
+    return !this.d.launcher && findSyncthing(this.d.dataDir) === bundledSyncthing(this.d.dataDir);
   }
 
   private ensureRunning(): Promise<SyncthingApi> {
     if (this.api) return Promise.resolve(this.api);
     this.starting ??= (async () => {
-      const { base, key, stop } = await (this.d.launcher ?? launchSyncthing)(this.home);
+      const exe = this.d.launcher ? '' : findSyncthing(this.d.dataDir);
+      if (exe === null) throw new UserError('no-syncthing', 'Syncthing isn’t set up on this computer yet.');
+      const { base, key, stop } = await (this.d.launcher ?? launchSyncthing)(this.home, exe);
       this.api = new SyncthingApi(base, key);
       this.stop = stop;
       return this.api;
@@ -198,6 +210,8 @@ export class SyncService {
    * offers and put it at `path` (a new, empty folder), where it arrives as a library to open.
    */
   async acceptFolder(folderId: string, offeredBy: string, label: string, path: string, mode: SyncMode): Promise<void> {
+    const kind = await inspectFolder(path);
+    if (kind === 'library' || kind === 'other') throw new UserError('folder-not-empty', 'That folder isn’t empty. Choose a new folder for the library to arrive in.');
     const api = await this.ensureRunning();
     await mkdir(path, { recursive: true });
     const versioning = mode === 'full' ? { type: 'trashcan', params: { cleanoutDays: '30' } } : { type: '', params: {} };
@@ -205,9 +219,16 @@ export class SyncService {
     this.d.onChange();
   }
 
+  /** How far a folder has come: bytes in step of the total, as Syncthing reports it. */
+  async folderProgress(folderId: string): Promise<{ state: string; globalBytes: number; inSyncBytes: number; needBytes: number } | null> {
+    if (!this.api) return null;
+    const s = await this.api.folderStatus(folderId).catch(() => null);
+    return s ? { state: s.state, globalBytes: s.globalBytes, inSyncBytes: s.inSyncBytes, needBytes: s.needBytes } : null;
+  }
+
   async status(): Promise<SyncStatus> {
     const s = this.d.settings.get();
-    const base: SyncStatus = { available: this.available(), enabled: s.syncEnabled, mode: s.syncMode, running: !!this.api, myId: null, devices: [], folder: null, pendingDevices: [], pendingFolders: [] };
+    const base: SyncStatus = { available: this.available(), bundled: this.bundled(), enabled: s.syncEnabled, mode: s.syncMode, running: !!this.api, myId: null, devices: [], folder: null, pendingDevices: [], pendingFolders: [] };
     if (!this.api) return base;
     try {
       const api = this.api;
