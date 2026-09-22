@@ -21,6 +21,11 @@ export interface Settings {
   libraryPath: string | null;
   /** Libraries opened before, newest first. */
   recentLibraries: string[];
+  /**
+   * Imported packs whose download names their licence and comes from a known site go straight
+   * into the library; the rest wait in the Inbox. Off: every import waits in the Inbox.
+   */
+  skipInboxWhenSure: boolean;
 }
 
 export type SettingsPatch = Partial<Settings>;
@@ -88,4 +93,22 @@ export interface Detected {
   site: string | null;
   url: string | null;
   creator: string | null;
+}
+
+/** One pack an import would create. */
+export interface ImportItem {
+  id: string;
+  name: string;
+  /** Paths it's made from: one archive, one folder, or a few loose files. */
+  sources: string[];
+  kind: 'archive' | 'folder' | 'files';
+  size: number;
+  files: number;
+  /** Name of a pack already in the library that looks like the same download. */
+  duplicateOf: string | null;
+}
+
+export interface ImportResult {
+  added: { id: string; name: string; status: 'inbox' | 'library' }[];
+  failed: { name: string; error: string }[];
 }

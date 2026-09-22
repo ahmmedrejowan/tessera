@@ -13,6 +13,7 @@ const schema = z.object({
   seedColor: z.string().regex(HEX).catch('#3f6f8f'),
   libraryPath: z.string().min(1).nullable().catch(null),
   recentLibraries: z.array(z.string().min(1)).catch([]),
+  skipInboxWhenSure: z.boolean().catch(true),
 });
 
 export const DEFAULT_SETTINGS: Settings = schema.parse({});
