@@ -1,8 +1,10 @@
-import { app, BrowserWindow, dialog, nativeTheme, shell } from 'electron';
+import { app, BrowserWindow, crashReporter, dialog, nativeTheme, net, shell } from 'electron';
+import { writeFile } from 'node:fs/promises';
+import { release, tmpdir } from 'node:os';
 import { readdir, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Platform } from '@shared/types';
-import { broadcast, handle, UserError } from './ipc';
+import { broadcast, handle, onInternalError, UserError } from './ipc';
 import { parseRef } from './index/files';
 import { Jobs } from './jobs';
 import { DIRS } from './library/layout';
@@ -13,6 +15,9 @@ import { installMenu } from './menu';
 import { fileSecret } from './secrets';
 import { SyncService } from './sync/service';
 import { initLog, log } from './log';
+import { makeScrubber } from './reports/scrub';
+import { parseDsn } from './reports/sentry';
+import { ReportService } from './reports/service';
 import { handleProtocol, registerSchemePrivileges } from './protocol';
 import { packFileUrl } from '@shared/urls';
 import { ProjectService } from './projects/service';
@@ -30,10 +35,59 @@ else if (!app.isPackaged) app.setPath('userData', `${app.getPath('userData')}-de
 
 const dataDir = app.getPath('userData');
 initLog(join(dataDir, 'logs'));
+// Native crashes leave a dump on this computer; nothing is uploaded unless the user agrees later.
+crashReporter.start({ uploadToServer: false, compress: true });
 const settings = new SettingsStore(dataDir);
 /** The app's own windows; the hidden render window isn't one of them. */
 const appWindows = new Set<BrowserWindow>();
 const windows = () => [...appWindows];
+
+const OS_NAMES: Record<Platform, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
+let reportsVersion = 0;
+const reports = new ReportService({
+  logsDir: join(dataDir, 'logs'),
+  crashDir: (() => {
+    try {
+      return app.getPath('crashDumps');
+    } catch {
+      return null;
+    }
+  })(),
+  settings,
+  scrub: () => {
+    const state = library.getState();
+    return makeScrubber({ app: app.getAppPath(), home: app.getPath('home'), data: dataDir, temp: tmpdir(), library: state.status === 'ready' ? state.library.path : null });
+  },
+  env: {
+    release: `tessera@${app.getVersion()}`,
+    environment: app.isPackaged ? 'production' : 'development',
+    os: { name: OS_NAMES[platform], version: release(), arch: process.arch },
+    runtime: { electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node },
+  },
+  // Development and test runs can point at a service without a rebuild.
+  dsn: parseDsn(process.env.TESSERA_REPORTS_DSN || __TESSERA_REPORTS_DSN__),
+  fetch: (url, init) => net.fetch(url, init),
+  onAsk: () => broadcast(windows, 'reports:ask', ++reportsVersion),
+  onChange: () => broadcast(windows, 'reports:changed', ++reportsVersion),
+});
+
+/** An error in the main process nobody caught: keep it, and say so in the window. */
+function caught(kind: 'exception' | 'rejection', e: unknown): void {
+  const err = e instanceof Error ? e : new Error(String(e));
+  log.error('app', kind === 'exception' ? 'uncaught exception' : 'unhandled rejection', err);
+  try {
+    const record = reports.record({ source: 'main', kind, name: err.name, message: err.message, ...(err.stack ? { stack: err.stack } : {}) });
+    broadcast(windows, 'reports:caught', { title: 'Something went wrong in the background', details: `${record.name}: ${record.message}` });
+  } catch (inner) {
+    log.error('app', 'could not record an error', inner);
+  }
+}
+process.on('uncaughtException', (e) => caught('exception', e));
+process.on('unhandledRejection', (e) => caught('rejection', e));
+onInternalError((channel, e) => {
+  const err = e instanceof Error ? e : new Error(String(e));
+  reports.record({ source: 'main', kind: 'ipc', name: err.name, message: err.message, ...(err.stack ? { stack: err.stack } : {}), context: { channel } });
+});
 const jobs = new Jobs((list) => broadcast(windows, 'jobs:changed', list));
 let indexVersion = 0;
 const library = new LibraryService({
@@ -156,6 +210,24 @@ async function start(): Promise<void> {
   });
   if (s.libraryPath) void library.open(s.libraryPath);
   backups.startSchedule();
+  await reports.scanCrashes();
+  app.on('render-process-gone', (_e, contents, details) => {
+    if (details.reason === 'clean-exit') return;
+    const win = BrowserWindow.fromWebContents(contents);
+    const mine = !!win && appWindows.has(win);
+    log.error('app', `${mine ? 'window' : 'render window'} process gone`, details);
+    reports.record({ source: 'process', kind: 'crash', name: 'RenderProcessGone', message: `${mine ? 'The window' : 'The thumbnail renderer'} stopped: ${details.reason} (exit ${details.exitCode})` });
+    // The window comes back by itself, and says what happened when it does.
+    if (mine && !win.isDestroyed()) {
+      reports.windowRecovered();
+      setTimeout(() => !win.isDestroyed() && win.reload(), 500);
+    }
+  });
+  app.on('child-process-gone', (_e, details) => {
+    if (details.reason === 'clean-exit' || details.reason === 'killed') return;
+    log.error('app', `${details.type} process gone`, details);
+    reports.record({ source: 'process', kind: 'crash', name: `${details.type}ProcessGone`, message: `The ${details.type} process stopped: ${details.reason} (exit ${details.exitCode})`, ...(details.name ? { context: { process: details.name } } : {}) });
+  });
   await createWindow();
   app.on('activate', () => {
     if (appWindows.size === 0) void createWindow();
@@ -362,6 +434,23 @@ function registerHandlers(): void {
   handle('import:plan', (paths, eachInside) => library.planImport(paths, eachInside));
   handle('import:run', (items) => library.import(items, settings.get().skipInboxWhenSure));
   handle('thumbs:get', (keys) => thumbs.get(keys.slice(0, 500)));
+
+  handle('reports:capture', (input) => void reports.record({ ...input, source: 'window' }));
+  handle('reports:status', () => reports.status());
+  handle('reports:pending', () => reports.pending());
+  handle('reports:preview', () => reports.preview());
+  handle('reports:respond', (answer) => reports.respond(answer));
+  handle('reports:crashes', (send) => reports.answerCrashes(send));
+  handle('reports:problem', (note) => reports.problemReport(note));
+  handle('reports:saveProblem', async (note) => {
+    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
+    const options: Electron.SaveDialogOptions = { title: 'Save problem report', defaultPath: join(app.getPath('desktop'), `tessera-report-${new Date().toISOString().slice(0, 10)}.txt`), filters: [{ name: 'Text', extensions: ['txt'] }] };
+    const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+    if (result.canceled || !result.filePath) return null;
+    await writeFile(result.filePath, await reports.problemReport(note));
+    return result.filePath;
+  });
+  handle('reports:sendProblem', (note) => reports.sendProblem(note));
 }
 
 async function createWindow(): Promise<void> {
@@ -414,6 +503,7 @@ app.on('window-all-closed', () => {
   if (platform !== 'darwin') app.quit();
 });
 app.on('before-quit', () => {
+  reports.dispose();
   renderWindow?.close();
   sync.shutdown();
 });

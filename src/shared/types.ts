@@ -208,4 +208,4 @@ export interface Snapshot {
 }
 
 /** Commands the application menu sends to the window. */
-export type MenuCommand = 'add' | 'addFolder' | 'addFolderOfPacks' | 'linkProject' | 'settings' | 'find' | 'palette' | 'home' | 'browse' | 'collections' | 'projects' | 'inbox';
+export type MenuCommand = 'add' | 'addFolder' | 'addFolderOfPacks' | 'linkProject' | 'settings' | 'find' | 'palette' | 'home' | 'browse' | 'collections' | 'projects' | 'inbox' | 'reportProblem';

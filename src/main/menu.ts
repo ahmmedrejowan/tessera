@@ -66,6 +66,7 @@ export function installMenu(focused: () => BrowserWindow | undefined, logsDir: s
     {
       role: 'help',
       submenu: [
+        { label: 'Report a Problem…', click: send('reportProblem') },
         { label: 'Show Logs', click: () => void shell.openPath(logsDir) },
         { label: 'Tessera on GitHub', click: () => void shell.openExternal('https://github.com/ahmmedrejowan/tessera') },
       ],

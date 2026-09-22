@@ -7,6 +7,8 @@ const shared = { '@shared': resolve('src/shared') };
 export default defineConfig({
   main: {
     resolve: { alias: shared },
+    // Error reports go to the service named at build time (a release secret); builds without it can't send any.
+    define: { __TESSERA_REPORTS_DSN__: JSON.stringify(process.env.TESSERA_REPORTS_DSN ?? '') },
     build: { externalizeDeps: true },
   },
   preload: {

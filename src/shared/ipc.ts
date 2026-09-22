@@ -8,7 +8,7 @@ import type { PackEdit, PackMeta, PackStatus } from './pack';
 import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } from './project';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
-import type { AppInfo, BackupStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { AppInfo, BackupStatus, ErrorInput, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -114,6 +114,22 @@ export interface Invokes {
   'import:plan': (paths: string[], eachInside: boolean) => ImportItem[];
   'import:run': (items: ImportItem[]) => ImportResult;
 
+  /** An unexpected error caught in the window, to keep (and send, with consent). */
+  'reports:capture': (input: ErrorInput) => void;
+  'reports:status': () => ReportsStatus;
+  /** What to bring up when the window loads: the window was reopened after a crash; a question. */
+  'reports:pending': () => { recovered: boolean; ask: boolean };
+  /** Exactly what would be sent for the errors waiting, as JSON. */
+  'reports:preview': () => string;
+  'reports:respond': (answer: 'once' | 'always' | 'never' | 'not-now') => void;
+  /** Send crash reports from earlier sessions, or not; they're cleared either way. */
+  'reports:crashes': (send: boolean) => void;
+  /** A report the user asked for, as text: their words, this session's errors, the recent log. */
+  'reports:problem': (note: string) => string;
+  /** Save that report where the user chooses; returns the file, or null when cancelled. */
+  'reports:saveProblem': (note: string) => string | null;
+  'reports:sendProblem': (note: string) => void;
+
   /** Thumbnail states by asset key (see `assetKey`); missing ones are queued, newest request first. */
   'thumbs:get': (keys: string[]) => Record<string, ThumbState>;
 }
@@ -133,6 +149,11 @@ export interface Events {
   /** Sync settings or state changed. */
   'sync:changed': number;
   'menu:command': MenuCommand;
+  /** Errors were caught and consent is "ask": time to ask. */
+  'reports:ask': number;
+  'reports:changed': number;
+  /** Something failed in the background, out of sight of the window. */
+  'reports:caught': { title: string; details: string };
 }
 
 export type InvokeChannel = keyof Invokes;
