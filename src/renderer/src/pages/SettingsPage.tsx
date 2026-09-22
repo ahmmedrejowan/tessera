@@ -4,7 +4,7 @@ import ButtonBase from '@mui/material/ButtonBase';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import type { ThemeMode } from '@shared/types';
 import { call } from '../api';
 import { formatBytes } from '../components/labels';
@@ -12,41 +12,14 @@ import { SegmentedButton } from '../components/SegmentedButton';
 import { toast } from '../components/Toast';
 import { useLibraryState } from '../state/library';
 import { useAppInfo, useSettings, useUpdateSettings } from '../state/queries';
-import { md, SHAPE } from '../theme';
+import { md } from '../theme';
 import { schemeFromSeed } from '../theme/m3';
 import { Page } from './Placeholder';
+import { BackupSettings } from './settings/BackupSettings';
+import { Group, Row } from './settings/parts';
 
 /** Seeds for the colour scheme; each gives a full Material 3 palette in light and dark. */
 const SEEDS = ['#3f6f8f', '#4758a9', '#6750a4', '#a4506b', '#a0522d', '#8a6d1f', '#3b7a4a', '#2f7a78'];
-
-function Group({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section style={{ marginBottom: 32 }}>
-      <Typography variant="titleSmall" sx={{ color: md('primary'), mb: 1 }}>
-        {title}
-      </Typography>
-      <div style={{ borderRadius: SHAPE.lg, background: md('surfaceContainerLow'), padding: '4px 20px' }}>{children}</div>
-    </section>
-  );
-}
-
-function Row({ title, body, children }: { title: string; body?: ReactNode; children?: ReactNode }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 0', borderBottom: `1px solid ${md('outlineVariant')}` }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="bodyLarge" sx={{ color: md('onSurface') }}>
-          {title}
-        </Typography>
-        {body && (
-          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), wordBreak: 'break-word' }}>
-            {body}
-          </Typography>
-        )}
-      </div>
-      {children}
-    </div>
-  );
-}
 
 export function SettingsPage() {
   const settings = useSettings().data;
@@ -141,6 +114,10 @@ export function SettingsPage() {
               Clear
             </Button>
           </Row>
+        </Group>
+
+        <Group title="Backups">
+          <BackupSettings />
         </Group>
 
         <Group title="Adding packs">
