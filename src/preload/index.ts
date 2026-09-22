@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron';
 import type { Bridge } from '@shared/ipc';
 import type { Platform } from '@shared/types';
 
@@ -10,6 +10,8 @@ const bridge: Bridge = {
     return () => ipcRenderer.off(channel, wrapped);
   },
   platform: (['darwin', 'win32'].includes(process.platform) ? process.platform : 'linux') as Platform,
+  pathsFor: (files) => files.map((f) => webUtils.getPathForFile(f)).filter(Boolean),
+  e2e: process.env.TESSERA_E2E === '1',
 };
 
 contextBridge.exposeInMainWorld('tessera', bridge);

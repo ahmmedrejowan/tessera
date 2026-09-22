@@ -2,10 +2,12 @@ import { watch, type FSWatcher } from 'node:fs';
 import { copyFile, mkdir, readdir, stat } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { missingForLibrary, type PackEdit, type PackStatus } from '@shared/pack';
-import type { Detected, FolderKind, LibraryState } from '@shared/types';
+import type { Detected, FolderKind, ImportItem, ImportResult, LibraryState } from '@shared/types';
 import { UserError } from './errors';
 import { listPackFiles } from './index/files';
 import { LibraryIndex } from './index/indexer';
+import { planImport } from './import/plan';
+import { runImport } from './import/run';
 import { LibraryQueries } from './index/query';
 import type { Jobs } from './jobs';
 import { detectPack } from './library/detect';
@@ -39,6 +41,8 @@ export class LibraryService {
   private syncing: Promise<void> | null = null;
   private syncAgain = false;
   private watchTimer: NodeJS.Timeout | null = null;
+  /** While the app itself is adding packs, file-change syncs wait until it's done. */
+  private busyWriting = 0;
 
   constructor(private readonly d: Deps) {}
 
@@ -131,7 +135,7 @@ export class LibraryService {
     try {
       this.watcher = watch(join(root, DIRS.packs), { recursive: true }, () => {
         if (this.watchTimer) clearTimeout(this.watchTimer);
-        this.watchTimer = setTimeout(() => void this.sync(), 1500);
+        this.watchTimer = setTimeout(() => (this.busyWriting ? undefined : void this.sync()), 1500);
       });
       this.watcher.on('error', (e) => log.warn('library', 'folder watching stopped', e));
     } catch (e) {
@@ -152,6 +156,40 @@ export class LibraryService {
     const pack = await this.packRecord(id);
     const { files } = await listPackFiles(pack.dir);
     return detectPack(pack.dir, files);
+  }
+
+  /** What adding these paths would create, with likely duplicates marked. */
+  async planImport(paths: string[], eachInside: boolean): Promise<ImportItem[]> {
+    const lib = this.require();
+    const items = await planImport(paths, eachInside);
+    for (const item of items) {
+      if (item.sources.length !== 1) continue;
+      item.duplicateOf = lib.queries.findDownload(basename(item.sources[0]!), item.size, item.kind === 'folder');
+    }
+    return items;
+  }
+
+  async import(items: ImportItem[], skipInboxWhenSure: boolean): Promise<ImportResult> {
+    const lib = this.require();
+    this.busyWriting++;
+    const job = this.d.jobs.start(items.length === 1 ? `Adding ${items[0]!.name}` : `Adding ${items.length} packs`);
+    try {
+      const result = await runImport(items, {
+        root: lib.root,
+        index: lib.index,
+        skipInboxWhenSure,
+        onProgress: (done, total, current) => job.update(total ? done / total : null, current),
+      });
+      const inbox = result.added.filter((a) => a.status === 'inbox').length;
+      job.done(`${result.added.length} added${inbox ? `, ${inbox} in the Inbox` : ''}${result.failed.length ? `, ${result.failed.length} failed` : ''}`);
+      return result;
+    } catch (e) {
+      job.fail(e);
+      throw e;
+    } finally {
+      this.busyWriting--;
+      this.d.onIndexChanged();
+    }
   }
 
   async setStatus(id: string, status: PackStatus): Promise<void> {

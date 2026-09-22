@@ -6,7 +6,7 @@
  */
 import type { PackEdit, PackMeta, PackStatus } from './pack';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, Page, PackRow, PackSort } from './query';
-import type { AppInfo, Detected, FolderKind, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { AppInfo, Detected, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -52,8 +52,13 @@ export interface Invokes {
 
   'jobs:list': () => Job[];
 
-  /** Thumbnail states for assets by id; missing ones are queued, newest request first. */
-  'thumbs:get': (ids: number[]) => Record<number, ThumbState>;
+  /** Ask the user for files or a folder to add; null when they cancel. */
+  'import:choose': (what: 'files' | 'folder' | 'folderOfPacks') => string[] | null;
+  'import:plan': (paths: string[], eachInside: boolean) => ImportItem[];
+  'import:run': (items: ImportItem[]) => ImportResult;
+
+  /** Thumbnail states by asset key (see `assetKey`); missing ones are queued, newest request first. */
+  'thumbs:get': (keys: string[]) => Record<string, ThumbState>;
 }
 
 export interface Events {
@@ -63,7 +68,7 @@ export interface Events {
   'index:changed': number;
   'jobs:changed': Job[];
   /** Thumbnails that became ready (or failed) since the last event. */
-  'thumbs:ready': Record<number, ThumbState>;
+  'thumbs:ready': Record<string, ThumbState>;
 }
 
 export type InvokeChannel = keyof Invokes;
@@ -80,4 +85,8 @@ export interface Bridge {
   invoke<K extends InvokeChannel>(channel: K, ...args: Parameters<Invokes[K]>): Promise<Wire<Awaited<ReturnType<Invokes[K]>>>>;
   on<K extends EventChannel>(channel: K, listener: (payload: Events[K]) => void): () => void;
   platform: Platform;
+  /** Paths on disk of files dropped on the window. */
+  pathsFor(files: File[]): string[];
+  /** Set for automated UI tests (TESSERA_E2E=1): the window exposes test hooks. */
+  e2e: boolean;
 }

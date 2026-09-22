@@ -33,8 +33,6 @@ const library = new LibraryService({
   jobs,
   onState: (state) => broadcast(windows, 'library:changed', state),
   onIndexChanged: () => {
-    // Asset ids change with the index; queued thumbnails would answer to stale ids.
-    thumbs.reset();
     broadcast(windows, 'index:changed', ++indexVersion);
   },
 });
@@ -165,7 +163,19 @@ function registerHandlers(): void {
   });
 
   handle('jobs:list', () => jobs.list());
-  handle('thumbs:get', (ids) => thumbs.get(ids.slice(0, 500)));
+
+  handle('import:choose', async (what) => {
+    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
+    const options: Electron.OpenDialogOptions =
+      what === 'files'
+        ? { title: 'Add packs', buttonLabel: 'Add', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Downloads and assets', extensions: ['*'] }] }
+        : { title: what === 'folder' ? 'Add a folder as one pack' : 'Add a folder of packs', buttonLabel: 'Add', properties: ['openDirectory', 'multiSelections'] };
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    return result.canceled || !result.filePaths.length ? null : result.filePaths;
+  });
+  handle('import:plan', (paths, eachInside) => library.planImport(paths, eachInside));
+  handle('import:run', (items) => library.import(items, settings.get().skipInboxWhenSure));
+  handle('thumbs:get', (keys) => thumbs.get(keys.slice(0, 500)));
 }
 
 async function createWindow(): Promise<void> {
