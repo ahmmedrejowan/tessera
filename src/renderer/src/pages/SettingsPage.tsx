@@ -147,7 +147,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
   );
 
   return (
-    <Page title="Settings">
+    <Page title="Settings" flush>
       <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', height: '100%' }}>
         <nav aria-label="Settings sections" style={{ padding: '8px 12px 24px 24px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
           <Typography variant="labelMedium" noWrap sx={{ color: md('onSurfaceVariant'), px: 1.5, pb: 0.5, display: 'flex', alignItems: 'center', gap: 0.75 }}>

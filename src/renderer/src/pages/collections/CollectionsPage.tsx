@@ -58,6 +58,7 @@ export function CollectionsPage() {
   };
   return (
     <Page
+      flush
       title="Collections"
       actions={
         <Button variant="contained" startIcon={<AddOutlined />} onClick={() => setNaming(true)}>
@@ -69,7 +70,7 @@ export function CollectionsPage() {
         <EmptyState
           icon={CollectionsBookmarkOutlined}
           title="No collections yet"
-          body="Gather the assets a game needs from any pack — “Tower defense set”, “UI for the menu”. Select assets in Browse and choose Add to collection, or save a search as a smart collection that keeps itself up to date."
+          body="Gather what one game needs from any pack. Pick assets in Browse and add them here, or save a search as a smart collection that keeps itself up to date."
           actions={
             <Button variant="contained" startIcon={<AddOutlined />} onClick={() => setNaming(true)}>
               New collection

@@ -22,6 +22,7 @@ import { useIndexVersion, useLibraryId, useLibraryState, useStats } from '../sta
 import { useNav } from '../state/nav';
 import { useProjects } from '../state/projects';
 import { md, mdAlpha, SHAPE, STATE } from '../theme';
+import { Page } from './Placeholder';
 import { PackCard } from './browse/PackCard';
 import { EngineBadge } from './projects/EngineBadge';
 import { useLinkProject } from './projects/ProjectsPage';
@@ -164,18 +165,8 @@ export function HomePage() {
   const attention = (stats?.inbox ?? 0) + (health?.noCreditLine.length ?? 0) + (health?.restricted.length ?? 0);
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto' }}>
-      <div style={{ maxWidth: 1240, margin: '0 auto', padding: '28px 32px 48px', display: 'flex', flexDirection: 'column', gap: 36 }}>
-        <div>
-          <Typography variant="headlineMedium" component="h1" sx={{ color: md('onSurface') }}>
-            {name}
-          </Typography>
-          {stats && (
-            <Typography variant="bodyLarge" sx={{ color: md('onSurfaceVariant'), mt: 0.5 }}>
-              {formatCount(stats.packs)} packs · {formatCount(stats.assets)} assets · {formatBytes(stats.size)}
-            </Typography>
-          )}
-        </div>
+    <Page title={name} subtitle={stats ? `${formatCount(stats.packs)} packs · ${formatCount(stats.assets)} assets · ${formatBytes(stats.size)}` : undefined} width={1240}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 36, paddingTop: 8 }}>
 
         {types.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12 }}>
@@ -286,6 +277,6 @@ export function HomePage() {
           </Section>
         )}
       </div>
-    </div>
+    </Page>
   );
 }

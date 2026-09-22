@@ -1,3 +1,6 @@
+import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
+import GridViewOutlined from '@mui/icons-material/GridViewOutlined';
+import RateReviewOutlined from '@mui/icons-material/RateReviewOutlined';
 import SearchOffOutlined from '@mui/icons-material/SearchOffOutlined';
 import Button from '@mui/material/Button';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -13,6 +16,7 @@ import { useImport } from '../../state/importer';
 import AddRounded from '@mui/icons-material/AddRounded';
 import { useNav } from '../../state/nav';
 import { usePagedRows } from '../../state/paged';
+import { Page } from '../Placeholder';
 // The viewer brings three.js; it loads the first time something is opened.
 const Viewer = lazy(() => import('../../viewer/Viewer').then((m) => ({ default: m.Viewer })));
 import { AssetTile, TILE_LABEL_HEIGHT } from './AssetTile';
@@ -58,6 +62,76 @@ function useSelection<T>(ids: (index: number) => T | undefined) {
       }
     },
     [selection, anchor, select, ids],
+  );
+}
+
+
+/**
+ * Nothing to show, for one of three reasons: the search and filters are too narrow, the packs
+ * are still waiting in Review, or the library has nothing in it yet. Each says what to do next.
+ */
+function BrowseEmpty() {
+  const s = useBrowse();
+  const go = useNav((n) => n.go);
+  const stats = useStats().data;
+  const filters = activeFilterCount(s.filters);
+  const what = s.mode === 'assets' ? 'assets' : 'packs';
+
+  if (s.text || filters) {
+    return (
+      <EmptyState
+        icon={SearchOffOutlined}
+        title="Nothing matches"
+        body={`No ${what}${s.text ? ` for “${s.text}”` : ''}${filters ? ` with ${filters} filter${filters > 1 ? 's' : ''} on` : ''}.`}
+        actions={
+          <>
+            {filters > 0 && (
+              <Button variant="contained" onClick={s.clearFilters}>
+                Clear filters
+              </Button>
+            )}
+            {s.text && (
+              <Button variant={filters ? 'outlined' : 'contained'} onClick={() => s.setText('')}>
+                Clear the search
+              </Button>
+            )}
+          </>
+        }
+      />
+    );
+  }
+
+  if (stats?.inbox) {
+    return (
+      <EmptyState
+        icon={RateReviewOutlined}
+        title={stats.inbox === 1 ? 'One pack is waiting in Review' : `${stats.inbox} packs are waiting in Review`}
+        body="They need a licence and a link before their assets show up here."
+        actions={
+          <Button variant="contained" onClick={() => go({ to: 'inbox' })}>
+            Open Review
+          </Button>
+        }
+      />
+    );
+  }
+
+  return (
+    <EmptyState
+      icon={GridViewOutlined}
+      title="Nothing to browse yet"
+      body="Add a pack and its assets show up here, sorted and searchable."
+      actions={
+        <>
+          <Button variant="contained" startIcon={<AddRounded />} onClick={() => void useImport.getState().choose('files')}>
+            Add packs
+          </Button>
+          <Button variant="outlined" startIcon={<DownloadOutlined />} onClick={() => go({ to: 'downloads' })}>
+            Download from a link
+          </Button>
+        </>
+      }
+    />
   );
 }
 
@@ -212,46 +286,15 @@ export function BrowsePage() {
   const nothingYet = stats?.assets === 0 && !filtering;
 
   return (
-    <div style={{ height: '100%', display: 'flex', minHeight: 0 }}>
-      {s.filtersOpen && !nothingYet && <FilterPane facets={facets.data} />}
+    <Page title="Browse" subtitle="Everything in the library, by asset or by pack" flush>
+      <div style={{ height: '100%', display: 'flex', minHeight: 0 }}>
+        {s.filtersOpen && !nothingYet && <FilterPane facets={facets.data} />}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <BrowseToolbar total={current.total} stale={current.stale} />
         <div style={{ height: 2 }}>{current.stale && <LinearProgress sx={{ height: 2, borderRadius: 0 }} />}</div>
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }} role="listbox" aria-multiselectable aria-label={s.mode === 'assets' ? 'Assets' : 'Packs'}>
           {empty ? (
-            <EmptyState
-              icon={SearchOffOutlined}
-              title={filtering ? 'Nothing matches' : stats?.inbox ? 'Nothing in the library yet' : 'The library is empty'}
-              body={
-                filtering
-                  ? `No ${s.mode} match${text ? ` “${text}”` : ''}${activeFilterCount(s.filters) ? ` with ${activeFilterCount(s.filters)} filter${activeFilterCount(s.filters) > 1 ? 's' : ''} on` : ''}.`
-                  : stats?.inbox
-                    ? `${stats.inbox} pack${stats.inbox === 1 ? ' waits' : 's wait'} in Review for a licence and a source. Once checked, their assets show here.`
-                    : 'Packs you add appear here once they have a licence and a source.'
-              }
-              actions={
-                !filtering ? (
-                  stats?.inbox ? (
-                    <Button variant="contained" onClick={() => go({ to: 'inbox' })}>
-                      Open Review
-                    </Button>
-                  ) : (
-                    <Button variant="contained" startIcon={<AddRounded />} onClick={() => void useImport.getState().choose('files')}>
-                      Add packs
-                    </Button>
-                  )
-                ) : (
-                  <>
-                    {activeFilterCount(s.filters) > 0 && (
-                      <Button variant="outlined" onClick={s.clearFilters}>
-                        Clear filters
-                      </Button>
-                    )}
-                    {text && <Button onClick={() => s.setText('')}>Clear search</Button>}
-                  </>
-                )
-              }
-            />
+            <BrowseEmpty />
           ) : s.mode === 'assets' ? (
             <VirtualGrid
               key="assets"
@@ -279,6 +322,7 @@ export function BrowsePage() {
           )}
         </div>
       </div>
+      </div>
       {s.mode === 'assets' && s.selection.size > 0 && viewing === null && <SelectionBar />}
       {s.focused && <DetailsSheet item={s.focused} />}
       {viewed && viewing !== null && (
@@ -292,6 +336,6 @@ export function BrowsePage() {
         />
         </Suspense>
       )}
-    </div>
+    </Page>
   );
 }

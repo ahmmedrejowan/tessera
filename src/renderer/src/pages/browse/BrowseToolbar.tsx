@@ -55,7 +55,7 @@ export function BrowseToolbar({ total, stale }: { total: number; stale: boolean 
   const chips = (Object.entries(s.filters) as [Facet, string[]][]).flatMap(([facet, values]) => (values ?? []).map((value) => ({ facet, value })));
 
   return (
-    <div style={{ padding: '12px 24px 4px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ padding: '0 32px 8px', display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <Tooltip title={s.filtersOpen ? 'Hide filters' : 'Show filters'}>
           <IconButton onClick={() => s.setFiltersOpen(!s.filtersOpen)} aria-label="Filters" aria-pressed={s.filtersOpen} disabled={nothingYet} sx={{ visibility: nothingYet ? 'hidden' : 'visible' }}>

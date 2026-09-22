@@ -34,7 +34,7 @@ import { addDownloads, isGoing, queueLinks, useDownloads } from '../state/downlo
 import { useLibraryRecord } from '../state/library';
 import { useSettings, useUpdateSettings } from '../state/queries';
 import { md, mdAlpha, SHAPE } from '../theme';
-import { Page } from './Placeholder';
+import { PAGE, Page } from './Placeholder';
 
 /** Big enough to be worth a word before it starts. */
 const LARGE = 2 * 1024 * 1024 * 1024;
@@ -297,6 +297,7 @@ export function DownloadsPage() {
 
   return (
     <Page
+      flush
       title="Downloads"
       actions={
         going.length ? (
@@ -313,7 +314,7 @@ export function DownloadsPage() {
         }}
         onDragLeave={() => setOver(false)}
         onDrop={(e) => void drop(e)}
-        style={{ padding: '0 32px 32px', display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1060, minHeight: '100%' }}
+        style={{ padding: PAGE.body, display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1060, minHeight: '100%' }}
       >
         <div style={{ padding: 20, borderRadius: SHAPE.lg, background: over ? md('primaryContainer') : md('surfaceContainerLowest'), border: `1px ${over ? 'dashed' : 'solid'} ${over ? md('primary') : md('outlineVariant')}` }}>
           <TextField

@@ -86,7 +86,7 @@ export function ProjectPage({ id }: { id: string }) {
 
   return (
     <div style={{ height: '100%', overflowY: 'auto' }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 32px 8px' }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 32px 12px' }}>
         {back.length > 0 && (
           <IconButton onClick={goBack} aria-label="Back" sx={{ ml: -1.5 }}>
             <ArrowBack />

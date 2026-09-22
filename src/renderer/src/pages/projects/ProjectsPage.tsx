@@ -94,6 +94,7 @@ export function ProjectsPage() {
   const link = useLinkProject();
   return (
     <Page
+      flush
       title="Projects"
       actions={
         <Button variant="contained" startIcon={<AddLinkOutlined />} onClick={() => void link.start()}>
@@ -105,7 +106,7 @@ export function ProjectsPage() {
         <EmptyState
           icon={SportsEsportsOutlined}
           title="No projects linked"
-          body="Link a Unity, Godot or Unreal project, or any folder. Then “Copy to project” puts assets straight into it — with their textures, a licence file per pack, and a CREDITS.md kept up to date."
+          body="Link a Unity, Godot or Unreal project — or any folder — and “Copy to project” puts assets straight into it, with their textures, licences and credits."
           actions={
             <Button variant="contained" startIcon={<AddLinkOutlined />} onClick={() => void link.start()}>
               Link a project

@@ -22,7 +22,7 @@ import { useIndexVersion, useLibraryId } from '../state/library';
 import { useNav } from '../state/nav';
 import { md, SHAPE } from '../theme';
 import { coverHeight, PackCard } from './browse/PackCard';
-import { Page } from './Placeholder';
+import { PAGE, Page } from './Placeholder';
 
 const COLS = '112px minmax(0, 1fr) 260px 300px 110px';
 const ago = (iso: string) => {
@@ -119,7 +119,7 @@ export function InboxPage() {
   const rows = (packs?.rows ?? []).filter((p) => !adding.has(p.id));
 
   return (
-    <Page title="Review">
+    <Page title="Review" subtitle="Packs waiting for a licence and a source" flush>
       {packs && !rows.length ? (
         <EmptyState
           icon={RateReviewOutlined}
@@ -132,7 +132,7 @@ export function InboxPage() {
           }
         />
       ) : (
-        <div style={{ padding: '0 32px 32px', display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 1240 }}>
+        <div style={{ padding: PAGE.body, display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 1240 }}>
           <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), mb: 1 }}>
             Fill in the licence and where each came from. Complete ones move into the library by themselves.
           </Typography>
