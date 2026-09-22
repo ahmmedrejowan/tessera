@@ -5,6 +5,7 @@ import FolderRounded from '@mui/icons-material/FolderRounded';
 import LoginRounded from '@mui/icons-material/LoginRounded';
 import StorageRounded from '@mui/icons-material/StorageRounded';
 import UsbRounded from '@mui/icons-material/UsbRounded';
+import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
 import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
 import Button from '@mui/material/Button';
 import Collapse from '@mui/material/Collapse';
@@ -15,7 +16,7 @@ import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type ComponentType } from 'react';
 import type { BackupPlace } from '@shared/types';
-import { GROUPS, PROVIDERS, providerInfo, type Field, type Provider, type ProviderGroup, type StorageTarget } from '@shared/storage';
+import { bucketPolicy, GROUPS, PROVIDERS, providerInfo, type Field, type Provider, type ProviderGroup, type StorageTarget } from '@shared/storage';
 import { call, on } from '../../api';
 import { StatusSlot, type SlotMessage } from '../../components/StatusSlot';
 import { md, SHAPE } from '../../theme';
@@ -204,6 +205,61 @@ function SignIn({ target, onChange, onMessage }: { target: StorageTarget; onChan
 }
 
 /**
+ * Two ways to use a cloud drive: sign in (no app, nothing kept on this disk) or the drive's own
+ * app folder (the app uploads what's put there). The folder is offered only where the app is.
+ */
+function DriveModes({ target, onChange }: { target: StorageTarget; onChange: (t: StorageTarget) => void }) {
+  const info = providerInfo(target.provider);
+  const places = useQuery({ queryKey: ['restore-places'], queryFn: () => call('restore:places'), staleTime: 60_000 }).data;
+  const place = places?.find((p) => p.label === info.appFolder);
+  const sep = window.tessera.platform === 'win32' ? '\\' : '/';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <ModeCard
+        icon={LoginRounded}
+        title="Sign in directly"
+        lines={['No app needed, on any computer.', 'Nothing extra is kept on this disk.']}
+        disabled={!info.signIn}
+        disabledText={`${info.label} can’t be signed into from other apps.`}
+        onClick={() => onChange({ ...target, values: { ...target.values, mode: 'direct' } })}
+      />
+      <ModeCard
+        icon={FolderRounded}
+        title={`Use the ${info.label} app’s folder`}
+        lines={place ? [`Backups go in ${tidyPath(place.path)}; the app uploads them.`, 'If the app keeps files offline or mirrored, they also take space here.'] : []}
+        disabled={!place}
+        disabledText={places ? `The ${info.label} app isn’t on this computer.` : 'Looking…'}
+        onClick={() => place && onChange(newTarget('folder', { path: `${place.path.replace(/[\\/]+$/, '')}${sep}Tessera Backups` }))}
+      />
+    </div>
+  );
+}
+
+function ModeCard({ icon: Icon, title, lines, disabled, disabledText, onClick }: { icon: ComponentType<{ sx?: object }>; title: string; lines: string[]; disabled: boolean; disabledText: string; onClick: () => void }) {
+  return (
+    <ButtonBase
+      disabled={disabled}
+      onClick={onClick}
+      sx={{ height: 88, justifyContent: 'flex-start', gap: 1.75, px: 2, borderRadius: `${SHAPE.lg}px`, textAlign: 'left', border: `1px solid ${md('outlineVariant')}`, backgroundColor: md('surfaceContainerLow'), opacity: disabled ? 0.6 : 1, '&:hover': { backgroundColor: md('surfaceContainerHigh') } }}
+    >
+      <span style={{ width: 44, height: 44, borderRadius: 14, display: 'grid', placeItems: 'center', flexShrink: 0, background: md('secondaryContainer'), color: md('onSecondaryContainer') }}>
+        <Icon />
+      </span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="titleSmall" component="div" sx={{ color: md('onSurface') }}>
+          {title}
+        </Typography>
+        {(disabled ? [disabledText] : lines).map((l) => (
+          <Typography key={l} variant="bodySmall" component="div" noWrap sx={{ color: md('onSurfaceVariant') }}>
+            {l}
+          </Typography>
+        ))}
+      </span>
+    </ButtonBase>
+  );
+}
+
+/**
  * The settings for one provider: its fields, a sign-in for cloud drives, a host check for SFTP.
  * Whatever it needs to say goes in its message slot, so the form keeps its size.
  */
@@ -244,7 +300,19 @@ export function StorageForm({ target, onChange, onBack, suggest = 'none', messag
           {info.label}
         </Typography>
       </div>
-      {target.provider === 'folder' ? (
+      <div style={{ height: 36, marginTop: -8, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <Typography variant="bodySmall" component="div" sx={{ flex: 1, color: md('onSurfaceVariant'), display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {info.tip ?? ''}
+        </Typography>
+        {target.provider === 'aws' && (
+          <Button size="small" startIcon={<ContentCopyRounded />} sx={{ flexShrink: 0 }} onClick={() => void navigator.clipboard.writeText(bucketPolicy(target.values.bucket ?? '')).then(() => onMessage({ tone: 'success', text: 'A policy for this bucket is copied. Attach it to the key’s user in AWS.' }))}>
+            Copy a policy
+          </Button>
+        )}
+      </div>
+      {info.group === 'drive' && !target.values.mode ? (
+        <DriveModes target={target} onChange={onChange} />
+      ) : target.provider === 'folder' ? (
         <FolderForm target={target} onChange={onChange} suggest={suggest} />
       ) : (
         <>
@@ -279,7 +347,7 @@ export function StorageForm({ target, onChange, onBack, suggest = 'none', messag
           )}
         </>
       )}
-      <StatusSlot message={message} />
+      <StatusSlot message={info.group === 'drive' && !target.values.mode ? null : message} />
     </div>
   );
 }

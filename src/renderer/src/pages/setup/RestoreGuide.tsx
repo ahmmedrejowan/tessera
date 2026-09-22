@@ -28,7 +28,7 @@ import { DIALOG_HEIGHT, DIALOG_WIDTH, SetupFrame, Side } from '../library/Librar
 import { LocationFields, SectionLabel, tidyPath, useLocation } from '../library/Location';
 import { newTarget, ProviderGrid, StorageForm } from './Storage';
 import { ToolSetup } from './ToolSetup';
-import { describeTarget, targetProblem, type StorageTarget } from '@shared/storage';
+import { describeTarget, providerInfo, targetProblem, type StorageTarget } from '@shared/storage';
 
 type Step = 'setup' | 'find' | 'unlock' | 'choose' | 'where' | 'restoring';
 
@@ -330,7 +330,7 @@ export function RestoreGuide({ open, onClose }: { open: boolean; onClose: () => 
         </div>
         <div style={{ marginTop: 20 }}>
           <SectionLabel n={2}>Back to</SectionLabel>
-          <TextField select fullWidth value={snapshotId} onChange={(e) => setSnapshotId(e.target.value)} disabled={!source}>
+          <TextField select fullWidth value={snapshotId} onChange={(e) => setSnapshotId(e.target.value)} disabled={!source} helperText={remote && providerInfo(remote.provider).group === 'storage' ? 'Restoring downloads everything; the storage service may charge for that.' : ' '}>
             {source?.snapshots.map((s, i) => (
               <MenuItem key={s.id} value={s.id}>
                 {when(s.startTime)}
