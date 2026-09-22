@@ -6,6 +6,7 @@ import { parseRef } from './index/files';
 import { Jobs } from './jobs';
 import { DIRS } from './library/layout';
 import { LibraryService } from './libraryService';
+import { registerDrag } from './drag';
 import { initLog, log } from './log';
 import { handleProtocol, registerSchemePrivileges } from './protocol';
 import { packFileUrl } from '@shared/urls';
@@ -101,6 +102,17 @@ async function start(): Promise<void> {
     broadcast(windows, 'settings:changed', next);
   });
   registerHandlers();
+  registerDrag({
+    cacheDir: () => {
+      const state = library.getState();
+      return state.status === 'ready' ? join(dataDir, 'libraries', state.library.id, 'drag') : null;
+    },
+    packDir: (id) => {
+      const state = library.getState();
+      const folder = state.status === 'ready' ? library.require().index.known(id)?.folder : undefined;
+      return state.status === 'ready' && folder ? join(state.library.path, DIRS.packs, folder) : null;
+    },
+  });
   handleProtocol({
     packDir: (id) => {
       const state = library.getState();

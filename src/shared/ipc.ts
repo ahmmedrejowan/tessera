@@ -114,6 +114,10 @@ export interface Bridge {
   platform: Platform;
   /** Paths on disk of files dropped on the window. */
   pathsFor(files: File[]): string[];
+  /** Write files to disk (extracting from archives) ready to drag out; returns their paths. */
+  prepareDrag(items: { packId: string; ref: string }[]): Promise<string[]>;
+  /** Start dragging files out of the window. Call from a dragstart handler. */
+  startDrag(paths: string[]): void;
   /** Set for automated UI tests (TESSERA_E2E=1): the window exposes test hooks. */
   e2e: boolean;
 }

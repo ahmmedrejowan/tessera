@@ -11,6 +11,8 @@ const bridge: Bridge = {
   },
   platform: (['darwin', 'win32'].includes(process.platform) ? process.platform : 'linux') as Platform,
   pathsFor: (files) => files.map((f) => webUtils.getPathForFile(f)).filter(Boolean),
+  prepareDrag: (items) => ipcRenderer.invoke('drag:prepare', items) as Promise<string[]>,
+  startDrag: (paths) => ipcRenderer.send('drag:start', paths),
   e2e: process.env.TESSERA_E2E === '1',
 };
 
