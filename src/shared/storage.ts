@@ -47,6 +47,10 @@ export interface Field {
   file?: boolean;
   /** A folder on this computer (chosen with a picker). */
   folder?: boolean;
+  /** On or off ("true" / ""). */
+  toggle?: boolean;
+  /** Shown only under "Advanced". */
+  advanced?: boolean;
   initial?: string;
 }
 
@@ -67,13 +71,22 @@ const S3_KEYS: Field[] = [
   { key: 'secretKey', label: 'Secret access key', secret: true },
 ];
 const DRIVE_FOLDER: Field = { key: 'folder', label: 'Folder in your drive', initial: 'Tessera Backups' };
+/** Your own OAuth app, for providers whose shared one is rate-limited (Google Drive, mainly). */
+const CLIENT: Field[] = [
+  { key: 'clientId', label: 'Your own client ID', optional: true, advanced: true },
+  { key: 'clientSecret', label: 'Client secret', secret: true, optional: true, advanced: true },
+];
+const TLS: Field[] = [
+  { key: 'caFile', label: 'Certificate authority (PEM file)', file: true, optional: true, advanced: true },
+  { key: 'insecure', label: 'Don’t check the server’s certificate (only on a network you trust)', toggle: true, optional: true, advanced: true },
+];
 
 export const PROVIDERS: ProviderInfo[] = [
   { id: 'folder', label: 'A folder', group: 'folder', hint: 'This computer, a drive, or a synced cloud folder', fields: [{ key: 'path', label: 'Folder', folder: true }] },
 
-  { id: 'gdrive', label: 'Google Drive', group: 'drive', hint: 'Sign in with Google', fields: [DRIVE_FOLDER], signIn: { rcloneType: 'drive', params: ['scope=drive.file'] } },
-  { id: 'onedrive', label: 'OneDrive', group: 'drive', hint: 'Sign in with Microsoft', fields: [DRIVE_FOLDER], signIn: { rcloneType: 'onedrive', params: [] } },
-  { id: 'dropbox', label: 'Dropbox', group: 'drive', hint: 'Sign in with Dropbox', fields: [DRIVE_FOLDER], signIn: { rcloneType: 'dropbox', params: [] } },
+  { id: 'gdrive', label: 'Google Drive', group: 'drive', hint: 'Sign in with Google', fields: [DRIVE_FOLDER, ...CLIENT], signIn: { rcloneType: 'drive', params: ['scope=drive.file'] } },
+  { id: 'onedrive', label: 'OneDrive', group: 'drive', hint: 'Sign in with Microsoft', fields: [DRIVE_FOLDER, ...CLIENT], signIn: { rcloneType: 'onedrive', params: [] } },
+  { id: 'dropbox', label: 'Dropbox', group: 'drive', hint: 'Sign in with Dropbox', fields: [DRIVE_FOLDER, ...CLIENT], signIn: { rcloneType: 'dropbox', params: [] } },
   { id: 'box', label: 'Box', group: 'drive', hint: 'Sign in with Box', fields: [DRIVE_FOLDER], signIn: { rcloneType: 'box', params: [] } },
   { id: 'pcloud', label: 'pCloud', group: 'drive', hint: 'Sign in with pCloud', fields: [DRIVE_FOLDER], signIn: { rcloneType: 'pcloud', params: [] } },
 
@@ -84,7 +97,7 @@ export const PROVIDERS: ProviderInfo[] = [
   { id: 'spaces', label: 'DigitalOcean Spaces', group: 'storage', hint: 'A Space', fields: [{ key: 'bucket', label: 'Space name' }, { key: 'region', label: 'Region', initial: 'nyc3' }, ...S3_KEYS, PREFIX] },
   { id: 'gcs', label: 'Google Cloud Storage', group: 'storage', hint: 'A bucket, with a service account', fields: [{ key: 'bucket', label: 'Bucket' }, { key: 'credentials', label: 'Service account key (JSON)', file: true }, PREFIX] },
   { id: 'azure', label: 'Azure Blob Storage', group: 'storage', hint: 'A container', fields: [{ key: 'account', label: 'Storage account' }, { key: 'container', label: 'Container' }, { key: 'key', label: 'Account key', secret: true }, PREFIX] },
-  { id: 's3', label: 'Other S3-compatible', group: 'storage', hint: 'MinIO, Garage, and more', fields: [{ key: 'endpoint', label: 'Endpoint', placeholder: 'https://s3.example.com' }, { key: 'bucket', label: 'Bucket' }, { key: 'region', label: 'Region', optional: true }, ...S3_KEYS, PREFIX] },
+  { id: 's3', label: 'Other S3-compatible', group: 'storage', hint: 'MinIO, Garage, and more', fields: [{ key: 'endpoint', label: 'Endpoint', placeholder: 'https://s3.example.com' }, { key: 'bucket', label: 'Bucket' }, { key: 'region', label: 'Region', optional: true }, ...S3_KEYS, PREFIX, ...TLS] },
 
   {
     id: 'sftp',

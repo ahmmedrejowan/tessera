@@ -83,7 +83,16 @@ export function kopiaStorage(t: StorageTarget, rclone: RcloneSetup): KopiaStorag
       const { endpoint, region, tls } = s3Endpoint(t);
       return {
         type: 's3',
-        args: [`--bucket=${v.bucket}`, `--endpoint=${endpoint}`, ...(region ? [`--region=${region}`] : []), ...(prefixOf(v.prefix) ? [`--prefix=${prefixOf(v.prefix)}`] : []), ...(tls ? [] : ['--disable-tls'])],
+        args: [
+          `--bucket=${v.bucket}`,
+          `--endpoint=${endpoint}`,
+          ...(region ? [`--region=${region}`] : []),
+          ...(prefixOf(v.prefix) ? [`--prefix=${prefixOf(v.prefix)}`] : []),
+          ...(tls ? [] : ['--disable-tls']),
+          // A self-hosted server with its own certificate authority, or (by choice) none checked.
+          ...(tls && v.caFile ? [`--root-ca-pem-path=${v.caFile}`] : []),
+          ...(tls && v.insecure === 'true' ? ['--disable-tls-verification'] : []),
+        ],
         env: { AWS_ACCESS_KEY_ID: v.accessKey ?? '', AWS_SECRET_ACCESS_KEY: v.secretKey ?? '' },
       };
     }

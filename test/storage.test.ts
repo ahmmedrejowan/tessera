@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -69,9 +69,9 @@ const freePort = () =>
     });
   });
 
-async function serve(kind: 's3' | 'webdav' | 'sftp', dir: string, port: number): Promise<void> {
+async function serve(kind: 's3' | 'webdav' | 'sftp', dir: string, port: number, extra: string[] = []): Promise<void> {
   const auth = kind === 's3' ? ['--auth-key', 'AKTEST,SKTEST'] : ['--user', 'tess', '--pass', 'pw-123456'];
-  const child = spawn(rclone!, ['serve', kind, dir, '--addr', `127.0.0.1:${port}`, ...auth, '--config', '/dev/null'], { stdio: 'ignore' });
+  const child = spawn(rclone!, ['serve', kind, dir, '--addr', `127.0.0.1:${port}`, ...auth, ...extra, '--config', '/dev/null'], { stdio: 'ignore' });
   children.push(child);
   for (let i = 0; i < 50; i++) {
     const up = await new Promise<boolean>((resolve) => {
@@ -110,6 +110,24 @@ describe.skipIf(!kopia || !rclone)('backing up to real servers', () => {
     const sources = await roundTrip(t('s3', { endpoint: `http://127.0.0.1:${port}`, bucket: 'bucket', accessKey: 'AKTEST', secretKey: 'SKTEST', prefix: 'tessera/' }));
     expect(sources.map((s) => s.name)).toEqual(['Lib']);
   }, 60_000);
+
+  it('S3 on a server with its own certificate authority', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tessera-tls-'));
+    const pki = join(dir, 'pki');
+    await mkdir(join(dir, 'data', 'bucket'), { recursive: true });
+    await mkdir(pki);
+    const ssl = (args: string[]) => execFileSync('openssl', args, { cwd: pki, stdio: 'ignore' });
+    ssl(['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', 'ca.key', '-out', 'ca.pem', '-days', '2', '-subj', '/CN=Test CA']);
+    ssl(['req', '-newkey', 'rsa:2048', '-nodes', '-keyout', 'srv.key', '-out', 'srv.csr', '-subj', '/CN=127.0.0.1']);
+    await writeFile(join(pki, 'ext.cnf'), 'subjectAltName=IP:127.0.0.1\n');
+    ssl(['x509', '-req', '-in', 'srv.csr', '-CA', 'ca.pem', '-CAkey', 'ca.key', '-CAcreateserial', '-out', 'srv.pem', '-days', '2', '-extfile', 'ext.cnf']);
+    const port = await freePort();
+    await serve('s3', join(dir, 'data'), port, ['--cert', join(pki, 'srv.pem'), '--key', join(pki, 'srv.key')]);
+    const base = { endpoint: `https://127.0.0.1:${port}`, bucket: 'bucket', accessKey: 'AKTEST', secretKey: 'SKTEST' };
+    await expect(roundTrip(t('s3', { ...base, prefix: 'a/' }))).rejects.toThrow(/certificate/);
+    expect((await roundTrip(t('s3', { ...base, prefix: 'b/', caFile: join(pki, 'ca.pem') }))).map((x) => x.name)).toEqual(['Lib']);
+    expect((await roundTrip(t('s3', { ...base, prefix: 'c/', insecure: 'true' }))).map((x) => x.name)).toEqual(['Lib']);
+  }, 90_000);
 
   it('WebDAV', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'tessera-dav-'));

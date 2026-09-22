@@ -103,7 +103,7 @@ export interface Invokes {
   /** Start backing up to a folder, making a new store there or opening an existing one. */
   'backup:setup': (target: StorageTarget, password: string, create: boolean) => void;
   /** Sign in to a cloud drive in the browser (the page's address comes as `backup:signInUrl`); returns the rclone remote. */
-  'backup:signIn': (provider: Provider) => string;
+  'backup:signIn': (provider: Provider, client?: { id?: string; secret?: string }) => string;
   'backup:cancelSignIn': () => void;
   /** An SFTP server's host keys and fingerprint, to check it's the same server every time. */
   'backup:hostKey': (host: string, port: string) => { data: string; fingerprint: string };

@@ -79,11 +79,12 @@ export class RcloneAuth {
   }
 
   /** Sign in to a cloud drive in the browser; returns the name of the rclone remote made for it. */
-  async signIn(info: ProviderInfo, onUrl: (url: string) => void): Promise<string> {
+  async signIn(info: ProviderInfo, onUrl: (url: string) => void, client?: { id?: string; secret?: string }): Promise<string> {
     if (!info.signIn) throw new UserError('no-sign-in', `${info.label} doesn’t use a sign-in.`);
     await mkdir(dirname(this.config), { recursive: true });
     const remote = `tessera-${info.id}-${randomBytes(3).toString('hex')}`;
-    let step = await this.step(['config', 'create', remote, info.signIn.rcloneType, ...info.signIn.params], onUrl);
+    const own = client?.id ? [`client_id=${client.id}`, `client_secret=${client.secret ?? ''}`] : [];
+    let step = await this.step(['config', 'create', remote, info.signIn.rcloneType, ...info.signIn.params, ...own], onUrl);
     for (let i = 0; step.State && i < 20; i++) {
       if (step.Error) log.warn('rclone', `sign-in step: ${step.Error}`);
       const d = step.Option?.Default;

@@ -5,7 +5,10 @@ import FolderRounded from '@mui/icons-material/FolderRounded';
 import LoginRounded from '@mui/icons-material/LoginRounded';
 import StorageRounded from '@mui/icons-material/StorageRounded';
 import UsbRounded from '@mui/icons-material/UsbRounded';
+import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
 import Button from '@mui/material/Button';
+import Collapse from '@mui/material/Collapse';
+import Switch from '@mui/material/Switch';
 import ButtonBase from '@mui/material/ButtonBase';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -73,6 +76,16 @@ function Tile({ id, onPick, wide }: { id: Provider; onPick: (p: Provider) => voi
 }
 
 function FieldInput({ field, value, onChange }: { field: Field; value: string; onChange: (v: string) => void }) {
+  if (field.toggle) {
+    return (
+      <label style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 12, height: 40, cursor: 'pointer' }}>
+        <Typography variant="bodyMedium" sx={{ flex: 1, color: md('onSurface') }}>
+          {field.label}
+        </Typography>
+        <Switch checked={value === 'true'} onChange={(_, v) => onChange(v ? 'true' : '')} slotProps={{ input: { 'aria-label': field.label } }} />
+      </label>
+    );
+  }
   if (field.file) {
     return (
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', gridColumn: '1 / -1' }}>
@@ -161,7 +174,7 @@ function SignIn({ target, onChange, onMessage }: { target: StorageTarget; onChan
     setUrl(null);
     onMessage({ tone: 'info', busy: true, text: 'Finish signing in in your browser…' });
     try {
-      const remote = await call('backup:signIn', target.provider);
+      const remote = await call('backup:signIn', target.provider, { ...(target.values.clientId ? { id: target.values.clientId } : {}), ...(target.values.clientSecret ? { secret: target.values.clientSecret } : {}) });
       onChange({ ...target, values: { ...target.values, remote } });
       onMessage({ tone: 'success', text: `Signed in to ${info.label}.` });
     } catch (e) {
@@ -196,6 +209,7 @@ function SignIn({ target, onChange, onMessage }: { target: StorageTarget; onChan
  */
 export function StorageForm({ target, onChange, onBack, suggest = 'none', message, onMessage }: { target: StorageTarget; onChange: (t: StorageTarget) => void; onBack?: () => void; suggest?: 'backups' | 'none'; message: SlotMessage | null; onMessage: (m: SlotMessage | null) => void }) {
   const info = providerInfo(target.provider);
+  const [advanced, setAdvanced] = useState(false);
   const set = (key: string, value: string) => onChange({ ...target, values: { ...target.values, [key]: value } });
   const checkHost = async () => {
     onMessage({ tone: 'info', busy: true, text: `Checking ${target.values.host}…` });
@@ -228,10 +242,28 @@ export function StorageForm({ target, onChange, onBack, suggest = 'none', messag
         <>
           {info.signIn && <SignIn target={target} onChange={onChange} onMessage={onMessage} />}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-            {info.fields.map((f) => (
-              <FieldInput key={f.key} field={f} value={target.values[f.key] ?? ''} onChange={(v) => set(f.key, v)} />
-            ))}
+            {info.fields
+              .filter((f) => !f.advanced)
+              .map((f) => (
+                <FieldInput key={f.key} field={f} value={target.values[f.key] ?? ''} onChange={(v) => set(f.key, v)} />
+              ))}
           </div>
+          {info.fields.some((f) => f.advanced) && (
+            <div>
+              <Button size="small" onClick={() => setAdvanced(!advanced)} endIcon={<ExpandMoreRounded sx={{ transform: advanced ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }} />} sx={{ ml: -1, color: md('onSurfaceVariant') }}>
+                Advanced
+              </Button>
+              <Collapse in={advanced}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, paddingTop: 8 }}>
+                  {info.fields
+                    .filter((f) => f.advanced)
+                    .map((f) => (
+                      <FieldInput key={f.key} field={f} value={target.values[f.key] ?? ''} onChange={(v) => set(f.key, v)} />
+                    ))}
+                </div>
+              </Collapse>
+            </div>
+          )}
           {target.provider === 'sftp' && (
             <Button variant="outlined" size="small" disabled={!target.values.host} onClick={() => void checkHost()} sx={{ alignSelf: 'flex-start' }}>
               {target.values.knownHosts ? 'Check the server again' : 'Check the server'}

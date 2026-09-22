@@ -422,7 +422,7 @@ function registerHandlers(): void {
     return result.canceled ? null : (result.filePaths[0] ?? null);
   });
   handle('backup:setup', (target, password, create) => backups.setup(target, password, create));
-  handle('backup:signIn', (provider) => rcloneAuth.signIn(providerInfo(provider), (url) => broadcast(windows, 'backup:signInUrl', url)));
+  handle('backup:signIn', (provider, client) => rcloneAuth.signIn(providerInfo(provider), (url) => broadcast(windows, 'backup:signInUrl', url), client));
   handle('backup:cancelSignIn', () => rcloneAuth.cancel());
   handle('backup:hostKey', (host, port) => hostKeys(host, port));
   handle('dialog:file', async (title) => {
