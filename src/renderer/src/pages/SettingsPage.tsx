@@ -5,11 +5,12 @@ import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import type { ThemeMode } from '@shared/types';
+import type { ReportConsent, ThemeMode } from '@shared/types';
 import { call } from '../api';
 import { formatBytes } from '../components/labels';
 import { SegmentedButton } from '../components/SegmentedButton';
 import { failed, notify } from '../notices/store';
+import { useReportProblem } from '../reports/ReportProblem';
 import { useLibraryState } from '../state/library';
 import { useAppInfo, useSettings, useUpdateSettings } from '../state/queries';
 import { md } from '../theme';
@@ -29,6 +30,7 @@ export function SettingsPage() {
   const library = useLibraryState().data;
   const client = useQueryClient();
   const thumbs = useQuery({ queryKey: ['thumbs-size'], queryFn: () => call('thumbs:size') });
+  const reports = useQuery({ queryKey: ['reports-status'], queryFn: () => call('reports:status'), staleTime: 0 }).data;
   const [busy, setBusy] = useState<string | null>(null);
   if (!settings) return null;
 
@@ -131,10 +133,33 @@ export function SettingsPage() {
           </Row>
         </Group>
 
-        <Group title="About">
-          <Row title={`Tessera ${info?.version ?? ''}`} body={info ? `Electron ${info.versions.electron} · Chromium ${info.versions.chrome} · Node ${info.versions.node}` : undefined}>
+        <Group title="Privacy and problems">
+          {reports?.available ? (
+            <Row title="Error reports" body="Errors are always kept on this computer. Sending them helps fix problems; names of files, packs and folders are taken out first, and nothing says who you are.">
+              <SegmentedButton<ReportConsent>
+                label="Error reports"
+                value={settings.errorReports}
+                onChange={(errorReports) => update.mutate({ errorReports })}
+                options={[
+                  { value: 'ask', label: 'Ask' },
+                  { value: 'always', label: 'Send' },
+                  { value: 'never', label: 'Don’t send' },
+                ]}
+              />
+            </Row>
+          ) : (
+            <Row title="Error reports" body="Errors are kept on this computer only: this copy of Tessera has nowhere to send them. You can still send a report yourself." />
+          )}
+          <Row title="Report a problem" body="Say what went wrong. The report adds this session’s errors and the recent log, and you see all of it first.">
+            <Button onClick={() => useReportProblem.getState().show()}>Report…</Button>
+          </Row>
+          <Row title="Logs" body="What Tessera has written down, including the record of errors.">
             <Button onClick={() => void call('app:showLogs')}>Show logs</Button>
           </Row>
+        </Group>
+
+        <Group title="About">
+          <Row title={`Tessera ${info?.version ?? ''}`} body={info ? `Electron ${info.versions.electron} · Chromium ${info.versions.chrome} · Node ${info.versions.node}` : undefined} />
         </Group>
       </div>
     </Page>

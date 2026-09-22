@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DialogHost } from './notices/DialogHost';
 import { NoticeHost } from './notices/NoticeHost';
+import { ReportsHost } from './reports/ReportsHost';
 import { AddMenu } from './import/AddMenu';
 import { DropOverlay } from './import/DropOverlay';
 import { ImportDialog } from './import/ImportDialog';
@@ -50,7 +51,11 @@ function Current() {
 /** An error boundary that resets when the page changes. */
 function RoutedBoundary({ children }: { children: ReactNode }) {
   const route = useNav((s) => s.route);
-  return <ErrorBoundary resetKey={JSON.stringify(route)}>{children}</ErrorBoundary>;
+  return (
+    <ErrorBoundary resetKey={JSON.stringify(route)} page={route.to}>
+      {children}
+    </ErrorBoundary>
+  );
 }
 
 export function App() {
@@ -59,6 +64,7 @@ export function App() {
       <Screen />
       <NoticeHost />
       <DialogHost />
+      <ReportsHost />
     </>
   );
 }

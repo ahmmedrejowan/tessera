@@ -6,9 +6,12 @@ import { App } from './App';
 import { call } from './api';
 import { ask } from './notices/dialogs';
 import { notify } from './notices/store';
+import { installCapture } from './reports/capture';
 import { useImport } from './state/importer';
 import { queryClient } from './state/queries';
 import { AppThemeProvider } from './theme/AppThemeProvider';
+
+installCapture();
 
 // Automated UI tests stand in for native file dialogs and drag and drop.
 if (window.tessera.e2e) {

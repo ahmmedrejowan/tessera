@@ -26,6 +26,9 @@ export function MenuCommands() {
             return usePalette.getState().toggle();
           case 'find':
             return document.getElementById('global-search')?.focus();
+          case 'reportProblem':
+            // Handled by the report dialog, which listens whether or not a library is open.
+            return;
           default:
             return go({ to: command });
         }
