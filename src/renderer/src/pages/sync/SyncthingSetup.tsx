@@ -1,0 +1,181 @@
+import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
+import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
+import DownloadRounded from '@mui/icons-material/DownloadRounded';
+import RefreshRounded from '@mui/icons-material/RefreshRounded';
+import TerminalRounded from '@mui/icons-material/TerminalRounded';
+import VerifiedUserOutlined from '@mui/icons-material/VerifiedUserOutlined';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import LinearProgress from '@mui/material/LinearProgress';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import type { Events } from '@shared/ipc';
+import type { Platform } from '@shared/types';
+import { call, on, platform } from '../../api';
+import { formatBytes } from '../../components/labels';
+import { failed, notify } from '../../notices/store';
+import { md, SHAPE } from '../../theme';
+
+interface Way {
+  /** Package manager, as found on the system. */
+  tool?: string;
+  label: string;
+  command: string;
+}
+
+const WAYS: Record<Platform, { name: string; ways: Way[] }> = {
+  darwin: { name: 'macOS', ways: [{ tool: 'brew', label: 'Homebrew', command: 'brew install syncthing' }] },
+  win32: { name: 'Windows', ways: [{ tool: 'winget', label: 'Windows Package Manager', command: 'winget install --id Syncthing.Syncthing -e' }] },
+  linux: {
+    name: 'Linux',
+    ways: [
+      { tool: 'apt', label: 'Debian, Ubuntu, Mint', command: 'sudo apt install syncthing' },
+      { tool: 'dnf', label: 'Fedora', command: 'sudo dnf install syncthing' },
+      { tool: 'pacman', label: 'Arch', command: 'sudo pacman -S syncthing' },
+      { tool: 'zypper', label: 'openSUSE', command: 'sudo zypper install syncthing' },
+    ],
+  },
+};
+
+export function CommandLine({ command, found }: { command: string; found?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 6px 6px 14px', borderRadius: SHAPE.md, background: md('inverseSurface'), color: md('inverseOnSurface') }}>
+      <span style={{ opacity: 0.6, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 13 }}>$</span>
+      <code style={{ flex: 1, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 13, userSelect: 'text', overflowWrap: 'anywhere' }}>{command}</code>
+      {found && <span style={{ fontSize: 11, padding: '1px 8px', borderRadius: SHAPE.full, background: md('inversePrimary'), color: md('onPrimaryContainer'), whiteSpace: 'nowrap' }}>on this computer</span>}
+      <Tooltip title={copied ? 'Copied' : 'Copy'}>
+        <IconButton size="small" sx={{ color: 'inherit' }} onClick={() => void navigator.clipboard.writeText(command).then(() => setCopied(true))}>
+          <ContentCopyRounded fontSize="small" />
+        </IconButton>
+      </Tooltip>
+    </div>
+  );
+}
+
+const STAGES: Record<Events['sync:installProgress']['stage'], string> = {
+  finding: 'Finding the latest version…',
+  downloading: 'Downloading…',
+  checking: 'Checking the download…',
+  unpacking: 'Unpacking…',
+  done: 'Ready',
+};
+
+/**
+ * Getting Syncthing onto this computer: Tessera can fetch and check the official build itself, or
+ * the user can install it with their system's package manager (commands for each system, since
+ * the other computer may run something else).
+ */
+export function SyncthingSetup({ available, bundled, compact }: { available: boolean; bundled: boolean; compact?: boolean }) {
+  const client = useQueryClient();
+  const [progress, setProgress] = useState<Events['sync:installProgress'] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [os, setOs] = useState<Platform>(platform);
+  const managers = useQuery({ queryKey: ['package-managers'], queryFn: () => call('sync:packageManagers'), staleTime: Infinity }).data ?? [];
+  useEffect(() => on('sync:installProgress', setProgress), []);
+  // Installed by hand in the meantime? Look again when the window comes back into focus.
+  useEffect(() => {
+    const again = () => void client.invalidateQueries({ queryKey: ['sync'] });
+    window.addEventListener('focus', again);
+    return () => window.removeEventListener('focus', again);
+  }, [client]);
+
+  const install = async () => {
+    setBusy(true);
+    try {
+      const version = await call('sync:install');
+      notify.success(`Syncthing ${version} is ready.`);
+      await client.invalidateQueries({ queryKey: ['sync'] });
+    } catch (e) {
+      failed(e, 'Couldn’t get Syncthing');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (available) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: SHAPE.lg, background: md('secondaryContainer'), color: md('onSecondaryContainer') }}>
+        <CheckCircleRounded />
+        <Typography variant="bodyMedium" sx={{ flex: 1 }}>
+          Syncthing is ready on this computer{bundled ? ' (the copy Tessera keeps for itself)' : ''}. Tessera runs it for you; there’s nothing to set up in Syncthing itself.
+        </Typography>
+      </div>
+    );
+  }
+
+  const pct = progress && progress.total ? (progress.received / progress.total) * 100 : null;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 16 : 20 }}>
+      <div style={{ padding: 20, borderRadius: SHAPE.xl, background: md('primaryContainer'), color: md('onPrimaryContainer'), display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+          <span style={{ width: 44, height: 44, borderRadius: 14, display: 'grid', placeItems: 'center', background: md('primary'), color: md('onPrimary'), flexShrink: 0 }}>
+            <DownloadRounded />
+          </span>
+          <div style={{ flex: 1 }}>
+            <Typography variant="titleMedium">Set it up for me</Typography>
+            <Typography variant="bodySmall" component="div" sx={{ opacity: 0.85, mt: 0.25 }}>
+              Tessera downloads the official Syncthing for {WAYS[platform].name} (about 12 MB) from Syncthing’s GitHub releases, checks it against their published checksum, and keeps it in its own folder. No installer, no admin password.
+            </Typography>
+          </div>
+        </div>
+        {busy && progress ? (
+          <div>
+            <LinearProgress variant={pct === null ? 'indeterminate' : 'determinate'} {...(pct === null ? {} : { value: pct })} sx={{ height: 6, borderRadius: 3 }} />
+            <Typography variant="bodySmall" component="div" sx={{ mt: 0.75, opacity: 0.85 }}>
+              {STAGES[progress.stage]}
+              {progress.stage === 'downloading' && progress.total ? ` ${formatBytes(progress.received)} of ${formatBytes(progress.total)}` : ''}
+            </Typography>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Button variant="contained" startIcon={<DownloadRounded />} disabled={busy} onClick={() => void install()}>
+              Download and set up
+            </Button>
+            <Typography variant="bodySmall" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, opacity: 0.8 }}>
+              <VerifiedUserOutlined sx={{ fontSize: 16 }} /> Checked before it’s used
+            </Typography>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <TerminalRounded sx={{ fontSize: 20, color: md('onSurfaceVariant') }} />
+          <Typography variant="titleSmall" sx={{ color: md('onSurface'), flex: 1 }}>
+            Or install it yourself
+          </Typography>
+          <Button size="small" startIcon={<RefreshRounded />} onClick={() => void client.invalidateQueries({ queryKey: ['sync'] })}>
+            Check again
+          </Button>
+        </div>
+        <Tabs value={os} onChange={(_, v: Platform) => setOs(v)} sx={{ minHeight: 40, mb: 1.5, '& .MuiTab-root': { minHeight: 40, textTransform: 'none' } }}>
+          {(Object.keys(WAYS) as Platform[]).map((p) => (
+            <Tab key={p} value={p} label={p === platform ? `${WAYS[p].name} · this computer` : WAYS[p].name} />
+          ))}
+        </Tabs>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {WAYS[os].ways.map((w) => (
+            <div key={w.command}>
+              <Typography variant="labelMedium" component="div" sx={{ color: md('onSurfaceVariant'), mb: 0.5 }}>
+                {w.label}
+              </Typography>
+              <CommandLine command={w.command} found={os === platform && !!w.tool && managers.includes(w.tool)} />
+            </div>
+          ))}
+          <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+            Or get it from{' '}
+            <a href="https://syncthing.net/downloads/" target="_blank" rel="noreferrer" style={{ color: md('primary') }}>
+              syncthing.net/downloads
+            </a>
+            . Once it’s installed, come back here; Tessera notices on its own.
+          </Typography>
+        </div>
+      </div>
+    </div>
+  );
+}

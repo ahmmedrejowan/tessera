@@ -20,6 +20,7 @@ import { SegmentedButton } from '../../components/SegmentedButton';
 import { failed, notify } from '../../notices/store';
 import { md, SHAPE } from '../../theme';
 import { Row } from './parts';
+import { SyncthingSetup } from '../sync/SyncthingSetup';
 
 export const MODES: { value: SyncMode; label: string; help: string }[] = [
   { value: 'push', label: 'Send only', help: 'This computer sends its changes; changes made elsewhere don’t come back. Good for the main computer.' },
@@ -74,7 +75,7 @@ function AddComputer({ open, onClose }: { open: boolean; onClose: () => void }) 
       <DialogTitle>Add a computer</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-          On the other computer, open Tessera and choose “Get one from another computer” (or Settings › Sync). Its device ID is shown there; paste it here.
+          On the other computer, open Tessera and choose “Get one from another computer” on its welcome screen. It shows that computer’s ID; paste it here. The library is offered to it as soon as you pair.
         </Typography>
         <TextField autoFocus label="Its device ID" value={id} onChange={(e) => setId(e.target.value)} placeholder="XXXXXXX-XXXXXXX-…" sx={{ mt: 1 }} />
         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Desktop PC" />
@@ -109,18 +110,12 @@ export function SyncSettings() {
 
   if (!status.available) {
     return (
-      <Row
-        title="Sync is off"
-        body={
-          <>
-            Tessera keeps libraries in step between computers with Syncthing, free and open-source, directly between your machines. Install it from{' '}
-            <a href="https://syncthing.net/downloads/" target="_blank" rel="noreferrer" style={{ color: md('primary') }}>
-              syncthing.net
-            </a>
-            , then come back here.
-          </>
-        }
-      />
+      <div style={{ padding: '16px 0' }}>
+        <Typography variant="bodyMedium" sx={{ color: md('onSurface'), mb: 2 }}>
+          Keep this library the same on your other computers, directly between them. Tessera uses Syncthing for that, free and open-source.
+        </Typography>
+        <SyncthingSetup available={false} bundled={false} compact />
+      </div>
     );
   }
   if (!status.enabled) {
