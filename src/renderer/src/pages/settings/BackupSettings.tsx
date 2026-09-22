@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react';
 import { call, on } from '../../api';
 import { formatBytes } from '../../components/labels';
 import { SegmentedButton } from '../../components/SegmentedButton';
-import { toast } from '../../components/Toast';
+import { failed, notify } from '../../notices/store';
 import { useUpdateSettings } from '../../state/queries';
 import { md } from '../../theme';
 import { Row } from './parts';
@@ -48,7 +48,7 @@ function SetupDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
     setError(null);
     try {
       await call('backup:setup', folder!, password, mode === 'new');
-      toast('Backups are on. The first one is running now.');
+      notify.success('Backups are on. The first one is running now.');
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -99,10 +99,10 @@ function RestoreDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const restore = async (id: string) => {
     try {
       const target = await call('backup:restore', id);
-      if (target) toast(`Restored into ${target}.`);
+      if (target) notify.success(`Restored into ${target}.`);
       onClose();
     } catch (e) {
-      toast(e instanceof Error ? e.message : String(e));
+      failed(e);
     }
   };
   return (
@@ -185,7 +185,7 @@ export function BackupSettings() {
           </>
         }
       >
-        <Button variant="contained" disabled={status.running} onClick={() => void call('backup:now').catch((e: Error) => toast(e.message))}>
+        <Button variant="contained" disabled={status.running} onClick={() => void call('backup:now').catch((e: unknown) => failed(e))}>
           Back up now
         </Button>
       </Row>

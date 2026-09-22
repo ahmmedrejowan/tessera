@@ -10,7 +10,7 @@ import { call } from '../api';
 import { EmptyState } from '../components/EmptyState';
 import { formatBytes, sourceName, typeSummary } from '../components/labels';
 import { LicenceChip } from '../components/LicenceChip';
-import { toast } from '../components/Toast';
+import { failed, notify } from '../notices/store';
 import { useImport } from '../state/importer';
 import { useIndexVersion, useLibraryId } from '../state/library';
 import { useNav } from '../state/nav';
@@ -80,11 +80,11 @@ export function InboxPage() {
         await call('pack:status', p.id, 'library');
         moved++;
       } catch (e) {
-        toast(e instanceof Error ? e.message : String(e));
+        failed(e);
       }
     }
     setBusy(false);
-    if (moved) toast(`Moved ${moved} pack${moved > 1 ? 's' : ''} to the library.`);
+    if (moved) notify.success(`Moved ${moved} pack${moved > 1 ? 's' : ''} to the library.`);
   };
 
   return (

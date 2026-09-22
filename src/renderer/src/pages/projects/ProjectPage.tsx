@@ -25,7 +25,7 @@ import { AssetThumb } from '../../components/AssetThumb';
 import { EmptyState } from '../../components/EmptyState';
 import { displayName } from '../../components/labels';
 import { LicenceChip } from '../../components/LicenceChip';
-import { toast } from '../../components/Toast';
+import { failed, notify } from '../../notices/store';
 import { useNav } from '../../state/nav';
 import { copyToProject, useActiveProject, useProjects } from '../../state/projects';
 import { useUpdateSettings } from '../../state/queries';
@@ -70,7 +70,7 @@ export function ProjectPage({ id }: { id: string }) {
   const isActive = active?.id === id;
   const remove = async (items: ManifestEntry[]) => {
     const n = await call('projects:remove', id, items.map((e) => ({ packId: e.packId, ref: e.ref })));
-    toast(`Removed ${n} asset${n === 1 ? '' : 's'} from ${project.name}.`);
+    notify.success(`Removed ${n} asset${n === 1 ? '' : 's'} from ${project.name}.`);
   };
 
   return (
@@ -203,7 +203,7 @@ export function ProjectPage({ id }: { id: string }) {
                 await call('projects:update', id, { target: editingTarget ?? '' });
                 setEditingTarget(null);
               } catch (e) {
-                toast(e instanceof Error ? e.message : String(e));
+                failed(e);
               }
             }}
           >

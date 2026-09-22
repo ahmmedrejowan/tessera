@@ -17,7 +17,7 @@ import type { SyncMode } from '@shared/types';
 import { call, on } from '../../api';
 import { formatBytes } from '../../components/labels';
 import { SegmentedButton } from '../../components/SegmentedButton';
-import { toast } from '../../components/Toast';
+import { failed, notify } from '../../notices/store';
 import { md, SHAPE } from '../../theme';
 import { Row } from './parts';
 
@@ -41,7 +41,7 @@ export function DeviceId({ id }: { id: string }) {
         {id}
       </Typography>
       <Tooltip title="Copy">
-        <IconButton size="small" onClick={() => void navigator.clipboard.writeText(id).then(() => toast('Device ID copied.'))}>
+        <IconButton size="small" onClick={() => void navigator.clipboard.writeText(id).then(() => notify.success('Device ID copied.'))}>
           <ContentCopyOutlined fontSize="small" />
         </IconButton>
       </Tooltip>
@@ -63,7 +63,7 @@ function AddComputer({ open, onClose }: { open: boolean; onClose: () => void }) 
   const add = async () => {
     try {
       await call('sync:addDevice', id, name);
-      toast(`Paired with ${name || 'the computer'}. It will be asked to accept the library.`);
+      notify.success(`Paired with ${name || 'the computer'}. It will be asked to accept the library.`);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -101,7 +101,7 @@ export function SyncSettings() {
     try {
       await fn();
     } catch (e) {
-      toast(e instanceof Error ? e.message : String(e));
+      failed(e);
     } finally {
       setBusy(false);
     }

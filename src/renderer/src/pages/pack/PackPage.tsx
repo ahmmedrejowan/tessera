@@ -30,7 +30,7 @@ import type { AssetRow } from '@shared/query';
 import { sourceInfo } from '@shared/sources';
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
-import { toast } from '../../components/Toast';
+import { failed, notify } from '../../notices/store';
 import { formatBytes, formatCount, sourceName, typeSummary } from '../../components/labels';
 import { LicenceChip, licenceSummary } from '../../components/LicenceChip';
 import { VirtualGrid } from '../../components/VirtualGrid';
@@ -83,7 +83,6 @@ export function PackPage({ id }: { id: string }) {
   const [type, setType] = useState<AssetType | null>(null);
   const [find, setFind] = useState('');
   const [viewing, setViewing] = useState<{ list: AssetRow[]; index: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
 
   const pack = useQuery({ queryKey: ['pack', lib, version, id], queryFn: () => call('pack:get', id), enabled: !!lib, placeholderData: (p) => p }).data;
@@ -124,11 +123,10 @@ export function PackPage({ id }: { id: string }) {
   const link = pack.meta.source.url ?? site?.url ?? null;
 
   const moveToLibrary = async () => {
-    setError(null);
     try {
       await call('pack:status', id, 'library');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      failed(e);
     }
   };
 
@@ -186,11 +184,6 @@ export function PackPage({ id }: { id: string }) {
           }
         >
           {missing.length ? `This pack is waiting in the Inbox. Add its ${missing.join(' and ')} to move it into the library.` : 'Everything needed is recorded. Move it into the library when you’re ready.'}
-        </Alert>
-      )}
-      {error && (
-        <Alert severity="error" sx={{ mx: 4, mb: 1 }} onClose={() => setError(null)}>
-          {error}
         </Alert>
       )}
 
@@ -357,10 +350,10 @@ export function PackPage({ id }: { id: string }) {
               setRemoving(false);
               try {
                 const name = await call('pack:remove', id);
-                toast(`Moved “${name}” to the ${window.tessera.platform === 'win32' ? 'Recycle Bin' : 'Trash'}.`);
+                notify.success(`Moved “${name}” to the ${window.tessera.platform === 'win32' ? 'Recycle Bin' : 'Trash'}.`);
                 go({ to: 'browse' });
               } catch (e) {
-                toast(e instanceof Error ? e.message : String(e));
+                failed(e);
               }
             }}
           >

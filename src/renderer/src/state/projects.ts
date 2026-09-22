@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { create } from 'zustand';
 import type { CopyPlan } from '@shared/project';
 import { call, on } from '../api';
-import { toast } from '../components/Toast';
+import { failed, notify } from '../notices/store';
 import { useLibraryId } from './library';
 import { useNav } from './nav';
 import { useSettings } from './queries';
@@ -44,9 +44,9 @@ export const useCopy = create<CopyState>((set, get) => ({
 async function doCopy(projectId: string, projectName: string, items: Items): Promise<void> {
   try {
     const n = await call('projects:copy', projectId, items);
-    toast(`Copied ${n} asset${n === 1 ? '' : 's'} to ${projectName}.`, { label: 'Open', run: () => useNav.getState().go({ to: 'project', id: projectId }) });
+    notify.success(`Copied ${n} asset${n === 1 ? '' : 's'} to ${projectName}.`, { action: { label: 'Open', run: () => useNav.getState().go({ to: 'project', id: projectId }) } });
   } catch (e) {
-    toast(e instanceof Error ? e.message : String(e));
+    failed(e);
   }
 }
 
@@ -56,7 +56,7 @@ async function doCopy(projectId: string, projectName: string, items: Items): Pro
  */
 export async function copyToProject(project: { id: string; name: string } | null, items: Items): Promise<void> {
   if (!project) {
-    toast('Link a game project first.', { label: 'Projects', run: () => useNav.getState().go({ to: 'projects' }) });
+    notify.info('Link a game project first.', { action: { label: 'Projects', run: () => useNav.getState().go({ to: 'projects' }) } });
     return;
   }
   if (!items.length) return;
@@ -65,6 +65,6 @@ export async function copyToProject(project: { id: string; name: string } | null
     if (plan.warnings.length) useCopy.setState({ pending: { projectId: project.id, projectName: project.name, items, plan } });
     else await doCopy(project.id, project.name, items);
   } catch (e) {
-    toast(e instanceof Error ? e.message : String(e));
+    failed(e);
   }
 }

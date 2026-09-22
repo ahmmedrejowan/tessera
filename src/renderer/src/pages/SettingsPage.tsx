@@ -9,7 +9,7 @@ import type { ThemeMode } from '@shared/types';
 import { call } from '../api';
 import { formatBytes } from '../components/labels';
 import { SegmentedButton } from '../components/SegmentedButton';
-import { toast } from '../components/Toast';
+import { failed, notify } from '../notices/store';
 import { useLibraryState } from '../state/library';
 import { useAppInfo, useSettings, useUpdateSettings } from '../state/queries';
 import { md } from '../theme';
@@ -36,9 +36,9 @@ export function SettingsPage() {
     setBusy(what);
     try {
       await fn();
-      toast(done);
+      notify.success(done);
     } catch (e) {
-      toast(e instanceof Error ? e.message : String(e));
+      failed(e);
     } finally {
       setBusy(null);
     }

@@ -15,11 +15,13 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { LibraryState } from '@shared/types';
 import { call, platform } from '../api';
 import { Logo } from '../components/Logo';
 import { MosaicHero } from '../components/MosaicHero';
+import { ask } from '../notices/dialogs';
+import { failed, notify } from '../notices/store';
 import { useSettings, useUpdateSettings } from '../state/queries';
 import { md, mdAlpha, SHAPE, STATE } from '../theme';
 import { ReceiveDialog } from './ReceiveDialog';
@@ -78,43 +80,13 @@ function RecentCard({ path, missing, onOpen, onForget }: { path: string; missing
   );
 }
 
-/** A short, friendly message above the actions, with its own way out. */
-function Notice({ tone, title, body, action, onClose }: { tone: 'error' | 'info'; title: string; body?: string; action?: { label: string; run: () => void }; onClose?: () => void }) {
-  return (
-    <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px 14px 20px', borderRadius: SHAPE.lg, background: tone === 'error' ? md('errorContainer') : md('tertiaryContainer'), color: tone === 'error' ? md('onErrorContainer') : md('onTertiaryContainer') }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="titleSmall" component="div">
-          {title}
-        </Typography>
-        {body && (
-          <Typography variant="bodySmall" component="div" sx={{ opacity: 0.9 }}>
-            {body}
-          </Typography>
-        )}
-      </div>
-      {action && (
-        <Button size="small" color="inherit" onClick={action.run} sx={{ fontWeight: 600 }}>
-          {action.label}
-        </Button>
-      )}
-      {onClose && (
-        <IconButton size="small" color="inherit" onClick={onClose} aria-label="Dismiss">
-          <CloseRounded fontSize="small" />
-        </IconButton>
-      )}
-    </div>
-  );
-}
-
 /** Shown when no library is open: create one, open one, receive one, or pick up a recent one. */
 export function Welcome({ state }: { state: LibraryState }) {
   const recent = useSettings().data?.recentLibraries ?? [];
   const update = useUpdateSettings();
   const [plan, setPlan] = useState<CreatePlan | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [receiving, setReceiving] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const missing = useQuery({
     queryKey: ['recent-missing', recent],
     queryFn: async () => new Set((await Promise.all(recent.map(async (p) => ((await call('library:inspect', p)) === 'library' ? null : p)))).filter(Boolean)),
@@ -122,11 +94,10 @@ export function Welcome({ state }: { state: LibraryState }) {
 
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
-    setError(null);
     try {
       await fn();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      failed(e);
     } finally {
       setBusy(false);
     }
@@ -134,8 +105,8 @@ export function Welcome({ state }: { state: LibraryState }) {
 
   const open = (path: string) =>
     act(async () => {
-      const s = await call('library:open', path);
-      if (s.status === 'error') setError(s.message);
+      // A library that fails to open comes back as the error state, which asks what to do.
+      await call('library:open', path);
     });
 
   const startCreate = () =>
@@ -156,7 +127,7 @@ export function Welcome({ state }: { state: LibraryState }) {
     act(async () => {
       const path = join(plan.parent, plan.name.trim());
       const s = await call('library:create', path, plan.name.trim());
-      if (s.status === 'error') setError(s.message);
+      if (s.status === 'error') notify.error('Couldn’t create the library', { body: s.message });
       else setPlan(null);
     });
 
@@ -166,14 +137,47 @@ export function Welcome({ state }: { state: LibraryState }) {
       if (!folder) return;
       const kind = await call('library:inspect', folder);
       if (kind !== 'library') {
-        setError(`“${baseName(folder)}” isn’t a Tessera library. To start one there, choose Create a library.`);
+        notify.warning(`“${baseName(folder)}” isn’t a Tessera library`, { body: 'To start one there, choose Create a library.' });
         return;
       }
       await open(folder);
     });
 
   const forget = (path: string) => update.mutate({ recentLibraries: recent.filter((p) => p !== path) });
-  const failed = state.status === 'error' && !dismissed ? state : null;
+
+  // A library that couldn't be opened is serious enough to ask about, once per failure.
+  const asked = useRef<LibraryState | null>(null);
+  useEffect(() => {
+    if (state.status !== 'error' || asked.current === state) return;
+    asked.current = state;
+    const name = baseName(state.path);
+    if (state.code === 'library-missing') {
+      void ask({
+        tone: 'warning',
+        icon: LinkOffRounded,
+        title: `Can’t find “${name}”`,
+        body: state.message,
+        actions: [
+          { label: 'Remove from recent', value: 'forget' as const },
+          { label: 'Locate…', value: 'locate' as const, kind: 'primary' },
+        ],
+      }).then((choice) => {
+        if (choice === 'forget') forget(state.path);
+        if (choice === 'locate') void chooseExisting();
+      });
+    } else {
+      void ask({
+        tone: 'error',
+        title: `Couldn’t open “${name}”`,
+        body: state.message,
+        actions: [
+          { label: 'Close', value: false },
+          { label: 'Try again', value: true, kind: 'primary' },
+        ],
+      }).then((again) => again && void open(state.path));
+    }
+    // Only a new failure should ask again.
+  }, [state]);
 
   return (
     <div style={{ height: '100%', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(420px, 1fr)', gap: 12, padding: 12 }}>
@@ -198,17 +202,6 @@ export function Welcome({ state }: { state: LibraryState }) {
               Your packs, their licences and your game’s credits, kept together.
             </Typography>
           </div>
-
-          {failed && (
-            <Notice
-              tone="error"
-              title={failed.code === 'library-missing' ? `Can’t find “${baseName(failed.path)}”` : `Couldn’t open “${baseName(failed.path)}”`}
-              body={failed.message}
-              action={failed.code === 'library-missing' ? { label: 'Locate…', run: () => void chooseExisting() } : { label: 'Try again', run: () => void open(failed.path) }}
-              onClose={() => setDismissed(true)}
-            />
-          )}
-          {error && <Notice tone="info" title={error} onClose={() => setError(null)} />}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Button

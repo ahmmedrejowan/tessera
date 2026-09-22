@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { ImportItem } from '@shared/types';
 import { call } from '../api';
-import { toast } from '../components/Toast';
+import { failed, notify } from '../notices/store';
 import { useNav } from './nav';
 
 interface ImportState {
@@ -32,13 +32,13 @@ export const useImport = create<ImportState>((set, get) => ({
     try {
       const items = await call('import:plan', paths, eachInside);
       if (!items.length) {
-        toast('Nothing to add there.');
+        notify.info('Nothing to add there.');
         return;
       }
       // Likely duplicates start unticked.
       set({ items, chosen: new Set(items.filter((i) => !i.duplicateOf).map((i) => i.id)) });
     } catch (e) {
-      toast(e instanceof Error ? e.message : String(e));
+      failed(e);
     } finally {
       set({ planning: false });
     }
@@ -72,12 +72,12 @@ export const useImport = create<ImportState>((set, get) => ({
       const inbox = result.added.filter((a) => a.status === 'inbox').length;
       const library = result.added.length - inbox;
       const parts = [library && `${library} to the library`, inbox && `${inbox} to the Inbox`, result.failed.length && `${result.failed.length} failed`].filter(Boolean);
-      toast(
-        result.added.length ? `Added ${result.added.length} pack${result.added.length > 1 ? 's' : ''}: ${parts.join(', ')}.` : `Nothing added. ${result.failed[0]?.error ?? ''}`,
-        inbox ? { label: 'Review', run: () => useNav.getState().go({ to: 'inbox' }) } : undefined,
-      );
+      const review = inbox ? { action: { label: 'Review', run: () => useNav.getState().go({ to: 'inbox' }) } } : {};
+      const failures = result.failed.length ? { details: result.failed.map((f) => `${f.name}: ${f.error}`).join('\n') } : {};
+      if (!result.added.length) notify.error('Nothing was added', { body: result.failed[0]?.error ?? '', ...failures });
+      else (result.failed.length ? notify.warning : notify.success)(`Added ${result.added.length} pack${result.added.length > 1 ? 's' : ''}: ${parts.join(', ')}.`, { ...review, ...failures });
     } catch (e) {
-      toast(e instanceof Error ? e.message : String(e));
+      failed(e);
     } finally {
       set({ running: false });
     }

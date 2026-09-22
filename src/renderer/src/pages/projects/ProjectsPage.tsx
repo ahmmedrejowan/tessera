@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { ENGINE_LABELS, type ProjectProbe, type ProjectSummary } from '@shared/project';
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
-import { toast } from '../../components/Toast';
+import { failed, notify } from '../../notices/store';
 import { useNav } from '../../state/nav';
 import { useActiveProject, useProjects } from '../../state/projects';
 import { md, SHAPE } from '../../theme';
@@ -24,7 +24,7 @@ export function useLinkProject() {
     try {
       setProbe(await call('projects:choose'));
     } catch (e) {
-      toast(e instanceof Error ? e.message : String(e));
+      failed(e);
     }
   };
   const dialog = (
@@ -35,10 +35,10 @@ export function useLinkProject() {
         setProbe(null);
         try {
           const project = await call('projects:add', p);
-          toast(`Linked ${project.name}.`);
+          notify.success(`Linked ${project.name}.`);
           go({ to: 'project', id: project.id });
         } catch (e) {
-          toast(e instanceof Error ? e.message : String(e));
+          failed(e);
         }
       }}
     />

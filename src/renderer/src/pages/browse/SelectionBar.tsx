@@ -4,8 +4,9 @@ import Close from '@mui/icons-material/Close';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { call } from '../../api';
+import { useNotices } from '../../notices/store';
 import { useBrowse } from '../../state/browse';
 import { copyToProject, useActiveProject } from '../../state/projects';
 import { md, mdAlpha, SHAPE } from '../../theme';
@@ -17,6 +18,11 @@ export function SelectionBar() {
   const select = useBrowse((s) => s.select);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const project = useActiveProject();
+  // Toasts rise above the bar while it's showing.
+  useEffect(() => {
+    useNotices.getState().setLift(68);
+    return () => useNotices.getState().setLift(0);
+  }, []);
   const refs = () => call('assets:refs', [...selection].map(Number));
   return (
     <div

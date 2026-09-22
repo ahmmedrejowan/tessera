@@ -16,7 +16,7 @@ import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import type { AssetRow, BrowseQuery, Filters } from '@shared/query';
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
-import { toast } from '../../components/Toast';
+import { notify } from '../../notices/store';
 import { VirtualGrid } from '../../components/VirtualGrid';
 import { useBrowse } from '../../state/browse';
 import { useCollections } from '../../state/collections';
@@ -78,7 +78,7 @@ export function CollectionPage({ id }: { id: string }) {
   const remove = async () => {
     const items = await call('assets:refs', [...selected]);
     await call('collections:change', id, { remove: items });
-    toast(`Removed ${items.length} from ${collection.name}.`);
+    notify.success(`Removed ${items.length} from ${collection.name}.`);
     setSelected(new Set());
   };
 
@@ -179,7 +179,7 @@ export function CollectionPage({ id }: { id: string }) {
             onClick={async () => {
               setDeleting(false);
               await call('collections:change', id, { delete: true });
-              toast(`Deleted “${collection.name}”.`);
+              notify.success(`Deleted “${collection.name}”.`);
               go({ to: 'collections' });
             }}
           >
