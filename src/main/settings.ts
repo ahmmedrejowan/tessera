@@ -21,6 +21,7 @@ const schema = z.object({
   lastBackupError: z.string().nullable().catch(null),
   syncEnabled: z.boolean().catch(false),
   syncMode: z.enum(['push', 'pull', 'full']).catch('full'),
+  errorReports: z.enum(['ask', 'always', 'never']).catch('ask'),
 });
 
 export const DEFAULT_SETTINGS: Settings = schema.parse({});

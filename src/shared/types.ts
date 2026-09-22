@@ -37,6 +37,43 @@ export interface Settings {
   /** Syncing the library with other computers (Syncthing) is on. */
   syncEnabled: boolean;
   syncMode: SyncMode;
+  /** Sending error reports: ask each session, always, or never. Reports are always kept locally. */
+  errorReports: ReportConsent;
+}
+
+export type ReportConsent = 'ask' | 'always' | 'never';
+
+/** Where an error came from: the main process, the app window, or a process that stopped. */
+export type ErrorSource = 'main' | 'window' | 'process';
+
+/** An error that wasn't expected, as it's caught. */
+export interface ErrorInput {
+  source: ErrorSource;
+  kind: 'exception' | 'rejection' | 'page' | 'ipc' | 'crash';
+  name: string;
+  message: string;
+  stack?: string;
+  /** Short, non-identifying facts: the page open, the IPC channel. */
+  context?: Record<string, string>;
+}
+
+export interface ErrorRecord extends ErrorInput {
+  id: string;
+  at: string;
+  /** Errors with the same fingerprint are the same problem. */
+  fingerprint: string;
+  count: number;
+  sent: boolean;
+}
+
+export interface ReportsStatus {
+  /** This build can send reports (it has somewhere to send them). */
+  available: boolean;
+  consent: ReportConsent;
+  /** Errors caught this session and not sent. */
+  unsent: number;
+  /** Crash reports from earlier sessions waiting for an answer. */
+  crashes: number;
 }
 
 /** Push: this computer sends changes only. Pull: it receives only. Full: both ways. */
