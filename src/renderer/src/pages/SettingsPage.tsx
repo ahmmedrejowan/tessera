@@ -20,6 +20,13 @@ import { BackupSettings } from './settings/BackupSettings';
 import { SyncSettings } from './settings/SyncSettings';
 import { Group, Row } from './settings/parts';
 
+/** The optional tools, with their licences, credited in About. */
+const TOOLS = [
+  { name: 'Kopia', licence: 'Apache-2.0', url: 'https://kopia.io' },
+  { name: 'rclone', licence: 'MIT', url: 'https://rclone.org' },
+  { name: 'Syncthing', licence: 'MPL-2.0', url: 'https://syncthing.net' },
+];
+
 /** Seeds for the colour scheme; each gives a full Material 3 palette in light and dark. */
 const SEEDS = ['#3f6f8f', '#4758a9', '#6750a4', '#a4506b', '#a0522d', '#8a6d1f', '#3b7a4a', '#2f7a78'];
 
@@ -160,6 +167,23 @@ export function SettingsPage() {
 
         <Group title="About">
           <Row title={`Tessera ${info?.version ?? ''}`} body={info ? `Electron ${info.versions.electron} · Chromium ${info.versions.chrome} · Node ${info.versions.node}` : undefined} />
+          <Row
+            title="Tools Tessera can use"
+            body={
+              <>
+                {TOOLS.map((t, i) => (
+                  <span key={t.name}>
+                    {i > 0 && ' · '}
+                    <a href={t.url} target="_blank" rel="noreferrer" style={{ color: md('primary') }}>
+                      {t.name}
+                    </a>{' '}
+                    ({t.licence})
+                  </span>
+                ))}
+                . Each is its own open-source project; Tessera downloads the official builds, or uses the ones you installed.
+              </>
+            }
+          />
         </Group>
       </div>
     </Page>

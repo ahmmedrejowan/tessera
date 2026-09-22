@@ -94,7 +94,14 @@
       "category": "public.app-category.developer-tools",
       "icon": "build/icon.png",
       "identity": null,
-      "hardenedRuntime": false
+      "hardenedRuntime": false,
+      "extendInfo": {
+        "NSDocumentsFolderUsageDescription": "Tessera reads and keeps your asset library, and its backups, where you choose, which can be in Documents.",
+        "NSDesktopFolderUsageDescription": "Tessera reads and keeps your asset library, and its backups, where you choose, which can be on the Desktop.",
+        "NSDownloadsFolderUsageDescription": "Tessera adds asset packs you downloaded, from the Downloads folder.",
+        "NSRemovableVolumesUsageDescription": "Tessera can keep your library or its backups on an external drive.",
+        "NSNetworkVolumesUsageDescription": "Tessera can keep your library or its backups on a network drive."
+      }
     },
     "dmg": {
       "title": "Tessera ${version}"
