@@ -76,7 +76,7 @@ function PartHeader({ icon, title, sub }: { icon: ReactNode; title: string; sub:
  * Tessera's, the same for every library (appearance, paired computers, helpers, privacy, about).
  * A list at the side jumps between sections and shows where you are.
  */
-export function SettingsPage() {
+export function SettingsPage({ section }: { section?: string } = {}) {
   const settings = useSettings().data;
   const record = useLibraryRecord();
   const update = useUpdateSettings();
@@ -107,6 +107,13 @@ export function SettingsPage() {
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
   }, [settings]);
+
+  // Opened for one section (from Home's first steps, say): go straight to it.
+  useEffect(() => {
+    if (!section || !settings) return;
+    const t = setTimeout(() => document.getElementById(`settings-${section}`)?.scrollIntoView({ block: 'start' }), 50);
+    return () => clearTimeout(t);
+  }, [section, !!settings]);
 
   if (!settings) return null;
   const lib = library?.status === 'ready' ? library.library : null;
@@ -319,6 +326,18 @@ export function SettingsPage() {
                         </span>
                       ))}
                       . Each is its own open-source project; Tessera downloads the official builds, or uses the ones you installed.
+                    </>
+                  }
+                />
+                <Row
+                  title="Sample packs"
+                  body={
+                    <>
+                      Mini Arcade, 1-Bit Platformer Pack and Interface Sounds, by{' '}
+                      <a href="https://kenney.nl" target="_blank" rel="noreferrer" style={{ color: md('primary') }}>
+                        Kenney
+                      </a>{' '}
+                      (CC0). Offered on a new library’s Home, to look around with.
                     </>
                   }
                 />

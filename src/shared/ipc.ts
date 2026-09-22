@@ -179,6 +179,8 @@ export interface Invokes {
 
   /** Ask the user for files or a folder to add; null when they cancel. */
   'import:choose': (what: 'files' | 'folder' | 'folderOfPacks') => string[] | null;
+  /** The sample packs that come with the app. */
+  'import:samples': () => string[];
   'import:plan': (paths: string[], eachInside: boolean) => ImportItem[];
   'import:run': (items: ImportItem[]) => ImportResult;
 

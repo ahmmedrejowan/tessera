@@ -18,6 +18,8 @@ interface ImportState {
   rename(id: string, name: string): void;
   cancel(): void;
   run(): Promise<void>;
+  /** Add the sample packs that come with Tessera, without asking: they're known and CC0. */
+  addSamples(): Promise<void>;
 }
 
 export const useImport = create<ImportState>((set, get) => ({
@@ -66,20 +68,42 @@ export const useImport = create<ImportState>((set, get) => ({
     const { items, chosen } = get();
     const picked = (items ?? []).filter((i) => chosen.has(i.id) && i.name.trim());
     if (!picked.length) return;
-    set({ items: null, chosen: new Set(), running: true });
+    set({ items: null, chosen: new Set() });
+    await runItems(picked, set);
+  },
+
+  async addSamples() {
+    set({ planning: true });
     try {
-      const result = await call('import:run', picked);
-      const inbox = result.added.filter((a) => a.status === 'inbox').length;
-      const library = result.added.length - inbox;
-      const parts = [library && `${library} to the library`, inbox && `${inbox} to the Inbox`, result.failed.length && `${result.failed.length} failed`].filter(Boolean);
-      const review = inbox ? { action: { label: 'Review', run: () => useNav.getState().go({ to: 'inbox' }) } } : {};
-      const failures = result.failed.length ? { details: result.failed.map((f) => `${f.name}: ${f.error}`).join('\n') } : {};
-      if (!result.added.length) notify.error('Nothing was added', { body: result.failed[0]?.error ?? '', ...failures });
-      else (result.failed.length ? notify.warning : notify.success)(`Added ${result.added.length} pack${result.added.length > 1 ? 's' : ''}: ${parts.join(', ')}.`, { ...review, ...failures });
+      const items = await call('import:plan', await call('import:samples'), false);
+      set({ planning: false });
+      await runItems(items.filter((i) => !i.duplicateOf), set);
     } catch (e) {
-      failed(e);
-    } finally {
-      set({ running: false });
+      set({ planning: false });
+      failed(e, 'Couldn’t add the sample packs');
     }
   },
 }));
+
+/** Add packs and say how it went. */
+async function runItems(picked: ImportItem[], set: (s: Partial<ImportState>) => void): Promise<void> {
+  if (!picked.length) {
+    notify.info('Those packs are already in the library.');
+    return;
+  }
+  set({ running: true });
+  try {
+    const result = await call('import:run', picked);
+    const inbox = result.added.filter((a) => a.status === 'inbox').length;
+    const library = result.added.length - inbox;
+    const parts = [library && `${library} to the library`, inbox && `${inbox} to the Inbox`, result.failed.length && `${result.failed.length} failed`].filter(Boolean);
+    const review = inbox ? { action: { label: 'Review', run: () => useNav.getState().go({ to: 'inbox' }) } } : {};
+    const failures = result.failed.length ? { details: result.failed.map((f) => `${f.name}: ${f.error}`).join('\n') } : {};
+    if (!result.added.length) notify.error('Nothing was added', { body: result.failed[0]?.error ?? '', ...failures });
+    else (result.failed.length ? notify.warning : notify.success)(`Added ${result.added.length} pack${result.added.length > 1 ? 's' : ''}: ${parts.join(', ')}.`, { ...review, ...failures });
+  } catch (e) {
+    failed(e);
+  } finally {
+    set({ running: false });
+  }
+}

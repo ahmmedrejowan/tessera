@@ -582,6 +582,13 @@ function registerHandlers(): void {
   });
   handle('tools:packageManagers', () => ['brew', 'winget', 'apt', 'dnf', 'pacman', 'zypper', 'flatpak', 'snap'].filter((tool) => !!findTool(tool)));
 
+  // Three small CC0 packs by Kenney, shipped with the app for a first look (resources/samples).
+  handle('import:samples', async () => {
+    const dir = app.isPackaged ? join(process.resourcesPath, 'samples') : join(app.getAppPath(), 'resources', 'samples');
+    const files = (await readdir(dir).catch(() => [] as string[])).filter((f) => f.endsWith('.zip')).sort();
+    if (!files.length) throw new UserError('no-samples', 'The sample packs aren’t in this copy of Tessera.');
+    return files.map((f) => join(dir, f));
+  });
   handle('import:choose', async (what) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
     const options: Electron.OpenDialogOptions =

@@ -47,7 +47,7 @@ function Current() {
     case 'project':
       return <ProjectPage key={route.id} id={route.id} />;
     case 'settings':
-      return <SettingsPage />;
+      return <SettingsPage {...('section' in route ? { section: route.section } : {})} />;
   }
 }
 

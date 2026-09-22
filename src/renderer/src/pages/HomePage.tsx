@@ -1,6 +1,8 @@
-import AddOutlined from '@mui/icons-material/AddOutlined';
 import ArrowForward from '@mui/icons-material/ArrowForward';
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
+import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
+import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
+import UploadFileOutlined from '@mui/icons-material/UploadFileOutlined';
 import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined';
 import InboxOutlined from '@mui/icons-material/InboxOutlined';
 import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
@@ -19,9 +21,10 @@ import { useImport } from '../state/importer';
 import { useIndexVersion, useLibraryId, useLibraryState, useStats } from '../state/library';
 import { useNav } from '../state/nav';
 import { useProjects } from '../state/projects';
-import { md, SHAPE, STATE } from '../theme';
+import { md, mdAlpha, SHAPE, STATE } from '../theme';
 import { PackCard } from './browse/PackCard';
 import { EngineBadge } from './projects/EngineBadge';
+import { useLinkProject } from './projects/ProjectsPage';
 
 function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
@@ -55,6 +58,89 @@ function browseType(type: AssetType) {
   useNav.getState().go({ to: 'browse' });
 }
 
+/** One step of getting started: a tick, what it is, and a way to do it (gone once it's done). */
+function Step({ done, label, action, onClick, busy }: { done: boolean; label: string; action: string; onClick: () => void; busy?: boolean }) {
+  return (
+    <ButtonBase
+      disabled={done || !!busy}
+      onClick={onClick}
+      sx={{ width: '100%', height: 52, gap: 1.75, px: 2, borderRadius: `${SHAPE.lg}px`, justifyContent: 'flex-start', textAlign: 'left', '&:hover': { backgroundColor: md('surfaceContainerLow') } }}
+    >
+      {done ? (
+        <CheckCircleRounded sx={{ fontSize: 26, color: md('primary') }} />
+      ) : (
+        <span style={{ width: 22, height: 22, margin: 2, borderRadius: '50%', border: `2px solid ${md('outline')}`, flexShrink: 0 }} />
+      )}
+      <Typography variant="bodyLarge" sx={{ flex: 1, color: done ? md('onSurfaceVariant') : md('onSurface'), textDecoration: done ? 'line-through' : 'none' }}>
+        {label}
+      </Typography>
+      <Typography variant="labelLarge" sx={{ color: md('primary'), visibility: done ? 'hidden' : 'visible' }}>
+        {busy ? 'Adding…' : action}
+      </Typography>
+    </ButtonBase>
+  );
+}
+
+/**
+ * Home for a library with nothing in it yet: drag packs in or choose them, and a few first steps
+ * that tick themselves off. The first pack turns it into the full Home.
+ */
+function EmptyHome() {
+  const choose = useImport((s) => s.choose);
+  const addingSamples = useImport((s) => s.planning || s.running);
+  const projects = useProjects().data ?? [];
+  const backup = useQuery({ queryKey: ['backup'], queryFn: () => call('backup:status'), staleTime: 0 }).data;
+  const link = useLinkProject();
+  const go = useNav((s) => s.go);
+  const steps = [
+    { label: 'Add your first pack', action: 'Choose files', done: false, onClick: () => void choose('files') },
+    { label: 'Or look around with a sample pack', action: 'Try it', done: false, busy: addingSamples, onClick: () => void useImport.getState().addSamples() },
+    { label: 'Link a game project', action: 'Link', done: projects.length > 0, onClick: () => void link.start() },
+    { label: 'Turn on backups', action: 'Set up', done: !!backup?.repoPath, onClick: () => go({ to: 'settings', section: 'backups' }) },
+  ];
+  const done = steps.filter((x) => x.done).length;
+  return (
+    <div style={{ height: '100%', overflowY: 'auto', display: 'grid', placeItems: 'center', padding: '40px 32px', background: `radial-gradient(38% 34% at 50% 36%, ${mdAlpha('primaryContainer', 0.55)}, transparent 72%)` }}>
+      <div style={{ width: '100%', maxWidth: 560, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+        <span style={{ width: 88, height: 88, borderRadius: 28, display: 'grid', placeItems: 'center', background: md('surfaceContainerLowest'), border: `1px solid ${md('outlineVariant')}`, boxShadow: `0 10px 28px ${mdAlpha('primary', 0.1)}`, color: md('primary') }}>
+          <FileDownloadOutlined sx={{ fontSize: 40 }} />
+        </span>
+        <Typography component="h1" sx={{ mt: 3.5, color: md('onSurface'), fontSize: 36, lineHeight: '44px', fontWeight: 500, letterSpacing: '-0.6px' }}>
+          Drag your packs in
+        </Typography>
+        <Typography variant="bodyLarge" sx={{ mt: 1.25, mb: 3.5, color: md('onSurfaceVariant') }}>
+          Drop zips, folders or loose files anywhere in this window,
+          <br />
+          or choose them from your computer.
+        </Typography>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <Button variant="contained" startIcon={<UploadFileOutlined />} onClick={() => void choose('files')} sx={{ height: 56, px: 3.5, fontSize: 16, borderRadius: `${SHAPE.full}px`, boxShadow: `0 8px 22px ${mdAlpha('primary', 0.28)}` }}>
+            Choose files
+          </Button>
+          <Button variant="outlined" startIcon={<FolderOpenOutlined />} onClick={() => void choose('folderOfPacks')} sx={{ height: 56, px: 3.5, fontSize: 16, borderRadius: `${SHAPE.full}px` }}>
+            Choose a folder
+          </Button>
+        </div>
+
+        <div style={{ marginTop: 48, width: '100%', textAlign: 'left' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', padding: '0 16px 6px' }}>
+            <Typography variant="titleSmall" sx={{ color: md('onSurface'), flex: 1 }}>
+              Get started
+            </Typography>
+            <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+              {done} of {steps.length} done
+            </Typography>
+          </div>
+          {steps.map((x) => (
+            <Step key={x.label} {...x} />
+          ))}
+        </div>
+      </div>
+      {link.dialog}
+    </div>
+  );
+}
+
 /** The first screen with a library open: what's in it, what needs you, and what you worked on. */
 export function HomePage() {
   const lib = useLibraryId();
@@ -62,7 +148,6 @@ export function HomePage() {
   const state = useLibraryState().data;
   const stats = useStats().data;
   const go = useNav((s) => s.go);
-  const choose = useImport((s) => s.choose);
   const health = useQuery({ queryKey: ['health', lib, version], queryFn: () => call('library:health'), enabled: !!lib }).data;
   const recent = useQuery({
     queryKey: ['recent-packs', lib, version],
@@ -73,29 +158,7 @@ export function HomePage() {
   const collections = useCollections().data ?? [];
   const name = state?.status === 'ready' ? state.library.name : '';
 
-  if (stats && stats.packs === 0 && stats.inbox === 0) {
-    return (
-      <div style={{ height: '100%', display: 'grid', placeItems: 'center', padding: 32 }}>
-        <div style={{ maxWidth: 560, width: '100%', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '48px 32px', borderRadius: SHAPE.xl, border: `2px dashed ${md('outlineVariant')}` }}>
-          <FileDownloadOutlined sx={{ fontSize: 56, color: md('primary') }} />
-          <Typography variant="headlineSmall" sx={{ color: md('onSurface') }}>
-            Drop your asset packs here
-          </Typography>
-          <Typography variant="bodyLarge" sx={{ color: md('onSurfaceVariant') }}>
-            Zips from Kenney, itch.io or anywhere, folders, or loose files. Each is kept exactly as downloaded, with its licence and source on record. Packs that state their licence go straight in; the rest wait in the Inbox for you to check.
-          </Typography>
-          <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <Button variant="contained" startIcon={<AddOutlined />} onClick={() => void choose('files')}>
-              Add downloads
-            </Button>
-            <Button variant="outlined" onClick={() => void choose('folderOfPacks')}>
-              Add a folder of packs
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (stats && stats.packs === 0 && stats.inbox === 0) return <EmptyHome />;
 
   const types = ASSET_TYPES.filter((t) => t !== 'other' && (stats?.byType[t] ?? 0) > 0);
   const attention = (stats?.inbox ?? 0) + (health?.noCreditLine.length ?? 0) + (health?.restricted.length ?? 0);
