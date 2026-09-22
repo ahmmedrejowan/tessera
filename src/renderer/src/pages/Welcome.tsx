@@ -22,8 +22,7 @@ import { baseName } from '@shared/folders';
 import { failed } from '../notices/store';
 import { useLibraries } from '../state/library';
 import { md, mdAlpha, SHAPE, STATE } from '../theme';
-import { ReceiveGuide } from './sync/ReceiveGuide';
-import { RestoreGuide } from './setup/RestoreGuide';
+import { useGuides } from './library/guides';
 
 const parentOf = (p: string) => p.slice(0, Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'))) || p;
 
@@ -71,8 +70,6 @@ function RecentCard({ name, path, missing, onOpen, onForget }: { name: string; p
 export function Welcome({ state }: { state: LibraryState }) {
   const recent = useLibraries().data ?? [];
   const [busy, setBusy] = useState(false);
-  const [receiving, setReceiving] = useState(false);
-  const [restoring, setRestoring] = useState(false);
 
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -173,10 +170,10 @@ export function Welcome({ state }: { state: LibraryState }) {
               Open a library
             </Button>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 4 }}>
-              <Button startIcon={<DevicesRounded />} onClick={() => setReceiving(true)} sx={{ color: md('onSurfaceVariant'), whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <Button startIcon={<DevicesRounded />} onClick={() => useGuides.getState().show('receive')} sx={{ color: md('onSurfaceVariant'), whiteSpace: 'nowrap', flexShrink: 0 }}>
                 From another computer
               </Button>
-              <Button startIcon={<RestoreRounded />} onClick={() => setRestoring(true)} sx={{ color: md('onSurfaceVariant'), whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <Button startIcon={<RestoreRounded />} onClick={() => useGuides.getState().show('restore')} sx={{ color: md('onSurfaceVariant'), whiteSpace: 'nowrap', flexShrink: 0 }}>
                 From a backup
               </Button>
             </div>
@@ -195,8 +192,6 @@ export function Welcome({ state }: { state: LibraryState }) {
         </div>
       </div>
 
-      <ReceiveGuide open={receiving} onClose={() => setReceiving(false)} />
-      <RestoreGuide open={restoring} onClose={() => setRestoring(false)} />
     </div>
   );
 }

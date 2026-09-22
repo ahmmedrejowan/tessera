@@ -46,7 +46,7 @@ export function installMenu(focused: () => BrowserWindow | undefined, logsDir: s
       label: 'View',
       submenu: [
         { label: 'Find…', accelerator: 'CmdOrCtrl+F', click: send('find') },
-        { label: 'Go to Anything…', accelerator: 'CmdOrCtrl+K', click: send('palette') },
+        { label: 'Search or Go To…', accelerator: 'CmdOrCtrl+K', click: send('palette') },
         { type: 'separator' },
         { label: 'Home', accelerator: 'CmdOrCtrl+1', click: send('home') },
         { label: 'Browse', accelerator: 'CmdOrCtrl+2', click: send('browse') },

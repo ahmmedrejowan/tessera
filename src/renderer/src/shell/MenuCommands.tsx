@@ -3,7 +3,6 @@ import { on } from '../api';
 import { useLinkProject } from '../pages/projects/ProjectsPage';
 import { useImport } from '../state/importer';
 import { useNav } from '../state/nav';
-import { usePalette } from './CommandPalette';
 
 /** Carries out what the application menu asks for. */
 export function MenuCommands() {
@@ -22,8 +21,8 @@ export function MenuCommands() {
             return void choose('folderOfPacks');
           case 'linkProject':
             return void link.start();
+          // ⌘K and ⌘F both go to the search box, which also offers pages and actions.
           case 'palette':
-            return usePalette.getState().toggle();
           case 'find':
             return document.getElementById('global-search')?.focus();
           case 'reportProblem':

@@ -1,10 +1,11 @@
 import CircularProgress from '@mui/material/CircularProgress';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DialogHost } from './notices/DialogHost';
 import { NoticeHost } from './notices/NoticeHost';
 import { ReportsHost } from './reports/ReportsHost';
 import { LibraryDialog } from './pages/library/LibraryDialog';
+import { Guides } from './pages/library/guides';
 import { AddMenu } from './import/AddMenu';
 import { DropOverlay } from './import/DropOverlay';
 import { ImportDialog } from './import/ImportDialog';
@@ -14,7 +15,6 @@ import { CollectionsPage } from './pages/collections/CollectionsPage';
 import { HomePage } from './pages/HomePage';
 import { InboxPage } from './pages/InboxPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { CommandPalette } from './shell/CommandPalette';
 import { MenuCommands } from './shell/MenuCommands';
 import { CopyConfirm } from './pages/projects/CopyConfirm';
 import { ProjectPage } from './pages/projects/ProjectPage';
@@ -22,7 +22,8 @@ import { ProjectsPage } from './pages/projects/ProjectsPage';
 import { PackPage } from './pages/pack/PackPage';
 import { Welcome } from './pages/Welcome';
 import { AppShell } from './shell/AppShell';
-import { useLibraryState, useStats } from './state/library';
+import { useLibraryId, useLibraryState, useStats } from './state/library';
+import { useBrowse } from './state/browse';
 import { useNav } from './state/nav';
 
 function Current() {
@@ -67,11 +68,28 @@ export function App() {
       <DialogHost />
       <ReportsHost />
       <LibraryDialog />
+      <Guides />
     </>
   );
 }
 
+/** A different library starts fresh: on Home, with no search, filters or history from the last. */
+function useFreshStartPerLibrary() {
+  const id = useLibraryId();
+  const seen = useRef<string | null>(null);
+  useEffect(() => {
+    if (!id || seen.current === id) return;
+    if (seen.current) {
+      useNav.setState({ route: { to: 'home' }, back: [], forward: [] });
+      useBrowse.getState().setText('');
+      useBrowse.getState().clearFilters();
+    }
+    seen.current = id;
+  }, [id]);
+}
+
 function Screen() {
+  useFreshStartPerLibrary();
   const state = useLibraryState().data;
   const inbox = useStats().data?.inbox;
   const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null);
@@ -102,7 +120,6 @@ function Screen() {
       <AddMenu anchor={addAnchor} onClose={() => setAddAnchor(null)} />
       <ImportDialog />
       <CopyConfirm />
-      <CommandPalette />
       <MenuCommands />
       <DropOverlay enabled />
     </>

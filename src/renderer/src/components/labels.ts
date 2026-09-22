@@ -105,3 +105,13 @@ export function formatsLabel(ext: string, formats: string[]): string {
   const others = formats.filter((f) => f !== ext).length;
   return others ? `${ext.toUpperCase()} +${others}` : ext.toUpperCase();
 }
+
+/** "just now", "5 min ago", "3 hours ago", or the date. */
+export function timeAgo(iso: string): string {
+  const mins = Math.round((Date.now() - Date.parse(iso)) / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  return new Date(iso).toLocaleDateString();
+}

@@ -46,15 +46,14 @@ function HistoryItem({ n }: { n: Notice }) {
 
 /**
  * Background work (reading the library, adding packs, copying, backing up) as a small spinner in
- * the top bar, and the messages shown so far. Clicking it lists both. Nothing shows until there's
- * something to show.
+ * the top bar, and the messages shown so far. Clicking it lists both. Always there, so nothing
+ * around it moves when work starts or ends.
  */
 export function Activity() {
   const jobs = useJobs();
   const history = useNotices((s) => s.history);
   const unseen = useNotices((s) => s.unseen);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  if (!jobs.length && !history.length) return null;
   const running = jobs.filter((j) => j.state === 'running');
   const failed = jobs.some((j) => j.state === 'failed');
   const main = running[0];
@@ -108,6 +107,17 @@ export function Activity() {
                   {j.state === 'running' && <LinearProgress {...(j.progress !== null ? { variant: 'determinate', value: j.progress * 100 } : {})} />}
                 </div>
               ))}
+            </div>
+          )}
+          {!jobs.length && !history.length && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '20px 8px', textAlign: 'center' }}>
+              <NotificationsNoneOutlined sx={{ fontSize: 28, color: md('onSurfaceVariant') }} />
+              <Typography variant="titleSmall" sx={{ color: md('onSurface') }}>
+                All quiet
+              </Typography>
+              <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+                Adding packs, copying, backups and messages show up here.
+              </Typography>
             </div>
           )}
           {history.length > 0 && (

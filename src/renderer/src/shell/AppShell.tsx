@@ -4,7 +4,8 @@ import { useNav } from '../state/nav';
 import { md, SHAPE } from '../theme';
 import { NavigationRail } from './NavigationRail';
 import { Activity } from './Activity';
-import { TargetProject } from './TargetProject';
+import { LibrarySwitcher } from './LibrarySwitcher';
+import { useStats } from '../state/library';
 import { SearchField, TopAppBar } from './TopAppBar';
 
 /** Back/forward from the mouse's side buttons and ⌘[ / ⌘] (Alt+←/→ on Windows and Linux). */
@@ -38,8 +39,10 @@ function GlobalSearch() {
   const text = useBrowse((s) => s.text);
   const setText = useBrowse((s) => s.setText);
   const go = useNav((s) => s.go);
+  const empty = useStats().data?.assets === 0;
   return (
     <SearchField
+      placeholder={empty ? 'Add packs to search them' : 'Search packs, assets and tags'}
       value={text}
       onChange={(v) => {
         setText(v);
@@ -65,7 +68,7 @@ export function AppShell({ children, onAdd, inboxCount, bare }: { children: Reac
       <TopAppBar search={bare ? null : <GlobalSearch />} trailing={bare ? null : (
           <>
             <Activity />
-            <TargetProject />
+            <LibrarySwitcher />
           </>
         )} />
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
