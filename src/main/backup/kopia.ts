@@ -14,6 +14,16 @@ export type { Snapshot };
 
 export class KopiaError extends Error {}
 
+/** Snapshots Tessera makes are described as "Tessera: <library name>". */
+const DESCRIPTION = 'Tessera: ';
+
+export interface AnySnapshot extends Snapshot {
+  host: string;
+  path: string;
+  /** The library's name, when Tessera made the snapshot. */
+  name: string | null;
+}
+
 export class Kopia {
   private readonly config: string;
   private readonly cache: string;
@@ -37,7 +47,7 @@ export class Kopia {
           // Kopia's own message is the useful part: the last non-empty lines of stderr.
           const lines = stderr.split('\n').map((l) => l.trim()).filter(Boolean);
           const message = lines.slice(-2).join(' ') || err.message;
-          reject(new KopiaError(/invalid password|incorrect password/i.test(message) ? 'That password doesn’t open this backup.' : message));
+          reject(new KopiaError(/invalid (repository )?password|incorrect password/i.test(message) ? 'That password doesn’t open this backup.' : message));
         },
       );
     });
@@ -51,9 +61,9 @@ export class Kopia {
    * Use a folder as the backup store: a new one is set up, an existing Tessera/Kopia store is
    * opened with its password.
    */
-  async connect(repoPath: string, password: string, create: boolean): Promise<void> {
+  async connect(repoPath: string, password: string, create: boolean, readOnly = false): Promise<void> {
     await mkdir(this.dir, { recursive: true });
-    const common = [`--path=${repoPath}`, `--cache-directory=${this.cache}`, '--no-persist-credentials'];
+    const common = [`--path=${repoPath}`, `--cache-directory=${this.cache}`, '--no-persist-credentials', ...(readOnly ? ['--readonly'] : [])];
     if (create) {
       await mkdir(repoPath, { recursive: true });
       await this.run(['repository', 'create', 'filesystem', ...common], password);
@@ -67,8 +77,9 @@ export class Kopia {
     await this.run(['policy', 'set', source, '--keep-latest=10', '--keep-hourly=0', '--keep-daily=14', '--keep-weekly=8', '--keep-monthly=12', '--keep-annual=3'], password);
   }
 
-  async snapshot(source: string, password: string): Promise<Snapshot> {
-    const out = await this.run(['snapshot', 'create', source, '--json'], password);
+  /** Back up `source`; `name` labels the snapshot so another computer can tell what it is. */
+  async snapshot(source: string, password: string, name?: string): Promise<Snapshot> {
+    const out = await this.run(['snapshot', 'create', source, '--json', ...(name ? [`--description=${DESCRIPTION}${name}`] : [])], password);
     const s = JSON.parse(out) as { id: string; startTime: string; endTime: string; rootEntry?: { summ?: { size?: number; files?: number } } };
     return { id: s.id, startTime: s.startTime, endTime: s.endTime, size: s.rootEntry?.summ?.size ?? 0, files: s.rootEntry?.summ?.files ?? 0 };
   }
@@ -78,6 +89,31 @@ export class Kopia {
     const rows = JSON.parse(out || '[]') as { id: string; startTime: string; endTime: string; stats?: { totalSize?: number; fileCount?: number } }[];
     return rows
       .map((r) => ({ id: r.id, startTime: r.startTime, endTime: r.endTime, size: r.stats?.totalSize ?? 0, files: r.stats?.fileCount ?? 0 }))
+      .sort((a, b) => b.startTime.localeCompare(a.startTime));
+  }
+
+  /** Every snapshot in the store, from every computer and folder that backed up to it. */
+  async listAll(password: string): Promise<AnySnapshot[]> {
+    const out = await this.run(['snapshot', 'list', '--all', '--json'], password, 300_000);
+    const rows = JSON.parse(out || '[]') as {
+      id: string;
+      startTime: string;
+      endTime: string;
+      description?: string;
+      source?: { host?: string; userName?: string; path?: string };
+      stats?: { totalSize?: number; fileCount?: number };
+    }[];
+    return rows
+      .map((r) => ({
+        id: r.id,
+        startTime: r.startTime,
+        endTime: r.endTime,
+        size: r.stats?.totalSize ?? 0,
+        files: r.stats?.fileCount ?? 0,
+        host: r.source?.host ?? '',
+        path: r.source?.path ?? '',
+        name: r.description?.startsWith(DESCRIPTION) ? r.description.slice(DESCRIPTION.length) : null,
+      }))
       .sort((a, b) => b.startTime.localeCompare(a.startTime));
   }
 

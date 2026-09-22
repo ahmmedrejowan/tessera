@@ -5,6 +5,7 @@ import type { Jobs } from '../jobs';
 import { log } from '../log';
 import type { SettingsStore } from '../settings';
 import { findTool } from '../tools/find';
+import { bundledTool } from '../tools/install';
 import { Kopia } from './kopia';
 
 /** Keeps the backup password, encrypted by the operating system. */
@@ -21,10 +22,15 @@ interface Deps {
   jobs: Jobs;
   /** The open library's folder, or null. */
   libraryPath: () => string | null;
+  /** The open library's name, to label its snapshots. */
+  libraryName: () => string | null;
   onChange: () => void;
 }
 
 const HOUR = 3_600_000;
+
+/** Kopia installed on the system (or with KopiaUI), or the copy Tessera downloaded. */
+export const findKopia = (dataDir: string) => findTool('kopia', ['/Applications/KopiaUI.app/Contents/Resources/server/kopia', bundledTool(dataDir, 'kopia')]);
 
 /**
  * Optional backups of the library with Kopia. Nothing happens until the user sets a backup
@@ -37,8 +43,13 @@ export class BackupService {
   constructor(private readonly d: Deps) {}
 
   private kopia(): Kopia | null {
-    const exe = findTool('kopia');
+    const exe = findKopia(this.d.dataDir);
     return exe ? new Kopia(exe, `${this.d.dataDir}/kopia`) : null;
+  }
+
+  /** Whether the Kopia in use is the copy Tessera downloaded. */
+  bundled(): boolean {
+    return findKopia(this.d.dataDir) === bundledTool(this.d.dataDir, 'kopia');
   }
 
   async status(): Promise<BackupStatus> {
@@ -46,6 +57,7 @@ export class BackupService {
     const kopia = this.kopia();
     return {
       available: !!kopia,
+      bundled: this.bundled(),
       version: kopia ? await kopia.version().catch(() => null) : null,
       repoPath: s.backupRepo,
       intervalHours: s.backupIntervalHours,
@@ -57,7 +69,7 @@ export class BackupService {
 
   private async ready(): Promise<{ kopia: Kopia; password: string; source: string }> {
     const kopia = this.kopia();
-    if (!kopia) throw new UserError('no-kopia', 'Kopia isn’t installed. Get it from kopia.io, then try again.');
+    if (!kopia) throw new UserError('no-kopia', 'Kopia isn’t set up on this computer yet.');
     const password = await this.d.secrets.load();
     if (!this.d.settings.get().backupRepo || !password) throw new UserError('no-backup', 'Backups aren’t set up yet.');
     const source = this.d.libraryPath();
@@ -68,7 +80,7 @@ export class BackupService {
   /** Start using a folder for backups: a new store, or one made before (with its password). */
   async setup(repoPath: string, password: string, create: boolean): Promise<void> {
     const kopia = this.kopia();
-    if (!kopia) throw new UserError('no-kopia', 'Kopia isn’t installed. Get it from kopia.io, then try again.');
+    if (!kopia) throw new UserError('no-kopia', 'Kopia isn’t set up on this computer yet.');
     if (password.length < 8) throw new UserError('weak-password', 'Use a password of at least 8 characters.');
     const source = this.d.libraryPath();
     if (!source) throw new UserError('no-library', 'Open a library first.');
@@ -90,7 +102,7 @@ export class BackupService {
     try {
       await this.d.jobs.run('Backing up the library', async (job) => {
         job.update(null, 'Only what changed since the last backup is stored');
-        const snap = await kopia.snapshot(source, password);
+        const snap = await kopia.snapshot(source, password, this.d.libraryName() ?? undefined);
         job.update(1, `${snap.files.toLocaleString()} files`);
       });
       await this.d.settings.update({ lastBackupAt: new Date().toISOString(), lastBackupError: null });
