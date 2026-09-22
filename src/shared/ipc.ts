@@ -128,6 +128,9 @@ export interface Invokes {
   'fs:reveal': (path: string) => void;
   'app:openExternal': (url: string) => void;
   'backup:now': () => void;
+  /** Back up the open library to the same place as another library, with its password. */
+  'backup:join': (libraryId: string) => void;
+  'backup:setInterval': (hours: number) => void;
   'backup:snapshots': () => Snapshot[];
   /** Restore a snapshot of the open library into a new or empty folder, as a copy of its own. */
   'backup:restore': (snapshotId: string, target: string, size: number, name: string) => void;

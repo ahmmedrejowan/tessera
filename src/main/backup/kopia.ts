@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Snapshot } from '@shared/types';
 import { storageError, type KopiaStorage } from './storage';
@@ -147,6 +147,15 @@ export class Kopia {
   }
 
   /** Stop using the backup store. The store itself, and its snapshots, stay where they are. */
+  /**
+   * Drop the store's format that Kopia keeps in its cache, so the next command reads it again.
+   * Needed after the password was changed through another connection: the cached copy is sealed
+   * with the old one.
+   */
+  async forgetFormat(): Promise<void> {
+    await Promise.all(['kopia.repository', 'kopia.blobcfg'].map((f) => rm(join(this.cache, f), { force: true })));
+  }
+
   async disconnect(password: string): Promise<void> {
     await this.run(['repository', 'disconnect'], password).catch(() => undefined);
   }

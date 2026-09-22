@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import { release, tmpdir } from 'node:os';
 import { readdir, rm, stat } from 'node:fs/promises';
 import { join, sep } from 'node:path';
-import type { Platform } from '@shared/types';
+import type { Platform, Settings } from '@shared/types';
 import { broadcast, handle, onInternalError, UserError } from './ipc';
 import { parseRef } from './index/files';
 import { Jobs, type JobHandle } from './jobs';
@@ -107,6 +107,7 @@ const library = new LibraryService({
     broadcast(windows, 'library:changed', state);
     // A library that syncs picks up where it left off.
     if (state.status === 'ready') void sync.resume();
+    if (state.status === 'ready') void backups.libraryOpened(state.library).catch((e: unknown) => log.warn('backup', 'could not update the library’s backups', e));
   },
   onIndexChanged: () => {
     broadcast(windows, 'index:changed', ++indexVersion);
@@ -137,17 +138,14 @@ let backupVersion = 0;
 const backups = new BackupService({
   dataDir,
   settings,
-  secrets: fileSecret(join(dataDir, 'kopia-password.bin'), () => settings.get().backupPasswordInFile),
+  secrets: (libraryId) => fileSecret(join(dataDir, 'libraries', libraryId, 'backup', 'password.bin'), () => settings.get().backupPasswordInFile),
   keychain: keychainAvailable,
   jobs,
-  libraryPath: () => {
+  library: () => {
     const state = library.getState();
-    return state.status === 'ready' ? state.library.path : null;
+    return state.status === 'ready' ? state.library : null;
   },
-  libraryName: () => {
-    const state = library.getState();
-    return state.status === 'ready' ? state.library.name : null;
-  },
+  isLibrary: async (path, id) => (await library.inspect(path).catch(() => null)) === 'library' && (await readLibraryInfo(path).catch(() => null))?.id === id,
   rclone: rcloneSetup,
   onChange: () => broadcast(windows, 'backup:changed', ++backupVersion),
 });
@@ -267,7 +265,11 @@ function registerHandlers(): void {
     versions: { electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node },
   }));
   handle('settings:get', () => settings.get());
-  handle('settings:update', (patch) => settings.update(patch));
+  handle('settings:update', (patch) => {
+    // Backups change only through their own calls.
+    const { libraryBackups: _b, unclaimedBackup: _u, ...rest } = patch as Partial<Settings>;
+    return settings.update(rest);
+  });
   handle('window:chrome', ({ background, foreground }) => {
     if (platform === 'darwin') return;
     for (const w of windows()) w.setTitleBarOverlay({ color: background, symbolColor: foreground, height: 64 });
@@ -442,7 +444,7 @@ function registerHandlers(): void {
   handle('backup:changePassword', (next) => backups.changePassword(next));
   handle('backup:saveKit', async ({ password, target, includeKeys }) => {
     const state = library.getState();
-    const where = target ?? (settings.get().backupTarget as StorageTarget | null);
+    const where = target ?? backups.target();
     if (!where) throw new UserError('no-backup', 'Backups aren’t set up yet.');
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
     const options: Electron.SaveDialogOptions = { title: 'Save the recovery kit', defaultPath: join(app.getPath('documents'), 'Tessera recovery kit.pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] };
@@ -452,8 +454,10 @@ function registerHandlers(): void {
     return result.filePath;
   });
   handle('backup:saveToKeychain', async (password) => {
-    const target = settings.get().backupTarget as StorageTarget | null;
-    await saveToKeychain(target ? describeTarget(target) : 'Tessera', password ?? (await backups.password()));
+    const state = library.getState();
+    const target = backups.target();
+    const account = [state.status === 'ready' ? state.library.name : null, target ? describeTarget(target) : null].filter(Boolean).join(' · ') || 'Tessera';
+    await saveToKeychain(account, password ?? (await backups.password()));
   });
   handle('dialog:file', async (title) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
@@ -467,6 +471,8 @@ function registerHandlers(): void {
     if (/^https?:\/\//.test(url)) void shell.openExternal(url);
   });
   handle('backup:now', () => backups.backupNow());
+  handle('backup:join', (libraryId) => backups.join(libraryId));
+  handle('backup:setInterval', (hours) => backups.setInterval(hours));
   handle('backup:snapshots', () => backups.snapshots());
   // Libraries this computer knows, to keep a restored copy from sharing an id with its original.
   const knownLibraries = async () => {

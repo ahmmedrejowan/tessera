@@ -30,13 +30,13 @@ export interface Settings {
   skipInboxWhenSure: boolean;
   /** The project "Copy to project" sends assets to. */
   activeProjectId: string | null;
-  /** Backups: the folder holding the backup store, or null when backups are off. */
-  backupRepo: string | null;
-  backupTarget: StorageTarget | null;
-  /** Back up automatically this often while Tessera is open; 0 = only when asked. */
-  backupIntervalHours: number;
-  lastBackupAt: string | null;
-  lastBackupError: string | null;
+  /** Backups, per library (by library id). A library without an entry isn't backed up. */
+  libraryBackups: Record<string, LibraryBackup>;
+  /**
+   * A backup set up before backups were per library, waiting for its library to open (the one
+   * at `libraryPath`; any, when that's empty) to become that library's.
+   */
+  unclaimedBackup: LibraryBackup | null;
   /** Without a keychain: the user agreed to keep the backup password in an owner-only file. */
   backupPasswordInFile: boolean;
   /** Syncing the library with other computers (Syncthing) is on. */
@@ -127,7 +127,23 @@ export interface SyncStatus {
   pendingFolders: { id: string; label: string; offeredBy: string }[];
 }
 
-export type SettingsPatch = Partial<Settings>;
+/** One library's backups: where they go, how often, and how the last one went. */
+export interface LibraryBackup {
+  /** Where backups go, described for people ("Google Drive · Tessera Backups"). */
+  repo: string;
+  /** Where backups go, without its secrets (those stay in Kopia's own configuration). */
+  target: StorageTarget;
+  /** The library's name and folder when last seen, to back it up while another is open. */
+  libraryName: string;
+  libraryPath: string;
+  /** Back up automatically this often while Tessera is open; 0 = only when asked. */
+  intervalHours: number;
+  lastBackupAt: string | null;
+  lastError: string | null;
+}
+
+/** What the window may change; backups change through their own calls. */
+export type SettingsPatch = Partial<Omit<Settings, 'libraryBackups' | 'unclaimedBackup'>>;
 
 export interface LibraryInfo {
   id: string;
@@ -261,6 +277,8 @@ export interface BackupStatus {
   lastBackupAt: string | null;
   lastError: string | null;
   running: boolean;
+  /** Other libraries' backups this one could join (same place, same password). */
+  others: { libraryId: string; libraryName: string; repo: string }[];
 }
 
 export interface Snapshot {

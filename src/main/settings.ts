@@ -1,12 +1,34 @@
 import { join } from 'node:path';
 import { z } from 'zod';
 import { PROVIDERS, type Provider } from '@shared/storage';
-import type { Settings, SettingsPatch } from '@shared/types';
+import type { Settings } from '@shared/types';
 import { readJson, writeJson } from './fsx';
 import { log } from './log';
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const MAX_RECENT = 8;
+
+const target = z.object({ provider: z.enum(PROVIDERS.map((p) => p.id) as [Provider, ...Provider[]]), values: z.record(z.string(), z.string()) });
+
+const libraryBackup = z.object({
+  repo: z.string(),
+  target,
+  libraryName: z.string(),
+  libraryPath: z.string(),
+  intervalHours: z.number().min(0).max(24 * 30).catch(24),
+  lastBackupAt: z.string().nullable().catch(null),
+  lastError: z.string().nullable().catch(null),
+});
+
+/** Backups as they were kept before they were per library: one set for the app. */
+const legacyBackup = z.object({
+  backupRepo: z.string().min(1),
+  backupTarget: target.nullable().catch(null),
+  backupIntervalHours: z.number().catch(24),
+  lastBackupAt: z.string().nullable().catch(null),
+  lastBackupError: z.string().nullable().catch(null),
+  libraryPath: z.string().nullable().catch(null),
+});
 
 /** Every field has a default, so an old or partly broken settings file still loads. */
 const schema = z.object({
@@ -16,13 +38,8 @@ const schema = z.object({
   recentLibraries: z.array(z.string().min(1)).catch([]),
   skipInboxWhenSure: z.boolean().catch(true),
   activeProjectId: z.string().nullable().catch(null),
-  /** Where backups go, described for people ("Google Drive · Tessera Backups"). */
-  backupRepo: z.string().nullable().catch(null),
-  /** Where backups go, without its secrets (those stay in Kopia's own configuration). */
-  backupTarget: z.object({ provider: z.enum(PROVIDERS.map((p) => p.id) as [Provider, ...Provider[]]), values: z.record(z.string(), z.string()) }).nullable().catch(null),
-  backupIntervalHours: z.number().min(0).max(24 * 30).catch(24),
-  lastBackupAt: z.string().nullable().catch(null),
-  lastBackupError: z.string().nullable().catch(null),
+  libraryBackups: z.record(z.string(), libraryBackup).catch({}),
+  unclaimedBackup: libraryBackup.nullable().catch(null),
   /** Without a keychain: the user agreed to keep the backup password in an owner-only file. */
   backupPasswordInFile: z.boolean().catch(false),
   syncEnabled: z.boolean().catch(false),
@@ -52,8 +69,22 @@ export class SettingsStore {
       log.warn('settings', 'settings file unreadable, using defaults', e);
     }
     this.current = schema.parse(raw ?? {});
-    // Before other kinds of storage, backups only went to a folder, named by backupRepo.
-    if (this.current.backupRepo && !this.current.backupTarget) this.current.backupTarget = { provider: 'folder', values: { path: this.current.backupRepo } };
+    // Backups set up before they were per library wait for their library to open (backups.ts).
+    const legacy = legacyBackup.safeParse(raw);
+    if (legacy.success && !this.current.unclaimedBackup) {
+      const l = legacy.data;
+      this.current.unclaimedBackup = {
+        repo: l.backupRepo,
+        // Before other kinds of storage, backups only went to a folder, named by backupRepo.
+        target: l.backupTarget ?? { provider: 'folder', values: { path: l.backupRepo } },
+        libraryName: '',
+        libraryPath: l.libraryPath ?? '',
+        intervalHours: l.backupIntervalHours,
+        lastBackupAt: l.lastBackupAt,
+        lastError: l.lastBackupError,
+      };
+      await this.update({});
+    }
     return this.current;
   }
 
@@ -61,7 +92,7 @@ export class SettingsStore {
     return this.current;
   }
 
-  async update(patch: SettingsPatch): Promise<Settings> {
+  async update(patch: Partial<Settings>): Promise<Settings> {
     const next = schema.parse({ ...this.current, ...patch });
     if (patch.libraryPath) {
       next.recentLibraries = [patch.libraryPath, ...next.recentLibraries.filter((p) => p !== patch.libraryPath)].slice(0, MAX_RECENT);

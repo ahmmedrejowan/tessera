@@ -23,7 +23,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { call, on } from '../../api';
 import { failed, notify } from '../../notices/store';
-import { useUpdateSettings } from '../../state/queries';
+import type { BackupStatus } from '@shared/types';
 import { md } from '../../theme';
 import { Row } from './parts';
 import { ToolSetup } from '../setup/ToolSetup';
@@ -153,6 +153,29 @@ function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void 
   );
 }
 
+/** Back up this library to where another library's backups go, with the same password. */
+function JoinRow({ other }: { other: BackupStatus['others'][number] }) {
+  const [busy, setBusy] = useState(false);
+  const join = async () => {
+    setBusy(true);
+    try {
+      await call('backup:join', other.libraryId);
+      notify.success('Backups are on.', { body: `To ${other.repo}, with the same password as “${other.libraryName}”.` });
+    } catch (e) {
+      failed(e, 'Couldn’t turn on backups');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Row title={`Same place as “${other.libraryName}”`} body={`${other.repo} · same password, nothing to sign in to`}>
+      <Button variant="contained" disabled={busy} onClick={() => void join()}>
+        {busy ? 'Turning on…' : 'Use it'}
+      </Button>
+    </Row>
+  );
+}
+
 /** The Backups section of Settings. */
 export function BackupSettings() {
   const [setup, setSetup] = useState(false);
@@ -169,8 +192,8 @@ export function BackupSettings() {
 function BackupRows({ onSetup }: { onSetup: () => void }) {
   const client = useQueryClient();
   useEffect(() => on('backup:changed', () => void client.invalidateQueries({ queryKey: ['backup'] })), [client]);
-  const status = useQuery({ queryKey: ['backup'], queryFn: () => call('backup:status'), refetchInterval: 60_000 }).data;
-  const update = useUpdateSettings();
+  // Read again whenever Settings opens: the library may have changed since.
+  const status = useQuery({ queryKey: ['backup'], queryFn: () => call('backup:status'), refetchInterval: 60_000, staleTime: 0 }).data;
   const [restoring, setRestoring] = useState(false);
   if (!status) return null;
 
@@ -187,11 +210,14 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
   if (!status.repoPath) {
     return (
       <>
-        <Row title="Backups are off" body={`Kopia ${status.version ?? ''} is ready. Encrypted backups to a drive, a cloud drive, cloud storage or a server.`}>
-          <Button variant="contained" onClick={onSetup}>
+        <Row title="Backups are off for this library" body={`Kopia ${status.version ?? ''} is ready. Encrypted backups to a drive, a cloud drive, cloud storage or a server.`}>
+          <Button variant={status.others.length ? 'outlined' : 'contained'} onClick={onSetup}>
             Set up
           </Button>
         </Row>
+        {status.others.map((o) => (
+          <JoinRow key={o.libraryId} other={o} />
+        ))}
       </>
     );
   }
@@ -211,7 +237,7 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
         </Button>
       </Row>
       <Row title="Automatically" body="While Tessera is open.">
-        <Select size="small" value={status.intervalHours} onChange={(e) => update.mutate({ backupIntervalHours: Number(e.target.value) })}>
+        <Select size="small" value={status.intervalHours} onChange={(e) => void call('backup:setInterval', Number(e.target.value)).catch((err: unknown) => failed(err))}>
           <MenuItem value={0}>Only when I ask</MenuItem>
           <MenuItem value={6}>Every 6 hours</MenuItem>
           <MenuItem value={24}>Every day</MenuItem>
