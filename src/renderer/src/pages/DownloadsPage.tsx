@@ -299,6 +299,7 @@ export function DownloadsPage() {
     <Page
       flush
       title="Downloads"
+      subtitle="Links you bring, fetched and added like any other pack"
       actions={
         going.length ? (
           <Button startIcon={allPaused ? <PlayArrowRounded /> : <PauseRounded />} onClick={() => void call(allPaused ? 'downloads:resumeAll' : 'downloads:pauseAll').catch(failed)}>

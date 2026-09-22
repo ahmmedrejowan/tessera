@@ -96,6 +96,7 @@ export function ProjectsPage() {
     <Page
       flush
       title="Projects"
+      subtitle="Games this library copies assets into"
       actions={
         <Button variant="contained" startIcon={<AddLinkOutlined />} onClick={() => void link.start()}>
           Link a project

@@ -60,6 +60,7 @@ export function CollectionsPage() {
     <Page
       flush
       title="Collections"
+      subtitle="Assets gathered for one game, or one job"
       actions={
         <Button variant="contained" startIcon={<AddOutlined />} onClick={() => setNaming(true)}>
           New collection
