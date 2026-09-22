@@ -28,7 +28,16 @@ jobs:
         env:
           # Where error reports go (a Sentry-compatible DSN). Without the secret the build can't send any.
           TESSERA_REPORTS_DSN: ${{ secrets.TESSERA_REPORTS_DSN }}
-      - run: npx electron-builder --publish never
+      - run: npx electron-builder --config build/builder.cjs --publish never
+        env:
+          # Real signing when these secrets exist; otherwise the same unsigned / ad-hoc builds as before.
+          CSC_LINK: ${{ runner.os == 'macOS' && secrets.MAC_CERT_P12 || '' }}
+          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.MAC_CERT_PASSWORD || '' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CERT_PFX }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
       - uses: actions/upload-artifact@v4
         with:
           name: tessera-${{ matrix.os }}

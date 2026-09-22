@@ -16,8 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "icon": "electron scripts/make-icon.cjs",
-    "package": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder"
+    "package": "npm run build && electron-builder --config build/builder.cjs --dir",
+    "dist": "npm run build && electron-builder --config build/builder.cjs"
   },
   "devDependencies": {
     "@emotion/react": "^11.14.0",
@@ -69,7 +69,8 @@
     },
     "files": [
       "out/**",
-      "package.json"
+      "package.json",
+      "!node_modules/cpu-features/**"
     ],
     "asar": true,
     "electronLanguages": [
