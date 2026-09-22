@@ -7,12 +7,13 @@ import type { Platform } from '@shared/types';
 import { broadcast, handle, onInternalError, UserError } from './ipc';
 import { parseRef } from './index/files';
 import { Jobs } from './jobs';
-import { DIRS } from './library/layout';
+import { DIRS, readLibraryInfo } from './library/layout';
 import { describeFolder, locateLibrary } from './library/locate';
-import { installSyncthing } from './sync/install';
+import { installTool } from './tools/install';
+import { backupPlaces, findBackups, RestoreService, storeAt } from './backup/restore';
 import { findTool } from './tools/find';
 import { LibraryService } from './libraryService';
-import { BackupService } from './backup/service';
+import { BackupService, findKopia } from './backup/service';
 import { registerDrag } from './drag';
 import { installMenu } from './menu';
 import { fileSecret } from './secrets';
@@ -129,8 +130,13 @@ const backups = new BackupService({
     const state = library.getState();
     return state.status === 'ready' ? state.library.path : null;
   },
+  libraryName: () => {
+    const state = library.getState();
+    return state.status === 'ready' ? state.library.name : null;
+  },
   onChange: () => broadcast(windows, 'backup:changed', ++backupVersion),
 });
+const restorer = new RestoreService(dataDir, () => findKopia(dataDir));
 let projectsVersion = 0;
 const projectsChanged = () => broadcast(windows, 'projects:changed', ++projectsVersion);
 
@@ -416,6 +422,40 @@ function registerHandlers(): void {
   });
   handle('backup:turnOff', () => backups.turnOff());
 
+  handle('restore:places', () => backupPlaces());
+  handle('restore:find', async () => findBackups(await backupPlaces()));
+  handle('restore:storeAt', (path) => storeAt(path));
+  handle('restore:unlock', (repo, password) => restorer.unlock(repo, password));
+  handle('restore:run', (id, target, size) =>
+    jobs.run('Restoring a library', (job) =>
+      restorer.restore(
+        id,
+        target,
+        size,
+        (f) => {
+          job.update(f, 'Putting the files back');
+          broadcast(windows, 'restore:progress', f);
+        },
+        async () => {
+          // Libraries this computer knows, to keep a restored copy from sharing an id with its original.
+          const known: { id: string; path: string }[] = [];
+          for (const path of settings.get().recentLibraries) {
+            const kind = await library.inspect(path).catch(() => null);
+            if (kind === 'library') known.push({ id: (await readLibraryInfo(path)).id, path });
+          }
+          return known;
+        },
+      ),
+    ),
+  );
+  handle('restore:keepBackingUp', async () => {
+    const opened = restorer.opened;
+    if (!opened) throw new UserError('restore-locked', 'Open the backup first.');
+    await restorer.close();
+    await backups.setup(opened.repo, opened.password, false);
+  });
+  handle('restore:close', () => restorer.close());
+
   handle('sync:status', () => sync.status());
   handle('sync:enable', (mode) => sync.enable(mode));
   handle('sync:setMode', (mode) => sync.setMode(mode));
@@ -425,12 +465,12 @@ function registerHandlers(): void {
   handle('sync:receive', () => sync.startForReceiving());
   handle('sync:acceptFolder', (folderId, offeredBy, label, path, mode) => sync.acceptFolder(folderId, offeredBy, label, path, mode));
   handle('sync:folderProgress', (folderId) => sync.folderProgress(folderId));
-  handle('sync:install', async () => {
-    const version = await installSyncthing(dataDir, (url, init) => net.fetch(url, init), (p) => broadcast(windows, 'sync:installProgress', p));
-    broadcast(windows, 'sync:changed', ++syncVersion);
+  handle('tools:install', async (tool) => {
+    const version = await installTool(tool, dataDir, (url, init) => net.fetch(url, init), (p) => broadcast(windows, 'tools:installProgress', { tool, ...p }));
+    broadcast(windows, tool === 'syncthing' ? 'sync:changed' : 'backup:changed', tool === 'syncthing' ? ++syncVersion : ++backupVersion);
     return version;
   });
-  handle('sync:packageManagers', () => ['brew', 'winget', 'apt', 'dnf', 'pacman', 'zypper', 'flatpak', 'snap'].filter((tool) => !!findTool(tool)));
+  handle('tools:packageManagers', () => ['brew', 'winget', 'apt', 'dnf', 'pacman', 'zypper', 'flatpak', 'snap'].filter((tool) => !!findTool(tool)));
 
   handle('import:choose', async (what) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];

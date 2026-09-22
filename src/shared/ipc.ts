@@ -8,7 +8,7 @@ import type { PackEdit, PackMeta, PackStatus } from './pack';
 import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } from './project';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
-import type { AppInfo, BackupStatus, ErrorInput, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { AppInfo, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -119,10 +119,24 @@ export interface Invokes {
   'sync:acceptFolder': (folderId: string, offeredBy: string, label: string, path: string, mode: SyncMode) => void;
   /** How much of a library that's arriving is here. */
   'sync:folderProgress': (folderId: string) => { state: string; globalBytes: number; inSyncBytes: number; needBytes: number } | null;
-  /** Download Syncthing into Tessera's data folder (progress comes as `sync:installProgress`); returns its version. */
-  'sync:install': () => string;
-  /** Package managers on this system that can install Syncthing. */
-  'sync:packageManagers': () => string[];
+  /** Download a tool into Tessera's data folder (progress comes as `tools:installProgress`); returns its version. */
+  'tools:install': (tool: ToolName) => string;
+  /** Package managers found on this system. */
+  'tools:packageManagers': () => string[];
+
+  /** Where backups are likely to be on this computer. */
+  'restore:places': () => BackupPlace[];
+  /** Look through those places for backup stores. */
+  'restore:find': () => FoundBackup[];
+  /** The backup store a picked folder means (itself, or one inside it), or null. */
+  'restore:storeAt': (path: string) => string | null;
+  /** Open a backup store with its password; returns the libraries in it. */
+  'restore:unlock': (repo: string, password: string) => RestoreSource[];
+  /** Restore a snapshot into a new or empty folder (progress comes as `restore:progress`). */
+  'restore:run': (snapshotId: string, target: string, size: number) => void;
+  /** Carry on backing up the open library to the store it was restored from. */
+  'restore:keepBackingUp': () => void;
+  'restore:close': () => void;
 
   /** Ask the user for files or a folder to add; null when they cancel. */
   'import:choose': (what: 'files' | 'folder' | 'folderOfPacks') => string[] | null;
@@ -163,7 +177,9 @@ export interface Events {
   'backup:changed': number;
   /** Sync settings or state changed. */
   'sync:changed': number;
-  'sync:installProgress': { stage: 'finding' | 'downloading' | 'checking' | 'unpacking' | 'done'; received: number; total: number; version?: string };
+  'tools:installProgress': { tool: ToolName; stage: 'finding' | 'downloading' | 'checking' | 'unpacking' | 'done'; received: number; total: number; version?: string };
+  /** How far a restore has got, 0–1; null when it can't tell. */
+  'restore:progress': number | null;
   'menu:command': MenuCommand;
   /** Errors were caught and consent is "ask": time to ask. */
   'reports:ask': number;

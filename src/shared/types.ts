@@ -41,6 +41,32 @@ export interface Settings {
   errorReports: ReportConsent;
 }
 
+/** Optional tools Tessera can fetch for the user. */
+export type ToolName = 'syncthing' | 'kopia';
+
+/** A place backups are likely to be: a cloud drive's folder, a drive, a personal folder. */
+export interface BackupPlace {
+  label: string;
+  path: string;
+  kind: 'cloud' | 'drive' | 'folder';
+}
+
+/** A backup store found in one of those places. */
+export interface FoundBackup {
+  path: string;
+  place: string;
+  kind: BackupPlace['kind'];
+}
+
+/** A library in a backup store: where it was backed up from, and its snapshots, newest first. */
+export interface RestoreSource {
+  key: string;
+  name: string;
+  host: string;
+  path: string;
+  snapshots: Snapshot[];
+}
+
 export type ReportConsent = 'ask' | 'always' | 'never';
 
 /** Where an error came from: the main process, the app window, or a process that stopped. */
@@ -216,6 +242,8 @@ export interface CollectionChange {
 export interface BackupStatus {
   /** Kopia is installed. */
   available: boolean;
+  /** The Kopia in use is the copy Tessera downloaded. */
+  bundled: boolean;
   version: string | null;
   repoPath: string | null;
   intervalHours: number;
