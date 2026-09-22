@@ -139,6 +139,9 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
   }, [step, available]);
   useEffect(() => {
     if (open) {
+      // Start over each time: the guide stays mounted between uses (see BackupSettings).
+      setStep('kopia');
+      setMode('new');
       setTarget(null);
       setPassword('');
       setAgain('');
