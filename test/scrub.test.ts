@@ -32,6 +32,11 @@ describe('scrubbing reports', () => {
     expect(scrub('"/Users/sam/Desktop/My Stuff"')).toBe('"~/…"');
   });
 
+  it('isn’t fooled by apostrophes', () => {
+    expect(scrub("Couldn't read '/Users/sam/Documents/Private Stuff/model.fbx'")).toBe("Couldn't read '~/….fbx'");
+    expect(scrub('It isn’t “Secret Pack”, it’s fine')).toBe('It isn’t “…”, it’s fine');
+  });
+
   it('hides paths elsewhere', () => {
     expect(scrub("EACCES: permission denied, mkdir '/Volumes/Assets Drive/Tessera'")).toBe("EACCES: permission denied, mkdir '<path>/…'");
     expect(scrub('opened /Volumes/Drive/packs/tree.glb')).toBe('opened <path>/….glb');

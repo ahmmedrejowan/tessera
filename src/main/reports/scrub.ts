@@ -60,7 +60,8 @@ export function makeScrubber(roots: ScrubRoots): (text: string) => string {
     text = text.replace(/app:\/[\\/][^\s)'"]*/g, (m) => `app://${m.slice(5).replace(/\\/g, '/').replace(/^\/+/, '')}`);
 
     // A quoted path or name, which may contain spaces: keep only what's safe.
-    text = text.replace(/(['"“‘`])([^'"“”‘’`\n]{1,400})(['"”’`])/g, (_m, open: string, inner: string, close: string) => {
+    // A quote opens after a space or punctuation (not the apostrophe in "couldn't") and closes before one.
+    text = text.replace(/(?<![\p{L}\p{N}])(['"“‘`])([^"“”‘`\n]{1,400}?)(['"”’`])(?![\p{L}\p{N}])/gu, (_m, open: string, inner: string, close: string) => {
       if (inner.startsWith('app://')) return open + inner + close;
       const token = /^(<library>|<data>|<temp>|~)(?=[\\/]|$)/.exec(inner)?.[1];
       if (token) return open + token + tail(inner.slice(token.length)) + close;
