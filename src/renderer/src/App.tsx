@@ -16,6 +16,8 @@ import { HomePage } from './pages/HomePage';
 import { AddPage } from './pages/add/AddPage';
 import { InboxPage } from './pages/InboxPage';
 import { DownloadsPage } from './pages/DownloadsPage';
+import { AboutPage } from './pages/AboutPage';
+import { HelpPage } from './pages/HelpPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { MenuCommands } from './shell/MenuCommands';
 import { CopyConfirm } from './pages/projects/CopyConfirm';
@@ -43,6 +45,10 @@ function Current() {
       return <InboxPage />;
     case 'downloads':
       return <DownloadsPage />;
+    case 'help':
+      return <HelpPage />;
+    case 'about':
+      return <AboutPage />;
     case 'collections':
       return <CollectionsPage />;
     case 'collection':

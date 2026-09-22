@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "A desktop library for game assets: every pack in one place, with its licence and source on record.",
   "author": "K M Rejowan Ahmmed <kmrejowan@gmail.com>",
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-or-later",
   "private": true,
   "type": "module",
   "main": "out/main/index.js",
@@ -60,7 +60,7 @@
   },
   "homepage": "https://github.com/ahmmedrejowan/tessera",
   "build": {
-    "appId": "com.ahmmedrejowan.tessera",
+    "appId": "com.rejowan.tessera",
     "productName": "Tessera",
     "copyright": "Copyright © 2026 K M Rejowan Ahmmed",
     "directories": {
@@ -79,6 +79,10 @@
         "filter": [
           "*.zip"
         ]
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE"
       }
     ],
     "asar": true,

@@ -1,4 +1,5 @@
 import AddOutlined from '@mui/icons-material/AddOutlined';
+import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import LinkRounded from '@mui/icons-material/LinkRounded';
 import OpenInFullRounded from '@mui/icons-material/OpenInFullRounded';
 import RateReviewOutlined from '@mui/icons-material/RateReviewOutlined';
@@ -109,6 +110,7 @@ function ReviewRow({ pack }: { pack: PackRow }) {
  * keeps assets with unknown terms out of your games. Filled in here, they move into the library.
  */
 export function InboxPage() {
+  const go = useNav((s) => s.go);
   const lib = useLibraryId();
   const version = useIndexVersion();
   const choose = useImport((s) => s.choose);
@@ -124,11 +126,16 @@ export function InboxPage() {
         <EmptyState
           icon={RateReviewOutlined}
           title="Nothing to review"
-          body="Packs added with “Finish later” wait here until they have a licence and a source, so nothing with unknown terms slips into your games."
+          body="Packs whose licence or source isn’t clear wait here, so nothing with unknown terms reaches your games."
           actions={
-            <Button variant="contained" startIcon={<AddOutlined />} onClick={() => void choose('files')}>
-              Add packs
-            </Button>
+            <>
+              <Button variant="contained" startIcon={<AddOutlined />} onClick={() => void choose('files')}>
+                Add packs
+              </Button>
+              <Button variant="outlined" startIcon={<DownloadOutlined />} onClick={() => go({ to: 'downloads' })}>
+                Download from a link
+              </Button>
+            </>
           }
         />
       ) : (

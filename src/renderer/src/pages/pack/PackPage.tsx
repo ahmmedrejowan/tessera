@@ -217,7 +217,22 @@ export function PackPage({ id }: { id: string }) {
               {assets.length ? (
                 <VirtualGrid count={assets.length} minItemWidth={tileSize} itemHeight={(w) => w + TILE_LABEL_HEIGHT} gap={8} render={render} />
               ) : (
-                <EmptyState icon={SearchOutlined} title="Nothing here" body={find ? `Nothing in this pack matches “${find}”.` : 'This pack has no assets of its own — see its files.'} />
+                <EmptyState
+                  icon={SearchOutlined}
+                  title={find ? 'Nothing matches' : 'No assets Tessera can show'}
+                  body={find ? `Nothing in this pack matches “${find}”.` : 'Its files are all there — they’re just not of a kind Tessera previews.'}
+                  actions={
+                    find ? (
+                      <Button variant="contained" onClick={() => setFind('')}>
+                        Clear the search
+                      </Button>
+                    ) : (
+                      <Button variant="contained" onClick={() => setTab('files')}>
+                        See the files
+                      </Button>
+                    )
+                  }
+                />
               )}
             </div>
           </div>

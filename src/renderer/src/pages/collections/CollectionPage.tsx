@@ -137,9 +137,13 @@ export function CollectionPage({ id }: { id: string }) {
         {!rows.loading && rows.total === 0 ? (
           <EmptyState
             icon={SearchOutlined}
-            title={smart ? 'Nothing matches right now' : 'This collection is empty'}
-            body={smart ? 'Assets that match this search will show up here as you add packs.' : 'In Browse, select assets and choose Add to collection. Assets from any pack can go in.'}
-            actions={!smart && <Button onClick={() => go({ to: 'browse' })}>Go to Browse</Button>}
+            title={smart ? 'Nothing matches this search yet' : 'Nothing in this collection yet'}
+            body={smart ? 'It fills itself in as packs that match are added.' : 'Pick assets in Browse and add them here — from any pack.'}
+            actions={
+              <Button variant="contained" onClick={() => go({ to: 'browse' })}>
+                {smart ? 'Browse the library' : 'Pick assets'}
+              </Button>
+            }
           />
         ) : (
           <VirtualGrid count={rows.total} minItemWidth={tileSize} itemHeight={(w) => w + TILE_LABEL_HEIGHT} gap={8} render={render} onRangeChange={rows.setVisibleRange} />

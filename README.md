@@ -28,3 +28,12 @@ npm run dist       # installers for this platform, in release/
 ```
 
 See `AGENTS.md` for how the code fits together.
+
+## Licence
+
+Tessera is free software under the **GNU General Public License, version 3 or later** — use it
+for anything, read how it works, change it, and pass it on, as long as what you pass on stays
+free in the same way. The full text is in `LICENSE`, and the app shows it under About.
+
+The separate programs Tessera can fetch (Kopia, rclone, Syncthing) stay under their own licences,
+and so do the assets you keep in your library.

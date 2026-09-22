@@ -50,6 +50,7 @@ const schema = z.object({
   errorReports: z.enum(['ask', 'always', 'never']).catch('ask'),
   siteRules: z.array(siteRule).catch([]),
   downloadsAtOnce: z.number().int().min(1).max(5).catch(3),
+  updateCheck: z.boolean().catch(true),
 });
 
 export const DEFAULT_SETTINGS: Settings = schema.parse({});

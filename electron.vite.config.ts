@@ -8,7 +8,11 @@ export default defineConfig({
   main: {
     resolve: { alias: shared },
     // Error reports go to the service named at build time (a release secret); builds without it can't send any.
-    define: { __TESSERA_REPORTS_DSN__: JSON.stringify(process.env.TESSERA_REPORTS_DSN ?? '') },
+    define: {
+      __TESSERA_REPORTS_DSN__: JSON.stringify(process.env.TESSERA_REPORTS_DSN ?? ''),
+      // Where published releases are listed; empty while the project is private.
+      __TESSERA_UPDATE_FEED__: JSON.stringify(process.env.TESSERA_UPDATE_FEED ?? ''),
+    },
     build: { externalizeDeps: true },
   },
   preload: {

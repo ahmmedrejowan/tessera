@@ -4,7 +4,7 @@ import { useNav } from '../state/nav';
 import { md, SHAPE } from '../theme';
 import { NavigationRail } from './NavigationRail';
 import { Activity } from './Activity';
-import { Help } from './Help';
+import { HelpButton } from './Help';
 import { LibrarySwitcher } from './LibrarySwitcher';
 import { ShortcutsButton } from './Shortcuts';
 import { useStats } from '../state/library';
@@ -71,7 +71,7 @@ export function AppShell({ children, onAdd, inboxCount, downloadCount, bare }: {
           <>
             <ShortcutsButton />
             <Activity />
-            <Help />
+            <HelpButton />
             <LibrarySwitcher />
           </>
         )} />

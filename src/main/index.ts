@@ -1,7 +1,7 @@
 import { app, BrowserWindow, crashReporter, dialog, nativeTheme, net, session, shell, systemPreferences } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import { release, tmpdir } from 'node:os';
-import { readdir, rm, stat } from 'node:fs/promises';
+import { readdir, readFile, rm, stat } from 'node:fs/promises';
 import { join, sep } from 'node:path';
 import type { DownloadItem, LibrarySummary, Platform, Settings } from '@shared/types';
 import { byRecent, patchRecord, recordOf, touchLibrary } from './libraries';
@@ -38,6 +38,7 @@ import { SettingsStore } from './settings';
 import { RenderWindow } from './thumbs/renderWindow';
 import { ThumbService } from './thumbs/service';
 import { Activity } from './activity';
+import { Updates } from './updates';
 import { DownloadService, linksInFiles } from './downloads/service';
 import { linksIn } from '@shared/links';
 import { defaultSize, loadWindowState, trackWindowState } from './windowState';
@@ -119,6 +120,12 @@ const downloads = new DownloadService({
   atOnce: () => settings.get().downloadsAtOnce,
   onChanged: () => broadcast(windows, 'downloads:changed', downloads.list()),
   onReady: (item) => void addDownloaded(item),
+});
+const updates = new Updates({
+  version: app.getVersion(),
+  feed: process.env.TESSERA_UPDATE_FEED || __TESSERA_UPDATE_FEED__,
+  fetch: (url, init) => net.fetch(url, init),
+  onChanged: () => broadcast(windows, 'updates:changed', updates.get()),
 });
 let indexVersion = 0;
 const library = new LibraryService({
@@ -206,6 +213,16 @@ async function addDownloaded(item: DownloadItem): Promise<void> {
   } catch (e) {
     log.error('downloads', `could not add ${item.name}`, e);
   }
+}
+
+/** Tessera's own licence text: beside the packaged app, or in the project while developing. */
+async function readLicence(): Promise<string> {
+  const places = [join(process.resourcesPath, 'LICENSE'), join(app.getAppPath(), 'LICENSE'), join(app.getAppPath(), '..', 'LICENSE')];
+  for (const place of places) {
+    const text = await readFile(place, 'utf8').catch(() => null);
+    if (text) return text;
+  }
+  throw new UserError('no-licence', 'The licence file isn’t in this build. It is the GNU General Public License, version 3 or later.');
 }
 
 function openRecord() {
@@ -357,6 +374,7 @@ async function start(): Promise<void> {
     thumbDir,
   });
   await downloads.load();
+  updates.startSchedule(() => settings.get().updateCheck);
   if (s.libraryPath) void library.open(s.libraryPath);
   backups.startSchedule();
   // Libraries that sync while not open start syncing even before one is opened.
@@ -698,6 +716,9 @@ function registerHandlers(): void {
     return result.canceled || !result.filePaths.length ? null : result.filePaths;
   });
   handle('activity:list', (limit) => activity.list(limit ?? 20));
+  handle('updates:status', () => updates.get());
+  handle('updates:check', () => updates.check());
+  handle('app:licence', () => readLicence());
 
   handle('downloads:list', () => downloads.list());
   handle('downloads:add', (text) => downloads.add(linksIn(text)));
@@ -797,6 +818,7 @@ app.on('window-all-closed', () => {
   if (platform !== 'darwin') app.quit();
 });
 app.on('before-quit', () => {
+  updates.stop();
   downloads.stopAll();
   reports.dispose();
   renderWindow?.close();

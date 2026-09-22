@@ -147,9 +147,13 @@ export function ProjectPage({ id }: { id: string }) {
         {!entries.length ? (
           <EmptyState
             icon={SportsEsportsOutlined}
-            title="Nothing copied yet"
-            body={`Select assets in Browse and choose “Copy to ${project.name}”. They arrive in ${project.target}/ with their textures and a licence file.`}
-            actions={<Button onClick={() => go({ to: 'browse' })}>Go to Browse</Button>}
+            title="Nothing copied here yet"
+            body={`Pick assets in Browse and copy them to ${project.name}. They land in ${project.target}/ with their textures, licences and credits.`}
+            actions={
+              <Button variant="contained" onClick={() => go({ to: 'browse' })}>
+                Pick assets
+              </Button>
+            }
           />
         ) : (
           byLibrary.map((lib) => (

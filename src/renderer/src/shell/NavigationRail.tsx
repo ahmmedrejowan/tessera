@@ -9,6 +9,8 @@ import Home from '@mui/icons-material/Home';
 import HomeOutlined from '@mui/icons-material/HomeOutlined';
 import RateReview from '@mui/icons-material/RateReview';
 import RateReviewOutlined from '@mui/icons-material/RateReviewOutlined';
+import InfoOutlined from '@mui/icons-material/InfoOutlined';
+import Info from '@mui/icons-material/Info';
 import Settings from '@mui/icons-material/Settings';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import SportsEsports from '@mui/icons-material/SportsEsports';
@@ -36,7 +38,10 @@ const MAIN: Item[] = [
   { to: 'inbox', label: 'Review', icon: RateReviewOutlined, activeIcon: RateReview },
   { to: 'downloads', label: 'Downloads', icon: DownloadOutlined, activeIcon: Download },
 ];
-const SETTINGS: Item = { to: 'settings', label: 'Settings', icon: SettingsOutlined, activeIcon: Settings };
+const BOTTOM: Item[] = [
+  { to: 'about', label: 'About', icon: InfoOutlined, activeIcon: Info },
+  { to: 'settings', label: 'Settings', icon: SettingsOutlined, activeIcon: Settings },
+];
 
 export const RAIL_WIDTH = 88;
 
@@ -113,7 +118,9 @@ export function NavigationRail({ inboxCount, downloadCount, onAdd }: { inboxCoun
         <RailItem key={item.to} item={item} {...(item.to === 'inbox' && inboxCount ? { badge: inboxCount } : item.to === 'downloads' && downloadCount ? { badge: downloadCount } : {})} />
       ))}
       <div style={{ flex: 1 }} />
-      <RailItem item={SETTINGS} />
+      {BOTTOM.map((item) => (
+        <RailItem key={item.to} item={item} />
+      ))}
     </nav>
   );
 }

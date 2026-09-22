@@ -33,6 +33,8 @@ export interface Settings {
   siteRules: SiteRule[];
   /** How many downloads may run at once (1-5). */
   downloadsAtOnce: number;
+  /** Look for a newer Tessera on start and once a day. */
+  updateCheck: boolean;
 }
 
 /** A site the user has set the licence for, so packs from it fill themselves in. */
@@ -312,6 +314,26 @@ export interface ImportItem {
   url?: string;
 }
 
+/** Whether a newer Tessera has been published, as the About page shows it. */
+export interface UpdateStatus {
+  /** This build. */
+  current: string;
+  checking: boolean;
+  /** The newest published version, without its "v". */
+  latest: string | null;
+  /** Where to read about it and get it. */
+  url: string | null;
+  /** The first lines of what changed. */
+  notes: string | null;
+  publishedAt: string | null;
+  lastCheckedAt: string | null;
+  error: string | null;
+  /** The published version is newer than this one. */
+  newer: boolean;
+  /** This build knows where to look. */
+  canCheck: boolean;
+}
+
 /** What kind of thing happened in a library. */
 export type ActivityKind = 'added' | 'downloaded' | 'reviewed' | 'backup' | 'sync' | 'project' | 'library';
 
@@ -401,4 +423,4 @@ export interface Snapshot {
 }
 
 /** Commands the application menu sends to the window. */
-export type MenuCommand = 'add' | 'addFolder' | 'addFolderOfPacks' | 'linkProject' | 'settings' | 'find' | 'shortcuts' | 'home' | 'browse' | 'collections' | 'projects' | 'inbox' | 'downloads' | 'reportProblem';
+export type MenuCommand = 'add' | 'addFolder' | 'addFolderOfPacks' | 'linkProject' | 'settings' | 'find' | 'shortcuts' | 'home' | 'browse' | 'collections' | 'projects' | 'inbox' | 'downloads' | 'help' | 'about' | 'reportProblem';
