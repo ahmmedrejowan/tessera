@@ -3,6 +3,7 @@ import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import AutoAwesomeRounded from '@mui/icons-material/AutoAwesomeRounded';
 import CheckRounded from '@mui/icons-material/CheckRounded';
 import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
+import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined';
 import KeyRounded from '@mui/icons-material/KeyRounded';
 import PictureAsPdfOutlined from '@mui/icons-material/PictureAsPdfOutlined';
 import VisibilityOffRounded from '@mui/icons-material/VisibilityOffRounded';
@@ -20,12 +21,14 @@ import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 import { describeTarget, providerInfo, targetProblem, type Provider, type StorageTarget } from '@shared/storage';
+import type { BackupStatus } from '@shared/types';
 import { call, on } from '../../api';
 import { SegmentedButton } from '../../components/SegmentedButton';
 import { StatusSlot, type SlotMessage } from '../../components/StatusSlot';
 import { useSettings, useUpdateSettings } from '../../state/queries';
 import { md, mdAlpha, SHAPE } from '../../theme';
 import { DIALOG_HEIGHT, DIALOG_WIDTH, SetupFrame, Side } from '../library/LibraryDialog';
+import { Choice } from './RestoreGuide';
 import { newTarget, ProviderGrid, StorageForm } from './Storage';
 import { ToolSetup } from './ToolSetup';
 
@@ -119,6 +122,8 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
   const status = useQuery({ queryKey: ['backup'], queryFn: () => call('backup:status'), enabled: open, staleTime: 0 }).data;
   const [step, setStep] = useState<Step>('kopia');
   const [target, setTarget] = useState<StorageTarget | null>(null);
+  /** Another library whose place and password to use instead. */
+  const [joined, setJoined] = useState<BackupStatus['others'][number] | null>(null);
   const [whereMsg, setWhereMsg] = useState<SlotMessage | null>(null);
   const [mode, setMode] = useState<'new' | 'existing'>('new');
   const [password, setPassword] = useState('');
@@ -143,6 +148,7 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
       setStep('kopia');
       setMode('new');
       setTarget(null);
+      setJoined(null);
       setPassword('');
       setAgain('');
       setError(null);
@@ -159,6 +165,7 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
   }, [folderStore, target?.provider]);
 
   const pick = (p: Provider) => {
+    setJoined(null);
     setTarget(newTarget(p));
     setWhereMsg(null);
   };
@@ -172,24 +179,41 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
     setShown(true);
   };
   const keepSafe = async (what: 'kit' | 'keychain' | 'copy') => {
+    // After joining another library's backups, the password is the one Tessera keeps for them.
+    const pw = password || undefined;
     try {
       if (what === 'kit') {
-        const path = await call('backup:saveKit', { password, ...(target ? { target } : {}), includeKeys });
+        const path = await call('backup:saveKit', { ...(pw ? { password: pw } : {}), ...(target ? { target } : {}), includeKeys });
         if (path) {
           setKept((k) => ({ ...k, kit: path }));
           setSafeMsg({ tone: 'success', text: `Saved to ${path}. Print it, or keep it off this computer.` });
         }
       } else if (what === 'keychain') {
-        await call('backup:saveToKeychain', password);
+        await call('backup:saveToKeychain', pw);
         setKept((k) => ({ ...k, keychain: true }));
         setSafeMsg({ tone: 'success', text: `Saved in ${STORE_NAME[window.tessera.platform]} as “Tessera backup password”.` });
       } else {
-        await navigator.clipboard.writeText(password);
+        await navigator.clipboard.writeText(pw ?? (await call('backup:revealPassword')));
         setKept((k) => ({ ...k, copied: true }));
         setSafeMsg({ tone: 'success', text: 'Copied. Paste it into your password manager.' });
       }
     } catch (e) {
       setSafeMsg({ tone: 'error', text: e instanceof Error ? e.message : String(e) });
+    }
+  };
+
+  const others = status?.others ?? [];
+  const join = async () => {
+    if (!joined) return;
+    setBusy(true);
+    setWhereMsg(null);
+    try {
+      await call('backup:join', joined.libraryId);
+      setStep('done');
+    } catch (e) {
+      setWhereMsg({ tone: 'error', text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -207,7 +231,7 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
     }
   };
 
-  const done = (s: Step) => ({ kopia: available, where: !!target && !problem, password: step === 'done', done: step === 'done' })[s];
+  const done = (s: Step) => ({ kopia: available, where: (!!target && !problem) || !!joined, password: step === 'done', done: step === 'done' })[s];
   const order = STEPS.map((s) => s.id);
   const back = order[order.indexOf(step) - 1];
 
@@ -229,12 +253,45 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
     body = target ? (
       <StorageForm target={target} onChange={setTarget} onBack={() => setTarget(null)} suggest="backups" message={whereMsg ?? (problem && target.provider !== 'folder' ? { tone: 'info', text: problem } : null)} onMessage={setWhereMsg} />
     ) : (
-      <>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Heading title="Where to keep them" sub="Somewhere other than this computer, so one failure can’t take both." />
-        <ProviderGrid onPick={pick} />
-      </>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {others.length > 0 && (
+            <div>
+              <Typography variant="labelLarge" component="div" sx={{ color: md('onSurfaceVariant'), mb: 1 }}>
+                Where your other libraries go
+              </Typography>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {others.map((o) => (
+                  <Choice
+                    key={o.libraryId}
+                    icon={<AutoStoriesOutlined />}
+                    title={`Same place as “${o.libraryName}”`}
+                    sub={`${o.repo} · same password`}
+                    selected={joined?.libraryId === o.libraryId}
+                    onClick={() => {
+                      setWhereMsg(null);
+                      setJoined(joined?.libraryId === o.libraryId ? null : o);
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          <ProviderGrid onPick={pick} />
+        </div>
+        {others.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <StatusSlot message={whereMsg ?? (busy ? { tone: 'info', busy: true, text: 'Connecting…' } : null)} />
+          </div>
+        )}
+      </div>
     );
-    next = (
+    next = joined ? (
+      <Button variant="contained" disabled={busy} onClick={() => void join()} startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <BackupRounded />}>
+        Turn on backups
+      </Button>
+    ) : (
       <Button variant="contained" disabled={!!problem} onClick={() => setStep('password')}>
         Next
       </Button>
@@ -325,7 +382,7 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
               Backups are on
             </Typography>
             <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-              The first is running. Now keep the password where you’ll find it, away from this computer.
+              {joined ? `The first is running. Same password as “${joined.libraryName}”: its recovery kit opens these backups too.` : 'The first is running. Now keep the password where you’ll find it, away from this computer.'}
             </Typography>
           </div>
         </div>
@@ -343,7 +400,7 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
       </div>
     );
     next = (
-      <Button variant="contained" disabled={!kept.kit && !kept.keychain && !kept.copied} onClick={onClose}>
+      <Button variant="contained" disabled={!joined && !kept.kit && !kept.keychain && !kept.copied} onClick={onClose}>
         Done
       </Button>
     );
@@ -368,7 +425,7 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
             {back && step !== 'done' && !(step === 'where' && !target && back === 'kopia' && available) && <Button onClick={() => (step === 'where' && target ? setTarget(null) : setStep(back))}>Back</Button>}
             <span style={{ flex: 1 }} />
             {step !== 'done' && <Button onClick={onClose}>Cancel</Button>}
-            {step === 'done' && !kept.kit && !kept.keychain && !kept.copied && <Button onClick={onClose}>Later</Button>}
+            {step === 'done' && !joined && !kept.kit && !kept.keychain && !kept.copied && <Button onClick={onClose}>Later</Button>}
             {next}
           </>
         }
