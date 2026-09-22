@@ -9,7 +9,7 @@ import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { FolderInfo } from '@shared/types';
-import { baseName, folderNameProblem, joinPath } from '@shared/folders';
+import { baseName, folderPathProblem, joinPath, pathParts } from '@shared/folders';
 import { call } from '../../api';
 import { formatBytes } from '../../components/labels';
 import { StatusSlot, type SlotMessage } from '../../components/StatusSlot';
@@ -58,9 +58,13 @@ export function useLocation(initialName: string, initialParent?: string | null, 
     if (!parent && places) setParentState(places.documents);
   }, [parent, places]);
   const p = useFolder(parent).data;
-  const nameProblem = folderNameProblem(name);
-  const target = parent && places ? (itself ? parent : joinPath(parent, name.trim(), places.separator)) : null;
+  // "Art/Game Library" makes Art, then Game Library in it.
+  const parts = pathParts(name);
+  const nameProblem = folderPathProblem(name);
+  const target = parent && places ? (itself ? parent : joinPath(parent, parts.join(places.separator), places.separator)) : null;
   const t = useFolder(itself || nameProblem ? null : target).data;
+  // With folders inside folders, the first one may already be a library.
+  const first = useFolder(!itself && !nameProblem && parts.length > 1 && parent && places ? joinPath(parent, parts[0]!, places.separator) : null).data;
   // An empty folder can be used as it is; one with files can't.
   const canUseItself = !!p && (p.kind === 'empty' || p.kind === 'missing');
   useEffect(() => {
@@ -79,6 +83,7 @@ export function useLocation(initialName: string, initialParent?: string | null, 
   else if (!p.writable) message = { tone: 'error', text: 'Tessera can’t write in this folder.' };
   else if (p.kind === 'library') message = { tone: 'error', text: `“${p.library?.name ?? p.name}” is a library. Choose a folder outside it.`, action: open(parent!) };
   else if (!itself && nameProblem) message = { tone: 'error', text: nameProblem };
+  else if (!itself && parts.length > 1 && first?.kind === 'library') message = { tone: 'error', text: `“${first.library?.name ?? first.name}” is a library. A new one can’t go inside it.`, action: open(first.path) };
   else if (!itself && t?.kind === 'library') message = { tone: 'error', text: `A library called “${t.library?.name ?? t.name}” is already here.`, action: open(target) };
   else if (!itself && t?.kind === 'other') message = { tone: 'error', text: `“${t.name}” already exists here and isn’t empty.` };
   else {
@@ -91,7 +96,7 @@ export function useLocation(initialName: string, initialParent?: string | null, 
     setParentState(next);
     setItself(false);
   };
-  const libraryName = (itself ? (p?.name ?? '') : name).trim() || (target ? baseName(target) : '');
+  const libraryName = (itself ? (p?.name ?? '') : (parts.at(-1) ?? '')).trim() || (target ? baseName(target) : '');
   return { parent, setParent, itself, setItself, name, setName, target, libraryName, parentInfo: p, targetInfo: itself ? p : t, blocked, message };
 }
 

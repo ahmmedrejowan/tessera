@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import { readJson, writeJson } from '../fsx';
 import { UserError } from '../errors';
@@ -70,6 +70,10 @@ export async function createLibrary(root: string, name: string): Promise<Library
   const kind = await inspectFolder(root);
   if (kind === 'library') throw new UserError('already-library', `${root} is already a Tessera library.`);
   if (kind === 'other') throw new UserError('folder-not-empty', `${root} isn't empty. Choose an empty folder, or a new one.`);
+  // Folders typed as "Art/Game Library" are made as needed; none of them may be inside a library.
+  for (let dir = dirname(root); dir !== dirname(dir); dir = dirname(dir)) {
+    if (existsSync(join(dir, MARKER))) throw new UserError('inside-library', `${dir} is a Tessera library. A new one can't go inside it.`);
+  }
   await mkdir(join(root, DIRS.packs), { recursive: true });
   await mkdir(join(root, DIRS.collections), { recursive: true });
   const info: LibraryInfo = { format: LIBRARY_FORMAT, id: randomUUID(), name, createdAt: new Date().toISOString() };

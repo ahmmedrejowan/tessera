@@ -32,6 +32,14 @@ describe('library', () => {
     expect(await readLibraryInfo(root)).toEqual(info);
   });
 
+  it('makes the folders of a nested path, but never inside another library', async () => {
+    const dir = tempDir();
+    const root = join(dir, 'Art', '2026', 'Game Library');
+    await createLibrary(root, 'Game Library');
+    expect(await inspectFolder(root)).toBe('library');
+    await expect(createLibrary(join(root, 'More', 'Inner'), 'Inner')).rejects.toMatchObject({ code: 'inside-library' });
+  });
+
   it('refuses a folder that already holds other files', async () => {
     const root = tempDir();
     writeFileSync(join(root, 'notes.txt'), 'hi');

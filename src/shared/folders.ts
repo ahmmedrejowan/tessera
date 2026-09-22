@@ -13,6 +13,21 @@ export function folderNameProblem(name: string): string | null {
   return null;
 }
 
+/** The folder names in a path typed as "Assets/Game Library": a slash makes folders inside folders. */
+export const pathParts = (path: string) => path.split(/[\\/]/).map((p) => p.trim());
+
+/** Why a typed path (one or more folder names) can't be made on every system, or null when it can. */
+export function folderPathProblem(path: string): string | null {
+  const parts = pathParts(path);
+  if (parts.length === 1) return folderNameProblem(path);
+  if (parts.some((p) => !p)) return 'Put a folder name on each side of a slash.';
+  for (const p of parts) {
+    const problem = folderNameProblem(p);
+    if (problem) return problem.replace('A folder name', `“${p}”:`).replace('Give it a name.', 'Put a folder name on each side of a slash.');
+  }
+  return null;
+}
+
 /** Services that sync a folder to the cloud, recognised from where it is. */
 const CLOUD: [RegExp, string][] = [
   [/[\\/]Library[\\/]Mobile Documents[\\/]|[\\/]iCloud Drive([\\/]|$)/i, 'iCloud Drive'],

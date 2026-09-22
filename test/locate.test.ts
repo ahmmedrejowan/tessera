@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { cloudService, folderNameProblem } from '../src/shared/folders';
+import { cloudService, folderNameProblem, folderPathProblem, pathParts } from '../src/shared/folders';
 import { createLibrary } from '../src/main/library/layout';
 import { describeFolder, locateLibrary } from '../src/main/library/locate';
 
@@ -13,6 +13,15 @@ describe('folder names and places', () => {
     expect(folderNameProblem('a/b')).toMatch(/can’t contain/);
     expect(folderNameProblem('Assets.')).toMatch(/end with a dot/);
     expect(folderNameProblem('con')).toMatch(/Windows keeps/);
+    // A slash makes folders inside folders; the last one is the library's folder.
+    expect(folderPathProblem('Art/Game Library')).toBeNull();
+    expect(pathParts('Art/Game Library')).toEqual(['Art', 'Game Library']);
+    expect(pathParts('Art\\2026 / Kits')).toEqual(['Art', '2026', 'Kits']);
+    expect(folderPathProblem('Art//Kits')).toMatch(/each side of a slash/);
+    expect(folderPathProblem('/Kits')).toMatch(/each side of a slash/);
+    expect(folderPathProblem('Art/')).toMatch(/each side of a slash/);
+    expect(folderPathProblem('Art/..')).toMatch(/end with a dot/);
+    expect(folderPathProblem('Art/a:b')).toMatch(/“a:b”: can’t contain/);
   });
 
   it('recognises folders a cloud service syncs', () => {
