@@ -1,7 +1,8 @@
 import CircularProgress from '@mui/material/CircularProgress';
 import { useState, type ReactNode } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { ToastHost } from './components/Toast';
+import { DialogHost } from './notices/DialogHost';
+import { NoticeHost } from './notices/NoticeHost';
 import { AddMenu } from './import/AddMenu';
 import { DropOverlay } from './import/DropOverlay';
 import { ImportDialog } from './import/ImportDialog';
@@ -53,6 +54,16 @@ function RoutedBoundary({ children }: { children: ReactNode }) {
 }
 
 export function App() {
+  return (
+    <>
+      <Screen />
+      <NoticeHost />
+      <DialogHost />
+    </>
+  );
+}
+
+function Screen() {
   const state = useLibraryState().data;
   const inbox = useStats().data?.inbox;
   const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null);
@@ -86,7 +97,6 @@ export function App() {
       <CommandPalette />
       <MenuCommands />
       <DropOverlay enabled />
-      <ToastHost />
     </>
   );
 }

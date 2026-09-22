@@ -4,6 +4,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { call } from './api';
+import { ask } from './notices/dialogs';
+import { notify } from './notices/store';
 import { useImport } from './state/importer';
 import { queryClient } from './state/queries';
 import { AppThemeProvider } from './theme/AppThemeProvider';
@@ -13,6 +15,8 @@ if (window.tessera.e2e) {
   Object.assign(window, {
     __tessera: {
       importPaths: (paths: string[], eachInside = false) => useImport.getState().plan(paths, eachInside),
+      notify,
+      ask,
       linkProject: async (path: string) => call('projects:add', await call('projects:probe', path)),
     },
   });
