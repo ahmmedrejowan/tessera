@@ -60,7 +60,19 @@ Three levels, and nothing in between:
 - **Inline** — only for a problem tied to a field in a form, or lasting state shown where it
   belongs (a Settings row, the Inbox banner on a pack).
 
-Never put an error banner into a page's layout. Every toast and error dialog lands in the message
+Never put an error banner into a page's layout.
+
+Forms and dialogs keep their size whatever they say:
+
+- A dialog has a fixed size for all its states (setup dialogs share `DIALOG_WIDTH`/`HEIGHT`);
+  content that could outgrow it scrolls inside.
+- A field's own problem goes in its helper line, whose space is always kept (`helperText=' '`).
+- Anything else a form needs to say goes in its one `StatusSlot`, which reserves its height even
+  when empty. One message at a time, most important first.
+- Parts that don't apply stay in place, disabled or hidden (`visibility: hidden`), rather than
+  being removed.
+- Keep setup text short: a title, one line under it, and labels. Say more only where it prevents
+  a mistake. Every toast and error dialog lands in the message
 history in the top bar.
 
 ### Error reports
