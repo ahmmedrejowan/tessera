@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Snapshot } from '@shared/types';
+import { storageError, type KopiaStorage } from './storage';
 
 /**
  * Backups with Kopia (https://kopia.io), an open-source, encrypted, deduplicating backup tool.
@@ -36,12 +37,12 @@ export class Kopia {
     this.cache = join(dir, 'cache');
   }
 
-  private run(args: string[], password: string, timeoutMs = 6 * 60 * 60_000): Promise<string> {
+  private run(args: string[], password: string, timeoutMs = 6 * 60 * 60_000, extraEnv: Record<string, string> = {}): Promise<string> {
     return new Promise((resolve, reject) => {
       execFile(
         this.exe,
         [...args, `--config-file=${this.config}`],
-        { env: { ...process.env, KOPIA_PASSWORD: password, KOPIA_CHECK_FOR_UPDATES: 'false' }, maxBuffer: 256 * 1024 * 1024, timeout: timeoutMs },
+        { env: { ...process.env, ...extraEnv, KOPIA_PASSWORD: password, KOPIA_CHECK_FOR_UPDATES: 'false' }, maxBuffer: 256 * 1024 * 1024, timeout: timeoutMs },
         (err, stdout, stderr) => {
           if (!err) return resolve(stdout);
           // Kopia's own message is the useful part: the last non-empty lines of stderr.
@@ -58,18 +59,15 @@ export class Kopia {
   }
 
   /**
-   * Use a folder as the backup store: a new one is set up, an existing Tessera/Kopia store is
-   * opened with its password.
+   * Use a store: a new one is set up, or an existing one is opened with its password. `readOnly`
+   * opens it for restoring only.
    */
-  async connect(repoPath: string, password: string, create: boolean, readOnly = false): Promise<void> {
+  async connect(storage: KopiaStorage, password: string, create: boolean, readOnly = false): Promise<void> {
     await mkdir(this.dir, { recursive: true });
-    const common = [`--path=${repoPath}`, `--cache-directory=${this.cache}`, '--no-persist-credentials', ...(readOnly ? ['--readonly'] : [])];
-    if (create) {
-      await mkdir(repoPath, { recursive: true });
-      await this.run(['repository', 'create', 'filesystem', ...common], password);
-    } else {
-      await this.run(['repository', 'connect', 'filesystem', ...common], password);
-    }
+    if (create && storage.type === 'filesystem') await mkdir(storage.args[0]!.slice('--path='.length), { recursive: true });
+    if (create && storage.prepare) await storage.prepare();
+    const args = ['repository', create ? 'create' : 'connect', storage.type, ...storage.args, `--cache-directory=${this.cache}`, '--no-persist-credentials', ...(readOnly ? ['--readonly'] : [])];
+    await this.run(args, password, 10 * 60_000, storage.env);
   }
 
   /** How long snapshots are kept: recent ones in detail, older ones thinned out. */

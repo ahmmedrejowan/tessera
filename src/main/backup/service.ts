@@ -6,7 +6,9 @@ import { log } from '../log';
 import type { SettingsStore } from '../settings';
 import { findTool } from '../tools/find';
 import { bundledTool } from '../tools/install';
+import { describeTarget, targetProblem, withoutSecrets, type StorageTarget } from '@shared/storage';
 import { Kopia } from './kopia';
+import { kopiaStorage, type RcloneSetup } from './storage';
 
 /** Keeps the backup password, encrypted by the operating system. */
 export interface SecretStore {
@@ -24,6 +26,8 @@ interface Deps {
   libraryPath: () => string | null;
   /** The open library's name, to label its snapshots. */
   libraryName: () => string | null;
+  /** rclone, for cloud drives signed into through it. */
+  rclone: () => RcloneSetup;
   onChange: () => void;
 }
 
@@ -58,6 +62,8 @@ export class BackupService {
     return {
       available: !!kopia,
       bundled: this.bundled(),
+      rclone: !!this.d.rclone().exe,
+      target: s.backupTarget,
       version: kopia ? await kopia.version().catch(() => null) : null,
       repoPath: s.backupRepo,
       intervalHours: s.backupIntervalHours,
@@ -77,19 +83,25 @@ export class BackupService {
     return { kopia, password, source };
   }
 
-  /** Start using a folder for backups: a new store, or one made before (with its password). */
-  async setup(repoPath: string, password: string, create: boolean): Promise<void> {
+  /** Start backing up to a store: a new one, or one made before (opened with its password). */
+  async setup(target: StorageTarget, password: string, create: boolean): Promise<void> {
     const kopia = this.kopia();
     if (!kopia) throw new UserError('no-kopia', 'Kopia isn’t set up on this computer yet.');
     if (password.length < 8) throw new UserError('weak-password', 'Use a password of at least 8 characters.');
+    const problem = targetProblem(target);
+    if (problem) throw new UserError('incomplete-target', problem);
     const source = this.d.libraryPath();
     if (!source) throw new UserError('no-library', 'Open a library first.');
     // A previous connection would get in the way.
     await rm(`${this.d.dataDir}/kopia`, { recursive: true, force: true });
-    await kopia.connect(repoPath, password, create);
+    try {
+      await kopia.connect(kopiaStorage(target, this.d.rclone()), password, create);
+    } catch (e) {
+      throw new UserError('backup-connect', e instanceof Error ? e.message : String(e));
+    }
     await kopia.setRetention(source, password);
     await this.d.secrets.save(password);
-    await this.d.settings.update({ backupRepo: repoPath, lastBackupError: null });
+    await this.d.settings.update({ backupRepo: describeTarget(target), backupTarget: withoutSecrets(target), lastBackupError: null });
     this.d.onChange();
     void this.backupNow().catch(() => undefined);
   }
@@ -136,7 +148,7 @@ export class BackupService {
     if (kopia && password) await kopia.disconnect(password);
     await rm(`${this.d.dataDir}/kopia`, { recursive: true, force: true });
     await this.d.secrets.clear();
-    await this.d.settings.update({ backupRepo: null, lastBackupAt: null, lastBackupError: null });
+    await this.d.settings.update({ backupRepo: null, backupTarget: null, lastBackupAt: null, lastBackupError: null });
     this.d.onChange();
   }
 

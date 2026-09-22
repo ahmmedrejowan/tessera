@@ -7,7 +7,9 @@ import type { BackupPlace, FoundBackup, RestoreSource } from '@shared/types';
 import { UserError } from '../errors';
 import { readJson, writeJson } from '../fsx';
 import { MARKER } from '../library/layout';
+import { targetProblem, type StorageTarget } from '@shared/storage';
 import { Kopia } from './kopia';
+import { kopiaStorage, type RcloneSetup } from './storage';
 
 /** The file every Kopia store on disk has at its top. */
 export const REPO_MARKER = 'kopia.repository.f';
@@ -110,11 +112,12 @@ async function sizeOf(dir: string): Promise<number> {
  * (if any) aren't disturbed.
  */
 export class RestoreService {
-  private session: { repo: string; password: string; kopia: Kopia } | null = null;
+  private session: { target: StorageTarget; password: string; kopia: Kopia } | null = null;
 
   constructor(
     private readonly dataDir: string,
     private readonly exe: () => string | null,
+    private readonly rclone: () => RcloneSetup = () => ({ exe: null, config: '' }),
   ) {}
 
   private get dir() {
@@ -122,14 +125,20 @@ export class RestoreService {
   }
 
   /** Open a store with its password; returns the libraries in it with their snapshots. */
-  async unlock(repo: string, password: string): Promise<RestoreSource[]> {
+  async unlock(target: StorageTarget, password: string): Promise<RestoreSource[]> {
     const exe = this.exe();
     if (!exe) throw new UserError('no-kopia', 'Kopia isn’t set up on this computer yet.');
-    if (!isBackupStore(repo)) throw new UserError('not-a-backup', 'There’s no backup in that folder.');
+    if (target.provider === 'folder' && !isBackupStore(target.values.path ?? '')) throw new UserError('not-a-backup', 'There’s no backup in that folder.');
+    const problem = targetProblem(target);
+    if (problem) throw new UserError('incomplete-target', problem);
     await this.close();
     const kopia = new Kopia(exe, this.dir);
-    await kopia.connect(repo, password, false, true);
-    this.session = { repo, password, kopia };
+    try {
+      await kopia.connect(kopiaStorage(target, this.rclone()), password, false, true);
+    } catch (e) {
+      throw new UserError('restore-connect', e instanceof Error ? e.message : String(e));
+    }
+    this.session = { target, password, kopia };
     const groups = new Map<string, RestoreSource>();
     for (const s of await kopia.listAll(password)) {
       const key = `${s.host}\n${s.path}`;
@@ -175,8 +184,8 @@ export class RestoreService {
   }
 
   /** The store and password in use, to carry on backing up to the same place. */
-  get opened(): { repo: string; password: string } | null {
-    return this.session ? { repo: this.session.repo, password: this.session.password } : null;
+  get opened(): { target: StorageTarget; password: string } | null {
+    return this.session ? { target: this.session.target, password: this.session.password } : null;
   }
 
   async close(): Promise<void> {

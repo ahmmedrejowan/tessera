@@ -7,6 +7,7 @@
 import type { PackEdit, PackMeta, PackStatus } from './pack';
 import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } from './project';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
+import type { Provider, StorageTarget } from './storage';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
 import type { AppInfo, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
@@ -100,7 +101,16 @@ export interface Invokes {
   /** Ask for a folder to keep backups in; null when cancelled. */
   'backup:chooseFolder': () => string | null;
   /** Start backing up to a folder, making a new store there or opening an existing one. */
-  'backup:setup': (repoPath: string, password: string, create: boolean) => void;
+  'backup:setup': (target: StorageTarget, password: string, create: boolean) => void;
+  /** Sign in to a cloud drive in the browser (the page's address comes as `backup:signInUrl`); returns the rclone remote. */
+  'backup:signIn': (provider: Provider) => string;
+  'backup:cancelSignIn': () => void;
+  /** An SFTP server's host keys and fingerprint, to check it's the same server every time. */
+  'backup:hostKey': (host: string, port: string) => { data: string; fingerprint: string };
+  /** Ask the user for a file; null when they cancel. */
+  'dialog:file': (title: string) => string | null;
+  /** Open a web page in the browser. */
+  'app:openExternal': (url: string) => void;
   'backup:now': () => void;
   'backup:snapshots': () => Snapshot[];
   /** Restore a snapshot into a folder the user picks; returns that folder, or null when cancelled. */
@@ -131,7 +141,7 @@ export interface Invokes {
   /** The backup store a picked folder means (itself, or one inside it), or null. */
   'restore:storeAt': (path: string) => string | null;
   /** Open a backup store with its password; returns the libraries in it. */
-  'restore:unlock': (repo: string, password: string) => RestoreSource[];
+  'restore:unlock': (target: StorageTarget, password: string) => RestoreSource[];
   /** Restore a snapshot into a new or empty folder (progress comes as `restore:progress`). */
   'restore:run': (snapshotId: string, target: string, size: number) => void;
   /** Carry on backing up the open library to the store it was restored from. */
@@ -180,6 +190,8 @@ export interface Events {
   'tools:installProgress': { tool: ToolName; stage: 'finding' | 'downloading' | 'checking' | 'unpacking' | 'done'; received: number; total: number; version?: string };
   /** How far a restore has got, 0–1; null when it can't tell. */
   'restore:progress': number | null;
+  /** The sign-in page for a cloud drive, in case the browser didn't open it. */
+  'backup:signInUrl': string;
   'menu:command': MenuCommand;
   /** Errors were caught and consent is "ask": time to ask. */
   'reports:ask': number;

@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { z } from 'zod';
+import { PROVIDERS, type Provider } from '@shared/storage';
 import type { Settings, SettingsPatch } from '@shared/types';
 import { readJson, writeJson } from './fsx';
 import { log } from './log';
@@ -15,7 +16,10 @@ const schema = z.object({
   recentLibraries: z.array(z.string().min(1)).catch([]),
   skipInboxWhenSure: z.boolean().catch(true),
   activeProjectId: z.string().nullable().catch(null),
+  /** Where backups go, described for people ("Google Drive · Tessera Backups"). */
   backupRepo: z.string().nullable().catch(null),
+  /** Where backups go, without its secrets (those stay in Kopia's own configuration). */
+  backupTarget: z.object({ provider: z.enum(PROVIDERS.map((p) => p.id) as [Provider, ...Provider[]]), values: z.record(z.string(), z.string()) }).nullable().catch(null),
   backupIntervalHours: z.number().min(0).max(24 * 30).catch(24),
   lastBackupAt: z.string().nullable().catch(null),
   lastBackupError: z.string().nullable().catch(null),
@@ -46,6 +50,8 @@ export class SettingsStore {
       log.warn('settings', 'settings file unreadable, using defaults', e);
     }
     this.current = schema.parse(raw ?? {});
+    // Before other kinds of storage, backups only went to a folder, named by backupRepo.
+    if (this.current.backupRepo && !this.current.backupTarget) this.current.backupTarget = { provider: 'folder', values: { path: this.current.backupRepo } };
     return this.current;
   }
 

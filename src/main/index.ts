@@ -9,8 +9,11 @@ import { parseRef } from './index/files';
 import { Jobs } from './jobs';
 import { DIRS, readLibraryInfo } from './library/layout';
 import { describeFolder, locateLibrary } from './library/locate';
-import { installTool } from './tools/install';
+import { bundledTool, installTool } from './tools/install';
 import { backupPlaces, findBackups, RestoreService, storeAt } from './backup/restore';
+import { RcloneAuth } from './backup/rclone';
+import { hostKeys } from './backup/storage';
+import { providerInfo } from '@shared/storage';
 import { findTool } from './tools/find';
 import { LibraryService } from './libraryService';
 import { BackupService, findKopia } from './backup/service';
@@ -120,6 +123,13 @@ const thumbs = new ThumbService({
 });
 
 const projects = new ProjectService(dataDir, jobs);
+/** rclone, for cloud drives: installed on the system or downloaded by Tessera, with Tessera's own config. */
+const findRclone = () => findTool('rclone', [bundledTool(dataDir, 'rclone')]);
+const rcloneConfig = join(dataDir, 'rclone', 'rclone.conf');
+function rcloneSetup() {
+  return { exe: findRclone(), config: rcloneConfig };
+}
+const rcloneAuth = new RcloneAuth(findRclone, rcloneConfig);
 let backupVersion = 0;
 const backups = new BackupService({
   dataDir,
@@ -134,9 +144,10 @@ const backups = new BackupService({
     const state = library.getState();
     return state.status === 'ready' ? state.library.name : null;
   },
+  rclone: rcloneSetup,
   onChange: () => broadcast(windows, 'backup:changed', ++backupVersion),
 });
-const restorer = new RestoreService(dataDir, () => findKopia(dataDir));
+const restorer = new RestoreService(dataDir, () => findKopia(dataDir), rcloneSetup);
 let projectsVersion = 0;
 const projectsChanged = () => broadcast(windows, 'projects:changed', ++projectsVersion);
 
@@ -408,7 +419,20 @@ function registerHandlers(): void {
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     return result.canceled ? null : (result.filePaths[0] ?? null);
   });
-  handle('backup:setup', (repo, password, create) => backups.setup(repo, password, create));
+  handle('backup:setup', (target, password, create) => backups.setup(target, password, create));
+  handle('backup:signIn', (provider) => rcloneAuth.signIn(providerInfo(provider), (url) => broadcast(windows, 'backup:signInUrl', url)));
+  handle('backup:cancelSignIn', () => rcloneAuth.cancel());
+  handle('backup:hostKey', (host, port) => hostKeys(host, port));
+  handle('dialog:file', async (title) => {
+    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
+    const options: Electron.OpenDialogOptions = { title, message: title, properties: ['openFile', 'showHiddenFiles'] };
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    return result.canceled ? null : (result.filePaths[0] ?? null);
+  });
+  handle('app:openExternal', (url) => {
+    // Only the local sign-in pages rclone serves, and the web.
+    if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+  });
   handle('backup:now', () => backups.backupNow());
   handle('backup:snapshots', () => backups.snapshots());
   handle('backup:restore', async (id) => {
@@ -425,7 +449,7 @@ function registerHandlers(): void {
   handle('restore:places', () => backupPlaces());
   handle('restore:find', async () => findBackups(await backupPlaces()));
   handle('restore:storeAt', (path) => storeAt(path));
-  handle('restore:unlock', (repo, password) => restorer.unlock(repo, password));
+  handle('restore:unlock', (target, password) => restorer.unlock(target, password));
   handle('restore:run', (id, target, size) =>
     jobs.run('Restoring a library', (job) =>
       restorer.restore(
@@ -452,7 +476,7 @@ function registerHandlers(): void {
     const opened = restorer.opened;
     if (!opened) throw new UserError('restore-locked', 'Open the backup first.');
     await restorer.close();
-    await backups.setup(opened.repo, opened.password, false);
+    await backups.setup(opened.target, opened.password, false);
   });
   handle('restore:close', () => restorer.close());
 

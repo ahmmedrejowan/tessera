@@ -53,8 +53,8 @@ describe.skipIf(!kopia)('restoring with Kopia', () => {
     execFileSync(kopia!, ['snapshot', 'create', lib, '--description=Tessera: Studio', cfg], { env, stdio: 'ignore' });
 
     const restorer = new RestoreService(join(dir, 'data'), () => kopia);
-    await expect(restorer.unlock(repo, 'wrong-pass')).rejects.toThrow(/password/);
-    const sources = await restorer.unlock(repo, 'secret-pass');
+    await expect(restorer.unlock({ provider: 'folder', values: { path: repo } }, 'wrong-pass')).rejects.toThrow(/password/);
+    const sources = await restorer.unlock({ provider: 'folder', values: { path: repo } }, 'secret-pass');
     expect(sources).toHaveLength(1);
     expect(sources[0]!.name).toBe('Studio');
     const target = join(dir, 'Restored');
