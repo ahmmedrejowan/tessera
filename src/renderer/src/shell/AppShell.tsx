@@ -47,7 +47,7 @@ function GlobalSearch() {
   );
 }
 
-export function AppShell({ children, onAdd, inboxCount, bare }: { children: ReactNode; onAdd: () => void; inboxCount?: number; bare?: boolean }) {
+export function AppShell({ children, onAdd, inboxCount, bare }: { children: ReactNode; onAdd: (anchor: HTMLElement) => void; inboxCount?: number; bare?: boolean }) {
   useHistoryKeys();
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: md('surfaceContainer') }}>

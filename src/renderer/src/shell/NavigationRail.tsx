@@ -81,7 +81,7 @@ function RailItem({ item, badge }: { item: Item; badge?: number }) {
   );
 }
 
-export function NavigationRail({ inboxCount, onAdd }: { inboxCount?: number; onAdd: () => void }) {
+export function NavigationRail({ inboxCount, onAdd }: { inboxCount?: number; onAdd: (anchor: HTMLElement) => void }) {
   return (
     <nav
       aria-label="Main"
@@ -89,7 +89,7 @@ export function NavigationRail({ inboxCount, onAdd }: { inboxCount?: number; onA
     >
       <Tooltip title="Add packs" placement="right">
         <ButtonBase
-          onClick={onAdd}
+          onClick={(e) => onAdd(e.currentTarget)}
           aria-label="Add packs"
           sx={{
             width: 56,
