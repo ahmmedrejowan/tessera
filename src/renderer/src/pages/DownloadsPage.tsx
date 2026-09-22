@@ -36,6 +36,9 @@ import { useSettings, useUpdateSettings } from '../state/queries';
 import { md, mdAlpha, SHAPE } from '../theme';
 import { PAGE, Page } from './Placeholder';
 
+/** Sites whose asset pages Tessera can follow to the file behind them. */
+const KNOWN_SITES = 'Kenney, Poly Haven, ambientCG, OpenGameArt, GitHub releases, Google Drive and Dropbox';
+
 /** Big enough to be worth a word before it starts. */
 const LARGE = 2 * 1024 * 1024 * 1024;
 
@@ -336,6 +339,9 @@ export function DownloadsPage() {
               Download
             </Button>
           </div>
+          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 1.5 }}>
+            Asset pages from {KNOWN_SITES} lead to their file. Other links should point straight at one.
+          </Typography>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '4px 16px', borderRadius: SHAPE.lg, background: md('surfaceContainerLowest') }}>
