@@ -25,6 +25,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          # Where error reports go (a Sentry-compatible DSN). Without the secret the build can't send any.
+          TESSERA_REPORTS_DSN: ${{ secrets.TESSERA_REPORTS_DSN }}
       - run: npx electron-builder --publish never
       - uses: actions/upload-artifact@v4
         with:

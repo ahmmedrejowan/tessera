@@ -39,12 +39,36 @@ touch an installed copy. `TESSERA_USER_DATA=<folder>` points the app at any data
   - `libraryService.ts` — the open library: opening, watching, syncing, and the operations the
     window asks for. `index.ts` wires IPC handlers to the services.
   - `protocol.ts` — `tessera://` serves pack files and thumbnails to windows (with ranges).
+  - `reports/` — errors nobody expected: kept locally in `logs/errors.jsonl`, cleaned by
+    `scrub.ts` (paths, names, addresses), and sent to a Sentry-compatible service only with the
+    user's consent (`sentry.ts` posts envelopes by hand; no SDK).
 - **`src/preload`** — `index.ts` exposes the typed bridge (`window.tessera`); `worker.ts` is the
   render window's bridge.
 - **`src/shared`** — types and pure logic used on both sides: the IPC contract (`ipc.ts`), pack
   and collection schemas (zod), licences, sources, asset classification.
 - **`src/renderer`** — the React app (MUI themed with Material 3 tokens from a seed colour).
   `src/worker/` is the hidden render window (three.js) that draws thumbnails.
+
+### Messages to the user
+
+Three levels, and nothing in between:
+
+- **Dialog** (`ask()` in `renderer/src/notices/dialogs.ts`) — only when the user has to decide
+  something before carrying on, or data is at risk. One dialog at a time, queued.
+- **Toast** (`notify.*` / `failed(e)` in `notices/store.ts`) — everything else. Bottom right, over
+  the page; info and success fade, warnings and errors stay until closed. Repeats are counted.
+- **Inline** — only for a problem tied to a field in a form, or lasting state shown where it
+  belongs (a Settings row, the Inbox banner on a pack).
+
+Never put an error banner into a page's layout. Every toast and error dialog lands in the message
+history in the top bar.
+
+### Error reports
+
+Off unless the user agrees (Settings › Privacy, or the question after an error). A build only
+knows where to send reports when `TESSERA_REPORTS_DSN` is set at build time (a release secret);
+setting it in the environment works for development. Anything added to a report must go through
+the scrubber, and `test/scrub.test.ts` should gain a case for any new kind of text sent.
 
 The library folder is the source of truth. The index and thumbnails live in the app's data folder
 and can be deleted and rebuilt at any time.
