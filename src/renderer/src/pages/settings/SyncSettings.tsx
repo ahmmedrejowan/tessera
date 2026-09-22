@@ -51,7 +51,7 @@ export function DeviceId({ id }: { id: string }) {
   );
 }
 
-function AddComputer({ open, onClose }: { open: boolean; onClose: () => void }) {
+function AddComputer({ open, onClose, sharing = false }: { open: boolean; onClose: () => void; sharing?: boolean }) {
   const [id, setId] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +65,7 @@ function AddComputer({ open, onClose }: { open: boolean; onClose: () => void }) 
   const add = async () => {
     try {
       await call('sync:addDevice', id, name);
-      notify.success(`Paired with ${name || 'the computer'}. It will be asked to accept the library.`);
+      notify.success(`Paired with ${name || 'the computer'}.`, sharing ? { body: 'It will be asked to accept this library.' } : {});
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -73,7 +73,7 @@ function AddComputer({ open, onClose }: { open: boolean; onClose: () => void }) 
   };
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Add a computer</DialogTitle>
+      <DialogTitle>{sharing ? 'Share with a computer' : 'Pair a computer'}</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
           On the other computer, choose “From another computer” and copy its ID.
@@ -92,12 +92,8 @@ function AddComputer({ open, onClose }: { open: boolean; onClose: () => void }) 
   );
 }
 
-/** The Sync section of Settings. */
-export function SyncSettings() {
-  const status = useSyncStatus().data;
-  const [adding, setAdding] = useState(false);
+function useAct() {
   const [busy, setBusy] = useState(false);
-  if (!status) return null;
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     try {
@@ -108,6 +104,15 @@ export function SyncSettings() {
       setBusy(false);
     }
   };
+  return { busy, act };
+}
+
+/** This library's syncing: on or off, which way, while not open, and how it's going. */
+export function SyncSettings() {
+  const status = useSyncStatus().data;
+  const [adding, setAdding] = useState(false);
+  const { busy, act } = useAct();
+  if (!status) return null;
 
   if (!status.available) {
     return (
@@ -121,7 +126,7 @@ export function SyncSettings() {
   }
   if (!status.enabled) {
     return (
-      <Row title="Sync is off" body="Keep this library the same on your other computers.">
+      <Row title="Sync is off for this library" body="Keep this library the same on your other computers.">
         <Button variant="contained" disabled={busy} onClick={() => void act(() => call('sync:enable', 'push'))}>
           Turn on
         </Button>
@@ -129,6 +134,7 @@ export function SyncSettings() {
     );
   }
   const mode = MODES.find((m) => m.value === status.mode)!;
+  const sharedWith = status.devices.filter((d) => d.shared);
   return (
     <>
       <Row title="This computer" body={mode.help}>
@@ -137,6 +143,54 @@ export function SyncSettings() {
       <Row title="While another library is open" body={status.whileClosed ? 'Keeps syncing in the background, as long as Tessera is running.' : 'Pauses, and catches up when this library is opened again.'}>
         <Switch checked={status.whileClosed} onChange={(_, v) => void act(() => call('sync:setWhileClosed', v))} slotProps={{ input: { 'aria-label': 'Keep syncing while another library is open' } }} />
       </Row>
+      <Row
+        title={!status.folder ? 'Starting…' : status.folder.state === 'idle' && !status.folder.needBytes ? 'Up to date' : status.folder.state === 'syncing' ? 'Syncing…' : status.folder.state}
+        body={
+          <>
+            {status.folder?.needBytes ? `${formatBytes(status.folder.needBytes)} still to come · ` : ''}
+            {sharedWith.length ? `With ${sharedWith.map((d) => `${d.name}${d.connected ? '' : ' (not connected)'}`).join(', ')}` : 'Not shared with another computer yet'}
+          </>
+        }
+      >
+        <Button onClick={() => setAdding(true)}>Share with a computer…</Button>
+      </Row>
+      {status.devices
+        .filter((d) => !d.shared)
+        .map((d) => (
+          <Row key={d.id} title={`Also share with ${d.name}`} body="Paired already; it will be asked to accept this library.">
+            <Button disabled={busy} onClick={() => void act(() => call('sync:addDevice', d.id, d.name))}>
+              Share
+            </Button>
+          </Row>
+        ))}
+      <Row title="Turn off sync" body="This library stops syncing. Paired computers stay paired for your other libraries.">
+        <Button color="error" disabled={busy} onClick={() => void act(() => call('sync:disable'))}>
+          Turn off
+        </Button>
+      </Row>
+      <AddComputer open={adding} onClose={() => setAdding(false)} sharing />
+    </>
+  );
+}
+
+/** This computer's ID and the computers it's paired with, for every library. */
+export function PairedComputers() {
+  const status = useSyncStatus().data;
+  const [adding, setAdding] = useState(false);
+  const { busy, act } = useAct();
+  if (!status) return null;
+  if (!status.available) return <Row title="Syncthing isn’t here yet" body="Download it under Helpers to pair computers and sync libraries." />;
+  if (!status.running) {
+    return (
+      <Row title="Not syncing right now" body="Paired computers show while Tessera syncs. Start it to see them, or to pair one.">
+        <Button disabled={busy} onClick={() => void act(() => call('sync:receive'))}>
+          Show
+        </Button>
+      </Row>
+    );
+  }
+  return (
+    <>
       {status.myId && (
         <div style={{ padding: '12px 0', borderBottom: `1px solid ${md('outlineVariant')}` }}>
           <Typography variant="bodyMedium" sx={{ color: md('onSurface'), mb: 1 }}>
@@ -145,29 +199,6 @@ export function SyncSettings() {
           <DeviceId id={status.myId} />
         </div>
       )}
-      {status.folder && (
-        <Row title={status.folder.state === 'idle' && !status.folder.needBytes ? 'Up to date' : status.folder.state === 'syncing' ? 'Syncing…' : status.folder.state} body={status.folder.needBytes ? `${formatBytes(status.folder.needBytes)} still to come` : undefined} />
-      )}
-      {status.devices.map((d) => (
-        <Row
-          key={d.id}
-          title={d.name}
-          body={
-            <>
-              {d.connected ? 'Connected' : 'Not connected'}
-              {d.completion !== null && d.connected ? ` · ${Math.round(d.completion)}% in step` : ''}
-              {!d.shared ? ' · not sharing this library' : ''}
-            </>
-          }
-        >
-          <ComputerOutlined sx={{ color: d.connected ? md('primary') : md('onSurfaceVariant') }} />
-          <Tooltip title="Unpair">
-            <IconButton onClick={() => void act(() => call('sync:removeDevice', d.id))}>
-              <DeleteOutlined />
-            </IconButton>
-          </Tooltip>
-        </Row>
-      ))}
       {status.pendingDevices.map((d) => (
         <Row key={d.id} title={`${d.name || 'A computer'} wants to connect`} body={d.id}>
           <Button variant="outlined" onClick={() => void act(() => call('sync:addDevice', d.id, d.name))}>
@@ -175,13 +206,18 @@ export function SyncSettings() {
           </Button>
         </Row>
       ))}
-      <Row title="Other computers" body="Pair a computer to share this library with it.">
-        <Button onClick={() => setAdding(true)}>Add a computer</Button>
-      </Row>
-      <Row title="Turn off sync" body="Stops syncing on this computer. Paired computers are remembered.">
-        <Button color="error" disabled={busy} onClick={() => void act(() => call('sync:disable'))}>
-          Turn off
-        </Button>
+      {status.devices.map((d) => (
+        <Row key={d.id} title={d.name} body={d.connected ? 'Connected' : 'Not connected'}>
+          <ComputerOutlined sx={{ color: d.connected ? md('primary') : md('onSurfaceVariant') }} />
+          <Tooltip title="Unpair">
+            <IconButton onClick={() => void act(() => call('sync:removeDevice', d.id))} aria-label={`Unpair ${d.name}`}>
+              <DeleteOutlined />
+            </IconButton>
+          </Tooltip>
+        </Row>
+      ))}
+      <Row title={status.devices.length ? 'Pair another computer' : 'No computers paired yet'} body="On the other computer, choose “From another computer” and give its ID here.">
+        <Button onClick={() => setAdding(true)}>Pair a computer…</Button>
       </Row>
       <AddComputer open={adding} onClose={() => setAdding(false)} />
     </>
