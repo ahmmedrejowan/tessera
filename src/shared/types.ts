@@ -26,6 +26,8 @@ export interface Settings {
    * into the library; the rest wait in the Inbox. Off: every import waits in the Inbox.
    */
   skipInboxWhenSure: boolean;
+  /** The project "Copy to project" sends assets to. */
+  activeProjectId: string | null;
 }
 
 export type SettingsPatch = Partial<Settings>;

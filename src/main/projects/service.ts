@@ -6,7 +6,7 @@ import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } f
 import { UserError } from '../errors';
 import { readJson, writeJson } from '../fsx';
 import type { Jobs } from '../jobs';
-import { planCopy, readManifest, removeFromProject, runCopy, type CopySource } from './copy';
+import { MANIFEST, planCopy, readManifest, removeFromProject, runCopy, type CopySource } from './copy';
 import { writeCredits } from './credits';
 import { probeProject } from './engines';
 
@@ -135,6 +135,21 @@ export class ProjectService {
 
   async remove(id: string, items: { packId: string; ref: string }[], libraryId: string): Promise<number> {
     return removeFromProject(await this.get(id), libraryId, items);
+  }
+
+  /**
+   * A pack's licence, credit line or name changed: update what every project that uses it has on
+   * record, and rewrite their credits files.
+   */
+  async packChanged(libraryId: string, packId: string, info: Pick<ManifestEntry, 'packName' | 'licence' | 'attribution' | 'creator' | 'sourceUrl'>): Promise<void> {
+    for (const project of await this.load()) {
+      if (!existsSync(project.path)) continue;
+      const manifest = await readManifest(project.path, libraryId);
+      if (!manifest.entries.some((e) => e.packId === packId)) continue;
+      manifest.entries = manifest.entries.map((e) => (e.packId === packId ? { ...e, ...info } : e));
+      await writeJson(join(project.path, MANIFEST), manifest);
+      if (project.creditsFile) await writeCredits(join(project.path, ...project.creditsFile.split('/')), manifest.entries);
+    }
   }
 
   /** Write the credits file again (after a pack's licence or credit line changed). */

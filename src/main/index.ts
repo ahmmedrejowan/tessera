@@ -9,6 +9,8 @@ import { LibraryService } from './libraryService';
 import { initLog, log } from './log';
 import { handleProtocol, registerSchemePrivileges } from './protocol';
 import { packFileUrl } from '@shared/urls';
+import { ProjectService } from './projects/service';
+import type { CopySource } from './projects/copy';
 import { SettingsStore } from './settings';
 import { RenderWindow } from './thumbs/renderWindow';
 import { ThumbService } from './thumbs/service';
@@ -48,6 +50,32 @@ const thumbs = new ThumbService({
   render: (job) => (renderWindow ??= new RenderWindow()).render(job),
   publish: (states) => broadcast(windows, 'thumbs:ready', states),
 });
+
+const projects = new ProjectService(dataDir, jobs);
+let projectsVersion = 0;
+const projectsChanged = () => broadcast(windows, 'projects:changed', ++projectsVersion);
+
+/** What copying into projects reads from the open library. */
+function copySource(): CopySource {
+  const state = library.getState();
+  if (state.status !== 'ready') throw new UserError('no-library', 'No library is open.');
+  const { queries, index } = library.require();
+  return {
+    libraryId: state.library.id,
+    packDir: (id) => join(state.library.path, DIRS.packs, index.known(id)?.folder ?? ''),
+    pack: (id) => {
+      const row = queries.pack(id);
+      return row ? { meta: row.meta, folder: row.folder } : null;
+    },
+    variants: (packId, ref) => queries.variantsOf(packId, ref),
+    packRefs: (packId) => queries.packRefs(packId),
+  };
+}
+const libraryId = () => {
+  const state = library.getState();
+  if (state.status !== 'ready') throw new UserError('no-library', 'No library is open.');
+  return state.library.id;
+};
 
 registerSchemePrivileges();
 
@@ -134,7 +162,17 @@ function registerHandlers(): void {
 
   handle('pack:get', (id) => library.require().queries.pack(id));
   handle('pack:files', (id) => library.require().queries.packFiles(id));
-  handle('pack:edit', (id, edit) => library.editPack(id, edit));
+  handle('pack:edit', async (id, edit) => {
+    await library.editPack(id, edit);
+    // Projects keep the pack's licence and credit line on record: bring them up to date.
+    const row = library.require().queries.pack(id);
+    if (row) {
+      const m = row.meta;
+      await projects
+        .packChanged(libraryId(), id, { packName: m.name, licence: m.licence.id, attribution: m.licence.attribution, creator: m.source.creator, sourceUrl: m.source.url })
+        .catch((e: unknown) => log.warn('projects', 'could not update projects after a pack edit', e));
+    }
+  });
   handle('pack:detect', (id) => library.detect(id));
   handle('pack:status', (id, status) => library.setStatus(id, status));
   handle('pack:proof', async (id) => (await library.proofFiles(id)).map((f) => ({ ...f, url: packFileUrl(id, `licence/${f.name}`) })));
@@ -168,6 +206,47 @@ function registerHandlers(): void {
   handle('collections:list', () => library.collections());
   handle('collections:create', (name, init) => library.createCollection(name, init));
   handle('collections:change', (id, change) => library.changeCollection(id, change));
+
+  handle('projects:list', () => projects.list(libraryId()));
+  handle('projects:choose', async () => {
+    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
+    const options: Electron.OpenDialogOptions = { title: 'Choose a game project', buttonLabel: 'Choose', properties: ['openDirectory'] };
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    return result.canceled || !result.filePaths[0] ? null : projects.probe(result.filePaths[0]);
+  });
+  handle('projects:probe', (path) => projects.probe(path));
+  handle('projects:add', async (probe) => {
+    const project = await projects.add(probe);
+    if (!settings.get().activeProjectId) await settings.update({ activeProjectId: project.id });
+    projectsChanged();
+    return project;
+  });
+  handle('projects:update', async (id, patch) => {
+    await projects.update(id, patch);
+    projectsChanged();
+  });
+  handle('projects:unlink', async (id) => {
+    await projects.unlink(id);
+    if (settings.get().activeProjectId === id) await settings.update({ activeProjectId: null });
+    projectsChanged();
+  });
+  handle('projects:entries', (id) => projects.entries(id, libraryId()));
+  handle('projects:plan', (id, items) => projects.plan(id, items, copySource()));
+  handle('projects:copy', async (id, items) => {
+    const n = await projects.copy(id, items, copySource());
+    projectsChanged();
+    return n;
+  });
+  handle('projects:remove', async (id, items) => {
+    const n = await projects.remove(id, items, libraryId());
+    projectsChanged();
+    return n;
+  });
+  handle('projects:reveal', async (id, rel) => {
+    const project = await projects.get(id);
+    if (rel && !rel.split('/').includes('..')) shell.showItemInFolder(join(project.path, ...rel.split('/')));
+    else void shell.openPath(project.path);
+  });
 
   handle('import:choose', async (what) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];

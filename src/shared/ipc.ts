@@ -5,6 +5,7 @@
  * are typed from these two maps, so a channel can't be misspelled or called with the wrong shape.
  */
 import type { PackEdit, PackMeta, PackStatus } from './pack';
+import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } from './project';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, Page, PackRow, PackSort } from './query';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
 import type { AppInfo, CollectionChange, Detected, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
@@ -60,6 +61,22 @@ export interface Invokes {
   'collections:create': (name: string, init: { description?: string; items?: CollectionItem[]; query?: SmartQuery | null }) => string;
   'collections:change': (id: string, change: CollectionChange) => void;
 
+  'projects:list': () => ProjectSummary[];
+  /** Ask for a game project's folder and say what it is; null when cancelled. */
+  'projects:choose': () => ProjectProbe | null;
+  /** Say what a folder is as a game project. */
+  'projects:probe': (path: string) => ProjectProbe;
+  'projects:add': (probe: ProjectProbe) => Project;
+  'projects:update': (id: string, patch: Partial<Pick<Project, 'name' | 'target' | 'creditsFile'>>) => void;
+  /** Forget a project; its files stay. */
+  'projects:unlink': (id: string) => void;
+  'projects:entries': (id: string) => ManifestEntry[];
+  'projects:plan': (id: string, items: { packId: string; ref: string }[]) => CopyPlan;
+  'projects:copy': (id: string, items: { packId: string; ref: string }[]) => number;
+  'projects:remove': (id: string, items: { packId: string; ref: string }[]) => number;
+  /** Show the project folder, or a file in it, in Finder / Explorer. */
+  'projects:reveal': (id: string, rel?: string) => void;
+
   /** Ask the user for files or a folder to add; null when they cancel. */
   'import:choose': (what: 'files' | 'folder' | 'folderOfPacks') => string[] | null;
   'import:plan': (paths: string[], eachInside: boolean) => ImportItem[];
@@ -77,6 +94,8 @@ export interface Events {
   'jobs:changed': Job[];
   /** Thumbnails that became ready (or failed) since the last event. */
   'thumbs:ready': Record<string, ThumbState>;
+  /** Projects or what's copied into them changed. */
+  'projects:changed': number;
 }
 
 export type InvokeChannel = keyof Invokes;

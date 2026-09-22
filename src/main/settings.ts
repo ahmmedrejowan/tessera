@@ -14,6 +14,7 @@ const schema = z.object({
   libraryPath: z.string().min(1).nullable().catch(null),
   recentLibraries: z.array(z.string().min(1)).catch([]),
   skipInboxWhenSure: z.boolean().catch(true),
+  activeProjectId: z.string().nullable().catch(null),
 });
 
 export const DEFAULT_SETTINGS: Settings = schema.parse({});
