@@ -16,7 +16,7 @@ const DIRECT_MAX = 160 * 1024;
 // SVGs aren't drawn directly: many have no viewBox, so they won't scale in an <img>.
 const DIRECT = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'avif']);
 const MODEL = new Set(['glb', 'gltf', 'fbx', 'obj', 'dae', 'stl', 'ply', '3ds', 'usdz', 'vox']);
-const IMAGE = new Set([...DIRECT, 'tga', 'svg']);
+const IMAGE = new Set([...DIRECT, 'tga', 'svg', 'tif', 'tiff', 'psd']);
 const HDR = new Set(['hdr', 'exr']);
 const AUDIO = new Set(['ogg', 'wav', 'mp3', 'flac', 'm4a', 'opus', 'aif', 'aiff']);
 const FONT = new Set(['ttf', 'otf', 'woff', 'woff2']);

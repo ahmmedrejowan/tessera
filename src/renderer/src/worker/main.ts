@@ -4,6 +4,8 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { TGALoader } from 'three/examples/jsm/loaders/TGALoader.js';
 import type { RenderJob, RenderResult } from '@shared/types';
+import { readPsd } from 'ag-psd';
+import UTIF from 'utif';
 import { fitSvg } from '../svg';
 import { disposeObject, frame, loadModel } from '../three/loadModel';
 
@@ -88,6 +90,7 @@ async function drawImage(job: RenderJob): Promise<Uint8Array> {
     return encode(flipped, job.size);
   }
   if (job.ext === 'svg') return drawSvg(job);
+  if (job.ext === 'tif' || job.ext === 'tiff' || job.ext === 'psd') return encode(await decodeRaster(job), job.size);
   const blob = await (await fetch(job.url)).blob();
   const bitmap = await createImageBitmap(blob);
   try {
@@ -95,6 +98,32 @@ async function drawImage(job: RenderJob): Promise<Uint8Array> {
   } finally {
     bitmap.close();
   }
+}
+
+/** TIFF and PSD, which the browser can't decode itself: decoded in script to plain pixels. */
+async function decodeRaster(job: RenderJob): Promise<OffscreenCanvas> {
+  const bytes = await (await fetch(job.url)).arrayBuffer();
+  let width: number;
+  let height: number;
+  let rgba: Uint8ClampedArray;
+  if (job.ext === 'psd') {
+    // The flattened image Photoshop stores alongside the layers.
+    const psd = readPsd(bytes, { skipLayerImageData: true, skipThumbnail: true, useImageData: true });
+    if (!psd.imageData) throw new Error('the PSD has no flattened image');
+    ({ width, height } = psd.imageData);
+    rgba = new Uint8ClampedArray(psd.imageData.data.buffer, psd.imageData.data.byteOffset, psd.imageData.data.byteLength);
+  } else {
+    const ifds = UTIF.decode(bytes);
+    const first = ifds[0];
+    if (!first) throw new Error('the TIFF has no image');
+    UTIF.decodeImage(bytes, first);
+    width = first.width;
+    height = first.height;
+    rgba = new Uint8ClampedArray(UTIF.toRGBA8(first));
+  }
+  const canvas = new OffscreenCanvas(width, height);
+  canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
+  return canvas;
 }
 
 /** SVGs at thumbnail size, measured first so ones without a viewBox draw whole. */
