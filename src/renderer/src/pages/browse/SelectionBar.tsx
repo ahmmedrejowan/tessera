@@ -1,5 +1,4 @@
 import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
-import DriveFileMoveOutlined from '@mui/icons-material/DriveFileMoveOutlined';
 import Close from '@mui/icons-material/Close';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
@@ -8,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { call } from '../../api';
 import { useNotices } from '../../notices/store';
 import { useBrowse } from '../../state/browse';
-import { copyToProject, useActiveProject } from '../../state/projects';
+import { CopyButton } from '../projects/CopyButton';
 import { md, mdAlpha, SHAPE } from '../../theme';
 import { CollectionMenu } from '../collections/CollectionMenu';
 
@@ -17,7 +16,6 @@ export function SelectionBar() {
   const selection = useBrowse((s) => s.selection);
   const select = useBrowse((s) => s.select);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const project = useActiveProject();
   // Toasts rise above the bar while it's showing.
   useEffect(() => {
     useNotices.getState().setLift(68);
@@ -48,9 +46,7 @@ export function SelectionBar() {
       <Button startIcon={<BookmarkAddOutlined />} onClick={(e) => setAnchor(e.currentTarget)} sx={{ color: md('inversePrimary') }}>
         Add to collection
       </Button>
-      <Button startIcon={<DriveFileMoveOutlined />} onClick={async () => copyToProject(project, await refs())} sx={{ color: md('inversePrimary') }}>
-        {project ? `Copy to ${project.name}` : 'Copy to project'}
-      </Button>
+      <CopyButton items={refs} variant="text" size="medium" color={md('inversePrimary')} />
       <IconButton aria-label="Clear selection" onClick={() => select([], null)} sx={{ color: md('inverseOnSurface') }}>
         <Close fontSize="small" />
       </IconButton>

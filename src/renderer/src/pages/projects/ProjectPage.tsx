@@ -104,11 +104,11 @@ export function ProjectPage({ id }: { id: string }) {
         </div>
         {isActive ? (
           <Button startIcon={<CheckCircle />} disabled sx={{ '&.Mui-disabled': { color: md('primary') } }}>
-            Copy target
+            Copies go here
           </Button>
         ) : (
           <Button variant="outlined" onClick={() => updateSettings.mutate({ activeProjectId: id })}>
-            Copy to this project
+            Copy here from now on
           </Button>
         )}
         <Tooltip title="Open the project folder">
