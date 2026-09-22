@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, nativeTheme, shell } from 'electron';
+import { readdir, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Platform } from '@shared/types';
 import { broadcast, handle, UserError } from './ipc';
@@ -167,6 +168,22 @@ function registerHandlers(): void {
   handle('library:refresh', () => library.sync());
   handle('library:stats', () => library.require().queries.stats());
   handle('library:terms', (field) => library.require().queries.terms(field));
+  handle('library:health', () => library.require().queries.health());
+  handle('library:reindex', () => library.reindex());
+  handle('thumbs:size', async () => {
+    const dir = thumbDir();
+    if (!dir) return 0;
+    let total = 0;
+    for (const f of await readdir(dir).catch(() => [] as string[])) total += (await stat(join(dir, f)).catch(() => null))?.size ?? 0;
+    return total;
+  });
+  handle('thumbs:clear', async () => {
+    const dir = thumbDir();
+    if (dir) await rm(dir, { recursive: true, force: true });
+    thumbs.reset();
+    broadcast(windows, 'index:changed', ++indexVersion);
+  });
+  handle('app:showLogs', () => void shell.openPath(join(dataDir, 'logs')));
 
   handle('browse:assets', (q, sort, offset, limit) => library.require().queries.assets(q, sort, offset, Math.min(limit, 1000)));
   handle('browse:packs', (q, sort, offset, limit) => library.require().queries.packs(q, sort, offset, Math.min(limit, 1000)));

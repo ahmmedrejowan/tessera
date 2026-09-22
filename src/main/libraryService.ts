@@ -137,6 +137,16 @@ export class LibraryService {
     return this.syncing;
   }
 
+  /** Read every pack again from scratch. */
+  async reindex(): Promise<void> {
+    const lib = this.require();
+    await this.syncing;
+    lib.index.clear();
+    this.collectionsSig = '';
+    await this.sync();
+    this.d.onIndexChanged();
+  }
+
   private startWatching(root: string): void {
     try {
       this.watcher = watch(root, { recursive: true }, () => {

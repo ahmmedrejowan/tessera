@@ -6,7 +6,7 @@
  */
 import type { PackEdit, PackMeta, PackStatus } from './pack';
 import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } from './project';
-import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, Page, PackRow, PackSort } from './query';
+import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
 import type { AppInfo, CollectionChange, Detected, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
@@ -26,6 +26,14 @@ export interface Invokes {
   'library:close': () => void;
   'library:refresh': () => void;
   'library:stats': () => LibraryStats;
+  'library:health': () => LicenceHealth;
+  /** Read every pack again from scratch (after moving files around by hand, say). */
+  'library:reindex': () => void;
+  /** Size of the thumbnail cache, and throw it away (thumbnails are drawn again as needed). */
+  'thumbs:size': () => number;
+  'thumbs:clear': () => void;
+  /** Show the app's log folder. */
+  'app:showLogs': () => void;
   /** Words already used for a pack field, most used first. */
   'library:terms': (field: 'genre' | 'style' | 'tag' | 'creator') => { value: string; count: number }[];
 

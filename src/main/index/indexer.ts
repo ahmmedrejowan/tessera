@@ -109,6 +109,13 @@ export class LibraryIndex {
     this.db.close();
   }
 
+  /** Forget everything, so the next sync reads every pack again. */
+  clear(): void {
+    transaction(this.db, () => {
+      for (const t of ['collection_items', 'packs_fts', 'assets_fts', 'assets', 'pack_terms', 'packs']) this.db.exec(`DELETE FROM ${t}`);
+    });
+  }
+
   /** What the index last recorded for a pack, so a sync can tell what changed. */
   known(id: string): { folder: string; metaSig: string; filesSig: string | null } | undefined {
     return this.db.prepare('SELECT folder, meta_sig AS metaSig, files_sig AS filesSig FROM packs WHERE id = ?').get(id) as
