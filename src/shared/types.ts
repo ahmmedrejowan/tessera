@@ -1,5 +1,7 @@
 /** Types shared by the main process and the window. */
 
+import type { StorageTarget } from './storage';
+
 /** process.platform values the app is built for; others behave like linux. */
 export type Platform = 'darwin' | 'win32' | 'linux';
 
@@ -30,6 +32,7 @@ export interface Settings {
   activeProjectId: string | null;
   /** Backups: the folder holding the backup store, or null when backups are off. */
   backupRepo: string | null;
+  backupTarget: StorageTarget | null;
   /** Back up automatically this often while Tessera is open; 0 = only when asked. */
   backupIntervalHours: number;
   lastBackupAt: string | null;
@@ -42,7 +45,7 @@ export interface Settings {
 }
 
 /** Optional tools Tessera can fetch for the user. */
-export type ToolName = 'syncthing' | 'kopia';
+export type ToolName = 'syncthing' | 'kopia' | 'rclone';
 
 /** A place backups are likely to be: a cloud drive's folder, a drive, a personal folder. */
 export interface BackupPlace {
@@ -244,6 +247,10 @@ export interface BackupStatus {
   available: boolean;
   /** The Kopia in use is the copy Tessera downloaded. */
   bundled: boolean;
+  /** rclone is there, for cloud drives. */
+  rclone: boolean;
+  /** Where backups go, without secrets. */
+  target: StorageTarget | null;
   version: string | null;
   repoPath: string | null;
   intervalHours: number;

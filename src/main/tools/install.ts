@@ -29,6 +29,16 @@ interface ToolSpec {
 const CPU: Record<string, string> = { x64: 'amd64', arm64: 'arm64', ia32: '386', arm: 'arm' };
 
 export const TOOLS: Record<ToolName, ToolSpec> = {
+  // rclone-v1.75.1-osx-arm64.zip, rclone-v1.75.1-windows-amd64.zip, rclone-v1.75.1-linux-amd64.zip
+  rclone: {
+    repo: 'rclone/rclone',
+    sums: 'SHA256SUMS',
+    asset(platform, arch, tag) {
+      const cpu = CPU[arch];
+      const os = ({ darwin: 'osx', win32: 'windows', linux: 'linux' } as Record<string, string>)[platform];
+      return cpu && os ? `rclone-${tag}-${os}-${cpu}.zip` : null;
+    },
+  },
   // syncthing-macos-arm64-v2.1.5.zip, syncthing-windows-amd64-v2.1.5.zip, syncthing-linux-amd64-v2.1.5.tar.gz
   syncthing: {
     repo: 'syncthing/syncthing',
@@ -121,7 +131,7 @@ async function findFile(dir: string, name: string): Promise<string | null> {
   return null;
 }
 
-const TITLE: Record<ToolName, string> = { syncthing: 'Syncthing', kopia: 'Kopia' };
+const TITLE: Record<ToolName, string> = { syncthing: 'Syncthing', kopia: 'Kopia', rclone: 'rclone' };
 
 /** Download, check and unpack a tool into `dataDir/tools/<tool>`; returns its version. */
 export async function installTool(tool: ToolName, dataDir: string, fetcher: Fetch, onProgress: (p: InstallProgress) => void): Promise<string> {

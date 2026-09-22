@@ -18,6 +18,12 @@ describe('getting Syncthing and Kopia', () => {
     expect(TOOLS.kopia.asset('win32', 'arm64', 'v0.23.1')).toBeNull();
   });
 
+  it('picks rclone’s release file for each system', () => {
+    expect(TOOLS.rclone.asset('darwin', 'arm64', 'v1.75.1')).toBe('rclone-v1.75.1-osx-arm64.zip');
+    expect(TOOLS.rclone.asset('win32', 'x64', 'v1.75.1')).toBe('rclone-v1.75.1-windows-amd64.zip');
+    expect(TOOLS.rclone.asset('linux', 'x64', 'v1.75.1')).toBe('rclone-v1.75.1-linux-amd64.zip');
+  });
+
   it('reads the hash from the signed sums file', () => {
     const sums = `-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA256\n\n${'a'.repeat(64)}  syncthing-macos-arm64-v2.1.5.zip\n${'B'.repeat(64)}  syncthing-linux-amd64-v2.1.5.tar.gz\n-----BEGIN PGP SIGNATURE-----\n`;
     expect(expectedHash(sums, 'syncthing-linux-amd64-v2.1.5.tar.gz')).toBe('b'.repeat(64));
