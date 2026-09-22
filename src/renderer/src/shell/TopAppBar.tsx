@@ -41,7 +41,7 @@ export function SearchField({ value, onChange, onFocus }: { value: string; onCha
         onChange={(e) => onChange(e.target.value)}
         {...(onFocus ? { onFocus } : {})}
         placeholder="Search packs, assets and tags"
-        inputProps={{ 'aria-label': 'Search', spellCheck: false }}
+        inputProps={{ 'aria-label': 'Search', spellCheck: false, id: 'global-search' }}
         sx={{ flex: 1, color: md('onSurface'), typography: 'bodyLarge', '& input::placeholder': { color: md('onSurfaceVariant'), opacity: 1 } }}
       />
       <Typography variant="labelMedium" sx={{ px: 1, py: '2px', borderRadius: `${SHAPE.xs}px`, border: `1px solid ${md('outlineVariant')}` }}>

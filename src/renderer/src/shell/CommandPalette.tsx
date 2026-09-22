@@ -14,6 +14,7 @@ import InputBase from '@mui/material/InputBase';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import { create } from 'zustand';
 import { call } from '../api';
 import { displayName, TYPE_ICONS } from '../components/labels';
 import { useBrowse } from '../state/browse';
@@ -35,6 +36,13 @@ interface Command {
   run: () => void;
 }
 
+/** Whether the palette is open; the ⌘K menu item and the keyboard both toggle it. */
+export const usePalette = create<{ open: boolean; toggle: () => void; close: () => void }>((set) => ({
+  open: false,
+  toggle: () => set((s) => ({ open: !s.open })),
+  close: () => set({ open: false }),
+}));
+
 const matches = (needle: string, ...hay: (string | undefined)[]) => {
   const words = needle.toLowerCase().split(/\s+/).filter(Boolean);
   const text = hay.filter(Boolean).join(' ').toLowerCase();
@@ -46,7 +54,8 @@ const matches = (needle: string, ...hay: (string | undefined)[]) => {
  * projects and assets, all in one list. Arrow keys move, Enter runs.
  */
 export function CommandPalette() {
-  const [open, setOpen] = useState(false);
+  const open = usePalette((s) => s.open);
+  const setOpen = (v: boolean) => (v ? usePalette.setState({ open: true }) : usePalette.getState().close());
   const [text, setText] = useState('');
   const [active, setActive] = useState(0);
   const list = useRef<HTMLDivElement>(null);
@@ -60,18 +69,13 @@ export function CommandPalette() {
   const projects = useProjects().data ?? [];
   const q = useDebounced(text.trim(), 120);
 
+  // Fresh each time it opens. (⌘K / Ctrl+K arrives through the application menu.)
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setOpen((o) => !o);
-        setText('');
-        setActive(0);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+    if (open) {
+      setText('');
+      setActive(0);
+    }
+  }, [open]);
 
   const packs = useQuery({
     queryKey: ['palette-packs', lib, version, q],
