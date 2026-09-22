@@ -28,6 +28,12 @@ export interface Settings {
   skipInboxWhenSure: boolean;
   /** The project "Copy to project" sends assets to. */
   activeProjectId: string | null;
+  /** Backups: the folder holding the backup store, or null when backups are off. */
+  backupRepo: string | null;
+  /** Back up automatically this often while Tessera is open; 0 = only when asked. */
+  backupIntervalHours: number;
+  lastBackupAt: string | null;
+  lastBackupError: string | null;
 }
 
 export type SettingsPatch = Partial<Settings>;
@@ -122,4 +128,23 @@ export interface CollectionChange {
   add?: { packId: string; ref: string }[];
   remove?: { packId: string; ref: string }[];
   delete?: boolean;
+}
+
+export interface BackupStatus {
+  /** Kopia is installed. */
+  available: boolean;
+  version: string | null;
+  repoPath: string | null;
+  intervalHours: number;
+  lastBackupAt: string | null;
+  lastError: string | null;
+  running: boolean;
+}
+
+export interface Snapshot {
+  id: string;
+  startTime: string;
+  endTime: string;
+  size: number;
+  files: number;
 }

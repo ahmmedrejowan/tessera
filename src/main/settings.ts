@@ -15,6 +15,10 @@ const schema = z.object({
   recentLibraries: z.array(z.string().min(1)).catch([]),
   skipInboxWhenSure: z.boolean().catch(true),
   activeProjectId: z.string().nullable().catch(null),
+  backupRepo: z.string().nullable().catch(null),
+  backupIntervalHours: z.number().min(0).max(24 * 30).catch(24),
+  lastBackupAt: z.string().nullable().catch(null),
+  lastBackupError: z.string().nullable().catch(null),
 });
 
 export const DEFAULT_SETTINGS: Settings = schema.parse({});
