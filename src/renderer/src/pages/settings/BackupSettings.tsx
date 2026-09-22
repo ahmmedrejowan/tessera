@@ -1,4 +1,3 @@
-import Alert from '@mui/material/Alert';
 import { StatusSlot } from '../../components/StatusSlot';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -12,13 +11,13 @@ import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { call, on } from '../../api';
-import { formatBytes } from '../../components/labels';
 import { failed, notify } from '../../notices/store';
 import { useUpdateSettings } from '../../state/queries';
 import { md } from '../../theme';
 import { Row } from './parts';
 import { ToolSetup } from '../setup/ToolSetup';
 import { BackupGuide } from '../setup/BackupGuide';
+import { RestoreCopy } from '../setup/RestoreCopy';
 
 const ago = (iso: string) => {
   const mins = Math.round((Date.now() - Date.parse(iso)) / 60_000);
@@ -117,48 +116,6 @@ function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void 
   );
 }
 
-function RestoreDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const snapshots = useQuery({ queryKey: ['snapshots'], queryFn: () => call('backup:snapshots'), enabled: open });
-  const restore = async (id: string) => {
-    try {
-      const target = await call('backup:restore', id);
-      if (target) notify.success(`Restored into ${target}.`);
-      onClose();
-    } catch (e) {
-      failed(e);
-    }
-  };
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Restore a backup</DialogTitle>
-      <DialogContent>
-        <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), mb: 2 }}>
-          The files are restored into a folder you choose; your library isn’t touched. To use the restored copy, open it as a library.
-        </Typography>
-        {snapshots.isLoading && <Typography variant="bodyMedium">Reading backups…</Typography>}
-        {snapshots.error && <Alert severity="error">{String((snapshots.error as Error).message)}</Alert>}
-        {snapshots.data?.map((s) => (
-          <div key={s.id} className="tile" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 8 }}>
-            <div style={{ flex: 1 }}>
-              <Typography variant="bodyMedium" sx={{ color: md('onSurface') }}>
-                {new Date(s.startTime).toLocaleString()}
-              </Typography>
-              <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-                {s.files.toLocaleString()} files · {formatBytes(s.size)}
-              </Typography>
-            </div>
-            <Button onClick={() => void restore(s.id)}>Restore…</Button>
-          </div>
-        ))}
-        {snapshots.data?.length === 0 && <Typography variant="bodyMedium">No backups yet.</Typography>}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-
 /** The Backups section of Settings. */
 export function BackupSettings() {
   const [setup, setSetup] = useState(false);
@@ -225,7 +182,7 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
         </Select>
       </Row>
       <PasswordRow />
-      <Row title="Restore" body="Bring back the library as it was at an earlier backup.">
+      <Row title="Restore" body="Bring back the library as it was at an earlier backup, as a copy beside it.">
         <Button onClick={() => setRestoring(true)}>Restore…</Button>
       </Row>
       <Row title="Turn off backups" body="Tessera stops backing up. The backups already made stay in their folder.">
@@ -233,8 +190,7 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
           Turn off
         </Button>
       </Row>
-      <RestoreDialog open={restoring} onClose={() => setRestoring(false)} />
-
+      <RestoreCopy open={restoring} onClose={() => setRestoring(false)} />
     </>
   );
 }

@@ -124,11 +124,13 @@ export interface Invokes {
   /** Ask the user for a file; null when they cancel. */
   'dialog:file': (title: string) => string | null;
   /** Open a web page in the browser. */
+  /** Show a file or folder in Finder, Explorer or the file manager. */
+  'fs:reveal': (path: string) => void;
   'app:openExternal': (url: string) => void;
   'backup:now': () => void;
   'backup:snapshots': () => Snapshot[];
-  /** Restore a snapshot into a folder the user picks; returns that folder, or null when cancelled. */
-  'backup:restore': (id: string) => string | null;
+  /** Restore a snapshot of the open library into a new or empty folder, as a copy of its own. */
+  'backup:restore': (snapshotId: string, target: string, size: number, name: string) => void;
   'backup:turnOff': () => void;
 
   'sync:status': () => SyncStatus;

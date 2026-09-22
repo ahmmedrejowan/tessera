@@ -107,6 +107,43 @@ async function sizeOf(dir: string): Promise<number> {
 }
 
 /**
+ * Put a library back from a snapshot into `target` (new or empty) with `run`, reporting progress
+ * by how much of `size` has arrived. A library whose id is already in use here (the original is
+ * still on this computer) gets a new one, so the two never share an index or a sync folder. With
+ * `name`, the restored library is called that (a copy beside the original).
+ */
+export async function restoreLibrary(
+  run: () => Promise<void>,
+  target: string,
+  size: number,
+  onProgress: (fraction: number | null) => void,
+  knownLibraries: () => Promise<{ id: string; path: string }[]>,
+  name?: string,
+): Promise<void> {
+  if (existsSync(target) && (await readdir(target)).length) throw new UserError('folder-not-empty', 'Choose a new or empty folder to restore into.');
+  let measuring = false;
+  const timer = setInterval(() => {
+    if (measuring) return;
+    measuring = true;
+    void sizeOf(target)
+      .then((n) => onProgress(size ? Math.min(0.99, n / size) : null))
+      .finally(() => (measuring = false));
+  }, 1500);
+  try {
+    await run();
+  } finally {
+    clearInterval(timer);
+  }
+  onProgress(1);
+  const marker = join(target, MARKER);
+  if (!existsSync(marker)) throw new UserError('not-a-library-backup', 'That backup isn’t of a Tessera library. Its files are in the folder anyway.');
+  const info = (await readJson(marker)) as { id?: string; name?: string } | null;
+  if (!info) return;
+  const clash = !!info.id && (await knownLibraries()).some((l) => l.id === info.id && l.path !== target);
+  if (clash || (name && name !== info.name)) await writeJson(marker, { ...info, ...(clash ? { id: randomUUID() } : {}), ...(name ? { name } : {}) });
+}
+
+/**
  * Restoring a library from a backup store, possibly on a computer that has never seen it. The
  * store is opened read-only with its own Kopia configuration, so the backups this computer makes
  * (if any) aren't disturbed.
@@ -155,32 +192,11 @@ export class RestoreService {
 
   /**
    * Restore a snapshot into `target` (new or empty). `size` is the snapshot's size, for progress.
-   * A library whose id is already in use here (the original is still on this computer) gets a new
-   * one, so the two never share an index or a sync folder.
    */
   async restore(id: string, target: string, size: number, onProgress: (fraction: number | null) => void, knownLibraries: () => Promise<{ id: string; path: string }[]>): Promise<void> {
-    if (!this.session) throw new UserError('restore-locked', 'Open the backup first.');
-    if (existsSync(target) && (await readdir(target)).length) throw new UserError('folder-not-empty', 'Choose a new or empty folder to restore into.');
-    let measuring = false;
-    const timer = setInterval(() => {
-      if (measuring) return;
-      measuring = true;
-      void sizeOf(target)
-        .then((n) => onProgress(size ? Math.min(0.99, n / size) : null))
-        .finally(() => (measuring = false));
-    }, 1500);
-    try {
-      await this.session.kopia.restore(id, target, this.session.password);
-    } finally {
-      clearInterval(timer);
-    }
-    onProgress(1);
-    const marker = join(target, MARKER);
-    if (!existsSync(marker)) throw new UserError('not-a-library-backup', 'That backup isn’t of a Tessera library. Its files are in the folder anyway.');
-    const info = (await readJson(marker)) as { id?: string } | null;
-    if (info?.id && (await knownLibraries()).some((l) => l.id === info.id && l.path !== target)) {
-      await writeJson(marker, { ...info, id: randomUUID() });
-    }
+    const session = this.session;
+    if (!session) throw new UserError('restore-locked', 'Open the backup first.');
+    await restoreLibrary(() => session.kopia.restore(id, target, session.password), target, size, onProgress, knownLibraries);
   }
 
   /** The store and password in use, to carry on backing up to the same place. */

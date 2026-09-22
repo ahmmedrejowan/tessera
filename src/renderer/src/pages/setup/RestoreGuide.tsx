@@ -91,7 +91,7 @@ function Heading({ title, sub }: { title: string; sub: string }) {
 }
 
 /** A selectable card of fixed height. */
-function Choice({ icon, title, sub, selected, onClick, trailing }: { icon: ReactNode; title: string; sub: string; selected: boolean; onClick: () => void; trailing?: ReactNode }) {
+export function Choice({ icon, title, sub, selected, onClick, trailing }: { icon: ReactNode; title: string; sub: string; selected: boolean; onClick: () => void; trailing?: ReactNode }) {
   return (
     <ButtonBase
       onClick={onClick}

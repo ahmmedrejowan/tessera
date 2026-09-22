@@ -8,6 +8,7 @@ import { findTool } from '../tools/find';
 import { bundledTool } from '../tools/install';
 import { describeTarget, targetProblem, withoutSecrets, type StorageTarget } from '@shared/storage';
 import { Kopia } from './kopia';
+import { restoreLibrary } from './restore';
 import { kopiaStorage, type RcloneSetup } from './storage';
 
 /** Keeps the backup password, encrypted by the operating system. */
@@ -153,13 +154,16 @@ export class BackupService {
     return kopia.list(source, password);
   }
 
-  /** Restore a snapshot into a new folder; the library itself is never overwritten. */
-  async restore(id: string, target: string): Promise<void> {
+  /**
+   * Restore a snapshot of the open library into a new folder, as a copy of its own; the library
+   * itself is never overwritten.
+   */
+  async restore(id: string, target: string, size: number, name: string, onProgress: (fraction: number | null) => void, knownLibraries: () => Promise<{ id: string; path: string }[]>): Promise<void> {
     const { kopia, password, source } = await this.ready();
     if (target === source || target.startsWith(`${source}/`) || target.startsWith(`${source}\\`)) {
       throw new UserError('restore-into-library', 'Choose a folder outside the library to restore into.');
     }
-    await this.d.jobs.run('Restoring a backup', async () => kopia.restore(id, target, password));
+    await restoreLibrary(() => kopia.restore(id, target, password), target, size, onProgress, knownLibraries, name);
   }
 
   async turnOff(): Promise<void> {

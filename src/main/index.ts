@@ -6,7 +6,7 @@ import { join, sep } from 'node:path';
 import type { Platform } from '@shared/types';
 import { broadcast, handle, onInternalError, UserError } from './ipc';
 import { parseRef } from './index/files';
-import { Jobs } from './jobs';
+import { Jobs, type JobHandle } from './jobs';
 import { DIRS, readLibraryInfo } from './library/layout';
 import { describeFolder, locateLibrary } from './library/locate';
 import { bundledTool, installTool } from './tools/install';
@@ -461,49 +461,35 @@ function registerHandlers(): void {
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     return result.canceled ? null : (result.filePaths[0] ?? null);
   });
+  handle('fs:reveal', (path) => shell.showItemInFolder(path));
   handle('app:openExternal', (url) => {
     // Only the local sign-in pages rclone serves, and the web.
     if (/^https?:\/\//.test(url)) void shell.openExternal(url);
   });
   handle('backup:now', () => backups.backupNow());
   handle('backup:snapshots', () => backups.snapshots());
-  handle('backup:restore', async (id) => {
-    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options: Electron.OpenDialogOptions = { title: 'Restore into…', buttonLabel: 'Restore here', properties: ['openDirectory', 'createDirectory'] };
-    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-    const target = result.canceled ? null : (result.filePaths[0] ?? null);
-    if (!target) return null;
-    await backups.restore(id, target);
-    return target;
-  });
+  // Libraries this computer knows, to keep a restored copy from sharing an id with its original.
+  const knownLibraries = async () => {
+    const state = library.getState();
+    const known: { id: string; path: string }[] = state.status === 'ready' ? [{ id: state.library.id, path: state.library.path }] : [];
+    for (const path of settings.get().recentLibraries) {
+      const kind = await library.inspect(path).catch(() => null);
+      if (kind === 'library') known.push({ id: (await readLibraryInfo(path)).id, path });
+    }
+    return known;
+  };
+  const restoreProgress = (job: JobHandle) => (f: number | null) => {
+    job.update(f, 'Putting the files back');
+    broadcast(windows, 'restore:progress', f);
+  };
+  handle('backup:restore', (id, target, size, name) => jobs.run('Restoring a copy of the library', (job) => backups.restore(id, target, size, name, restoreProgress(job), knownLibraries)));
   handle('backup:turnOff', () => backups.turnOff());
 
   handle('restore:places', () => backupPlaces());
   handle('restore:find', async () => findBackups(await backupPlaces()));
   handle('restore:storeAt', (path) => storeAt(path));
   handle('restore:unlock', (target, password) => restorer.unlock(target, password));
-  handle('restore:run', (id, target, size) =>
-    jobs.run('Restoring a library', (job) =>
-      restorer.restore(
-        id,
-        target,
-        size,
-        (f) => {
-          job.update(f, 'Putting the files back');
-          broadcast(windows, 'restore:progress', f);
-        },
-        async () => {
-          // Libraries this computer knows, to keep a restored copy from sharing an id with its original.
-          const known: { id: string; path: string }[] = [];
-          for (const path of settings.get().recentLibraries) {
-            const kind = await library.inspect(path).catch(() => null);
-            if (kind === 'library') known.push({ id: (await readLibraryInfo(path)).id, path });
-          }
-          return known;
-        },
-      ),
-    ),
-  );
+  handle('restore:run', (id, target, size) => jobs.run('Restoring a library', (job) => restorer.restore(id, target, size, restoreProgress(job), knownLibraries)));
   handle('restore:keepBackingUp', async () => {
     const opened = restorer.opened;
     if (!opened) throw new UserError('restore-locked', 'Open the backup first.');

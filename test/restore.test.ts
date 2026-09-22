@@ -4,8 +4,8 @@ import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { backupPlaces, findBackups, REPO_MARKER, RestoreService, storeAt } from '../src/main/backup/restore';
-import { createLibrary } from '../src/main/library/layout';
+import { backupPlaces, findBackups, REPO_MARKER, restoreLibrary, RestoreService, storeAt } from '../src/main/backup/restore';
+import { createLibrary, MARKER } from '../src/main/library/layout';
 import { findTool } from '../src/main/tools/find';
 
 async function fakeHome() {
@@ -68,4 +68,25 @@ describe.skipIf(!kopia)('restoring with Kopia', () => {
     await restorer.close();
     expect(existsSync(join(dir, 'data', 'kopia-restore'))).toBe(false);
   }, 60_000);
+});
+
+describe('restoring a copy beside the library', () => {
+  it('gives the copy its own id and name, and refuses a folder with files in it', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'tessera-copy-'));
+    const original = join(root, 'Sandbox');
+    await createLibrary(original, 'Sandbox');
+    const info = JSON.parse(readFileSync(join(original, MARKER), 'utf8')) as { id: string; name: string };
+    const copy = join(root, 'Sandbox from 22 Sep');
+    const progress: (number | null)[] = [];
+    const run = async () => {
+      await mkdir(copy, { recursive: true });
+      await writeFile(join(copy, MARKER), JSON.stringify(info));
+    };
+    await restoreLibrary(run, copy, 100, (f) => progress.push(f), async () => [{ id: info.id, path: original }], 'Sandbox from 22 Sep');
+    const restored = JSON.parse(readFileSync(join(copy, MARKER), 'utf8')) as { id: string; name: string };
+    expect(restored.name).toBe('Sandbox from 22 Sep');
+    expect(restored.id).not.toBe(info.id);
+    expect(progress.at(-1)).toBe(1);
+    await expect(restoreLibrary(run, copy, 100, () => undefined, async () => [])).rejects.toThrow(/new or empty folder/);
+  });
 });
