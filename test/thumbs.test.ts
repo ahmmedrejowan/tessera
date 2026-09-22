@@ -7,6 +7,7 @@ import { LibraryQueries } from '../src/main/index/query';
 import { createLibrary } from '../src/main/library/layout';
 import { createPack } from '../src/main/library/packs';
 import { plan, ThumbService } from '../src/main/thumbs/service';
+import { assetKey } from '@shared/urls';
 import { tempDir } from './helpers';
 
 describe('thumbnail planning', () => {
@@ -35,7 +36,14 @@ async function setup() {
   await index.sync(root);
   const queries = new LibraryQueries(index.db);
   const ids = queries.assets({ scope: 'all', text: '', filters: {}, includeSupport: true }, 'name', 0, 10).rows;
-  return { queries, thumbDir: join(root, 'thumbs'), byName: (n: string) => ids.find((r) => r.name === n)!.id };
+  return {
+    queries,
+    thumbDir: join(root, 'thumbs'),
+    byName: (n: string) => {
+      const r = ids.find((x) => x.name === n)!;
+      return assetKey(r.packId, r.ref);
+    },
+  };
 }
 
 describe('thumbnail service', () => {
@@ -44,7 +52,7 @@ describe('thumbnail service', () => {
     const order: string[] = [];
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
-    const published: Record<number, ThumbState> = {};
+    const published: Record<string, ThumbState> = {};
     const svc = new ThumbService({
       queries: () => queries,
       thumbDir: () => thumbDir,

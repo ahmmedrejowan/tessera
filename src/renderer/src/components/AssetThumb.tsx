@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { AssetRow } from '@shared/query';
+import { assetKey } from '@shared/urls';
 import { fileUrl } from '../state/library';
 import { useThumb } from '../state/thumbs';
 import { md } from '../theme';
@@ -12,7 +13,7 @@ export const checker = (cell = 8) => ({
   backgroundSize: `${cell * 2}px ${cell * 2}px`,
 });
 
-type ThumbAsset = Pick<AssetRow, 'id' | 'packId' | 'ref' | 'ext' | 'type' | 'kind'>;
+type ThumbAsset = Pick<AssetRow, 'packId' | 'ref' | 'ext' | 'type' | 'kind'>;
 
 /**
  * The picture for an asset: a rendered thumbnail, the image itself for small web images, or an
@@ -20,7 +21,7 @@ type ThumbAsset = Pick<AssetRow, 'id' | 'packId' | 'ref' | 'ext' | 'type' | 'kin
  * the theme. Small images (pixel art) are scaled up with hard edges instead of blurred.
  */
 export function AssetThumb({ asset, size, rounded = 8 }: { asset: ThumbAsset; size: number; rounded?: number }) {
-  const state = useThumb(asset.id);
+  const state = useThumb(assetKey(asset.packId, asset.ref));
   const [pixelated, setPixelated] = useState(false);
   const [failed, setFailed] = useState(false);
   const Icon = TYPE_ICONS[asset.type];

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { RenderJob, ThumbState } from '@shared/types';
 import type { LibraryQueries } from '../index/query';
 import { log } from '../log';
-import { packFileUrl, thumbUrl } from '@shared/urls';
+import { assetKey, packFileUrl, splitAssetKey, thumbUrl } from '@shared/urls';
 
 /** Bump when thumbnails should be redrawn (a better renderer, a new size). */
 export const THUMB_VERSION = 1;
@@ -39,7 +39,7 @@ export const thumbName = (a: Pick<Info, 'packId' | 'ref' | 'size' | 'mtime'>) =>
 interface Queued {
   name: string;
   job: RenderJob;
-  ids: Set<number>;
+  keys: Set<string>;
   /** Higher runs first: the most recent request wins, so what's on screen now comes first. */
   priority: number;
 }
@@ -50,7 +50,7 @@ export interface ThumbDeps {
   /** Draw one job; resolves with WebP bytes. */
   render: (job: RenderJob) => Promise<Uint8Array>;
   /** Push finished states to the window. */
-  publish: (states: Record<number, ThumbState>) => void;
+  publish: (states: Record<string, ThumbState>) => void;
 }
 
 /**
@@ -63,7 +63,7 @@ export class ThumbService {
   private counter = 0;
   private running = 0;
   private readonly concurrency = 2;
-  private ready: Record<number, ThumbState> = {};
+  private ready: Record<string, ThumbState> = {};
   private made = 0;
   private spent = 0;
   private flushTimer: NodeJS.Timeout | null = null;
@@ -79,34 +79,35 @@ export class ThumbService {
     return this.queue.size + this.running;
   }
 
-  async get(ids: number[]): Promise<Record<number, ThumbState>> {
+  async get(keys: string[]): Promise<Record<string, ThumbState>> {
     const queries = this.d.queries();
     const dir = this.d.thumbDir();
-    const out: Record<number, ThumbState> = {};
+    const out: Record<string, ThumbState> = {};
     if (!queries || !dir) return out;
     const priority = ++this.counter;
-    for (const a of queries.thumbInfo(ids)) {
+    for (const a of queries.thumbInfo(keys.map(splitAssetKey))) {
+      const key = assetKey(a.packId, a.ref);
       const how = plan(a);
       if (how === 'direct' || how === 'none') {
-        out[a.id] = how;
+        out[key] = how;
         continue;
       }
       const name = thumbName(a);
-      if (existsSync(join(dir, `${name}.webp`))) out[a.id] = thumbUrl(`${name}.webp`);
-      else if (existsSync(join(dir, `${name}.fail`))) out[a.id] = 'failed';
+      if (existsSync(join(dir, `${name}.webp`))) out[key] = thumbUrl(`${name}.webp`);
+      else if (existsSync(join(dir, `${name}.fail`))) out[key] = 'failed';
       else {
-        out[a.id] = 'pending';
-        this.enqueue(a, how, name, priority, queries);
+        out[key] = 'pending';
+        this.enqueue(a, key, how, name, priority, queries);
       }
     }
     this.pump();
     return out;
   }
 
-  private enqueue(a: Info, kind: RenderJob['kind'], name: string, priority: number, queries: LibraryQueries): void {
+  private enqueue(a: Info, key: string, kind: RenderJob['kind'], name: string, priority: number, queries: LibraryQueries): void {
     const existing = this.queue.get(name);
     if (existing) {
-      existing.ids.add(a.id);
+      existing.keys.add(key);
       existing.priority = priority;
       return;
     }
@@ -118,7 +119,7 @@ export class ThumbService {
       }
       job.textures = textures;
     }
-    this.queue.set(name, { name, job, ids: new Set([a.id]), priority });
+    this.queue.set(name, { name, job, keys: new Set([key]), priority });
   }
 
   private pump(): void {
@@ -154,7 +155,7 @@ export class ThumbService {
       await writeFile(join(dir, `${q.name}.fail`), e instanceof Error ? e.message : String(e)).catch(() => undefined);
       state = 'failed';
     }
-    for (const id of q.ids) this.ready[id] = state;
+    for (const key of q.keys) this.ready[key] = state;
     this.flush();
   }
 

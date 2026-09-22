@@ -20,6 +20,7 @@ import { LicenceChip, licenceSummary } from '../components/LicenceChip';
 import { fileUrl, useIndexVersion, useLibraryId } from '../state/library';
 import { useNav } from '../state/nav';
 import { useThumb } from '../state/thumbs';
+import { assetKey } from '@shared/urls';
 import { md, mdAlpha, SHAPE } from '../theme';
 import { useIsDark } from '../theme/AppThemeProvider';
 import { AudioView, type AudioInfo } from './AudioView';
@@ -91,7 +92,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
   const [stats, setStats] = useState<ModelStats | null>(null);
 
   useEffect(() => setFileId(asset.id), [asset.id]);
-  const thumb = useThumb(asset.id);
+  const thumb = useThumb(assetKey(asset.packId, asset.ref));
 
   const variants = useQuery({ queryKey: ['variants', lib, version, asset.id], queryFn: () => call('asset:variants', asset.id), enabled: !!lib }).data ?? [asset];
   const file = variants.find((v) => v.id === fileId) ?? asset;

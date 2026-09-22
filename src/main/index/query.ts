@@ -171,6 +171,22 @@ export class LibraryQueries {
     return r ? toAsset(r) : null;
   }
 
+  /**
+   * A pack that already holds this download: a top-level file of the same name and size, or a
+   * top-level folder of the same name holding the same number of bytes.
+   */
+  findDownload(name: string, size: number, folder: boolean): string | null {
+    const ref = `original/${name}`;
+    const row = folder
+      ? this.get<{ name: string }>(
+          `SELECT p.name FROM assets a JOIN packs p ON p.id = a.pack_id WHERE a.ref LIKE ? ESCAPE '\\' AND a.ref NOT LIKE '%!%'
+           GROUP BY a.pack_id HAVING sum(a.size) = ? LIMIT 1`,
+          [`${ref.replace(/[\\%_]/g, (c) => `\\${c}`)}/%`, size],
+        )
+      : this.get<{ name: string }>(`SELECT p.name FROM assets a JOIN packs p ON p.id = a.pack_id WHERE a.ref = ? AND a.size = ? LIMIT 1`, [ref, size]);
+    return row?.name ?? null;
+  }
+
   /** Words already used in the library for a pack field, most used first, for suggestions. */
   terms(field: 'genre' | 'style' | 'tag' | 'creator'): { value: string; count: number }[] {
     if (field === 'creator') {
@@ -180,9 +196,14 @@ export class LibraryQueries {
   }
 
   /** What the thumbnailer needs to know about assets. */
-  thumbInfo(ids: number[]): { id: number; packId: string; ref: string; ext: string; kind: string; type: string; size: number; mtime: number }[] {
-    if (!ids.length) return [];
-    return this.all(`SELECT id, pack_id AS packId, ref, ext, kind, type, size, mtime FROM assets WHERE id IN (${ids.map(() => '?').join(', ')})`, ids);
+  thumbInfo(files: { packId: string; ref: string }[]): { packId: string; ref: string; ext: string; kind: string; type: string; size: number; mtime: number }[] {
+    const st = this.db.prepare('SELECT pack_id AS packId, ref, ext, kind, type, size, mtime FROM assets WHERE pack_id = ? AND ref = ?');
+    const out: ReturnType<LibraryQueries['thumbInfo']> = [];
+    for (const f of files) {
+      const row = st.get(f.packId, f.ref) as ReturnType<LibraryQueries['thumbInfo']>[number] | undefined;
+      if (row) out.push(row);
+    }
+    return out;
   }
 
   /** Every image in a pack, for finding a model's textures by file name. */

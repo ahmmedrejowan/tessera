@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { AssetSort, BrowseQuery, Facet, Filters, PackSort } from '@shared/query';
+import { on } from '../api';
 
 export type BrowseMode = 'assets' | 'packs';
 
@@ -82,6 +83,12 @@ export const useBrowse = create<BrowseState>((set, get) => ({
   select: (ids, anchor) => set({ selection: new Set(ids), ...(anchor !== undefined ? { anchor } : {}) }),
   focus: (focused) => set({ focused }),
 }));
+
+// Asset ids are reused after re-indexing: a selection made before would point at other assets.
+on('index:changed', () => {
+  const { mode, focused } = useBrowse.getState();
+  if (mode === 'assets') useBrowse.setState({ selection: new Set(), anchor: null, ...(focused?.kind === 'asset' ? { focused: null } : {}) });
+});
 
 // Remember view preferences, not the search or the selection.
 useBrowse.subscribe((s) => {

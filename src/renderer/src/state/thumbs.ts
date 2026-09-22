@@ -3,22 +3,23 @@ import type { ThumbState } from '@shared/types';
 import { call, on } from '../api';
 
 /**
- * Thumbnail states by asset id. Tiles ask for their thumbnail as they render; requests are
+ * Thumbnail states by asset key (pack + path; ids are reused after re-indexing, so a thumbnail
+ * keyed by id could land on the wrong asset). Tiles ask for their thumbnail as they render; requests are
  * gathered for a moment and sent together, and finished thumbnails arrive as events. Each tile
- * listens to its own id only, so one thumbnail arriving redraws one tile.
+ * listens to its own key only, so one thumbnail arriving redraws one tile.
  */
 
-const states = new Map<number, ThumbState>();
-const listeners = new Map<number, Set<() => void>>();
-const requested = new Set<number>();
-let batch = new Set<number>();
+const states = new Map<string, ThumbState>();
+const listeners = new Map<string, Set<() => void>>();
+const requested = new Set<string>();
+let batch = new Set<string>();
 let timer: ReturnType<typeof setTimeout> | null = null;
 
-function notify(id: number): void {
+function notify(id: string): void {
   for (const l of listeners.get(id) ?? []) l();
 }
 
-function set(id: number, state: ThumbState): void {
+function set(id: string, state: ThumbState): void {
   states.set(id, state);
   notify(id);
 }
@@ -32,14 +33,14 @@ async function flush(): Promise<void> {
     const chunk = ids.slice(i, i + 400);
     try {
       const result = await call('thumbs:get', chunk);
-      for (const [id, state] of Object.entries(result)) set(Number(id), state);
+      for (const [id, state] of Object.entries(result)) set(id, state);
     } catch {
       for (const id of chunk) requested.delete(id);
     }
   }
 }
 
-function request(id: number): void {
+function request(id: string): void {
   if (requested.has(id)) return;
   requested.add(id);
   batch.add(id);
@@ -47,10 +48,10 @@ function request(id: number): void {
 }
 
 on('thumbs:ready', (ready) => {
-  for (const [id, state] of Object.entries(ready)) set(Number(id), state);
+  for (const [id, state] of Object.entries(ready)) set(id, state);
 });
 
-// Asset ids change when the index changes: start over.
+// Files may have changed with the index: ask again for anything on screen.
 on('index:changed', () => {
   const ids = [...states.keys()];
   states.clear();
@@ -58,7 +59,7 @@ on('index:changed', () => {
   for (const id of ids) notify(id);
 });
 
-export function useThumb(id: number | undefined): ThumbState | undefined {
+export function useThumb(id: string | undefined): ThumbState | undefined {
   const state = useSyncExternalStore(
     (cb) => {
       if (id === undefined) return () => undefined;
