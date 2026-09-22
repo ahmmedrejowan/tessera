@@ -1,6 +1,5 @@
 import AutoFixHighOutlined from '@mui/icons-material/AutoFixHighOutlined';
 import Close from '@mui/icons-material/Close';
-import Alert from '@mui/material/Alert';
 import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -18,6 +17,7 @@ import { sourceInfo, SOURCES } from '@shared/sources';
 import type { Detected } from '@shared/types';
 import { GENRES, normaliseTerm, STYLES } from '@shared/vocabulary';
 import { call } from '../../api';
+import { failed } from '../../notices/store';
 import { licenceSummary } from '../../components/LicenceChip';
 import { useLibraryId } from '../../state/library';
 import { md } from '../../theme';
@@ -118,14 +118,14 @@ export function PackEditor({ packId, meta, open, onClose }: { packId: string; me
   const client = useQueryClient();
   const [d, setD] = useState<Draft>(() => fromMeta(meta));
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [nameMissing, setNameMissing] = useState(false);
   const [detected, setDetected] = useState<Detected | null>(null);
   const [detecting, setDetecting] = useState(false);
 
   useEffect(() => {
     if (open) {
       setD(fromMeta(meta));
-      setError(null);
+      setNameMissing(false);
       setDetected(null);
     }
   }, [open, meta]);
@@ -146,22 +146,21 @@ export function PackEditor({ packId, meta, open, onClose }: { packId: string; me
         creator: x.creator || found.creator || '',
       }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      failed(e, 'Couldn’t read the pack');
     } finally {
       setDetecting(false);
     }
   };
 
   const save = async () => {
-    if (!d.name.trim()) return setError('A pack needs a name.');
+    if (!d.name.trim()) return setNameMissing(true);
     setSaving(true);
-    setError(null);
     try {
       await call('pack:edit', packId, toEdit(d, meta));
       void client.invalidateQueries({ queryKey: ['terms'] });
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      failed(e, 'Couldn’t save the pack');
     } finally {
       setSaving(false);
     }
@@ -178,9 +177,18 @@ export function PackEditor({ packId, meta, open, onClose }: { packId: string; me
         </IconButton>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 24px 24px', display: 'flex', flexDirection: 'column', gap: 28 }}>
-        {error && <Alert severity="error">{error}</Alert>}
         <Section title="Basics">
-          <TextField label="Name" value={d.name} onChange={(e) => set('name', e.target.value)} required />
+          <TextField
+            label="Name"
+            value={d.name}
+            onChange={(e) => {
+              set('name', e.target.value);
+              setNameMissing(false);
+            }}
+            required
+            error={nameMissing}
+            helperText={nameMissing ? 'A pack needs a name.' : ' '}
+          />
           <TextField label="Description" value={d.description} onChange={(e) => set('description', e.target.value)} multiline minRows={2} />
           <TextField label="Version" value={d.version} onChange={(e) => set('version', e.target.value)} sx={{ maxWidth: 200 }} />
         </Section>
@@ -189,13 +197,14 @@ export function PackEditor({ packId, meta, open, onClose }: { packId: string; me
           <Button variant="outlined" startIcon={<AutoFixHighOutlined />} onClick={() => void detect()} disabled={detecting} sx={{ alignSelf: 'flex-start' }}>
             {detecting ? 'Reading the pack…' : 'Detect from the pack’s files'}
           </Button>
-          {detected && (
-            <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-              {detected.licence || detected.site
+          {/* Always two lines tall, so the fields below stay put when a result comes in. */}
+          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), height: 36, overflow: 'hidden', mt: -1 }}>
+            {!detected
+              ? 'Reads the licence and readme files inside the pack.'
+              : detected.licence || detected.site
                 ? `Found ${[detected.licence && `${licenceInfo(detected.licence)?.short ?? detected.licence} in ${detected.licenceFrom}`, detected.site && `a ${sourceInfo(detected.site)?.name} pack`].filter(Boolean).join(', ')}. Empty fields were filled in; check them before saving.`
                 : 'Nothing found in the pack’s files. Fill these in from where you got it.'}
-            </Typography>
-          )}
+          </Typography>
           <TextField select label="Source" value={d.site} onChange={(e) => set('site', e.target.value)}>
             <MenuItem value="">
               <em>Not set</em>
@@ -214,7 +223,7 @@ export function PackEditor({ packId, meta, open, onClose }: { packId: string; me
         </Section>
 
         <Section title="Licence">
-          <TextField select label="Licence" value={d.licence} onChange={(e) => set('licence', e.target.value)} helperText={licenceSummary(d.licence || null)}>
+          <TextField select label="Licence" value={d.licence} onChange={(e) => set('licence', e.target.value)} helperText={licenceSummary(d.licence || null)} slotProps={{ formHelperText: { sx: { minHeight: 36 } } }}>
             <MenuItem value="">
               <em>Unknown</em>
             </MenuItem>
@@ -231,22 +240,22 @@ export function PackEditor({ packId, meta, open, onClose }: { packId: string; me
               </MenuItem>
             ))}
           </TextField>
-          {(info?.attribution || d.attribution) && (
-            <>
-              <TextField
-                label="Credit line"
-                value={d.attribution}
-                onChange={(e) => set('attribution', e.target.value)}
-                multiline
-                helperText={info?.attribution ? 'This licence asks you to credit the author. This line goes into your game’s credits.' : undefined}
-              />
-              {info?.attribution && !d.attribution && (
-                <Button size="small" onClick={() => set('attribution', suggestedCredit(d))} sx={{ alignSelf: 'flex-start' }}>
-                  Suggest a credit line
-                </Button>
-              )}
-            </>
-          )}
+          <TextField
+            label="Credit line"
+            value={d.attribution}
+            onChange={(e) => set('attribution', e.target.value)}
+            multiline
+            helperText={info?.attribution ? 'This licence asks for credit. The line goes into your game’s credits.' : 'Optional. Goes into your game’s credits.'}
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <Button size="small" onClick={() => set('attribution', suggestedCredit(d))} sx={{ flexShrink: 0, visibility: info?.attribution && !d.attribution ? 'visible' : 'hidden' }}>
+                    Suggest
+                  </Button>
+                ),
+              },
+            }}
+          />
           <TextField label="Licence notes" value={d.licenceNotes} onChange={(e) => set('licenceNotes', e.target.value)} multiline minRows={2} placeholder="Order number, conditions, anything worth remembering" />
         </Section>
 
