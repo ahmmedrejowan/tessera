@@ -114,6 +114,7 @@ export function BrowsePage() {
             setCursor(i);
             setViewing(i);
           }}
+          dragItems={(x) => (s.selection.has(x.id) && s.selection.size > 1 ? call('assets:refs', [...s.selection].map(Number)) : [{ packId: x.packId, ref: x.ref }])}
         />
       );
     },

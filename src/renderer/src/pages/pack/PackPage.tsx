@@ -96,7 +96,16 @@ export function PackPage({ id }: { id: string }) {
   const render = useCallback(
     (i: number, width: number) => {
       const a = assets[i];
-      return <AssetTile asset={a} width={width} selected={false} onClick={() => a && setViewing({ list: assets, index: i })} onOpen={() => a && setViewing({ list: assets, index: i })} />;
+      return (
+        <AssetTile
+          asset={a}
+          width={width}
+          selected={false}
+          onClick={() => a && setViewing({ list: assets, index: i })}
+          onOpen={() => a && setViewing({ list: assets, index: i })}
+          dragItems={(x) => [{ packId: x.packId, ref: x.ref }]}
+        />
+      );
     },
     [assets],
   );

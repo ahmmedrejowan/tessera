@@ -65,6 +65,7 @@ export function CollectionPage({ id }: { id: string }) {
             setSelected(next);
           }}
           onOpen={() => setViewing(i)}
+          dragItems={(x) => [{ packId: x.packId, ref: x.ref }]}
         />
       );
     },

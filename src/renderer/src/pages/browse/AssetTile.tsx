@@ -3,6 +3,7 @@ import { memo, type MouseEvent } from 'react';
 import type { AssetRow } from '@shared/query';
 import { AssetThumb } from '../../components/AssetThumb';
 import { displayName, formatsLabel } from '../../components/labels';
+import { dragOutProps } from '../../state/dragOut';
 import { md, SHAPE } from '../../theme';
 
 export const TILE_LABEL_HEIGHT = 52;
@@ -13,10 +14,12 @@ interface Props {
   selected: boolean;
   onClick: (e: MouseEvent, asset: AssetRow) => void;
   onOpen: (asset: AssetRow) => void;
+  /** Makes the tile draggable out of the app; gives what to drag. */
+  dragItems?: (asset: AssetRow) => { packId: string; ref: string }[] | Promise<{ packId: string; ref: string }[]>;
 }
 
 /** One asset in the grid: its picture, file name and pack. A placeholder while its page loads. */
-export const AssetTile = memo(function AssetTile({ asset, width, selected, onClick, onOpen }: Props) {
+export const AssetTile = memo(function AssetTile({ asset, width, selected, onClick, onOpen, dragItems }: Props) {
   if (!asset) {
     return <div style={{ height: width + TILE_LABEL_HEIGHT, borderRadius: SHAPE.md, background: md('surfaceContainerLow') }} />;
   }
@@ -28,6 +31,7 @@ export const AssetTile = memo(function AssetTile({ asset, width, selected, onCli
       title={`${asset.name}\n${asset.packName}${asset.dir ? ` › ${asset.dir}` : ''}`}
       onClick={(e) => onClick(e, asset)}
       onDoubleClick={() => onOpen(asset)}
+      {...(dragItems ? dragOutProps(() => dragItems(asset)) : {})}
       style={{
         height: width + TILE_LABEL_HEIGHT,
         borderRadius: SHAPE.md,
