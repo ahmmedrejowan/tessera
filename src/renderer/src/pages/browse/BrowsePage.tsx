@@ -16,6 +16,7 @@ const Viewer = lazy(() => import('../../viewer/Viewer').then((m) => ({ default: 
 import { AssetTile, TILE_LABEL_HEIGHT } from './AssetTile';
 import { BrowseToolbar } from './BrowseToolbar';
 import { DetailsSheet } from './DetailsSheet';
+import { SelectionBar } from './SelectionBar';
 import { FilterPane } from './FilterPane';
 import { coverHeight, PACK_LABEL_HEIGHT, PackCard } from './PackCard';
 
@@ -210,7 +211,7 @@ export function BrowsePage() {
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <BrowseToolbar total={current.total} stale={current.stale} />
         <div style={{ height: 2 }}>{current.stale && <LinearProgress sx={{ height: 2, borderRadius: 0 }} />}</div>
-        <div style={{ flex: 1, minHeight: 0 }} role="listbox" aria-multiselectable aria-label={s.mode === 'assets' ? 'Assets' : 'Packs'}>
+        <div style={{ flex: 1, minHeight: 0, position: 'relative' }} role="listbox" aria-multiselectable aria-label={s.mode === 'assets' ? 'Assets' : 'Packs'}>
           {empty ? (
             <EmptyState
               icon={SearchOffOutlined}
@@ -260,6 +261,7 @@ export function BrowsePage() {
           )}
         </div>
       </div>
+      {s.mode === 'assets' && s.selection.size > 0 && viewing === null && <SelectionBar />}
       {s.focused && <DetailsSheet item={s.focused} />}
       {viewed && viewing !== null && (
         <Suspense fallback={null}>

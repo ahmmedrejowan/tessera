@@ -1,11 +1,13 @@
 import Close from '@mui/icons-material/Close';
+import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
 import OpenInNew from '@mui/icons-material/OpenInNew';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { CollectionMenu } from '../collections/CollectionMenu';
 import { TYPE_LABELS } from '@shared/assets';
 import { sourceInfo } from '@shared/sources';
 import { call } from '../../api';
@@ -104,6 +106,7 @@ function AssetDetails({ id }: { id: number }) {
   const v = useIndexVersion();
   const go = useNav((s) => s.go);
   const asset = useQuery({ queryKey: ['asset', lib, v, id], queryFn: () => call('asset:get', id), enabled: !!lib, placeholderData: (p) => p }).data;
+  const [collectAnchor, setCollectAnchor] = useState<HTMLElement | null>(null);
   if (!asset) return null;
   return (
     <>
@@ -122,9 +125,13 @@ function AssetDetails({ id }: { id: number }) {
         <Button variant="outlined" size="small" startIcon={<OpenInNew />} onClick={() => go({ to: 'pack', id: asset.packId })}>
           Open pack
         </Button>
+        <Button variant="text" size="small" startIcon={<BookmarkAddOutlined />} onClick={(e) => setCollectAnchor(e.currentTarget)}>
+          Collect
+        </Button>
         <Button variant="text" size="small" startIcon={<FolderOpenOutlined />} onClick={() => void call('pack:reveal', asset.packId, asset.ref)}>
           Show file
         </Button>
+        <CollectionMenu anchor={collectAnchor} onClose={() => setCollectAnchor(null)} items={async () => [{ packId: asset.packId, ref: asset.ref }]} />
       </div>
       <Variants id={asset.id} />
       <div>

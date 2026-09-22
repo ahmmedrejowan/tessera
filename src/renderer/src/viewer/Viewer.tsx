@@ -1,3 +1,4 @@
+import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
 import ChevronLeft from '@mui/icons-material/ChevronLeft';
 import ChevronRight from '@mui/icons-material/ChevronRight';
 import Close from '@mui/icons-material/Close';
@@ -30,6 +31,8 @@ import { ImageView, type ImageInfo } from './ImageView';
 import { ModelView, type ModelStats } from './ModelView';
 import { PanoramaView } from './PanoramaView';
 import { TextView } from './TextView';
+import { fitSvg } from '../svg';
+import { CollectionMenu } from '../pages/collections/CollectionMenu';
 
 const MODEL = new Set(['glb', 'gltf', 'fbx', 'obj', 'dae', 'stl', 'ply', '3ds', 'usdz', 'vox']);
 const IMAGE = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp', 'avif']);
@@ -48,6 +51,28 @@ function stageFor(ext: string, kind: string): Stage {
   if (FONT.has(ext)) return 'font';
   if (TEXT.has(ext) || kind === 'doc') return 'text';
   return 'none';
+}
+
+/** An SVG, measured and given a viewBox first (see fitSvg), then shown like any image. */
+function SvgImage({ url, onInfo, command }: { url: string; onInfo: (i: ImageInfo | null) => void; command?: { kind: 'fit' | 'actual'; n: number } }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let made: string | null = null;
+    let cancelled = false;
+    void fetch(url)
+      .then((r) => r.text())
+      .then((text) => {
+        if (cancelled) return;
+        made = URL.createObjectURL(new Blob([fitSvg(text).svg], { type: 'image/svg+xml' }));
+        setSrc(made);
+      })
+      .catch(() => !cancelled && setSrc(url));
+    return () => {
+      cancelled = true;
+      if (made) URL.revokeObjectURL(made);
+    };
+  }, [url]);
+  return src ? <ImageView src={src} onInfo={onInfo} {...(command ? { command } : {})} /> : null;
 }
 
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
@@ -90,6 +115,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
   const [audioInfo, setAudioInfo] = useState<AudioInfo | null>(null);
   const [fontInfo, setFontInfo] = useState<FontInfo | null>(null);
   const [stats, setStats] = useState<ModelStats | null>(null);
+  const [collectAnchor, setCollectAnchor] = useState<HTMLElement | null>(null);
 
   useEffect(() => setFileId(asset.id), [asset.id]);
   const thumb = useThumb(assetKey(asset.packId, asset.ref));
@@ -147,7 +173,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
         // One 3D view for the whole session: stepping through models reuses its renderer.
         return textures ? <ModelView url={url} ext={file.ext} textures={textures} dark={dark} onStats={setStats} /> : null;
       case 'image':
-        return <ImageView key={url} src={url} onInfo={setImageInfo} {...(command ? { command } : {})} />;
+        return file.ext === 'svg' ? <SvgImage key={url} url={url} onInfo={setImageInfo} {...(command ? { command } : {})} /> : <ImageView key={url} src={url} onInfo={setImageInfo} {...(command ? { command } : {})} />;
       case 'hdr':
         return <PanoramaView key={url} url={url} ext={file.ext} onInfo={setImageInfo} />;
       case 'audio':
@@ -225,6 +251,12 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
             </IconButton>
           </Tooltip>
         )}
+        <Tooltip title="Add to collection">
+          <IconButton onClick={(e) => setCollectAnchor(e.currentTarget)} aria-label="Add to collection">
+            <BookmarkAddOutlined />
+          </IconButton>
+        </Tooltip>
+        <CollectionMenu anchor={collectAnchor} onClose={() => setCollectAnchor(null)} items={async () => [{ packId: asset.packId, ref: asset.ref }]} />
         <Tooltip title="Show file">
           <IconButton onClick={() => void call('pack:reveal', file.packId, file.ref)} aria-label="Show file">
             <FolderOpenOutlined />

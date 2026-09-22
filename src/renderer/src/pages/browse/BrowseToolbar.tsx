@@ -1,5 +1,6 @@
 import Close from '@mui/icons-material/Close';
 import FilterListOutlined from '@mui/icons-material/FilterListOutlined';
+import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import ViewModuleOutlined from '@mui/icons-material/ViewModuleOutlined';
 import SortOutlined from '@mui/icons-material/SortOutlined';
 import Badge from '@mui/material/Badge';
@@ -16,7 +17,8 @@ import { useState } from 'react';
 import type { AssetSort, Facet, PackSort } from '@shared/query';
 import { facetLabel, formatCount } from '../../components/labels';
 import { SegmentedButton } from '../../components/SegmentedButton';
-import { activeFilterCount, TILE_MAX, TILE_MIN, useBrowse } from '../../state/browse';
+import { activeFilterCount, browseQuery, TILE_MAX, TILE_MIN, useBrowse } from '../../state/browse';
+import { SaveSearchDialog } from '../collections/CollectionMenu';
 import { md } from '../../theme';
 
 const ASSET_SORTS: { value: AssetSort; label: string }[] = [
@@ -34,10 +36,16 @@ const PACK_SORTS: { value: PackSort; label: string }[] = [
   { value: 'size', label: 'Largest' },
 ];
 
+const chipsLabels = (filters: Partial<Record<Facet, string[]>>) =>
+  (Object.entries(filters) as [Facet, string[]][]).flatMap(([f, vs]) => (vs ?? []).map((v) => facetLabel(f, v)));
+
 export function BrowseToolbar({ total, stale }: { total: number; stale: boolean }) {
   const s = useBrowse();
   const [sortEl, setSortEl] = useState<HTMLElement | null>(null);
   const [viewEl, setViewEl] = useState<HTMLElement | null>(null);
+  const [saving, setSaving] = useState(false);
+  const q = browseQuery(s);
+  const suggested = [q.text, ...chipsLabels(s.filters)].filter(Boolean).join(' · ') || 'Saved search';
   const sorts = s.mode === 'assets' ? ASSET_SORTS : PACK_SORTS;
   const sort = s.mode === 'assets' ? s.assetSort : s.packSort;
   const filterCount = activeFilterCount(s.filters);
@@ -89,12 +97,27 @@ export function BrowseToolbar({ total, stale }: { total: number; stale: boolean 
             <ViewModuleOutlined />
           </IconButton>
         </Tooltip>
-        <Menu anchorEl={viewEl} open={!!viewEl} onClose={() => setViewEl(null)} slotProps={{ paper: { sx: { width: 300, p: 1 } } }}>
+        <Menu anchorEl={viewEl} open={!!viewEl} onClose={() => setViewEl(null)} slotProps={{ paper: { sx: { width: 340, p: 1 } } }}>
           <div style={{ padding: '8px 12px' }}>
             <Typography variant="labelLarge" sx={{ color: md('onSurface') }}>
               Tile size
             </Typography>
             <Slider min={TILE_MIN} max={TILE_MAX} value={s.tileSize} onChange={(_, v) => s.setTileSize(v as number)} aria-label="Tile size" />
+          </div>
+          <div style={{ padding: '4px 12px 12px' }}>
+            <Typography variant="labelLarge" sx={{ color: md('onSurface'), display: 'block', mb: 1 }}>
+              Behind transparent images
+            </Typography>
+            <SegmentedButton
+              label="Background"
+              value={s.tileBackground}
+              onChange={s.setTileBackground}
+              options={[
+                { value: 'checker', label: 'Checker' },
+                { value: 'dark', label: 'Dark' },
+                { value: 'light', label: 'Light' },
+              ]}
+            />
           </div>
           {s.mode === 'assets' && (
             <MenuItem onClick={() => s.setIncludeSupport(!s.includeSupport)} sx={{ alignItems: 'flex-start', gap: 1, whiteSpace: 'normal' }}>
@@ -127,6 +150,14 @@ export function BrowseToolbar({ total, stale }: { total: number; stale: boolean 
           </Button>
         </div>
       )}
+      {(q.text || filterCount > 0) && s.mode === 'assets' && (
+        <div>
+          <Button size="small" startIcon={<AutoAwesomeOutlined />} onClick={() => setSaving(true)}>
+            Save as smart collection
+          </Button>
+        </div>
+      )}
+      <SaveSearchDialog open={saving} onClose={() => setSaving(false)} query={{ text: q.text, filters: q.filters as Record<string, string[]>, includeSupport: !!q.includeSupport }} suggested={suggested} />
     </div>
   );
 }

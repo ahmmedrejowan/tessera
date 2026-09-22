@@ -221,6 +221,11 @@ export class LibraryQueries {
     return this.all(`SELECT ref, name FROM assets WHERE pack_id = ? AND kind = 'image'`, [packId]);
   }
 
+  refs(ids: number[]): { packId: string; ref: string }[] {
+    if (!ids.length) return [];
+    return this.all(`SELECT pack_id AS packId, ref FROM assets WHERE id IN (${ids.map(() => '?').join(', ')})`, ids);
+  }
+
   /** Every file of an asset: the one that stands for it first, then its other formats and sizes. */
   variants(id: number): AssetRow[] {
     return this.all<RawAsset>(

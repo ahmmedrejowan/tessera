@@ -150,6 +150,7 @@ function registerHandlers(): void {
   });
   handle('asset:get', (id) => library.require().queries.asset(id));
   handle('asset:variants', (id) => library.require().queries.variants(id));
+  handle('assets:refs', (ids) => library.require().queries.refs(ids.slice(0, 10_000)));
   handle('pack:textures', (id) => {
     const out: Record<string, string> = {};
     for (const img of library.require().queries.packImages(id)) out[img.name.toLowerCase()] ??= packFileUrl(id, img.ref);

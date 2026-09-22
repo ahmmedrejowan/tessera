@@ -46,6 +46,8 @@ export interface Invokes {
   'pack:openProof': (id: string, name: string) => void;
   'asset:get': (id: number) => AssetRow | null;
   'asset:variants': (id: number) => AssetRow[];
+  /** Pack and path of assets by id, for adding a selection to a collection. */
+  'assets:refs': (ids: number[]) => { packId: string; ref: string }[];
   /** A pack's images by lower-case file name → URL, for finding a model's textures. */
   'pack:textures': (id: string) => Record<string, string>;
   /** Show a pack's folder, or the file on disk that holds one of its files, in Finder / Explorer. */
