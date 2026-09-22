@@ -8,7 +8,9 @@ import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
 import { VirtualGrid } from '../../components/VirtualGrid';
 import { activeFilterCount, browseQuery, useBrowse } from '../../state/browse';
-import { useIndexVersion, useLibraryId } from '../../state/library';
+import { useIndexVersion, useLibraryId, useStats } from '../../state/library';
+import { useImport } from '../../state/importer';
+import AddRounded from '@mui/icons-material/AddRounded';
 import { useNav } from '../../state/nav';
 import { usePagedRows } from '../../state/paged';
 // The viewer brings three.js; it loads the first time something is opened.
@@ -205,10 +207,13 @@ export function BrowsePage() {
 
   const empty = !current.loading && current.total === 0;
   const filtering = !!text || activeFilterCount(s.filters) > 0;
+  // Nothing in the library yet: no filters to show, just a way to add packs.
+  const stats = useStats().data;
+  const nothingYet = stats?.assets === 0 && !filtering;
 
   return (
     <div style={{ height: '100%', display: 'flex', minHeight: 0 }}>
-      {s.filtersOpen && <FilterPane facets={facets.data} />}
+      {s.filtersOpen && !nothingYet && <FilterPane facets={facets.data} />}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <BrowseToolbar total={current.total} stale={current.stale} />
         <div style={{ height: 2 }}>{current.stale && <LinearProgress sx={{ height: 2, borderRadius: 0 }} />}</div>
@@ -216,14 +221,26 @@ export function BrowsePage() {
           {empty ? (
             <EmptyState
               icon={SearchOffOutlined}
-              title={filtering ? 'Nothing matches' : 'The library is empty'}
+              title={filtering ? 'Nothing matches' : stats?.inbox ? 'Nothing in the library yet' : 'The library is empty'}
               body={
                 filtering
                   ? `No ${s.mode} match${text ? ` “${text}”` : ''}${activeFilterCount(s.filters) ? ` with ${activeFilterCount(s.filters)} filter${activeFilterCount(s.filters) > 1 ? 's' : ''} on` : ''}.`
-                  : 'Packs you add appear here once they have a licence and a source.'
+                  : stats?.inbox
+                    ? `${stats.inbox} pack${stats.inbox === 1 ? ' waits' : 's wait'} in the Inbox for a licence and a source. Once checked, their assets show here.`
+                    : 'Packs you add appear here once they have a licence and a source.'
               }
               actions={
-                filtering && (
+                !filtering ? (
+                  stats?.inbox ? (
+                    <Button variant="contained" onClick={() => go({ to: 'inbox' })}>
+                      Open the Inbox
+                    </Button>
+                  ) : (
+                    <Button variant="contained" startIcon={<AddRounded />} onClick={() => void useImport.getState().choose('files')}>
+                      Add packs
+                    </Button>
+                  )
+                ) : (
                   <>
                     {activeFilterCount(s.filters) > 0 && (
                       <Button variant="outlined" onClick={s.clearFilters}>

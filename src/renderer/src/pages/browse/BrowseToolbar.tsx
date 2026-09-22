@@ -18,6 +18,7 @@ import type { AssetSort, Facet, PackSort } from '@shared/query';
 import { facetLabel, formatCount } from '../../components/labels';
 import { SegmentedButton } from '../../components/SegmentedButton';
 import { activeFilterCount, browseQuery, TILE_MAX, TILE_MIN, useBrowse } from '../../state/browse';
+import { useStats } from '../../state/library';
 import { SaveSearchDialog } from '../collections/CollectionMenu';
 import { md } from '../../theme';
 
@@ -49,13 +50,15 @@ export function BrowseToolbar({ total, stale }: { total: number; stale: boolean 
   const sorts = s.mode === 'assets' ? ASSET_SORTS : PACK_SORTS;
   const sort = s.mode === 'assets' ? s.assetSort : s.packSort;
   const filterCount = activeFilterCount(s.filters);
+  // Nothing to filter in an empty library; the button keeps its place.
+  const nothingYet = useStats().data?.assets === 0 && !filterCount;
   const chips = (Object.entries(s.filters) as [Facet, string[]][]).flatMap(([facet, values]) => (values ?? []).map((value) => ({ facet, value })));
 
   return (
     <div style={{ padding: '12px 24px 4px', display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <Tooltip title={s.filtersOpen ? 'Hide filters' : 'Show filters'}>
-          <IconButton onClick={() => s.setFiltersOpen(!s.filtersOpen)} aria-label="Filters" aria-pressed={s.filtersOpen}>
+          <IconButton onClick={() => s.setFiltersOpen(!s.filtersOpen)} aria-label="Filters" aria-pressed={s.filtersOpen} disabled={nothingYet} sx={{ visibility: nothingYet ? 'hidden' : 'visible' }}>
             <Badge badgeContent={filterCount} color="primary" invisible={s.filtersOpen || !filterCount}>
               <FilterListOutlined />
             </Badge>
