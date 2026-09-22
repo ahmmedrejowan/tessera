@@ -1,4 +1,3 @@
-import CollectionsBookmarkOutlined from '@mui/icons-material/CollectionsBookmarkOutlined';
 import HomeOutlined from '@mui/icons-material/HomeOutlined';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import SportsEsportsOutlined from '@mui/icons-material/SportsEsportsOutlined';
@@ -10,6 +9,8 @@ import { AddMenu } from './import/AddMenu';
 import { DropOverlay } from './import/DropOverlay';
 import { ImportDialog } from './import/ImportDialog';
 import { BrowsePage } from './pages/browse/BrowsePage';
+import { CollectionPage } from './pages/collections/CollectionPage';
+import { CollectionsPage } from './pages/collections/CollectionsPage';
 import { InboxPage } from './pages/InboxPage';
 import { PackPage } from './pages/pack/PackPage';
 import { Page } from './pages/Placeholder';
@@ -20,7 +21,6 @@ import { useNav } from './state/nav';
 
 const PLACEHOLDERS = {
   home: { title: 'Home', icon: HomeOutlined },
-  collections: { title: 'Collections', icon: CollectionsBookmarkOutlined },
   projects: { title: 'Projects', icon: SportsEsportsOutlined },
   settings: { title: 'Settings', icon: SettingsOutlined },
 };
@@ -30,6 +30,8 @@ function Current() {
   if (route.to === 'browse') return <BrowsePage />;
   if (route.to === 'pack') return <PackPage key={route.id} id={route.id} />;
   if (route.to === 'inbox') return <InboxPage />;
+  if (route.to === 'collections') return <CollectionsPage />;
+  if (route.to === 'collection') return <CollectionPage key={route.id} id={route.id} />;
   const p = PLACEHOLDERS[route.to];
   return (
     <Page title={p.title}>
