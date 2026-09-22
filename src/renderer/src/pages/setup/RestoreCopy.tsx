@@ -41,7 +41,7 @@ const parentOf = (path: string) => path.slice(0, path.length - baseName(path).le
 export function RestoreCopy({ open, onClose }: { open: boolean; onClose: () => void }) {
   const lib = useLibraryState().data;
   const library = lib?.status === 'ready' ? lib.library : null;
-  const snapshots = useQuery({ queryKey: ['snapshots'], queryFn: () => call('backup:snapshots'), enabled: open, staleTime: 0 });
+  const snapshots = useQuery({ queryKey: ['snapshots', library?.id], queryFn: () => call('backup:snapshots'), enabled: open && !!library, staleTime: 0 });
   const [step, setStep] = useState<Step>('choose');
   const [chosen, setChosen] = useState('');
   const [busy, setBusy] = useState(false);
@@ -61,7 +61,7 @@ export function RestoreCopy({ open, onClose }: { open: boolean; onClose: () => v
     }
   }, [open]);
   useEffect(() => {
-    if (!chosen && list[0]) setChosen(list[0].id);
+    if (list[0] && !list.some((s) => s.id === chosen)) setChosen(list[0].id);
   }, [chosen, list]);
   useEffect(() => {
     if (snapshot && library) setName(`${library.name} from ${day(snapshot.startTime)}`);
