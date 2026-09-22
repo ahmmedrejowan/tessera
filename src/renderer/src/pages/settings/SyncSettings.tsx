@@ -74,7 +74,7 @@ function AddComputer({ open, onClose }: { open: boolean; onClose: () => void }) 
       <DialogTitle>Add a computer</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-          On the other computer, open Tessera and choose “Receive a library from another computer” (or Settings › Sync). Its device ID is shown there; paste it here.
+          On the other computer, open Tessera and choose “Get one from another computer” (or Settings › Sync). Its device ID is shown there; paste it here.
         </Typography>
         <TextField autoFocus label="Its device ID" value={id} onChange={(e) => setId(e.target.value)} placeholder="XXXXXXX-XXXXXXX-…" sx={{ mt: 1 }} />
         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Desktop PC" />
