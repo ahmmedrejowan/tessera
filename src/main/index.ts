@@ -20,7 +20,7 @@ import { LibraryService } from './libraryService';
 import { BackupService, findKopia } from './backup/service';
 import { registerDrag } from './drag';
 import { installMenu } from './menu';
-import { fileSecret } from './secrets';
+import { fileSecret, keychainAvailable } from './secrets';
 import { SyncService } from './sync/service';
 import { initLog, log } from './log';
 import { makeScrubber } from './reports/scrub';
@@ -135,7 +135,8 @@ let backupVersion = 0;
 const backups = new BackupService({
   dataDir,
   settings,
-  secrets: fileSecret(join(dataDir, 'kopia-password.bin')),
+  secrets: fileSecret(join(dataDir, 'kopia-password.bin'), () => settings.get().backupPasswordInFile),
+  keychain: keychainAvailable,
   jobs,
   libraryPath: () => {
     const state = library.getState();

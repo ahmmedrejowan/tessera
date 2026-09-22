@@ -21,6 +21,8 @@ interface Deps {
   dataDir: string;
   settings: SettingsStore;
   secrets: SecretStore;
+  /** The system keychain can keep the password (see secrets.ts). */
+  keychain: () => boolean;
   jobs: Jobs;
   /** The open library's folder, or null. */
   libraryPath: () => string | null;
@@ -63,6 +65,7 @@ export class BackupService {
       available: !!kopia,
       bundled: this.bundled(),
       rclone: !!this.d.rclone().exe,
+      keychain: this.d.keychain(),
       target: s.backupTarget,
       version: kopia ? await kopia.version().catch(() => null) : null,
       repoPath: s.backupRepo,

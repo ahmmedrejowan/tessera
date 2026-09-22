@@ -23,6 +23,8 @@ const schema = z.object({
   backupIntervalHours: z.number().min(0).max(24 * 30).catch(24),
   lastBackupAt: z.string().nullable().catch(null),
   lastBackupError: z.string().nullable().catch(null),
+  /** Without a keychain: the user agreed to keep the backup password in an owner-only file. */
+  backupPasswordInFile: z.boolean().catch(false),
   syncEnabled: z.boolean().catch(false),
   syncMode: z.enum(['push', 'pull', 'full']).catch('full'),
   errorReports: z.enum(['ask', 'always', 'never']).catch('ask'),

@@ -37,6 +37,8 @@ export interface Settings {
   backupIntervalHours: number;
   lastBackupAt: string | null;
   lastBackupError: string | null;
+  /** Without a keychain: the user agreed to keep the backup password in an owner-only file. */
+  backupPasswordInFile: boolean;
   /** Syncing the library with other computers (Syncthing) is on. */
   syncEnabled: boolean;
   syncMode: SyncMode;
@@ -249,6 +251,8 @@ export interface BackupStatus {
   bundled: boolean;
   /** rclone is there, for cloud drives. */
   rclone: boolean;
+  /** The system keychain can keep the password. */
+  keychain: boolean;
   /** Where backups go, without secrets. */
   target: StorageTarget | null;
   version: string | null;
