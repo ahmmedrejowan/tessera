@@ -50,9 +50,10 @@ add('data', 'json jsonl xml csv yaml yml plist atlas fnt md5 sha1 pb tres tscn s
 add('archive', 'zip 7z rar tar gz tgz');
 
 /** Files that are never shown: OS clutter and engine sidecars that only mean something inside an engine. */
-const IGNORED_NAME = /^(\.ds_store|thumbs\.db|desktop\.ini|\._.*)$/i;
+const IGNORED_NAME = /^(\.ds_store|thumbs\.db|desktop\.ini|\._.*|\.stignore|.*\.sync-conflict-.*)$/i;
 const IGNORED_EXT = new Set(['meta', 'uid']);
-const IGNORED_DIR = /(^|\/)(__macosx|\.git|\.svn)(\/|$)/i;
+// Also the folders sync tools keep for themselves (Syncthing's marker and old versions).
+const IGNORED_DIR = /(^|\/)(__macosx|\.git|\.svn|\.stfolder|\.stversions)(\/|$)/i;
 
 export const extOf = (name: string): string => {
   const base = name.slice(name.lastIndexOf('/') + 1);

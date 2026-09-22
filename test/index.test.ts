@@ -54,6 +54,14 @@ describe('variant keys', () => {
   });
 });
 
+describe('ignored files', () => {
+  it('skips OS clutter, engine sidecars and sync tools’ own files', async () => {
+    const { isIgnored } = await import('@shared/assets');
+    for (const p of ['.DS_Store', 'a/Thumbs.db', 'car.fbx.meta', '__MACOSX/x.png', '.stfolder/x', '.stversions/a/b.png', '.stignore', 'pack.sync-conflict-20260922-101010-ABCDEFG.json']) expect(isIgnored(p)).toBe(true);
+    for (const p of ['car.fbx', 'Textures/wood.png', 'stone.png']) expect(isIgnored(p)).toBe(false);
+  });
+});
+
 describe('refs', () => {
   it('splits refs at archive boundaries only', () => {
     expect(parseRef('original/a.png')).toEqual({ file: 'original/a.png', inside: [] });
