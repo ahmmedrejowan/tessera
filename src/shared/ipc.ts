@@ -195,6 +195,13 @@ export interface Invokes {
   /** The links inside files dropped on the window: a list, a JSON file, bookmarks, .url shortcuts. */
   'downloads:linksIn': (paths: string[]) => string[];
   'downloads:pause': (id: string) => void;
+  /** Fetch a link again that was downloaded or refused before, as a new row. */
+  'downloads:again': (id: string) => void;
+  /** Take one row off the list, and its file with it. */
+  'downloads:remove': (id: string) => void;
+  'downloads:pauseAll': () => void;
+  'downloads:resumeAll': () => void;
+  'downloads:retryFailed': () => void;
   'downloads:resume': (id: string) => void;
   'downloads:cancel': (id: string) => void;
   /** Forget the rows that are finished with, and delete the files they kept. */

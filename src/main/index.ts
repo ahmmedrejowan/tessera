@@ -106,6 +106,7 @@ const jobs = new Jobs((list) => broadcast(windows, 'jobs:changed', list));
 const downloads = new DownloadService({
   dir: join(dataDir, 'downloads'),
   fetch: (url, init) => net.fetch(url, init),
+  atOnce: () => settings.get().downloadsAtOnce,
   onChanged: () => broadcast(windows, 'downloads:changed', downloads.list()),
   onReady: (item) => void addDownloaded(item),
 });
@@ -678,6 +679,11 @@ function registerHandlers(): void {
   handle('downloads:add', (text) => downloads.add(linksIn(text)));
   handle('downloads:linksIn', (paths) => linksInFiles(paths));
   handle('downloads:pause', (id) => downloads.pause(id));
+  handle('downloads:again', (id) => downloads.again(id));
+  handle('downloads:remove', (id) => downloads.remove(id));
+  handle('downloads:pauseAll', () => downloads.pauseAll());
+  handle('downloads:resumeAll', () => downloads.resumeAll());
+  handle('downloads:retryFailed', () => downloads.retryFailed());
   handle('downloads:resume', (id) => downloads.resume(id));
   handle('downloads:cancel', (id) => downloads.cancel(id));
   handle('downloads:clear', () => downloads.clear());

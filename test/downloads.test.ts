@@ -7,8 +7,8 @@ import type { DownloadItem } from '../src/shared/types';
 import { tempDir } from './helpers';
 
 /** Wait for the list to settle on what the test is looking for. */
-async function until(check: () => boolean, what: string): Promise<void> {
-  for (let i = 0; i < 200; i++) {
+async function until(check: () => boolean, what: string, goes = 200): Promise<void> {
+  for (let i = 0; i < goes; i++) {
     if (check()) return;
     await new Promise((r) => setTimeout(r, 10));
   }
@@ -88,9 +88,11 @@ describe('the download queue', () => {
     service.add(['https://a.example/assets/city-kit']);
     await until(() => service.list()[0]?.state === 'failed', 'the page to be refused');
     expect(service.list()[0]!.error).toMatch(/opens a web page/);
+    // A wrong link is not tried again by itself.
+    expect(service.list()[0]!.tries).toBe(1);
   });
 
-  it('carries on where it stopped when the site allows it', async () => {
+  it('tries again by itself and carries on where it stopped', async () => {
     const dir = tempDir('tessera-dl-');
     const whole = 'one two three four';
     const asked: (string | null)[] = [];
@@ -116,10 +118,10 @@ describe('the download queue', () => {
       onReady: () => undefined,
     });
     service.add(['https://a.example/packs/big.zip']);
-    await until(() => service.list()[0]?.state === 'failed', 'the first try to fail');
-    service.resume(service.list()[0]!.id);
-    await until(() => service.list()[0]?.state === 'ready', 'the rest to arrive');
+    // The dropped connection is not the user's problem: it waits a moment and asks for the rest.
+    await until(() => service.list()[0]?.state === 'ready', 'the rest to arrive', 600);
     expect(asked).toEqual([null, 'bytes=7-']);
+    expect(service.list()[0]!.tries).toBe(2);
     expect(readFileSync(service.list()[0]!.file!, 'utf8')).toBe(whole);
   });
 });

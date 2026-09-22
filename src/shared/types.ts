@@ -31,6 +31,8 @@ export interface Settings {
   errorReports: ReportConsent;
   /** What the user has told Tessera about sites: "everything on this one is CC0". */
   siteRules: SiteRule[];
+  /** How many downloads may run at once (1-5). */
+  downloadsAtOnce: number;
 }
 
 /** A site the user has set the licence for, so packs from it fill themselves in. */
@@ -324,12 +326,19 @@ export interface DownloadItem {
   received: number;
   /** Bytes in all, when the site says; null when it doesn't. */
   total: number | null;
-  /** Bytes a second while it runs. */
+  /** Bytes a second while it runs, smoothed. */
   speed: number;
+  /** Seconds left at that speed; null when it can't tell. */
+  eta: number | null;
   error: string | null;
   /** The finished file, until it's added or cleared. */
   file: string | null;
   addedAt: string;
+  /** When it first started, and when it stopped for good. */
+  startedAt: string | null;
+  finishedAt: string | null;
+  /** How many goes it has had. */
+  tries: number;
   /** What it became, once it's in the library. */
   packName?: string | null;
 }

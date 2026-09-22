@@ -33,13 +33,16 @@ touch an installed copy. `TESSERA_USER_DATA=<folder>` points the app at any data
     classifying files, grouping variants, facets, full-text search, reading files inside zips
     (with a small cache of open archives).
   - `import/` — planning and running imports (downloads are copied in untouched).
+  - `downloads/` — the queue for links the user brings: a few at a time, resumable, kept in
+    `userData/downloads`; a finished one goes through `import/` like any other pack.
   - `thumbs/` — the thumbnail queue and cache; drawing happens in a hidden render window.
   - `projects/` — linked game projects: engine detection, copying with dependencies, the
     per-project manifest and CREDITS.md.
   - `libraryService.ts` — the open library: opening, watching, syncing, and the operations the
     window asks for. `index.ts` wires IPC handlers to the services.
   - `libraries.ts` — every library this computer knows (`settings.libraries`, by library id):
-    each keeps its own settings (Inbox rule, sync, backups); moving old app-wide settings over.
+    each keeps its own settings (Review rule, downloads rule, sync, backups); moving old app-wide
+    settings over. Site rules (`settings.siteRules`) are the app's, not a library's.
   - `backup/`, `sync/` — Kopia backups and Syncthing sync, both per library: they read a
     library's record, and run for libraries that aren't open when their settings allow.
   - `protocol.ts` — `tessera://` serves pack files and thumbnails to windows (with ranges).

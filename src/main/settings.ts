@@ -49,6 +49,7 @@ const schema = z.object({
   backupPasswordInFile: z.boolean().catch(false),
   errorReports: z.enum(['ask', 'always', 'never']).catch('ask'),
   siteRules: z.array(siteRule).catch([]),
+  downloadsAtOnce: z.number().int().min(1).max(5).catch(3),
 });
 
 export const DEFAULT_SETTINGS: Settings = schema.parse({});
