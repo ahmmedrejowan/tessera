@@ -206,7 +206,7 @@ async function recordPage(id: string, what: { snapshot: boolean; archive: boolea
   const row = library.getState().status === 'ready' ? library.require().queries.pack(id) : null;
   const url = row?.meta.source.url;
   if (!row || !url || !/^https?:\/\//i.test(url) || (!what.snapshot && !what.archive)) return;
-  await jobs.run(`Keeping a record of “${row.meta.name}”’s page`, async (job) => {
+  await jobs.run(`Saving the page of “${row.meta.name}”`, async (job) => {
     const done: string[] = [];
     const problems: string[] = [];
     const today = new Date().toISOString().slice(0, 10);

@@ -5,7 +5,7 @@ import BrightnessMediumOutlined from '@mui/icons-material/BrightnessMediumOutlin
 import CollectionsBookmarkOutlined from '@mui/icons-material/CollectionsBookmarkOutlined';
 import GridViewOutlined from '@mui/icons-material/GridViewOutlined';
 import HomeOutlined from '@mui/icons-material/HomeOutlined';
-import InboxOutlined from '@mui/icons-material/InboxOutlined';
+import RateReviewOutlined from '@mui/icons-material/RateReviewOutlined';
 import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import SportsEsportsOutlined from '@mui/icons-material/SportsEsportsOutlined';
@@ -67,12 +67,12 @@ export function useCommands(q: string, active: boolean, done: () => void): { com
       { id: 'browse', group: 'Go to', label: 'Browse', icon: GridViewOutlined, run: then(() => go({ to: 'browse' })) },
       { id: 'collections', group: 'Go to', label: 'Collections', icon: CollectionsBookmarkOutlined, run: then(() => go({ to: 'collections' })) },
       { id: 'projects', group: 'Go to', label: 'Projects', icon: SportsEsportsOutlined, run: then(() => go({ to: 'projects' })) },
-      { id: 'inbox', group: 'Go to', label: 'Inbox', icon: InboxOutlined, run: then(() => go({ to: 'inbox' })) },
+      { id: 'inbox', group: 'Go to', label: 'Review', icon: RateReviewOutlined, run: then(() => go({ to: 'inbox' })) },
       { id: 'settings', group: 'Go to', label: 'Settings', icon: SettingsOutlined, run: then(() => go({ to: 'settings' })) },
     ];
     const actions: Command[] = [
       { id: 'add', group: 'Do', label: 'Add packs…', icon: AddOutlined, run: then(() => void choose('files')) },
-      { id: 'add-folder', group: 'Do', label: 'Add a folder of packs…', icon: AddOutlined, run: then(() => void choose('folderOfPacks')) },
+      { id: 'add-folder', group: 'Do', label: 'Add a folder…', icon: AddOutlined, run: then(() => void choose('folder')) },
       { id: 'link', group: 'Do', label: 'Link a game project…', icon: AddLinkOutlined, run: then(() => void link.start()) },
       {
         id: 'theme',
@@ -89,7 +89,7 @@ export function useCommands(q: string, active: boolean, done: () => void): { com
       ...libraries.filter((l) => !l.open && l.found && matches(q, l.name)).slice(0, 4).map<Command>((l) => ({ id: `l${l.id}`, group: 'Libraries', label: `Switch to ${l.name}`, icon: AutoStoriesOutlined, run: then(() => void call('library:open', l.path)) })),
       ...collections.filter((c) => matches(q, c.name)).slice(0, 4).map<Command>((c) => ({ id: `c${c.id}`, group: 'Collections', label: c.name, detail: `${c.count} assets`, icon: CollectionsBookmarkOutlined, run: then(() => go({ to: 'collection', id: c.id })) })),
       ...projects.filter((p) => matches(q, p.name)).slice(0, 4).map<Command>((p) => ({ id: `p${p.id}`, group: 'Projects', label: p.name, detail: p.path, icon: SportsEsportsOutlined, run: then(() => go({ to: 'project', id: p.id })) })),
-      ...(packs ?? []).map<Command>((p) => ({ id: `k${p.id}`, group: 'Packs', label: p.name, detail: p.status === 'inbox' ? 'In the Inbox' : undefined, icon: Inventory2Outlined, run: then(() => go({ to: 'pack', id: p.id })) })),
+      ...(packs ?? []).map<Command>((p) => ({ id: `k${p.id}`, group: 'Packs', label: p.name, detail: p.status === 'inbox' ? 'In Review' : undefined, icon: Inventory2Outlined, run: then(() => go({ to: 'pack', id: p.id })) })),
     ];
   }, [q, packs, collections, projects, libraries, settings?.theme, go, choose, update, link, done]);
   return { commands, link };

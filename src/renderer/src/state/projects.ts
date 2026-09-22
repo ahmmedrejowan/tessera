@@ -51,7 +51,7 @@ async function doCopy(projectId: string, projectName: string, items: Items): Pro
 }
 
 /**
- * Copy assets into a project. Licence problems (non-commercial, unknown, still in the Inbox) are
+ * Copy assets into a project. Licence problems (non-commercial, unknown, still in Review) are
  * shown first and need a confirmation; otherwise it just goes.
  */
 export async function copyToProject(project: { id: string; name: string } | null, items: Items): Promise<void> {

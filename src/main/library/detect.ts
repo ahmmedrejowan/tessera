@@ -62,8 +62,9 @@ export async function detectPack(packDir: string, files: PackFile[], downloadNam
       for (const u of plain.match(URL_RE) ?? []) {
         const s = sourceFromUrl(u);
         // A link to the site itself, not to a licence page.
-        if (s && !/creativecommons|opensource\.org|apache\.org/.test(u)) {
+        if (s && !/creativecommons|opensource\.org|apache\.org|\/\/(support|help|docs)\./i.test(u)) {
           out.url = u.replace(/[.,;]+$/, '');
+          out.urlFrom = 'a link in the pack';
           out.site ??= s.id;
           break;
         }
@@ -73,6 +74,12 @@ export async function detectPack(packDir: string, files: PackFile[], downloadNam
 
   const byName = sourceFromName(downloadName ?? '') ?? files.map((f) => sourceFromName(baseName(f.ref.split('!')[0]!))).find(Boolean) ?? null;
   out.site ??= byName?.id ?? null;
+  // Kenney names its downloads after the asset page: kenney_mini-arcade.zip is kenney.nl/assets/mini-arcade.
+  const slug = /^kenney[_-]([a-z0-9]+(?:-[a-z0-9]+)*)(?:[_-]\d+(?:\.\d+)*)?\.zip$/i.exec(downloadName ?? '')?.[1];
+  if (out.site === 'kenney' && slug && (!out.url || !/kenney\.nl\/assets\//i.test(out.url))) {
+    out.url = `https://kenney.nl/assets/${slug.toLowerCase()}`;
+    out.urlFrom = 'the file name';
+  }
   const info = sourceInfo(out.site);
   out.creator = info?.creator ?? null;
   // A known site's usual licence, when the files didn't say — free sites only, never a paid store.

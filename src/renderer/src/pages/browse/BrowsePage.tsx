@@ -226,14 +226,14 @@ export function BrowsePage() {
                 filtering
                   ? `No ${s.mode} match${text ? ` “${text}”` : ''}${activeFilterCount(s.filters) ? ` with ${activeFilterCount(s.filters)} filter${activeFilterCount(s.filters) > 1 ? 's' : ''} on` : ''}.`
                   : stats?.inbox
-                    ? `${stats.inbox} pack${stats.inbox === 1 ? ' waits' : 's wait'} in the Inbox for a licence and a source. Once checked, their assets show here.`
+                    ? `${stats.inbox} pack${stats.inbox === 1 ? ' waits' : 's wait'} in Review for a licence and a source. Once checked, their assets show here.`
                     : 'Packs you add appear here once they have a licence and a source.'
               }
               actions={
                 !filtering ? (
                   stats?.inbox ? (
                     <Button variant="contained" onClick={() => go({ to: 'inbox' })}>
-                      Open the Inbox
+                      Open Review
                     </Button>
                   ) : (
                     <Button variant="contained" startIcon={<AddRounded />} onClick={() => void useImport.getState().choose('files')}>

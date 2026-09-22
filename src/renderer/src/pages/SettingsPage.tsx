@@ -43,7 +43,6 @@ interface Section {
 
 const SECTIONS: Section[] = [
   { id: 'general', title: 'General', part: 'library' },
-  { id: 'adding', title: 'Adding packs', part: 'library' },
   { id: 'backups', title: 'Backups', part: 'library' },
   { id: 'sync', title: 'Sync', part: 'library' },
   { id: 'storage', title: 'Previews and index', part: 'library' },
@@ -176,14 +175,6 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                   <Button variant="outlined" onClick={() => void call('library:close')}>
                     Close
                   </Button>
-                </Row>
-              </Group>
-            </div>
-
-            <div {...at('adding')}>
-              <Group title="Adding packs">
-                <Row title="Skip the Inbox when the licence is clear" body="Packs whose download states its licence, from a site Tessera knows, go straight into this library. Off: every new pack waits in the Inbox for you.">
-                  <Switch checked={record?.skipInboxWhenSure ?? true} onChange={(_, v) => void call('library:setPrefs', { skipInboxWhenSure: v }).catch((e: unknown) => failed(e))} slotProps={{ input: { 'aria-label': 'Skip the Inbox when the licence is clear' } }} />
                 </Row>
               </Group>
             </div>

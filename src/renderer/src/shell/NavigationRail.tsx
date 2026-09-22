@@ -5,8 +5,8 @@ import GridView from '@mui/icons-material/GridView';
 import GridViewOutlined from '@mui/icons-material/GridViewOutlined';
 import Home from '@mui/icons-material/Home';
 import HomeOutlined from '@mui/icons-material/HomeOutlined';
-import Inbox from '@mui/icons-material/Inbox';
-import InboxOutlined from '@mui/icons-material/InboxOutlined';
+import RateReview from '@mui/icons-material/RateReview';
+import RateReviewOutlined from '@mui/icons-material/RateReviewOutlined';
 import Settings from '@mui/icons-material/Settings';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import SportsEsports from '@mui/icons-material/SportsEsports';
@@ -31,7 +31,7 @@ const MAIN: Item[] = [
   { to: 'browse', label: 'Browse', icon: GridViewOutlined, activeIcon: GridView },
   { to: 'collections', label: 'Collections', icon: CollectionsBookmarkOutlined, activeIcon: CollectionsBookmark },
   { to: 'projects', label: 'Projects', icon: SportsEsportsOutlined, activeIcon: SportsEsports },
-  { to: 'inbox', label: 'Inbox', icon: InboxOutlined, activeIcon: Inbox },
+  { to: 'inbox', label: 'Review', icon: RateReviewOutlined, activeIcon: RateReview },
 ];
 const SETTINGS: Item = { to: 'settings', label: 'Settings', icon: SettingsOutlined, activeIcon: Settings };
 

@@ -219,7 +219,7 @@ export function HomePage() {
                 <ButtonBase onClick={() => go({ to: 'inbox' })} sx={{ justifyContent: 'flex-start', gap: 2, p: 2, borderRadius: `${SHAPE.md}px`, backgroundColor: md('tertiaryContainer'), color: md('onTertiaryContainer') }}>
                   <InboxOutlined />
                   <Typography variant="bodyLarge" sx={{ flex: 1, textAlign: 'left' }}>
-                    {stats!.inbox} pack{stats!.inbox === 1 ? '' : 's'} waiting in the Inbox for a licence or source
+                    {stats!.inbox} pack{stats!.inbox === 1 ? '' : 's'} waiting in Review for a licence or source
                   </Typography>
                   <ArrowForward />
                 </ButtonBase>

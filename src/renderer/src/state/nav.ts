@@ -3,10 +3,10 @@ import { create } from 'zustand';
 /** The top-level destinations on the navigation rail. */
 export type Destination = 'home' | 'browse' | 'collections' | 'projects' | 'inbox' | 'settings';
 
-export type Route = { to: Destination } | { to: 'settings'; section: string } | { to: 'pack'; id: string } | { to: 'collection'; id: string } | { to: 'project'; id: string };
+export type Route = { to: Destination } | { to: 'settings'; section: string } | { to: 'adding' } | { to: 'pack'; id: string } | { to: 'collection'; id: string } | { to: 'project'; id: string };
 
 /** The rail destination a route belongs under (a pack page sits under Browse). */
-export const railOf = (r: Route): Destination => (r.to === 'pack' ? 'browse' : r.to === 'collection' ? 'collections' : r.to === 'project' ? 'projects' : r.to);
+export const railOf = (r: Route): Destination => (r.to === 'adding' ? 'inbox' : r.to === 'pack' ? 'browse' : r.to === 'collection' ? 'collections' : r.to === 'project' ? 'projects' : r.to);
 
 interface NavState {
   route: Route;

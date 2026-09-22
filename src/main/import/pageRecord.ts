@@ -46,16 +46,22 @@ export async function snapshotPage(url: string): Promise<Buffer> {
  */
 export async function archivePage(url: string): Promise<{ url: string; fresh: boolean }> {
   if (!web(url)) throw new UserError('not-a-page', 'Only web pages can be archived.');
-  try {
-    const res = await net.fetch(`https://web.archive.org/save/${url}`, { signal: AbortSignal.timeout(120_000), headers: { 'User-Agent': 'Tessera asset library' } });
-    const at = /\/web\/\d{14}/.test(res.url) ? res.url : res.headers.get('content-location');
-    if (res.ok && at) return { url: at.startsWith('http') ? at : `https://web.archive.org${at}`, fresh: true };
-  } catch {
-    // Fall back to an existing copy below.
+  // Saving without an account is often busy: one more try after a pause.
+  for (const wait of [0, 20_000]) {
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    try {
+      const res = await net.fetch(`https://web.archive.org/save/${url}`, { signal: AbortSignal.timeout(120_000), headers: { 'User-Agent': 'Tessera asset library' } });
+      const at = /\/web\/\d{14}/.test(res.url) ? res.url : res.headers.get('content-location');
+      if (res.ok && at) return { url: at.startsWith('http') ? at : `https://web.archive.org${at}`, fresh: true };
+      // Too many requests: waiting won't help this time.
+      if (res.status === 429) break;
+    } catch {
+      // Try again, then fall back to an existing copy below.
+    }
   }
   const res = await net.fetch(`https://archive.org/wayback/available?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(30_000) });
   const body = (await res.json().catch(() => null)) as { archived_snapshots?: { closest?: { url?: string; available?: boolean } } } | null;
   const closest = body?.archived_snapshots?.closest;
   if (closest?.available && closest.url) return { url: closest.url.replace(/^http:/, 'https:'), fresh: false };
-  throw new UserError('archive-failed', 'archive.org couldn’t save the page right now.');
+  throw new UserError('archive-failed', 'archive.org is busy and couldn’t save the page this time. The snapshot is still kept.');
 }

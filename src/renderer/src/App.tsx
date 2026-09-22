@@ -9,11 +9,11 @@ import { Guides } from './pages/library/guides';
 import { ShortcutsDialog } from './shell/Shortcuts';
 import { AddMenu } from './import/AddMenu';
 import { DropOverlay } from './import/DropOverlay';
-import { ImportDialog } from './import/ImportDialog';
 import { BrowsePage } from './pages/browse/BrowsePage';
 import { CollectionPage } from './pages/collections/CollectionPage';
 import { CollectionsPage } from './pages/collections/CollectionsPage';
 import { HomePage } from './pages/HomePage';
+import { AddPage } from './pages/add/AddPage';
 import { InboxPage } from './pages/InboxPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { MenuCommands } from './shell/MenuCommands';
@@ -25,6 +25,7 @@ import { Welcome } from './pages/Welcome';
 import { AppShell } from './shell/AppShell';
 import { useLibraryId, useLibraryState, useStats } from './state/library';
 import { useBrowse } from './state/browse';
+import { useAdding } from './state/adding';
 import { useNav } from './state/nav';
 
 function Current() {
@@ -46,6 +47,8 @@ function Current() {
       return <ProjectsPage />;
     case 'project':
       return <ProjectPage key={route.id} id={route.id} />;
+    case 'adding':
+      return <AddPage />;
     case 'settings':
       return <SettingsPage {...('section' in route ? { section: route.section } : {})} />;
   }
@@ -93,7 +96,9 @@ function useFreshStartPerLibrary() {
 function Screen() {
   useFreshStartPerLibrary();
   const state = useLibraryState().data;
-  const inbox = useStats().data?.inbox;
+  // Packs open on the add page aren't waiting in Review yet.
+  const adding = useAdding((s) => s.drafts.filter((d) => d.packId).length);
+  const inbox = Math.max(0, (useStats().data?.inbox ?? 0) - adding);
   const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null);
   if (!state) return null;
   if (state.status === 'opening') {
@@ -120,7 +125,6 @@ function Screen() {
         </RoutedBoundary>
       </AppShell>
       <AddMenu anchor={addAnchor} onClose={() => setAddAnchor(null)} />
-      <ImportDialog />
       <CopyConfirm />
       <MenuCommands />
       <DropOverlay enabled />

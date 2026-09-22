@@ -72,6 +72,8 @@ export function suggestDetails({ files, texts, downloadName }: Input): PackSugge
     for (const f of files) {
       const kind = kindOf(f.ref);
       if (!['model', 'image', 'audio', 'font'].includes(kind)) continue;
+      // Previews of the pack aren't what's in it.
+      if (kind === 'image' && /(^|[/!])(previews?|screenshots?|thumbnails?)[/!]|(^|[/!])(preview|sample|thumbnail|cover)[^/!]*$/i.test(f.ref)) continue;
       const name = baseName(f.ref).replace(/\.[^.]+$/, '').toLowerCase();
       const ext = (/\.([^.!/]+)$/.exec(f.ref)?.[1] ?? '').toUpperCase();
       const k = byKind.get(kind) ?? { names: new Set(), exts: new Map() };
@@ -80,7 +82,9 @@ export function suggestDetails({ files, texts, downloadName }: Input): PackSugge
       byKind.set(kind, k);
     }
     const words: Record<string, [string, string?]> = { model: ['model'], image: ['image'], audio: ['sound'], font: ['font'] };
-    const parts = [...byKind].filter(([k]) => words[k]).sort((a, b) => b[1].names.size - a[1].names.size);
+    // Models, sounds and fonts say more about a pack than its pictures, which are often textures.
+    const order = ['model', 'audio', 'font', 'image'];
+    const parts = [...byKind].filter(([k]) => words[k]).sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
     if (parts.length) {
       const counts = parts.map(([k, v]) => plural(v.names.size, words[k]![0]!, words[k]![1]));
       const [, lead] = parts[0]!;
@@ -98,7 +102,7 @@ export function suggestDetails({ files, texts, downloadName }: Input): PackSugge
   const counts = new Map<string, number>();
   const add = (w: string, n: number) => {
     const word = w.toLowerCase();
-    if (word.length < 3 || /\d/.test(word) || GENERIC.has(word) || GENERIC.has(word.replace(/s$/, ''))) return;
+    if (word.length < 4 || /\d/.test(word) || GENERIC.has(word) || GENERIC.has(word.replace(/s$/, ''))) return;
     counts.set(word, (counts.get(word) ?? 0) + n);
   };
   for (const w of pathWords(stripExt(downloadName).replace(/[_-]+/g, ' ')).split(' ')) add(w, 1000);

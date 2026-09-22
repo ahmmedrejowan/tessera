@@ -3,44 +3,31 @@ import type { ImportItem } from '@shared/types';
 import { call } from '../api';
 import { failed, notify } from '../notices/store';
 import { useNav } from './nav';
+import { useAdding } from './adding';
 
 interface ImportState {
-  /** Packs waiting for the user to confirm, or null when nothing is being added. */
-  items: ImportItem[] | null;
-  /** Ids the user left ticked. */
-  chosen: Set<string>;
   planning: boolean;
   running: boolean;
-  /** Work out what these paths would add and show it for confirming. */
-  plan(paths: string[], eachInside?: boolean): Promise<void>;
+  /**
+   * Add these paths: the add page opens with them, filled in from what's found. A folder is one
+   * pack or several as it looks (`eachInside` 'auto'), unless told.
+   */
+  plan(paths: string[], eachInside?: boolean | 'auto'): Promise<void>;
+  /** Choose files (each a pack) or a folder (one pack, or several when it's a folder of downloads). */
   choose(what: 'files' | 'folder' | 'folderOfPacks'): Promise<void>;
-  toggle(id: string): void;
-  rename(id: string, name: string): void;
-  cancel(): void;
-  run(): Promise<void>;
   /** Add the sample packs that come with Tessera, without asking: they're known and CC0. */
   addSamples(): Promise<void>;
 }
 
-export const useImport = create<ImportState>((set, get) => ({
-  items: null,
-  chosen: new Set(),
+export const useImport = create<ImportState>((set) => ({
   planning: false,
   running: false,
 
-  async plan(paths, eachInside = false) {
+  async plan(paths, eachInside = 'auto') {
     if (!paths.length) return;
     set({ planning: true });
     try {
-      const items = await call('import:plan', paths, eachInside);
-      if (!items.length) {
-        notify.info('Nothing to add there.');
-        return;
-      }
-      // Likely duplicates start unticked.
-      set({ items, chosen: new Set(items.filter((i) => !i.duplicateOf).map((i) => i.id)) });
-    } catch (e) {
-      failed(e);
+      await useAdding.getState().start(paths, eachInside);
     } finally {
       set({ planning: false });
     }
@@ -48,28 +35,7 @@ export const useImport = create<ImportState>((set, get) => ({
 
   async choose(what) {
     const paths = await call('import:choose', what);
-    if (paths) await get().plan(paths, what === 'folderOfPacks');
-  },
-
-  toggle(id) {
-    const chosen = new Set(get().chosen);
-    if (chosen.has(id)) chosen.delete(id);
-    else chosen.add(id);
-    set({ chosen });
-  },
-
-  rename(id, name) {
-    set({ items: get().items?.map((i) => (i.id === id ? { ...i, name } : i)) ?? null });
-  },
-
-  cancel: () => set({ items: null, chosen: new Set() }),
-
-  async run() {
-    const { items, chosen } = get();
-    const picked = (items ?? []).filter((i) => chosen.has(i.id) && i.name.trim());
-    if (!picked.length) return;
-    set({ items: null, chosen: new Set() });
-    await runItems(picked, set);
+    if (paths) await useImport.getState().plan(paths, what === 'folderOfPacks' ? true : what === 'folder' ? 'auto' : false);
   },
 
   async addSamples() {
@@ -96,7 +62,7 @@ async function runItems(picked: ImportItem[], set: (s: Partial<ImportState>) => 
     const result = await call('import:run', picked);
     const inbox = result.added.filter((a) => a.status === 'inbox').length;
     const library = result.added.length - inbox;
-    const parts = [library && `${library} to the library`, inbox && `${inbox} to the Inbox`, result.failed.length && `${result.failed.length} failed`].filter(Boolean);
+    const parts = [library && `${library} to the library`, inbox && `${inbox} to Review`, result.failed.length && `${result.failed.length} failed`].filter(Boolean);
     const review = inbox ? { action: { label: 'Review', run: () => useNav.getState().go({ to: 'inbox' }) } } : {};
     const failures = result.failed.length ? { details: result.failed.map((f) => `${f.name}: ${f.error}`).join('\n') } : {};
     if (!result.added.length) notify.error('Nothing was added', { body: result.failed[0]?.error ?? '', ...failures });

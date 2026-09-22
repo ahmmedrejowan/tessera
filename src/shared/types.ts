@@ -252,6 +252,8 @@ export interface Detected {
   licenceFrom: string | null;
   site: string | null;
   url: string | null;
+  /** Where the link came from: "a link in the pack", "the file name". */
+  urlFrom?: string | null;
   creator: string | null;
 }
 

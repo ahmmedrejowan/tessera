@@ -183,7 +183,7 @@ export function PackPage({ id }: { id: string }) {
             </Button>
           }
         >
-          {missing.length ? `This pack is waiting in the Inbox. Add its ${missing.join(' and ')} to move it into the library.` : 'Everything needed is recorded. Move it into the library when you’re ready.'}
+          {missing.length ? `This pack is waiting in Review. Add its ${missing.join(' and ')} to move it into the library.` : 'Everything needed is recorded. Move it into the library when you’re ready.'}
         </Alert>
       )}
 
