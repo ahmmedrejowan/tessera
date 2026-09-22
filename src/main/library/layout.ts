@@ -49,6 +49,7 @@ export async function inspectFolder(dir: string): Promise<FolderKind> {
 }
 
 export async function readLibraryInfo(root: string): Promise<LibraryInfo> {
+  if (!existsSync(root)) throw new UserError('library-missing', 'It may have moved, or be on a drive that isn’t connected.');
   let raw: unknown;
   try {
     raw = await readJson(join(root, MARKER));

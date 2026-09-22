@@ -45,6 +45,11 @@ describe('library', () => {
     expect(await inspectFolder(root)).toBe('empty');
   });
 
+  it('tells a missing library apart from a folder that isn’t one', async () => {
+    await expect(readLibraryInfo(join(tempDir(), 'gone'))).rejects.toMatchObject({ code: 'library-missing' });
+    await expect(readLibraryInfo(tempDir())).rejects.toMatchObject({ code: 'not-a-library' });
+  });
+
   it('refuses a library from a newer version', async () => {
     const root = tempDir();
     await createLibrary(root, 'x');
