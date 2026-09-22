@@ -221,6 +221,16 @@ export class LibraryQueries {
     return this.all(`SELECT ref, name FROM assets WHERE pack_id = ? AND kind = 'image'`, [packId]);
   }
 
+  /** Every file of the asset at this pack and path (see `variants`). */
+  variantsOf(packId: string, ref: string): AssetRow[] {
+    const row = this.get<{ id: number }>('SELECT id FROM assets WHERE pack_id = ? AND ref = ?', [packId, ref]);
+    return row ? this.variants(row.id) : [];
+  }
+
+  packRefs(packId: string): string[] {
+    return this.all<{ ref: string }>('SELECT ref FROM assets WHERE pack_id = ?', [packId]).map((r) => r.ref);
+  }
+
   refs(ids: number[]): { packId: string; ref: string }[] {
     if (!ids.length) return [];
     return this.all(`SELECT pack_id AS packId, ref FROM assets WHERE id IN (${ids.map(() => '?').join(', ')})`, ids);
