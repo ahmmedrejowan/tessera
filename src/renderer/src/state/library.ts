@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useSyncExternalStore } from 'react';
-import type { Job, LibraryState } from '@shared/types';
+import type { Job, LibraryRecord, LibraryState } from '@shared/types';
 import { call, on } from '../api';
+import { useSettings } from './queries';
 
 /**
  * The index version increases whenever the library's contents change. Library queries include it
@@ -50,3 +51,21 @@ export function useStats() {
 
 /** URL of a pack's file for <img>, <audio> and loaders. */
 export { packFileUrl as fileUrl } from '@shared/urls';
+
+/** Every library this computer knows, most recently opened first (for the switcher and welcome). */
+export function useLibraries() {
+  const client = useQueryClient();
+  useEffect(() => {
+    const again = () => void client.invalidateQueries({ queryKey: ['libraries'] });
+    const offs = [on('libraries:changed', again), on('library:changed', again), on('backup:changed', again)];
+    return () => offs.forEach((off) => off());
+  }, [client]);
+  return useQuery({ queryKey: ['libraries'], queryFn: () => call('libraries:list'), staleTime: 0 });
+}
+
+/** The open library's own settings (Inbox rule, sync, backups), or null. */
+export function useLibraryRecord(): LibraryRecord | null {
+  const id = useLibraryId();
+  const settings = useSettings().data;
+  return (id && settings?.libraries[id]) || null;
+}

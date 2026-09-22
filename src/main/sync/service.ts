@@ -4,7 +4,8 @@ import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
-import type { SyncMode, SyncStatus } from '@shared/types';
+import type { LibraryRecord, SyncMode, SyncStatus } from '@shared/types';
+import { patchRecord, recordOf } from '../libraries';
 import { UserError } from '../errors';
 import { inspectFolder } from '../library/layout';
 import { log } from '../log';
@@ -131,44 +132,98 @@ export class SyncService {
     }
   }
 
+  /** Receiving a library from another computer: Syncthing stays up for it. */
+  private receiving = false;
+
   /** Start Syncthing without a library, to receive one from another computer. */
   async startForReceiving(): Promise<void> {
+    this.receiving = true;
     await this.ensureRunning();
     this.d.onChange();
   }
 
-  /** Called when a library opens: resume syncing it if sync is on. */
-  async resume(): Promise<void> {
-    const s = this.d.settings.get();
-    if (!s.syncEnabled || !this.available()) return;
+  private record(id: string | undefined): LibraryRecord | null {
+    return recordOf(this.d.settings, id);
+  }
+
+  /**
+   * Bring Syncthing in line with every library's settings: the open library syncs when its sync
+   * is on; the others only when they're allowed to while not open. Called at start, when a
+   * library opens or closes, and when a library's sync settings change.
+   */
+  async reconcile(): Promise<void> {
+    if (!this.available()) return;
+    const open = this.d.library();
+    const records = Object.values(this.d.settings.get().libraries);
+    const runs = (r: LibraryRecord) => r.sync.enabled && (r.id === open?.id || r.sync.whileClosed);
     try {
-      await this.shareLibrary(await this.ensureRunning(), s.syncMode);
+      if (!records.some(runs) && !this.api) return;
+      const api = await this.ensureRunning();
+      const openRecord = this.record(open?.id);
+      if (openRecord && runs(openRecord)) await this.shareLibrary(api, openRecord.sync.mode);
+      const folders = await api.folders();
+      for (const f of folders) {
+        const id = f.id.startsWith('tessera-') ? f.id.slice('tessera-'.length) : null;
+        if (!id || id === open?.id) continue;
+        const r = this.record(id);
+        // A folder with no library known here (one still arriving, say) is left as it is.
+        if (!r) continue;
+        const paused = !runs(r);
+        if (f.paused !== paused) await api.patch(`/rest/config/folders/${f.id}`, { paused });
+      }
+      // The open library with sync off isn't shared.
+      if (open && !(openRecord && runs(openRecord))) {
+        const f = folders.find((x) => x.id === this.folderId(open.id));
+        if (f && !f.paused) await api.patch(`/rest/config/folders/${f.id}`, { paused: true });
+      }
+      if (!records.some(runs) && !this.receiving) this.shutdown();
       this.d.onChange();
     } catch (e) {
-      log.warn('sync', 'could not resume syncing', e);
+      log.warn('sync', 'could not bring syncing up to date', e);
     }
+  }
+
+  private reconcileTimer: NodeJS.Timeout | null = null;
+
+  /** Reconcile once things settle: switching libraries closes one and opens the next. */
+  reconcileSoon(): void {
+    if (this.reconcileTimer) clearTimeout(this.reconcileTimer);
+    this.reconcileTimer = setTimeout(() => {
+      this.reconcileTimer = null;
+      void this.reconcile();
+    }, 800);
+  }
+
+  private async setSync(patch: Partial<LibraryRecord['sync']>): Promise<void> {
+    const lib = this.d.library();
+    if (!lib) throw new UserError('no-library', 'Open a library first.');
+    await patchRecord(this.d.settings, lib.id, (r) => ({ sync: { ...r.sync, ...patch } }));
   }
 
   async enable(mode: SyncMode): Promise<void> {
     if (!this.d.library()) throw new UserError('no-library', 'Open a library first.');
+    this.receiving = false;
     await this.shareLibrary(await this.ensureRunning(), mode);
-    await this.d.settings.update({ syncEnabled: true, syncMode: mode });
-    this.d.onChange();
+    await this.setSync({ enabled: true, mode });
+    await this.reconcile();
   }
 
   async setMode(mode: SyncMode): Promise<void> {
     await this.shareLibrary(await this.ensureRunning(), mode);
-    await this.d.settings.update({ syncMode: mode });
+    await this.setSync({ mode });
     this.d.onChange();
   }
 
-  /** Stop syncing. This computer's identity and paired computers are kept for next time. */
+  /** Whether the open library keeps syncing while another one is open. */
+  async setWhileClosed(whileClosed: boolean): Promise<void> {
+    await this.setSync({ whileClosed });
+    await this.reconcile();
+  }
+
+  /** Stop syncing the open library. This computer's identity and paired computers are kept. */
   async disable(): Promise<void> {
-    const lib = this.d.library();
-    if (this.api && lib) await this.api.patch(`/rest/config/folders/${this.folderId(lib.id)}`, { paused: true }).catch(() => undefined);
-    this.shutdown();
-    await this.d.settings.update({ syncEnabled: false });
-    this.d.onChange();
+    await this.setSync({ enabled: false });
+    await this.reconcile();
   }
 
   shutdown(): void {
@@ -227,8 +282,8 @@ export class SyncService {
   }
 
   async status(): Promise<SyncStatus> {
-    const s = this.d.settings.get();
-    const base: SyncStatus = { available: this.available(), bundled: this.bundled(), enabled: s.syncEnabled, mode: s.syncMode, running: !!this.api, myId: null, devices: [], folder: null, pendingDevices: [], pendingFolders: [] };
+    const sync = this.record(this.d.library()?.id)?.sync;
+    const base: SyncStatus = { available: this.available(), bundled: this.bundled(), enabled: !!sync?.enabled, mode: sync?.mode ?? 'full', whileClosed: sync?.whileClosed ?? true, running: !!this.api, myId: null, devices: [], folder: null, pendingDevices: [], pendingFolders: [] };
     if (!this.api) return base;
     try {
       const api = this.api;

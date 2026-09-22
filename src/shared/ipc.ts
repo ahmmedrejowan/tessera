@@ -9,7 +9,7 @@ import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } f
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { Provider, StorageTarget } from './storage';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
-import type { AppInfo, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { LibrarySummary, AppInfo, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -33,6 +33,14 @@ export interface Invokes {
   'library:inspect': (path: string) => FolderKind;
   'library:create': (path: string, name: string) => LibraryState;
   'library:open': (path: string) => LibraryState;
+  /** Give the open library a new name (its folder keeps its own). */
+  'library:rename': (name: string) => LibraryState;
+  /** The open library's own preferences. */
+  'library:setPrefs': (prefs: { skipInboxWhenSure: boolean }) => void;
+  /** Every library this computer knows, most recently opened first. */
+  'libraries:list': () => LibrarySummary[];
+  /** Take a library off the list (not the open one); its folder is left alone. */
+  'libraries:forget': (id: string) => void;
   'library:close': () => void;
   'library:refresh': () => void;
   'library:stats': () => LibraryStats;
@@ -93,7 +101,7 @@ export interface Invokes {
   'projects:entries': (id: string) => ManifestEntry[];
   'projects:plan': (id: string, items: { packId: string; ref: string }[]) => CopyPlan;
   'projects:copy': (id: string, items: { packId: string; ref: string }[]) => number;
-  'projects:remove': (id: string, items: { packId: string; ref: string }[]) => number;
+  'projects:remove': (id: string, items: { packId: string; ref: string; libraryId?: string }[]) => number;
   /** Show the project folder, or a file in it, in Finder / Explorer. */
   'projects:reveal': (id: string, rel?: string) => void;
 
@@ -139,6 +147,8 @@ export interface Invokes {
   'sync:status': () => SyncStatus;
   'sync:enable': (mode: SyncMode) => void;
   'sync:setMode': (mode: SyncMode) => void;
+  /** Whether the open library keeps syncing while another one is open. */
+  'sync:setWhileClosed': (whileClosed: boolean) => void;
   'sync:disable': () => void;
   'sync:addDevice': (deviceId: string, name: string) => void;
   'sync:removeDevice': (deviceId: string) => void;
@@ -209,6 +219,8 @@ export interface Events {
   'tools:installProgress': { tool: ToolName; stage: 'finding' | 'downloading' | 'checking' | 'unpacking' | 'done'; received: number; total: number; version?: string };
   /** How far a restore has got, 0–1; null when it can't tell. */
   'restore:progress': number | null;
+  /** The list of known libraries (or one's settings) changed. */
+  'libraries:changed': number;
   /** The sign-in page for a cloud drive, in case the browser didn't open it. */
   'backup:signInUrl': string;
   'menu:command': MenuCommand;

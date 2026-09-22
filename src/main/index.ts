@@ -3,7 +3,8 @@ import { writeFile } from 'node:fs/promises';
 import { release, tmpdir } from 'node:os';
 import { readdir, rm, stat } from 'node:fs/promises';
 import { join, sep } from 'node:path';
-import type { Platform, Settings } from '@shared/types';
+import type { LibrarySummary, Platform, Settings } from '@shared/types';
+import { byRecent, patchRecord, recordOf, touchLibrary } from './libraries';
 import { broadcast, handle, onInternalError, UserError } from './ipc';
 import { parseRef } from './index/files';
 import { Jobs, type JobHandle } from './jobs';
@@ -105,9 +106,19 @@ const library = new LibraryService({
   jobs,
   onState: (state) => {
     broadcast(windows, 'library:changed', state);
-    // A library that syncs picks up where it left off.
-    if (state.status === 'ready') void sync.resume();
-    if (state.status === 'ready') void backups.libraryOpened(state.library).catch((e: unknown) => log.warn('backup', 'could not update the library’s backups', e));
+    if (state.status === 'ready') {
+      // Note the library (name, folder, when) before anything reads its settings.
+      void touchLibrary(settings, dataDir, state.library)
+        .catch((e: unknown) => log.warn('library', 'could not note the library', e))
+        .finally(() => {
+          backups.libraryOpened();
+          librariesChanged();
+          sync.reconcileSoon();
+        });
+    } else if (state.status === 'none') {
+      backups.libraryOpened();
+      sync.reconcileSoon();
+    }
   },
   onIndexChanged: () => {
     broadcast(windows, 'index:changed', ++indexVersion);
@@ -149,6 +160,34 @@ const backups = new BackupService({
   rclone: rcloneSetup,
   onChange: () => broadcast(windows, 'backup:changed', ++backupVersion),
 });
+/** The open library's record (its own settings), or null. */
+function openRecord() {
+  const state = library.getState();
+  return state.status === 'ready' ? recordOf(settings, state.library.id) : null;
+}
+let librariesVersion = 0;
+const librariesChanged = () => broadcast(windows, 'libraries:changed', ++librariesVersion);
+
+/** Every known library, as the switcher and welcome screen list them. */
+async function librarySummaries(): Promise<LibrarySummary[]> {
+  const state = library.getState();
+  const openId = state.status === 'ready' ? state.library.id : null;
+  return Promise.all(
+    byRecent(settings.get().libraries).map(async (r) => {
+      const info = await readLibraryInfo(r.path).catch(() => null);
+      return {
+        id: r.id,
+        name: r.name,
+        path: r.path,
+        lastOpenedAt: r.lastOpenedAt,
+        open: r.id === openId,
+        found: !!info && (info.id === r.id || r.id.startsWith('unread-')),
+        backup: { on: !!r.backup, lastBackupAt: r.backup?.lastBackupAt ?? null, failing: !!r.backup?.lastError },
+        sync: { on: r.sync.enabled, whileClosed: r.sync.whileClosed },
+      };
+    }),
+  );
+}
 const restorer = new RestoreService(dataDir, () => findKopia(dataDir), rcloneSetup);
 let projectsVersion = 0;
 const projectsChanged = () => broadcast(windows, 'projects:changed', ++projectsVersion);
@@ -233,6 +272,8 @@ async function start(): Promise<void> {
   });
   if (s.libraryPath) void library.open(s.libraryPath);
   backups.startSchedule();
+  // Libraries that sync while not open start syncing even before one is opened.
+  sync.reconcileSoon();
   await reports.scanCrashes();
   app.on('render-process-gone', (_e, contents, details) => {
     if (details.reason === 'clean-exit') return;
@@ -267,7 +308,7 @@ function registerHandlers(): void {
   handle('settings:get', () => settings.get());
   handle('settings:update', (patch) => {
     // Backups change only through their own calls.
-    const { libraryBackups: _b, unclaimedBackup: _u, ...rest } = patch as Partial<Settings>;
+    const { libraries: _l, ...rest } = patch as Partial<Settings>;
     return settings.update(rest);
   });
   handle('window:chrome', ({ background, foreground }) => {
@@ -292,15 +333,28 @@ function registerHandlers(): void {
   handle('library:locate', (path) => locateLibrary(path));
   handle('library:state', () => library.getState());
   handle('library:inspect', (path) => library.inspect(path));
-  handle('library:create', async (path, name) => {
-    const state = await library.create(path, name);
-    if (state.status === 'ready') await settings.update({ libraryPath: path });
+  handle('library:create', (path, name) => library.create(path, name));
+  handle('library:open', (path) => library.open(path));
+  handle('library:rename', async (name) => {
+    const state = await library.rename(name);
+    if (state.status === 'ready') await patchRecord(settings, state.library.id, { name: state.library.name });
+    librariesChanged();
     return state;
   });
-  handle('library:open', async (path) => {
-    const state = await library.open(path);
-    if (state.status === 'ready') await settings.update({ libraryPath: path });
-    return state;
+  handle('library:setPrefs', async (prefs) => {
+    const record = openRecord();
+    if (!record) throw new UserError('no-library', 'No library is open.');
+    await patchRecord(settings, record.id, { skipInboxWhenSure: prefs.skipInboxWhenSure });
+    librariesChanged();
+  });
+  handle('libraries:list', () => librarySummaries());
+  handle('libraries:forget', async (id) => {
+    const state = library.getState();
+    if (state.status === 'ready' && state.library.id === id) throw new UserError('library-open', 'Close the library first.');
+    const { [id]: _gone, ...rest } = settings.get().libraries;
+    await settings.update({ libraries: rest });
+    sync.reconcileSoon();
+    librariesChanged();
   });
   handle('library:close', async () => {
     library.close();
@@ -478,7 +532,7 @@ function registerHandlers(): void {
   const knownLibraries = async () => {
     const state = library.getState();
     const known: { id: string; path: string }[] = state.status === 'ready' ? [{ id: state.library.id, path: state.library.path }] : [];
-    for (const path of settings.get().recentLibraries) {
+    for (const { path } of Object.values(settings.get().libraries)) {
       const kind = await library.inspect(path).catch(() => null);
       if (kind === 'library') known.push({ id: (await readLibraryInfo(path)).id, path });
     }
@@ -507,6 +561,10 @@ function registerHandlers(): void {
   handle('sync:status', () => sync.status());
   handle('sync:enable', (mode) => sync.enable(mode));
   handle('sync:setMode', (mode) => sync.setMode(mode));
+  handle('sync:setWhileClosed', async (v) => {
+    await sync.setWhileClosed(v);
+    librariesChanged();
+  });
   handle('sync:disable', () => sync.disable());
   handle('sync:addDevice', (id, name) => sync.addDevice(id, name));
   handle('sync:removeDevice', (id) => sync.removeDevice(id));
@@ -530,7 +588,7 @@ function registerHandlers(): void {
     return result.canceled || !result.filePaths.length ? null : result.filePaths;
   });
   handle('import:plan', (paths, eachInside) => library.planImport(paths, eachInside));
-  handle('import:run', (items) => library.import(items, settings.get().skipInboxWhenSure));
+  handle('import:run', (items) => library.import(items, openRecord()?.skipInboxWhenSure ?? true));
   handle('thumbs:get', (keys) => thumbs.get(keys.slice(0, 500)));
 
   handle('reports:capture', (input) => void reports.record({ ...input, source: 'window' }));

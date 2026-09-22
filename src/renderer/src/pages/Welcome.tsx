@@ -10,7 +10,6 @@ import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import type { LibraryState } from '@shared/types';
 import { call } from '../api';
@@ -21,7 +20,7 @@ import { useLibraryDialog } from './library/LibraryDialog';
 import { tidyPath } from './library/Location';
 import { baseName } from '@shared/folders';
 import { failed } from '../notices/store';
-import { useSettings, useUpdateSettings } from '../state/queries';
+import { useLibraries } from '../state/library';
 import { md, mdAlpha, SHAPE, STATE } from '../theme';
 import { ReceiveGuide } from './sync/ReceiveGuide';
 import { RestoreGuide } from './setup/RestoreGuide';
@@ -29,7 +28,7 @@ import { RestoreGuide } from './setup/RestoreGuide';
 const parentOf = (p: string) => p.slice(0, Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'))) || p;
 
 /** A library opened before: click to open it; one that can't be found says so. */
-function RecentCard({ path, missing, onOpen, onForget }: { path: string; missing: boolean; onOpen: () => void; onForget: () => void }) {
+function RecentCard({ name, path, missing, onOpen, onForget }: { name: string; path: string; missing: boolean; onOpen: () => void; onForget: () => void }) {
   return (
     <div style={{ position: 'relative' }} className="recent">
       <ButtonBase
@@ -52,7 +51,7 @@ function RecentCard({ path, missing, onOpen, onForget }: { path: string; missing
         </span>
         <span style={{ minWidth: 0 }}>
           <Typography variant="titleSmall" component="div" noWrap sx={{ color: md('onSurface') }}>
-            {baseName(path)}
+            {name}
           </Typography>
           <Typography variant="bodySmall" component="div" noWrap sx={{ color: md('onSurfaceVariant') }}>
             {missing ? 'Not found — moved, or on a drive that isn’t connected' : tidyPath(path)}
@@ -70,15 +69,10 @@ function RecentCard({ path, missing, onOpen, onForget }: { path: string; missing
 
 /** Shown when no library is open: create one, open one, receive one, or pick up a recent one. */
 export function Welcome({ state }: { state: LibraryState }) {
-  const recent = useSettings().data?.recentLibraries ?? [];
-  const update = useUpdateSettings();
+  const recent = useLibraries().data ?? [];
   const [busy, setBusy] = useState(false);
   const [receiving, setReceiving] = useState(false);
   const [restoring, setRestoring] = useState(false);
-  const missing = useQuery({
-    queryKey: ['recent-missing', recent],
-    queryFn: async () => new Set((await Promise.all(recent.map(async (p) => ((await call('library:inspect', p)) === 'library' ? null : p)))).filter(Boolean)),
-  }).data;
 
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -97,7 +91,10 @@ export function Welcome({ state }: { state: LibraryState }) {
       await call('library:open', path);
     });
 
-  const forget = (path: string) => update.mutate({ recentLibraries: recent.filter((p) => p !== path) });
+  const forget = (path: string) => {
+    const known = recent.find((l) => l.path === path);
+    if (known) void call('libraries:forget', known.id).catch((e: unknown) => failed(e));
+  };
 
   // A library that couldn't be opened is serious enough to ask about, once per failure.
   const asked = useRef<LibraryState | null>(null);
@@ -190,8 +187,8 @@ export function Welcome({ state }: { state: LibraryState }) {
               <Typography variant="labelLarge" sx={{ color: md('onSurfaceVariant'), px: 0.5 }}>
                 Recent
               </Typography>
-              {recent.slice(0, 3).map((p) => (
-                <RecentCard key={p} path={p} missing={!!missing?.has(p)} onOpen={() => void open(p)} onForget={() => forget(p)} />
+              {recent.slice(0, 3).map((l) => (
+                <RecentCard key={l.id} name={l.name} path={l.path} missing={!l.found} onOpen={() => void open(l.path)} onForget={() => forget(l.path)} />
               ))}
             </div>
           )}

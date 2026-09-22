@@ -7,6 +7,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
+import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -132,6 +133,9 @@ export function SyncSettings() {
     <>
       <Row title="This computer" body={mode.help}>
         <SegmentedButton label="Sync direction" value={status.mode} onChange={(m) => void act(() => call('sync:setMode', m))} options={MODES.map((m) => ({ value: m.value, label: m.label }))} />
+      </Row>
+      <Row title="While another library is open" body={status.whileClosed ? 'Keeps syncing in the background, as long as Tessera is running.' : 'Pauses, and catches up when this library is opened again.'}>
+        <Switch checked={status.whileClosed} onChange={(_, v) => void act(() => call('sync:setWhileClosed', v))} slotProps={{ input: { 'aria-label': 'Keep syncing while another library is open' } }} />
       </Row>
       {status.myId && (
         <div style={{ padding: '12px 0', borderBottom: `1px solid ${md('outlineVariant')}` }}>

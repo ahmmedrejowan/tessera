@@ -1,7 +1,8 @@
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { BackupStatus, LibraryBackup, Snapshot } from '@shared/types';
+import type { BackupStatus, LibraryBackup, LibraryRecord, Snapshot } from '@shared/types';
+import { byRecent, patchRecord, recordOf } from '../libraries';
 import { UserError } from '../errors';
 import type { Jobs } from '../jobs';
 import { log } from '../log';
@@ -74,20 +75,20 @@ export class BackupService {
     return exe ? new Kopia(exe, join(this.dir(libraryId), 'kopia')) : null;
   }
 
+  private record(libraryId: string): LibraryRecord | null {
+    return recordOf(this.d.settings, libraryId);
+  }
+
   private entry(libraryId: string): LibraryBackup | null {
-    return this.d.settings.get().libraryBackups[libraryId] ?? null;
+    return this.record(libraryId)?.backup ?? null;
   }
 
   private async save(libraryId: string, entry: LibraryBackup | null): Promise<void> {
-    const all = { ...this.d.settings.get().libraryBackups };
-    if (entry) all[libraryId] = entry;
-    else delete all[libraryId];
-    await this.d.settings.update({ libraryBackups: all });
+    await patchRecord(this.d.settings, libraryId, { backup: entry });
   }
 
   private async patch(libraryId: string, patch: Partial<LibraryBackup>): Promise<void> {
-    const entry = this.entry(libraryId);
-    if (entry) await this.save(libraryId, { ...entry, ...patch });
+    await patchRecord(this.d.settings, libraryId, (r) => (r.backup ? { backup: { ...r.backup, ...patch } } : {}));
   }
 
   private open(): OpenLibrary {
@@ -101,28 +102,8 @@ export class BackupService {
     return findKopia(this.d.dataDir) === bundledTool(this.d.dataDir, 'kopia');
   }
 
-  /**
-   * A library opened: keep its name and folder up to date, and give it the backups that were set
-   * up before backups were per library, if they were made for it.
-   */
-  async libraryOpened(lib: OpenLibrary): Promise<void> {
-    // What Settings shows is about this library now.
-    this.d.onChange();
-    const entry = this.entry(lib.id);
-    if (entry) {
-      if (entry.libraryName !== lib.name || entry.libraryPath !== lib.path) await this.patch(lib.id, { libraryName: lib.name, libraryPath: lib.path });
-      return;
-    }
-    const old = this.d.settings.get().unclaimedBackup;
-    if (!old || (old.libraryPath && old.libraryPath !== lib.path)) return;
-    await mkdir(this.dir(lib.id), { recursive: true });
-    const from = join(this.d.dataDir, 'kopia');
-    if (existsSync(from)) await rename(from, join(this.dir(lib.id), 'kopia'));
-    const password = join(this.d.dataDir, 'kopia-password.bin');
-    if (existsSync(password)) await rename(password, join(this.dir(lib.id), 'password.bin'));
-    await this.save(lib.id, { ...old, libraryName: lib.name, libraryPath: lib.path });
-    await this.d.settings.update({ unclaimedBackup: null });
-    log.info('backup', `backups set up before per-library backups now belong to ${lib.name}`);
+  /** A library opened: what Settings shows is about it now. */
+  libraryOpened(): void {
     this.d.onChange();
   }
 
@@ -133,10 +114,11 @@ export class BackupService {
     const exe = findKopia(this.d.dataDir);
     const seen = new Set(entry ? [storeKey(entry.target)] : []);
     const others: BackupStatus['others'] = [];
-    for (const [libraryId, e] of Object.entries(this.d.settings.get().libraryBackups)) {
-      if (libraryId === lib?.id || seen.has(storeKey(e.target))) continue;
+    for (const r of byRecent(this.d.settings.get().libraries)) {
+      const e = r.backup;
+      if (!e || r.id === lib?.id || seen.has(storeKey(e.target))) continue;
       seen.add(storeKey(e.target));
-      others.push({ libraryId, libraryName: e.libraryName, repo: e.repo });
+      others.push({ libraryId: r.id, libraryName: r.name, repo: e.repo });
     }
     return {
       available: !!exe,
@@ -155,13 +137,14 @@ export class BackupService {
   }
 
   /** A library's backups, ready to use: Kopia, the password, the entry, and the library folder. */
-  private async ready(libraryId: string, source?: string): Promise<{ kopia: Kopia; password: string; entry: LibraryBackup; source: string }> {
+  private async ready(libraryId: string, source?: string): Promise<{ kopia: Kopia; password: string; entry: LibraryBackup; name: string; source: string }> {
     const kopia = this.kopia(libraryId);
     if (!kopia) throw new UserError('no-kopia', 'Kopia isn’t set up on this computer yet.');
     const entry = this.entry(libraryId);
     const password = entry ? await this.d.secrets(libraryId).load() : null;
     if (!entry || !password) throw new UserError('no-backup', 'Backups aren’t set up for this library.');
-    return { kopia, password, entry, source: source ?? entry.libraryPath };
+    const record = this.record(libraryId)!;
+    return { kopia, password, entry, name: record.name, source: source ?? record.path };
   }
 
   /** Start backing up the open library to a store: a new one, or one made before (opened with its password). */
@@ -214,8 +197,6 @@ export class BackupService {
     await this.save(lib.id, {
       repo: describeTarget(target),
       target: withoutSecrets(target),
-      libraryName: lib.name,
-      libraryPath: lib.path,
       intervalHours: before?.intervalHours ?? 24,
       lastBackupAt: null,
       lastError: null,
@@ -245,8 +226,9 @@ export class BackupService {
     const { kopia, password, entry } = await this.ready(lib.id);
     await kopia.changePassword(password, next);
     await this.d.secrets(lib.id).save(next);
-    for (const [id, e] of Object.entries(this.d.settings.get().libraryBackups)) {
-      if (id === lib.id || storeKey(e.target) !== storeKey(entry.target)) continue;
+    for (const r of Object.values(this.d.settings.get().libraries)) {
+      const id = r.id;
+      if (id === lib.id || !r.backup || storeKey(r.backup.target) !== storeKey(entry.target)) continue;
       await this.d.secrets(id).save(next);
       await this.kopia(id)?.forgetFormat();
     }
@@ -264,14 +246,14 @@ export class BackupService {
     const id = libraryId ?? lib?.id;
     if (!id) throw new UserError('no-library', 'No library is open.');
     if (this.running.has(id)) return;
-    const { kopia, password, entry, source } = await this.ready(id, lib?.id === id ? lib.path : undefined);
+    const { kopia, password, name, source } = await this.ready(id, lib?.id === id ? lib.path : undefined);
     if (lib?.id !== id && !(await this.d.isLibrary(source, id))) return;
     this.running.add(id);
     this.d.onChange();
     try {
-      await this.d.jobs.run(`Backing up “${entry.libraryName}”`, async (job) => {
+      await this.d.jobs.run(`Backing up “${name}”`, async (job) => {
         job.update(null, 'Only what changed since the last backup is stored');
-        const snap = await kopia.snapshot(source, password, entry.libraryName);
+        const snap = await kopia.snapshot(source, password, name);
         job.update(1, `${snap.files.toLocaleString()} files`);
       });
       await this.patch(id, { lastBackupAt: new Date().toISOString(), lastError: null });
@@ -325,7 +307,8 @@ export class BackupService {
       if (ticking) return;
       ticking = true;
       try {
-        for (const [id, e] of Object.entries(this.d.settings.get().libraryBackups)) {
+        for (const { id, backup: e } of Object.values(this.d.settings.get().libraries)) {
+          if (!e) continue;
           if (!e.intervalHours || this.running.has(id)) continue;
           const last = e.lastBackupAt ? Date.parse(e.lastBackupAt) : 0;
           if (Date.now() - last >= e.intervalHours * HOUR) await this.backupNow(id).catch(() => undefined);

@@ -11,7 +11,7 @@ import { formatBytes } from '../components/labels';
 import { SegmentedButton } from '../components/SegmentedButton';
 import { failed, notify } from '../notices/store';
 import { useReportProblem } from '../reports/ReportProblem';
-import { useLibraryState } from '../state/library';
+import { useLibraryRecord, useLibraryState } from '../state/library';
 import { useAppInfo, useSettings, useUpdateSettings } from '../state/queries';
 import { md } from '../theme';
 import { schemeFromSeed } from '../theme/m3';
@@ -32,6 +32,7 @@ const SEEDS = ['#3f6f8f', '#4758a9', '#6750a4', '#a4506b', '#a0522d', '#8a6d1f',
 
 export function SettingsPage() {
   const settings = useSettings().data;
+  const record = useLibraryRecord();
   const update = useUpdateSettings();
   const info = useAppInfo().data;
   const library = useLibraryState().data;
@@ -136,7 +137,7 @@ export function SettingsPage() {
 
         <Group title="Adding packs">
           <Row title="Skip the Inbox when the licence is clear" body="Packs whose download states its licence, from a site Tessera knows, go straight into the library. Off: every new pack waits in the Inbox for you.">
-            <Switch checked={settings.skipInboxWhenSure} onChange={(_, v) => update.mutate({ skipInboxWhenSure: v })} />
+            <Switch checked={record?.skipInboxWhenSure ?? true} onChange={(_, v) => void call('library:setPrefs', { skipInboxWhenSure: v }).catch((e: unknown) => failed(e))} />
           </Row>
         </Group>
 

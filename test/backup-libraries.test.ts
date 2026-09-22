@@ -1,8 +1,10 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BackupService, type SecretStore } from '../src/main/backup/service';
 import { Jobs } from '../src/main/jobs';
+import { touchLibrary } from '../src/main/libraries';
+import { MARKER } from '../src/main/library/layout';
 import { SettingsStore } from '../src/main/settings';
 import { findTool } from '../src/main/tools/find';
 import { tempDir } from './helpers';
@@ -19,6 +21,7 @@ function library(dir: string, id: string, name: string): Lib {
   const path = join(dir, name);
   mkdirSync(join(path, 'packs', 'Kit'), { recursive: true });
   writeFileSync(join(path, 'packs', 'Kit', 'pack.json'), JSON.stringify({ name }));
+  writeFileSync(join(path, MARKER), JSON.stringify({ format: 1, id, name, createdAt: '2026-01-01T00:00:00.000Z' }));
   return { id, name, path };
 }
 
@@ -46,12 +49,13 @@ async function setup(dataDir: string) {
   });
   const openLibrary = async (lib: Lib) => {
     open = lib;
-    await backups.libraryOpened(lib);
+    await touchLibrary(settings, dataDir, lib);
+    backups.libraryOpened();
   };
   /** The first backup starts on its own after setting up; wait for it. */
   const settled = async (id: string) => {
     for (let i = 0; i < 300; i++) {
-      const e = settings.get().libraryBackups[id];
+      const e = settings.get().libraries[id]?.backup;
       if (e?.lastBackupAt || e?.lastError) return e;
       await new Promise((r) => setTimeout(r, 100));
     }
@@ -95,16 +99,16 @@ describe.skipIf(!exe)('backups per library', () => {
     await backups.changePassword('battery staple');
     expect(kept.get(home.id)).toBe('battery staple');
     await backups.backupNow(home.id);
-    expect(settings.get().libraryBackups[home.id]?.lastError).toBeNull();
+    expect(settings.get().libraries[home.id]?.backup?.lastError).toBeNull();
 
     // Turning off Work's backups leaves Home's alone.
     await backups.turnOff();
-    expect(settings.get().libraryBackups[work.id]).toBeUndefined();
+    expect(settings.get().libraries[work.id]?.backup).toBeNull();
     await openLibrary(home);
     expect((await backups.snapshots()).length).toBe(2);
   }, 120_000);
 
-  it('gives backups set up before they were per library to the library they were made for', async () => {
+  it('moves settings from before libraries kept their own to the library they were made for', async () => {
     const dir = tempDir();
     const dataDir = join(dir, 'data');
     const work = library(dir, 'aaaaaaaa-work', 'Work');
@@ -114,29 +118,51 @@ describe.skipIf(!exe)('backups per library', () => {
     writeFileSync(join(dataDir, 'kopia-password.bin'), 'secret');
     writeFileSync(
       join(dataDir, 'settings.json'),
-      JSON.stringify({ libraryPath: work.path, backupRepo: '/backups', backupIntervalHours: 6, lastBackupAt: '2026-09-01T00:00:00.000Z', lastBackupError: null }),
+      JSON.stringify({
+        libraryPath: work.path,
+        recentLibraries: [work.path, other.path, join(dir, 'Gone')],
+        skipInboxWhenSure: false,
+        syncEnabled: true,
+        syncMode: 'push',
+        backupRepo: '/backups',
+        backupIntervalHours: 6,
+        lastBackupAt: '2026-09-01T00:00:00.000Z',
+        lastBackupError: null,
+      }),
     );
     const { settings, backups, openLibrary } = await setup(dataDir);
-    expect(settings.get().unclaimedBackup?.repo).toBe('/backups');
-
-    // Not for another library...
-    await openLibrary(other);
-    expect(settings.get().libraryBackups[other.id]).toBeUndefined();
-    expect((await backups.status()).repoPath).toBeNull();
-
-    // ...but for the one that was open.
-    await openLibrary(work);
-    const entry = settings.get().libraryBackups[work.id];
-    expect(entry).toMatchObject({ repo: '/backups', target: { provider: 'folder', values: { path: '/backups' } }, intervalHours: 6, lastBackupAt: '2026-09-01T00:00:00.000Z', libraryName: 'Work', libraryPath: work.path });
-    expect(settings.get().unclaimedBackup).toBeNull();
+    const libs = settings.get().libraries;
+    expect(libs[work.id]).toMatchObject({
+      name: 'Work',
+      path: work.path,
+      skipInboxWhenSure: false,
+      sync: { enabled: true, mode: 'push', whileClosed: true },
+      backup: { repo: '/backups', target: { provider: 'folder', values: { path: '/backups' } }, intervalHours: 6, lastBackupAt: '2026-09-01T00:00:00.000Z' },
+    });
+    // The others keep the app's import rule, but backups and sync were the open library's.
+    expect(libs[other.id]).toMatchObject({ skipInboxWhenSure: false, sync: { enabled: false }, backup: null });
+    // A library that couldn't be read stays listed until it opens.
+    const gone = Object.values(libs).find((r) => r.path === join(dir, 'Gone'));
+    expect(gone?.id).toMatch(/^unread-/);
     expect(existsSync(join(dataDir, 'libraries', work.id, 'backup', 'kopia', 'repository.config'))).toBe(true);
     expect(existsSync(join(dataDir, 'libraries', work.id, 'backup', 'password.bin'))).toBe(true);
     expect(existsSync(join(dataDir, 'kopia'))).toBe(false);
 
-    // The old fields are gone from the file once it's written again.
+    await openLibrary(other);
+    expect((await backups.status()).repoPath).toBeNull();
+    await openLibrary(work);
+    expect((await backups.status()).repoPath).toBe('/backups');
+
+    // Written in the new form: loading again moves nothing.
     const reloaded = new SettingsStore(dataDir);
     await reloaded.load();
-    expect(reloaded.get().unclaimedBackup).toBeNull();
-    expect(reloaded.get().libraryBackups[work.id]?.repo).toBe('/backups');
+    expect(Object.keys(reloaded.get().libraries).sort()).toEqual(Object.keys(settings.get().libraries).sort());
+    expect(JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).recentLibraries).toBeUndefined();
+
+    // When the unread library shows up, it takes its real id.
+    const back = library(dir, 'dddddddd-gone', 'Gone');
+    await openLibrary(back);
+    expect(settings.get().libraries[back.id]?.path).toBe(back.path);
+    expect(Object.values(settings.get().libraries).some((r) => r.id.startsWith('unread-'))).toBe(false);
   });
 });

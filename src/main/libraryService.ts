@@ -14,9 +14,10 @@ import { LibraryQueries } from './index/query';
 import type { Jobs } from './jobs';
 import { createCollection, deleteCollection, listCollections, updateCollection, withItems, withoutItems } from './library/collections';
 import { detectPack } from './library/detect';
-import { createLibrary, DIRS, inspectFolder, PACK_DIRS, readLibraryInfo } from './library/layout';
+import { createLibrary, DIRS, inspectFolder, MARKER, PACK_DIRS, readLibraryInfo } from './library/layout';
 import { safeFolderName, uniqueName } from './library/names';
 import { editPack, readPack, writePack, type PackRecord } from './library/packs';
+import { writeJson } from './fsx';
 import { log } from './log';
 
 interface Deps {
@@ -87,6 +88,19 @@ export class LibraryService {
       this.setState({ status: 'error', path, code, message });
       return this.state;
     }
+  }
+
+  /** Give the open library a new name (its folder keeps its own). */
+  async rename(name: string): Promise<LibraryState> {
+    if (this.state.status !== 'ready') throw new UserError('no-library', 'No library is open.');
+    const clean = name.trim();
+    if (!clean) throw new UserError('no-name', 'Give the library a name.');
+    if (clean.length > 120) throw new UserError('long-name', 'That name is too long.');
+    const root = this.state.library.path;
+    const info = await readLibraryInfo(root);
+    await writeJson(join(root, MARKER), { ...info, name: clean });
+    this.setState({ ...this.state, library: { ...this.state.library, name: clean } });
+    return this.state;
   }
 
   close(): void {

@@ -11,8 +11,8 @@ import DialogTitle from '@mui/material/DialogTitle';
 import InputBase from '@mui/material/InputBase';
 import Typography from '@mui/material/Typography';
 import { formatBytes, formatCount } from '../components/labels';
-import { useSettings } from '../state/queries';
 import { useImport } from '../state/importer';
+import { useLibraryRecord } from '../state/library';
 import { md, SHAPE } from '../theme';
 
 const ICON = { archive: FolderZipOutlined, folder: FolderOutlined, files: InsertDriveFileOutlined };
@@ -20,7 +20,7 @@ const ICON = { archive: FolderZipOutlined, folder: FolderOutlined, files: Insert
 /** Confirm what's about to be added: one row per pack, names editable, likely duplicates left out. */
 export function ImportDialog() {
   const { items, chosen, toggle, rename, cancel, run } = useImport();
-  const skipInbox = useSettings().data?.skipInboxWhenSure ?? true;
+  const skipInbox = useLibraryRecord()?.skipInboxWhenSure ?? true;
   const picked = (items ?? []).filter((i) => chosen.has(i.id));
   const size = picked.reduce((n, i) => n + i.size, 0);
   return (

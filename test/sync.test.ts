@@ -1,5 +1,6 @@
 import { createServer, type Server } from 'node:http';
 import { afterEach, describe, expect, it } from 'vitest';
+import { touchLibrary } from '../src/main/libraries';
 import { SettingsStore } from '../src/main/settings';
 import { FOLDER_TYPE, SyncService } from '../src/main/sync/service';
 import { tempDir } from './helpers';
@@ -52,17 +53,19 @@ describe('sync', () => {
     const dataDir = tempDir();
     const settings = new SettingsStore(dataDir);
     await settings.load();
+    const lib1 = { id: 'lib1', name: 'My Library', path: '/libraries/mine' };
+    await touchLibrary(settings, dataDir, lib1);
     const sync = new SyncService({
       dataDir,
       settings,
-      library: () => ({ id: 'lib1', name: 'My Library', path: '/libraries/mine' }),
+      library: () => lib1,
       onChange: () => undefined,
       launcher: async () => ({ base: `http://127.0.0.1:${port}`, key: 'secret', stop: () => undefined }),
     });
 
     await sync.enable('push');
     expect(fake.state.folders).toMatchObject([{ id: 'tessera-lib1', path: '/libraries/mine', type: FOLDER_TYPE.push, label: 'My Library' }]);
-    expect(settings.get()).toMatchObject({ syncEnabled: true, syncMode: 'push' });
+    expect(settings.get().libraries.lib1?.sync).toEqual({ enabled: true, mode: 'push', whileClosed: true });
 
     await expect(sync.addDevice('not an id', 'x')).rejects.toMatchObject({ code: 'bad-device-id' });
     await expect(sync.addDevice(ME, 'me')).rejects.toMatchObject({ code: 'own-device' });
@@ -79,6 +82,50 @@ describe('sync', () => {
 
     await sync.disable();
     expect(fake.state.folders[0]).toMatchObject({ paused: true });
-    expect(settings.get().syncEnabled).toBe(false);
+    expect(settings.get().libraries.lib1?.sync.enabled).toBe(false);
+  });
+
+  it('keeps a library syncing while another is open, only when it may', async () => {
+    const fake = fakeSyncthing();
+    server = fake.server;
+    await new Promise<void>((r) => server!.listen(0, '127.0.0.1', r));
+    const port = (server.address() as { port: number }).port;
+    const dataDir = tempDir();
+    const settings = new SettingsStore(dataDir);
+    await settings.load();
+    const work = { id: 'work', name: 'Work', path: '/libraries/work' };
+    const home = { id: 'home', name: 'Home', path: '/libraries/home' };
+    let open: typeof work | null = work;
+    const sync = new SyncService({ dataDir, settings, library: () => open, onChange: () => undefined, launcher: async () => ({ base: `http://127.0.0.1:${port}`, key: 'k', stop: () => undefined }) });
+    const switchTo = async (lib: typeof work | null) => {
+      open = lib;
+      if (lib) await touchLibrary(settings, dataDir, lib);
+      await sync.reconcile();
+    };
+    const folder = (id: string) => fake.state.folders.find((f) => f.id === `tessera-${id}`);
+
+    await switchTo(work);
+    await sync.enable('full');
+    // Home has sync off: opening it leaves Work syncing (it may while not open).
+    await switchTo(home);
+    expect(folder('work')?.paused).toBe(false);
+    expect(folder('home')).toBeUndefined();
+    expect((await sync.status()).enabled).toBe(false);
+
+    // Work only while open: switching away pauses it, back resumes it.
+    await switchTo(work);
+    await sync.setWhileClosed(false);
+    await switchTo(home);
+    expect(folder('work')?.paused).toBe(true);
+    await switchTo(null);
+    expect(folder('work')?.paused).toBe(true);
+    await switchTo(work);
+    expect(folder('work')?.paused).toBe(false);
+    expect((await sync.status())).toMatchObject({ enabled: true, whileClosed: false });
+
+    // A folder Tessera doesn't know (a library still arriving) is left alone.
+    fake.state.folders.push({ id: 'tessera-arriving', path: '/x', paused: false, devices: [] });
+    await switchTo(home);
+    expect(folder('arriving')?.paused).toBe(false);
   });
 });
