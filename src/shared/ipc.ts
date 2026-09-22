@@ -9,7 +9,7 @@ import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } f
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { Provider, StorageTarget } from './storage';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
-import type { LibrarySummary, AppInfo, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { PackSuggestions, LibrarySummary, AppInfo, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -64,6 +64,12 @@ export interface Invokes {
   'pack:edit': (id: string, edit: PackEdit) => void;
   /** Licence, source and creator read from the pack's own files. */
   'pack:detect': (id: string) => Detected;
+  /** For the add page: what was detected (with where from) and details worth filling in. */
+  'pack:details': (id: string) => { detected: Detected; suggestions: PackSuggestions };
+  /** Delete a pack that was only just added and isn't in the library yet (the add page's Cancel). */
+  'pack:discard': (id: string) => void;
+  /** Keep a record of the pack's download page, in the background: a snapshot, an archive.org copy. */
+  'pack:recordPage': (id: string, what: { snapshot: boolean; archive: boolean }) => void;
   /** Move a pack between the Inbox and the library; joining the library needs a licence and a source. */
   'pack:status': (id: string, status: PackStatus) => void;
   /** Move a pack to the system trash; returns its name. */
@@ -181,8 +187,10 @@ export interface Invokes {
   'import:choose': (what: 'files' | 'folder' | 'folderOfPacks') => string[] | null;
   /** The sample packs that come with the app. */
   'import:samples': () => string[];
-  'import:plan': (paths: string[], eachInside: boolean) => ImportItem[];
-  'import:run': (items: ImportItem[]) => ImportResult;
+  /** `eachInside`: a folder is several packs; 'auto' decides from what's in it. */
+  'import:plan': (paths: string[], eachInside: boolean | 'auto') => ImportItem[];
+  /** `stage`: for the add page, where every pack waits until the user decides. */
+  'import:run': (items: ImportItem[], opts?: { stage?: boolean }) => ImportResult;
 
   /** An unexpected error caught in the window, to keep (and send, with consent). */
   'reports:capture': (input: ErrorInput) => void;

@@ -24,6 +24,7 @@ import { BackupService, findKopia } from './backup/service';
 import { registerDrag } from './drag';
 import { installMenu } from './menu';
 import { fileSecret, keychainAvailable } from './secrets';
+import { archivePage, snapshotPage } from './import/pageRecord';
 import { SyncService } from './sync/service';
 import { initLog, log } from './log';
 import { makeScrubber } from './reports/scrub';
@@ -194,6 +195,44 @@ async function librarySummaries(): Promise<LibrarySummary[]> {
 const restorer = new RestoreService(dataDir, () => findKopia(dataDir), rcloneSetup);
 let projectsVersion = 0;
 const projectsChanged = () => broadcast(windows, 'projects:changed', ++projectsVersion);
+
+let pageRecords: Promise<void> = Promise.resolve();
+
+/**
+ * Keep a record of a pack's download page: a PDF snapshot with its licence proof, and a public
+ * copy on archive.org, as asked. Either can fail on its own; the job says what happened.
+ */
+async function recordPage(id: string, what: { snapshot: boolean; archive: boolean }): Promise<void> {
+  const row = library.getState().status === 'ready' ? library.require().queries.pack(id) : null;
+  const url = row?.meta.source.url;
+  if (!row || !url || !/^https?:\/\//i.test(url) || (!what.snapshot && !what.archive)) return;
+  await jobs.run(`Keeping a record of “${row.meta.name}”’s page`, async (job) => {
+    const done: string[] = [];
+    const problems: string[] = [];
+    const today = new Date().toISOString().slice(0, 10);
+    if (what.snapshot) {
+      job.update(null, 'Saving a snapshot of the page');
+      try {
+        await library.saveProof(id, `Download page ${today}.pdf`, await snapshotPage(url), `Download page saved on ${today}: ${url}`);
+        done.push('snapshot saved');
+      } catch (e) {
+        problems.push(`Snapshot: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    if (what.archive) {
+      job.update(what.snapshot ? 0.5 : null, 'Asking archive.org to keep a copy');
+      try {
+        const copy = await archivePage(url);
+        await library.addLicenceNote(id, `${copy.fresh ? 'Archived' : 'Earlier archived copy'}: ${copy.url}`);
+        done.push(copy.fresh ? 'archived' : 'earlier archive found');
+      } catch (e) {
+        problems.push(`archive.org: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    if (!done.length) throw new Error(problems.join(' · '));
+    job.update(1, [done.join(', '), ...problems].join(' · '));
+  });
+}
 
 /** What copying into projects reads from the open library. */
 function copySource(): CopySource {
@@ -402,6 +441,12 @@ function registerHandlers(): void {
     }
   });
   handle('pack:detect', (id) => library.detect(id));
+  handle('pack:details', (id) => library.details(id));
+  handle('pack:discard', (id) => library.discardPack(id));
+  handle('pack:recordPage', (id, what) => {
+    // In the background, one page at a time: the add page doesn't wait for it.
+    pageRecords = pageRecords.then(() => recordPage(id, what)).catch((e: unknown) => log.warn('pages', 'could not keep a record of a download page', e));
+  });
   handle('pack:status', (id, status) => library.setStatus(id, status));
   handle('pack:remove', (id) => library.removePack(id, (path) => shell.trashItem(path)));
   handle('pack:proof', async (id) => (await library.proofFiles(id)).map((f) => ({ ...f, url: packFileUrl(id, `licence/${f.name}`) })));
@@ -599,7 +644,7 @@ function registerHandlers(): void {
     return result.canceled || !result.filePaths.length ? null : result.filePaths;
   });
   handle('import:plan', (paths, eachInside) => library.planImport(paths, eachInside));
-  handle('import:run', (items) => library.import(items, openRecord()?.skipInboxWhenSure ?? true));
+  handle('import:run', (items, opts) => library.import(items, openRecord()?.skipInboxWhenSure ?? true, !!opts?.stage));
   handle('thumbs:get', (keys) => thumbs.get(keys.slice(0, 500)));
 
   handle('reports:capture', (input) => void reports.record({ ...input, source: 'window' }));

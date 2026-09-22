@@ -39,20 +39,39 @@ async function item(path: string): Promise<ImportItem | null> {
   return { id: randomUUID(), name: nameFromDownload(file), sources: [path], kind: ARCHIVE.test(file) ? 'archive' : 'files', size: s.size, files: 1, duplicateOf: null };
 }
 
+/** Readmes, licences and shortcuts that sit beside the packs in a folder of downloads. */
+const NOTE = /\.(txt|md|url|html?|pdf|nfo|rtf)$/i;
+
+/**
+ * Whether a folder holds several packs (a folder of downloads) rather than being one pack: two
+ * or more archives or sub-folders, and nothing else in it but notes.
+ */
+export async function isFolderOfPacks(dir: string): Promise<boolean> {
+  const entries = (await readdir(dir, { withFileTypes: true }).catch(() => [])).filter((e) => !isIgnored(e.name) && !e.name.startsWith('.'));
+  const packs = entries.filter((e) => e.isDirectory() || (e.isFile() && ARCHIVE.test(e.name))).length;
+  const other = entries.filter((e) => e.isFile() && !ARCHIVE.test(e.name) && !NOTE.test(e.name)).length;
+  return packs >= 2 && other === 0;
+}
+
 /**
  * What adding these paths would create. Each archive and each folder is a pack. Loose files that
  * aren't archives (a handful of PNGs, say) are gathered into one pack, named after their folder.
- * With `eachInside`, a folder is a collection of packs: every archive and folder in it is one.
+ * A folder is a collection of packs (every archive and folder in it is one) with `eachInside`,
+ * or, with 'auto', when it looks like one. Packs found inside a folder say which (`folder`).
  */
-export async function planImport(paths: string[], eachInside = false): Promise<ImportItem[]> {
-  const expanded: string[] = [];
+export async function planImport(paths: string[], eachInside: boolean | 'auto' = false): Promise<ImportItem[]> {
+  const expanded: { path: string; folder?: string }[] = [];
   for (const p of paths) {
     const s = await stat(p).catch(() => null);
-    if (eachInside && s?.isDirectory()) {
-      for (const e of await readdir(p)) if (!isIgnored(e) && !e.startsWith('.')) expanded.push(join(p, e));
-    } else expanded.push(p);
+    const each = s?.isDirectory() && (eachInside === 'auto' ? await isFolderOfPacks(p) : eachInside);
+    if (each) {
+      for (const e of await readdir(p)) if (!isIgnored(e) && !e.startsWith('.') && !NOTE.test(e)) expanded.push({ path: join(p, e), folder: p });
+    } else expanded.push({ path: p });
   }
-  const items = (await Promise.all(expanded.map(item))).filter((x): x is ImportItem => !!x);
+  const items = (await Promise.all(expanded.map(async (x) => {
+    const it = await item(x.path);
+    return it && x.folder ? { ...it, folder: x.folder } : it;
+  }))).filter((x): x is ImportItem => !!x);
   const loose = items.filter((i) => i.kind === 'files');
   const rest = items.filter((i) => i.kind !== 'files');
   if (loose.length > 1) {

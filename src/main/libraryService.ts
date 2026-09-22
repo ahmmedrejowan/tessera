@@ -1,10 +1,10 @@
 import { watch, type FSWatcher } from 'node:fs';
-import { copyFile, mkdir, readdir, stat } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { missingForLibrary, type PackEdit, type PackStatus } from '@shared/pack';
 import type { CollectionItem, CollectionSummary, SmartQuery } from '@shared/collection';
 import type { BrowseQuery, Filters } from '@shared/query';
-import type { CollectionChange, Detected, FolderKind, ImportItem, ImportResult, LibraryState } from '@shared/types';
+import type { CollectionChange, Detected, FolderKind, ImportItem, ImportResult, LibraryState, PackSuggestions } from '@shared/types';
 import { UserError } from './errors';
 import { listPackFiles } from './index/files';
 import { LibraryIndex } from './index/indexer';
@@ -13,7 +13,8 @@ import { runImport } from './import/run';
 import { LibraryQueries } from './index/query';
 import type { Jobs } from './jobs';
 import { createCollection, deleteCollection, listCollections, updateCollection, withItems, withoutItems } from './library/collections';
-import { detectPack } from './library/detect';
+import { detectPack, packTexts } from './library/detect';
+import { suggestDetails } from './import/suggest';
 import { createLibrary, DIRS, inspectFolder, MARKER, PACK_DIRS, readLibraryInfo } from './library/layout';
 import { safeFolderName, uniqueName } from './library/names';
 import { editPack, readPack, writePack, type PackRecord } from './library/packs';
@@ -188,6 +189,63 @@ export class LibraryService {
     return detectPack(pack.dir, files);
   }
 
+  /**
+   * What was found in a pack and what it suggests, for the add page: the licence and source (as
+   * detected, with where from) and details worth filling in (name, version, description, style, tags).
+   */
+  async details(id: string): Promise<{ detected: Detected; suggestions: PackSuggestions }> {
+    const pack = await this.packRecord(id);
+    const { files } = await listPackFiles(pack.dir);
+    const download = (await readdir(join(pack.dir, PACK_DIRS.original)).catch(() => [] as string[])).find((n) => !n.startsWith('.')) ?? pack.meta.name;
+    const [detected, texts] = await Promise.all([detectPack(pack.dir, files, download), packTexts(pack.dir, files)]);
+    return { detected, suggestions: suggestDetails({ files, texts, downloadName: download }) };
+  }
+
+  /**
+   * Forget a pack that was only just added (the add page's Cancel): its copy is deleted outright,
+   * as the user's own download is where it always was. Only packs not yet in the library.
+   */
+  async discardPack(id: string): Promise<void> {
+    const lib = this.require();
+    const pack = await this.packRecord(id);
+    if (pack.meta.status !== 'inbox') throw new UserError('pack-in-library', 'That pack is already in the library.');
+    this.busyWriting++;
+    try {
+      await rm(pack.dir, { recursive: true, force: true });
+      lib.index.removePack(id);
+    } finally {
+      this.busyWriting--;
+    }
+    this.d.onIndexChanged();
+  }
+
+  /** Keep a file made for a pack (a snapshot of its download page, say) with its licence proof. */
+  async saveProof(id: string, name: string, data: Buffer, note?: string): Promise<string> {
+    const lib = this.require();
+    const pack = await this.packRecord(id);
+    const dir = join(pack.dir, PACK_DIRS.licence);
+    await mkdir(dir, { recursive: true });
+    const taken = new Set((await readdir(dir)).map((n) => n.toLowerCase()));
+    const ext = extname(name);
+    const file = uniqueName(safeFolderName(basename(name, ext)), (c) => taken.has(`${c}${ext}`.toLowerCase())) + ext;
+    await writeFile(join(dir, file), data);
+    const fresh = await this.packRecord(id);
+    const notes = note ? [fresh.meta.licence.notes, note].filter(Boolean).join('\n') : fresh.meta.licence.notes;
+    const meta = await writePack(fresh.dir, { ...fresh.meta, licence: { ...fresh.meta.licence, notes, proof: [...new Set([...fresh.meta.licence.proof, file])] } });
+    await lib.index.syncPack({ ...fresh, meta }, lib.index.known(id));
+    this.d.onIndexChanged();
+    return file;
+  }
+
+  /** Add a line to a pack's licence notes (where an archived copy of its page is, say). */
+  async addLicenceNote(id: string, line: string): Promise<void> {
+    const lib = this.require();
+    const pack = await this.packRecord(id);
+    const meta = await writePack(pack.dir, { ...pack.meta, licence: { ...pack.meta.licence, notes: [pack.meta.licence.notes, line].filter(Boolean).join('\n') } });
+    await lib.index.syncPack({ ...pack, meta }, lib.index.known(id));
+    this.d.onIndexChanged();
+  }
+
   // ---- collections ----
 
   private collectionsSig = '';
@@ -253,7 +311,7 @@ export class LibraryService {
   }
 
   /** What adding these paths would create, with likely duplicates marked. */
-  async planImport(paths: string[], eachInside: boolean): Promise<ImportItem[]> {
+  async planImport(paths: string[], eachInside: boolean | 'auto'): Promise<ImportItem[]> {
     const lib = this.require();
     const items = await planImport(paths, eachInside);
     for (const item of items) {
@@ -263,7 +321,7 @@ export class LibraryService {
     return items;
   }
 
-  async import(items: ImportItem[], skipInboxWhenSure: boolean): Promise<ImportResult> {
+  async import(items: ImportItem[], skipInboxWhenSure: boolean, stage = false): Promise<ImportResult> {
     const lib = this.require();
     this.busyWriting++;
     const job = this.d.jobs.start(items.length === 1 ? `Adding ${items[0]!.name}` : `Adding ${items.length} packs`);
@@ -272,6 +330,7 @@ export class LibraryService {
         root: lib.root,
         index: lib.index,
         skipInboxWhenSure,
+        stage,
         onProgress: (done, total, current) => job.update(total ? done / total : null, current),
       });
       const inbox = result.added.filter((a) => a.status === 'inbox').length;

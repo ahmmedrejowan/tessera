@@ -255,6 +255,25 @@ export interface Detected {
   creator: string | null;
 }
 
+/** A detail filled in for the user, and where it came from. */
+export interface Suggestion<T> {
+  value: T;
+  /** "License.txt", "the file name", … */
+  from: string;
+  /** Read from the pack's own words (true), or worked out and worth a check (false). */
+  sure: boolean;
+}
+
+/** What a pack's files suggest for its details, beyond the licence and source already applied. */
+export interface PackSuggestions {
+  name?: Suggestion<string>;
+  version?: Suggestion<string>;
+  description?: Suggestion<string>;
+  creator?: Suggestion<string>;
+  styles?: Suggestion<string[]>;
+  tags?: Suggestion<string[]>;
+}
+
 /** One pack an import would create. */
 export interface ImportItem {
   id: string;
@@ -266,10 +285,13 @@ export interface ImportItem {
   files: number;
   /** Name of a pack already in the library that looks like the same download. */
   duplicateOf: string | null;
+  /** The folder of downloads it was found in, when a folder was taken as several packs. */
+  folder?: string;
 }
 
 export interface ImportResult {
-  added: { id: string; name: string; status: 'inbox' | 'library' }[];
+  /** `item` is the ImportItem's id. */
+  added: { id: string; item: string; name: string; status: 'inbox' | 'library' }[];
   failed: { name: string; error: string }[];
 }
 

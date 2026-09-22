@@ -18,14 +18,8 @@ const isText = (ref: string) => {
 };
 const URL_RE = /https?:\/\/[^\s"'<>)\]]+/g;
 
-/**
- * Read a pack's licence and readme files (and the name it was downloaded as) for its licence,
- * the site it came from and its creator. Nothing is applied: the caller shows these as suggestions.
- */
-export async function detectPack(packDir: string, files: PackFile[], downloadName?: string): Promise<Detected> {
-  const out: Detected = { licence: null, licenceFrom: null, site: null, url: null, creator: null };
-
-  // Proof files the user saved beside the pack come first.
+/** A pack's licence and readme texts, most telling first: proof files, then licences, then readmes. */
+export async function packTexts(packDir: string, files: PackFile[]): Promise<{ from: string; text: string }[]> {
   const texts: { from: string; text: string }[] = [];
   const licenceDir = join(packDir, PACK_DIRS.licence);
   for (const name of await readdir(licenceDir).catch(() => [] as string[])) {
@@ -40,6 +34,16 @@ export async function detectPack(packDir: string, files: PackFile[], downloadNam
       // unreadable: skip
     }
   }
+  return texts;
+}
+
+/**
+ * Read a pack's licence and readme files (and the name it was downloaded as) for its licence,
+ * the site it came from and its creator. Nothing is applied: the caller shows these as suggestions.
+ */
+export async function detectPack(packDir: string, files: PackFile[], downloadName?: string): Promise<Detected> {
+  const out: Detected = { licence: null, licenceFrom: null, site: null, url: null, creator: null };
+  const texts = await packTexts(packDir, files);
 
   for (const { from, text } of texts) {
     const plain = text.replace(/<[^>]+>/g, ' ');

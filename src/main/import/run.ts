@@ -40,6 +40,8 @@ export interface ImportDeps {
   root: string;
   index: LibraryIndex;
   skipInboxWhenSure: boolean;
+  /** Being added through the add page: every pack waits (unfinished) until the user decides. */
+  stage?: boolean;
   /** Bytes copied so far out of the total, and the pack being added. */
   onProgress: (done: number, total: number, current: string) => void;
   signal?: AbortSignal;
@@ -75,7 +77,7 @@ export async function runImport(items: ImportItem[], d: ImportDeps): Promise<Imp
       const found = await detectPack(pack.dir, files, basename(item.sources[0]!));
       // Sure: the download itself states its licence, and it's from a site Tessera knows.
       const sure = !!found.licence && !!found.site && !!found.licenceFrom && !found.licenceFrom.endsWith('(usual licence)');
-      const status = sure && d.skipInboxWhenSure ? 'library' : 'inbox';
+      const status = sure && d.skipInboxWhenSure && !d.stage ? 'library' : 'inbox';
       const meta = await writePack(pack.dir, {
         ...pack.meta,
         status,
@@ -83,7 +85,7 @@ export async function runImport(items: ImportItem[], d: ImportDeps): Promise<Imp
         licence: { ...pack.meta.licence, id: found.licence, notes: found.licenceFrom ? `Licence found in ${found.licenceFrom}.` : '' },
       });
       await d.index.syncPack({ ...pack, meta });
-      result.added.push({ id: meta.id, name: meta.name, status });
+      result.added.push({ id: meta.id, item: item.id, name: meta.name, status });
     } catch (e) {
       log.error('import', `could not add ${item.name}`, e);
       result.failed.push({ name: item.name, error: e instanceof Error ? e.message : String(e) });
