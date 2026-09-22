@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { useBrowse } from '../state/browse';
 import { useNav } from '../state/nav';
 import { md, SHAPE } from '../theme';
@@ -51,6 +51,15 @@ function GlobalSearch() {
 
 export function AppShell({ children, onAdd, inboxCount, bare }: { children: ReactNode; onAdd: (anchor: HTMLElement) => void; inboxCount?: number; bare?: boolean }) {
   useHistoryKeys();
+  if (bare) {
+    // Full-bleed screens (welcome, opening): no bar, just a strip along the top to drag the window by.
+    return (
+      <div style={{ height: '100vh', position: 'relative', background: md('surface') }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 40, WebkitAppRegion: 'drag', zIndex: 5 } as CSSProperties} />
+        {children}
+      </div>
+    );
+  }
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: md('surfaceContainer') }}>
       <TopAppBar search={bare ? null : <GlobalSearch />} trailing={bare ? null : (
