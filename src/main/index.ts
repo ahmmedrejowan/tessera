@@ -105,6 +105,7 @@ let indexVersion = 0;
 const library = new LibraryService({
   dataDir,
   jobs,
+  siteRules: () => settings.get().siteRules,
   onState: (state) => {
     broadcast(windows, 'library:changed', state);
     if (state.status === 'ready') {

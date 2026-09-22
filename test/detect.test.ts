@@ -31,7 +31,7 @@ describe('detecting a pack', () => {
       'Models/car.glb': 'x',
     });
     const { files } = await listPackFiles(pack.dir);
-    expect(await detectPack(pack.dir, files)).toEqual({ licence: 'CC0-1.0', licenceFrom: 'License.txt', site: 'kenney', url: null, creator: 'Kenney' });
+    expect(await detectPack(pack.dir, files)).toEqual({ licence: 'CC0-1.0', licenceFrom: 'License.txt', licenceSure: true, site: 'kenney', url: null, creator: 'Kenney' });
   });
 
   it('prefers proof files saved in licence/ and picks up the site link', async () => {

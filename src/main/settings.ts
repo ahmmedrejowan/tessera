@@ -29,6 +29,14 @@ const libraryRecord = z.object({
     .catch(null),
 });
 
+/** A site the user set the licence for, so its packs fill themselves in. */
+const siteRule = z.object({
+  host: z.string().min(3),
+  licence: z.string().nullable().catch(null),
+  creator: z.string().nullable().catch(null),
+  addedAt: z.string().catch(new Date(0).toISOString()),
+});
+
 /** Every field has a default, so an old or partly broken settings file still loads. */
 const schema = z.object({
   theme: z.enum(['system', 'light', 'dark']).catch('system'),
@@ -39,6 +47,7 @@ const schema = z.object({
   /** Without a keychain: the user agreed to keep the backup password in an owner-only file. */
   backupPasswordInFile: z.boolean().catch(false),
   errorReports: z.enum(['ask', 'always', 'never']).catch('ask'),
+  siteRules: z.array(siteRule).catch([]),
 });
 
 export const DEFAULT_SETTINGS: Settings = schema.parse({});

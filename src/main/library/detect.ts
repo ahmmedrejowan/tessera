@@ -1,8 +1,9 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { baseName, kindOf, pathWords } from '@shared/assets';
-import type { Detected } from '@shared/types';
+import type { Detected, SiteRule } from '@shared/types';
 import { detectLicence } from '@shared/licences';
+import { ruleFor } from '@shared/siteRules';
 import { sourceFromName, sourceFromText, sourceFromUrl, sourceInfo } from '@shared/sources';
 import { readPackFile, type PackFile } from '../index/files';
 import { PACK_DIRS } from './layout';
@@ -39,10 +40,11 @@ export async function packTexts(packDir: string, files: PackFile[]): Promise<{ f
 
 /**
  * Read a pack's licence and readme files (and the name it was downloaded as) for its licence,
- * the site it came from and its creator. Nothing is applied: the caller shows these as suggestions.
+ * the site it came from and its creator, with the user's own rules for sites they have already
+ * settled. Nothing is applied: the caller shows these as suggestions.
  */
-export async function detectPack(packDir: string, files: PackFile[], downloadName?: string): Promise<Detected> {
-  const out: Detected = { licence: null, licenceFrom: null, site: null, url: null, creator: null };
+export async function detectPack(packDir: string, files: PackFile[], downloadName?: string, rules: SiteRule[] = []): Promise<Detected> {
+  const out: Detected = { licence: null, licenceFrom: null, licenceSure: false, site: null, url: null, creator: null };
   const texts = await packTexts(packDir, files);
 
   for (const { from, text } of texts) {
@@ -52,6 +54,7 @@ export async function detectPack(packDir: string, files: PackFile[], downloadNam
       if (id) {
         out.licence = id;
         out.licenceFrom = from;
+        out.licenceSure = true;
       }
     }
     if (!out.site) {
@@ -60,12 +63,12 @@ export async function detectPack(packDir: string, files: PackFile[], downloadNam
     }
     if (!out.url) {
       for (const u of plain.match(URL_RE) ?? []) {
+        // A site Tessera knows, or one the user has set a rule for.
         const s = sourceFromUrl(u);
-        // A link to the site itself, not to a licence page.
-        if (s && !/creativecommons|opensource\.org|apache\.org|\/\/(support|help|docs)\./i.test(u)) {
+        if ((s || ruleFor(rules, u)) && !/creativecommons|opensource\.org|apache\.org|\/\/(support|help|docs)\./i.test(u)) {
           out.url = u.replace(/[.,;]+$/, '');
           out.urlFrom = 'a link in the pack';
-          out.site ??= s.id;
+          if (s) out.site ??= s.id;
           break;
         }
       }
@@ -82,6 +85,14 @@ export async function detectPack(packDir: string, files: PackFile[], downloadNam
   }
   const info = sourceInfo(out.site);
   out.creator = info?.creator ?? null;
+  // What the user has settled about this site themselves: it beats what the site usually carries.
+  const rule = ruleFor(rules, out.url) ?? ruleFor(rules, info?.url);
+  if (rule?.creator) out.creator = rule.creator;
+  if (rule?.licence && !out.licenceSure) {
+    out.licence = rule.licence;
+    out.licenceFrom = `your rule for ${rule.host}`;
+    out.licenceSure = true;
+  }
   // A known site's usual licence, when the files didn't say — free sites only, never a paid store.
   if (!out.licence && info?.licence) {
     out.licence = info.licence;

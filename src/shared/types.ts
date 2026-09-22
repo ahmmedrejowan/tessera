@@ -29,6 +29,19 @@ export interface Settings {
   backupPasswordInFile: boolean;
   /** Sending error reports: ask each session, always, or never. Reports are always kept locally. */
   errorReports: ReportConsent;
+  /** What the user has told Tessera about sites: "everything on this one is CC0". */
+  siteRules: SiteRule[];
+}
+
+/** A site the user has set the licence for, so packs from it fill themselves in. */
+export interface SiteRule {
+  /** The host it covers, without "www."; subdomains count. */
+  host: string;
+  /** The licence its packs carry, as a licence id. */
+  licence: string | null;
+  /** Who to credit, when the site is one creator. */
+  creator: string | null;
+  addedAt: string;
 }
 
 /** Optional tools Tessera can fetch for the user. */
@@ -250,6 +263,8 @@ export interface Detected {
   licence: string | null;
   /** Where the licence was found, e.g. "License.txt". */
   licenceFrom: string | null;
+  /** The licence was read in the pack or set by the user's rule for the site, not merely usual there. */
+  licenceSure?: boolean;
   site: string | null;
   url: string | null;
   /** Where the link came from: "a link in the pack", "the file name". */

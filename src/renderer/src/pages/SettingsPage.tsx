@@ -21,6 +21,7 @@ import { Page } from './Placeholder';
 import { BackupSettings } from './settings/BackupSettings';
 import { PairedComputers, SyncSettings } from './settings/SyncSettings';
 import { Helpers } from './settings/Helpers';
+import { SiteRules } from './settings/SiteRules';
 import { RenameLibrary } from './library/RenameLibrary';
 import { tidyPath } from './library/Location';
 import { Group, Row } from './settings/parts';
@@ -47,6 +48,7 @@ const SECTIONS: Section[] = [
   { id: 'sync', title: 'Sync', part: 'library' },
   { id: 'storage', title: 'Previews and index', part: 'library' },
   { id: 'appearance', title: 'Appearance', part: 'app' },
+  { id: 'sites', title: 'Sites', part: 'app' },
   { id: 'computers', title: 'Paired computers', part: 'app' },
   { id: 'helpers', title: 'Helpers', part: 'app' },
   { id: 'privacy', title: 'Privacy and problems', part: 'app' },
@@ -258,6 +260,12 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                     })}
                   </div>
                 </Row>
+              </Group>
+            </div>
+
+            <div {...at('sites')}>
+              <Group title="Sites">
+                <SiteRules />
               </Group>
             </div>
 

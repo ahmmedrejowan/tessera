@@ -11,6 +11,7 @@ import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import LinkRounded from '@mui/icons-material/LinkRounded';
 import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded';
 import PhotoCameraOutlined from '@mui/icons-material/PhotoCameraOutlined';
+import RuleRounded from '@mui/icons-material/RuleRounded';
 import ScheduleRounded from '@mui/icons-material/ScheduleRounded';
 import SelectAllRounded from '@mui/icons-material/SelectAllRounded';
 import UnfoldLessRounded from '@mui/icons-material/UnfoldLessRounded';
@@ -32,6 +33,7 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 import { LICENCES, licenceInfo } from '@shared/licences';
+import { hostOf, ruleFor } from '@shared/siteRules';
 import { SOURCES, sourceFromUrl, sourceInfo } from '@shared/sources';
 import { call } from '../../api';
 import { AssetThumb } from '../../components/AssetThumb';
@@ -41,7 +43,11 @@ import { I_DONT_KNOW, I_MADE_IT, isReady, useAdding, type AddForm, type Draft, t
 import { useJobs } from '../../state/library';
 import { useNav } from '../../state/nav';
 import { useNotices } from '../../notices/store';
+import { useSettings, useUpdateSettings } from '../../state/queries';
 import { md, mdAlpha, SHAPE } from '../../theme';
+
+/** Changing a form, saying where a filled-in value came from when Tessera filled it in. */
+type Edit = (p: Partial<AddForm>, found?: Draft['found']) => void;
 
 const QUICK = ['CC0-1.0', 'CC-BY-4.0', 'CC-BY-SA-4.0', 'royalty-free'];
 const STYLES = ['Pixel art', 'Low poly', 'Voxel', 'Hand-painted', 'Isometric', 'Cartoon', 'Realistic', 'Sci-fi', 'Stylized'];
@@ -77,7 +83,7 @@ function ColumnTitle({ children }: { children: ReactNode }) {
 /** The needed-field look: an amber outline until it's filled. */
 const needSx = (need: boolean): SxProps<Theme> => (need ? { '& .MuiOutlinedInput-notchedOutline': { borderColor: md('tertiary'), borderStyle: 'dashed' } } : {});
 
-function LicenceField({ form, onEdit, found, compact }: { form: AddForm; onEdit: (p: Partial<AddForm>) => void; found?: Found; compact?: boolean }) {
+function LicenceField({ form, onEdit, found, compact }: { form: AddForm; onEdit: Edit; found?: Found; compact?: boolean }) {
   const value = LICENCES.find((l) => l.id === form.licence) ?? null;
   return (
     <div>
@@ -103,7 +109,8 @@ function LicenceField({ form, onEdit, found, compact }: { form: AddForm; onEdit:
   );
 }
 
-function SourceField({ form, onEdit, found }: { form: AddForm; onEdit: (p: Partial<AddForm>) => void; found?: Found }) {
+function SourceField({ form, onEdit, found }: { form: AddForm; onEdit: Edit; found?: Found }) {
+  const rules = useSettings().data?.siteRules ?? [];
   const site = form.site ? sourceInfo(form.site) : form.url ? sourceFromUrl(form.url) : null;
   const need = !form.site && !form.url.trim() && !form.sourceName;
   return (
@@ -115,7 +122,20 @@ function SourceField({ form, onEdit, found }: { form: AddForm; onEdit: (p: Parti
         onChange={(e) => {
           const url = e.target.value;
           const s = sourceFromUrl(url);
-          onEdit({ url, site: s?.id ?? (url ? null : form.site), sourceName: url ? null : form.sourceName, ...(s && !form.creator ? { creator: s.creator ?? '' } : {}) });
+          const rule = ruleFor(rules, url);
+          const patch: Partial<AddForm> = { url, site: s?.id ?? (url ? null : form.site), sourceName: url ? null : form.sourceName };
+          const note: Draft['found'] = {};
+          const creator = rule?.creator ?? s?.creator ?? '';
+          if (creator && !form.creator) {
+            patch.creator = creator;
+            note.creator = { from: rule?.creator ? `your rule for ${rule.host}` : 'the site', sure: true };
+          }
+          // The user has already settled what this site's packs carry.
+          if (rule?.licence && !form.licence) {
+            patch.licence = rule.licence;
+            note.licence = { from: `your rule for ${rule.host}`, sure: true };
+          }
+          onEdit(patch, note);
         }}
         placeholder={form.sourceName ? form.sourceName : 'Paste the page you downloaded it from'}
         sx={needSx(need)}
@@ -137,7 +157,49 @@ function SourceField({ form, onEdit, found }: { form: AddForm; onEdit: (p: Parti
   );
 }
 
-function Essentials({ d, onEdit, compact }: { d: Draft; onEdit: (p: Partial<AddForm>) => void; compact?: boolean }) {
+/**
+ * The licence and the site are both filled in: offer to keep that pairing. Once a site is
+ * remembered, its next packs arrive with the licence (and creator) already there.
+ */
+function RememberSite({ form }: { form: AddForm }) {
+  const rules = useSettings().data?.siteRules ?? [];
+  const update = useUpdateSettings();
+  const [saved, setSaved] = useState<string | null>(null);
+  const host = hostOf(form.url);
+  const lic = licenceInfo(form.licence);
+  if (!host || !lic) return null;
+  const known = ruleFor(rules, form.url);
+  if (known && known.host !== saved) return null;
+
+  const set = (next: typeof rules) => update.mutate({ siteRules: next });
+  const remember = () => {
+    setSaved(host);
+    set([...rules.filter((r) => r.host !== host), { host, licence: lic.id, creator: form.creator.trim() || null, addedAt: new Date().toISOString() }]);
+  };
+  const undo = () => {
+    setSaved(null);
+    set(rules.filter((r) => r.host !== host));
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: SHAPE.lg, border: `1px solid ${md('outlineVariant')}`, background: saved ? mdAlpha('primary', 0.06) : md('surfaceContainerLowest') }}>
+      <RuleRounded sx={{ fontSize: 20, color: saved ? md('primary') : md('onSurfaceVariant') }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="bodyMedium" component="div" noWrap sx={{ color: md('onSurface') }}>
+          {saved ? `Remembered: ${lic.short} for this site` : `Always use ${lic.short} for this site?`}
+        </Typography>
+        <Typography variant="bodySmall" component="div" noWrap sx={{ color: md('onSurfaceVariant') }}>
+          {host} · {saved ? 'change it in Settings → Sites' : 'its next packs fill themselves in'}
+        </Typography>
+      </div>
+      <Button size="small" onClick={saved ? undo : remember}>
+        {saved ? 'Undo' : 'Remember'}
+      </Button>
+    </div>
+  );
+}
+
+function Essentials({ d, onEdit, compact }: { d: Draft; onEdit: Edit; compact?: boolean }) {
   const f = d.form;
   const lic = licenceInfo(f.licence);
   return (
@@ -152,6 +214,7 @@ function Essentials({ d, onEdit, compact }: { d: Draft; onEdit: (p: Partial<AddF
       )}
       <LicenceField form={f} onEdit={onEdit} found={d.found.licence} compact={compact} />
       <SourceField form={f} onEdit={onEdit} found={d.found.source} />
+      <RememberSite form={f} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {compact && (
           <div>
@@ -177,7 +240,7 @@ function Essentials({ d, onEdit, compact }: { d: Draft; onEdit: (p: Partial<AddF
   );
 }
 
-function MoreDetails({ d, onEdit, compact }: { d: Draft; onEdit: (p: Partial<AddForm>) => void; compact?: boolean }) {
+function MoreDetails({ d, onEdit, compact }: { d: Draft; onEdit: Edit; compact?: boolean }) {
   const f = d.form;
   const hasUrl = /^https?:\/\//i.test(f.url.trim());
   return (
@@ -343,7 +406,7 @@ function Skipped() {
 
 function SinglePage({ d }: { d: Draft }) {
   const { edit, save, cancel, busy } = useAdding();
-  const onEdit = (p: Partial<AddForm>) => edit(d.item.id, p);
+  const onEdit: Edit = (p, found) => edit(d.item.id, p, found);
   const ready = isReady(d.form);
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -538,8 +601,8 @@ function BatchPage() {
                 </Typography>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 28 }}>
-                <Essentials d={primary} onEdit={(p) => edit(primary.item.id, p)} compact />
-                <MoreDetails d={primary} onEdit={(p) => edit(primary.item.id, p)} compact />
+                <Essentials d={primary} onEdit={(p, found) => edit(primary.item.id, p, found)} compact />
+                <MoreDetails d={primary} onEdit={(p, found) => edit(primary.item.id, p, found)} compact />
               </div>
             </>
           )}

@@ -4,7 +4,7 @@ import { basename, extname, join } from 'node:path';
 import { missingForLibrary, type PackEdit, type PackStatus } from '@shared/pack';
 import type { CollectionItem, CollectionSummary, SmartQuery } from '@shared/collection';
 import type { BrowseQuery, Filters } from '@shared/query';
-import type { CollectionChange, Detected, FolderKind, ImportItem, ImportResult, LibraryState, PackSuggestions } from '@shared/types';
+import type { CollectionChange, Detected, FolderKind, ImportItem, ImportResult, LibraryState, PackSuggestions, SiteRule } from '@shared/types';
 import { UserError } from './errors';
 import { listPackFiles } from './index/files';
 import { LibraryIndex } from './index/indexer';
@@ -27,6 +27,8 @@ interface Deps {
   onState: (state: LibraryState) => void;
   /** The index changed: anything showing library data should reload. */
   onIndexChanged: () => void;
+  /** The user's own rules for sites, read whenever a pack's licence is worked out. */
+  siteRules: () => SiteRule[];
 }
 
 interface Open {
@@ -186,7 +188,7 @@ export class LibraryService {
   async detect(id: string): Promise<Detected> {
     const pack = await this.packRecord(id);
     const { files } = await listPackFiles(pack.dir);
-    return detectPack(pack.dir, files);
+    return detectPack(pack.dir, files, undefined, this.d.siteRules());
   }
 
   /**
@@ -197,7 +199,7 @@ export class LibraryService {
     const pack = await this.packRecord(id);
     const { files } = await listPackFiles(pack.dir);
     const download = (await readdir(join(pack.dir, PACK_DIRS.original)).catch(() => [] as string[])).find((n) => !n.startsWith('.')) ?? pack.meta.name;
-    const [detected, texts] = await Promise.all([detectPack(pack.dir, files, download), packTexts(pack.dir, files)]);
+    const [detected, texts] = await Promise.all([detectPack(pack.dir, files, download, this.d.siteRules()), packTexts(pack.dir, files)]);
     return { detected, suggestions: suggestDetails({ files, texts, downloadName: download }) };
   }
 
@@ -330,11 +332,12 @@ export class LibraryService {
         root: lib.root,
         index: lib.index,
         skipInboxWhenSure,
+        siteRules: this.d.siteRules(),
         stage,
         onProgress: (done, total, current) => job.update(total ? done / total : null, current),
       });
       const inbox = result.added.filter((a) => a.status === 'inbox').length;
-      job.done(`${result.added.length} added${inbox ? `, ${inbox} in the Inbox` : ''}${result.failed.length ? `, ${result.failed.length} failed` : ''}`);
+      job.done(`${result.added.length} added${inbox ? `, ${inbox} to review` : ''}${result.failed.length ? `, ${result.failed.length} failed` : ''}`);
       return result;
     } catch (e) {
       job.fail(e);

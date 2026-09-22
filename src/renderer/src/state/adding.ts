@@ -66,7 +66,7 @@ function filled(item: ImportItem, meta: PackMeta, detected: Detected, s: PackSug
   } else found.name = { from: 'the file name', sure: false };
   form.licence = meta.licence.id;
   form.attribution = meta.licence.attribution ?? '';
-  if (meta.licence.id && detected.licenceFrom) found.licence = { from: detected.licenceFrom, sure: !detected.licenceFrom.endsWith('(usual licence)') };
+  if (meta.licence.id && detected.licenceFrom) found.licence = { from: detected.licenceFrom, sure: !!detected.licenceSure };
   form.site = meta.source.site;
   form.url = meta.source.url ?? '';
   form.sourceName = meta.source.name;
@@ -99,9 +99,9 @@ interface AddingState {
   start(paths: string[], eachInside: boolean | 'auto'): Promise<void>;
   addAnyway(item: ImportItem): Promise<void>;
   select(ids: string[]): void;
-  edit(itemId: string, patch: Partial<AddForm>): void;
+  edit(itemId: string, patch: Partial<AddForm>, found?: Draft['found']): void;
   /** Change the same fields on every selected pack. */
-  editSelected(patch: Partial<AddForm>): void;
+  editSelected(patch: Partial<AddForm>, found?: Draft['found']): void;
   /** Save these packs: complete ones into the library, the rest (or all, with `later`) to Review. */
   save(itemIds: string[], opts?: { later?: boolean }): Promise<void>;
   /** Save whatever is left for Review (leaving the page). */
@@ -227,13 +227,13 @@ export const useAdding = create<AddingState>((set, get) => ({
 
   select: (ids) => set({ selected: ids, touched: true }),
 
-  edit(itemId, patch) {
-    set((s) => ({ drafts: s.drafts.map((d) => (d.item.id === itemId ? { ...d, form: { ...d.form, ...patch } } : d)) }));
+  edit(itemId, patch, found) {
+    set((s) => ({ drafts: s.drafts.map((d) => (d.item.id === itemId ? { ...d, form: { ...d.form, ...patch }, found: { ...d.found, ...found } } : d)) }));
   },
 
-  editSelected(patch) {
+  editSelected(patch, found) {
     const ids = new Set(get().selected);
-    set((s) => ({ drafts: s.drafts.map((d) => (ids.has(d.item.id) ? { ...d, form: { ...d.form, ...patch } } : d)) }));
+    set((s) => ({ drafts: s.drafts.map((d) => (ids.has(d.item.id) ? { ...d, form: { ...d.form, ...patch }, found: { ...d.found, ...found } } : d)) }));
   },
 
   async save(itemIds, opts = {}) {

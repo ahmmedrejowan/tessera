@@ -4,7 +4,7 @@ import { basename, join } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { isIgnored } from '@shared/assets';
-import type { ImportItem, ImportResult } from '@shared/types';
+import type { ImportItem, ImportResult, SiteRule } from '@shared/types';
 import { listPackFiles } from '../index/files';
 import type { LibraryIndex } from '../index/indexer';
 import { detectPack } from '../library/detect';
@@ -40,6 +40,8 @@ export interface ImportDeps {
   root: string;
   index: LibraryIndex;
   skipInboxWhenSure: boolean;
+  /** The user's own rules for sites, used while working out each pack's licence. */
+  siteRules?: SiteRule[];
   /** Being added through the add page: every pack waits (unfinished) until the user decides. */
   stage?: boolean;
   /** Bytes copied so far out of the total, and the pack being added. */
@@ -74,9 +76,9 @@ export async function runImport(items: ImportItem[], d: ImportDeps): Promise<Imp
         }, d.signal);
       }
       const { files } = await listPackFiles(pack.dir);
-      const found = await detectPack(pack.dir, files, basename(item.sources[0]!));
-      // Sure: the download itself states its licence, and it's from a site Tessera knows.
-      const sure = !!found.licence && !!found.site && !!found.licenceFrom && !found.licenceFrom.endsWith('(usual licence)');
+      const found = await detectPack(pack.dir, files, basename(item.sources[0]!), d.siteRules ?? []);
+      // Sure: the licence was read in the pack or set by the user's rule, and where it came from is known.
+      const sure = !!found.licence && !!found.licenceSure && (!!found.site || !!found.url);
       const status = sure && d.skipInboxWhenSure && !d.stage ? 'library' : 'inbox';
       const meta = await writePack(pack.dir, {
         ...pack.meta,
