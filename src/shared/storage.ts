@@ -11,6 +11,7 @@
 
 export type Provider =
   | 'folder'
+  | 'icloud'
   | 'gdrive'
   | 'onedrive'
   | 'dropbox'
@@ -63,6 +64,10 @@ export interface ProviderInfo {
   fields: Field[];
   /** Signed into in the browser, through rclone. */
   signIn?: { rcloneType: string; params: string[] };
+  /** The name of the provider's own app folder on this computer (as found places are labelled). */
+  appFolder?: string;
+  /** One or two lines worth knowing, shown with the form. */
+  tip?: string;
 }
 
 const PREFIX: Field = { key: 'prefix', label: 'Folder in the bucket', optional: true, initial: 'tessera/' };
@@ -84,26 +89,28 @@ const TLS: Field[] = [
 export const PROVIDERS: ProviderInfo[] = [
   { id: 'folder', label: 'A folder', group: 'folder', hint: 'This computer, a drive, or a synced cloud folder', fields: [{ key: 'path', label: 'Folder', folder: true }] },
 
-  { id: 'gdrive', label: 'Google Drive', group: 'drive', hint: 'Sign in with Google', fields: [DRIVE_FOLDER, ...CLIENT], signIn: { rcloneType: 'drive', params: ['scope=drive.file'] } },
-  { id: 'onedrive', label: 'OneDrive', group: 'drive', hint: 'Sign in with Microsoft', fields: [DRIVE_FOLDER, ...CLIENT], signIn: { rcloneType: 'onedrive', params: [] } },
-  { id: 'dropbox', label: 'Dropbox', group: 'drive', hint: 'Sign in with Dropbox', fields: [DRIVE_FOLDER, ...CLIENT], signIn: { rcloneType: 'dropbox', params: [] } },
-  { id: 'box', label: 'Box', group: 'drive', hint: 'Sign in with Box', fields: [DRIVE_FOLDER], signIn: { rcloneType: 'box', params: [] } },
-  { id: 'pcloud', label: 'pCloud', group: 'drive', hint: 'Sign in with pCloud', fields: [DRIVE_FOLDER], signIn: { rcloneType: 'pcloud', params: [] } },
+  { id: 'gdrive', label: 'Google Drive', group: 'drive', hint: 'Sign in with Google', fields: [DRIVE_FOLDER, ...CLIENT], signIn: { rcloneType: 'drive', params: ['scope=drive.file'] }, appFolder: 'Google Drive', tip: 'Tessera can only see the files it makes in your Drive. For very large libraries, your own client ID (Advanced) avoids Google’s speed limits.' },
+  { id: 'onedrive', label: 'OneDrive', group: 'drive', hint: 'Sign in with Microsoft', fields: [DRIVE_FOLDER, ...CLIENT], signIn: { rcloneType: 'onedrive', params: [] }, appFolder: 'OneDrive', tip: 'Work and school accounts may need an administrator to allow the sign-in.' },
+  { id: 'dropbox', label: 'Dropbox', group: 'drive', hint: 'Sign in with Dropbox', fields: [DRIVE_FOLDER, ...CLIENT], signIn: { rcloneType: 'dropbox', params: [] }, appFolder: 'Dropbox' },
+  { id: 'box', label: 'Box', group: 'drive', hint: 'Sign in with Box', fields: [DRIVE_FOLDER], signIn: { rcloneType: 'box', params: [] }, appFolder: 'Box' },
+  { id: 'pcloud', label: 'pCloud', group: 'drive', hint: 'Sign in with pCloud', fields: [DRIVE_FOLDER], signIn: { rcloneType: 'pcloud', params: [] }, appFolder: 'pCloud Drive' },
+  { id: 'icloud', label: 'iCloud Drive', group: 'drive', hint: 'Through its folder', fields: [], appFolder: 'iCloud Drive', tip: 'Apple doesn’t let other apps sign in to iCloud Drive, so backups go in its folder and your Mac uploads them.' },
 
-  { id: 'aws', label: 'Amazon S3', group: 'storage', hint: 'An S3 bucket', fields: [{ key: 'bucket', label: 'Bucket' }, { key: 'region', label: 'Region', initial: 'us-east-1' }, ...S3_KEYS, PREFIX] },
-  { id: 'b2', label: 'Backblaze B2', group: 'storage', hint: 'A B2 bucket', fields: [{ key: 'bucket', label: 'Bucket' }, { key: 'region', label: 'Region', placeholder: 'us-west-004' }, { key: 'accessKey', label: 'Key ID' }, { key: 'secretKey', label: 'Application key', secret: true }, PREFIX] },
-  { id: 'r2', label: 'Cloudflare R2', group: 'storage', hint: 'An R2 bucket', fields: [{ key: 'account', label: 'Account ID' }, { key: 'bucket', label: 'Bucket' }, ...S3_KEYS, PREFIX] },
-  { id: 'wasabi', label: 'Wasabi', group: 'storage', hint: 'A Wasabi bucket', fields: [{ key: 'bucket', label: 'Bucket' }, { key: 'region', label: 'Region', initial: 'us-east-1' }, ...S3_KEYS, PREFIX] },
-  { id: 'spaces', label: 'DigitalOcean Spaces', group: 'storage', hint: 'A Space', fields: [{ key: 'bucket', label: 'Space name' }, { key: 'region', label: 'Region', initial: 'nyc3' }, ...S3_KEYS, PREFIX] },
-  { id: 'gcs', label: 'Google Cloud Storage', group: 'storage', hint: 'A bucket, with a service account', fields: [{ key: 'bucket', label: 'Bucket' }, { key: 'credentials', label: 'Service account key (JSON)', file: true }, PREFIX] },
-  { id: 'azure', label: 'Azure Blob Storage', group: 'storage', hint: 'A container', fields: [{ key: 'account', label: 'Storage account' }, { key: 'container', label: 'Container' }, { key: 'key', label: 'Account key', secret: true }, PREFIX] },
-  { id: 's3', label: 'Other S3-compatible', group: 'storage', hint: 'MinIO, Garage, and more', fields: [{ key: 'endpoint', label: 'Endpoint', placeholder: 'https://s3.example.com' }, { key: 'bucket', label: 'Bucket' }, { key: 'region', label: 'Region', optional: true }, ...S3_KEYS, PREFIX, ...TLS] },
+  { id: 'aws', label: 'Amazon S3', group: 'storage', hint: 'An S3 bucket', tip: 'Use a key allowed only this bucket, and keep the bucket in S3 Standard: archive classes (Glacier) can’t be backed up to.', fields: [{ key: 'bucket', label: 'Bucket' }, { key: 'region', label: 'Region', initial: 'us-east-1' }, ...S3_KEYS, PREFIX] },
+  { id: 'b2', label: 'Backblaze B2', group: 'storage', hint: 'A B2 bucket', tip: 'Make an application key allowed only this bucket. The region is part of the bucket’s endpoint, like us-west-004.', fields: [{ key: 'bucket', label: 'Bucket' }, { key: 'region', label: 'Region', placeholder: 'us-west-004' }, { key: 'accessKey', label: 'Key ID' }, { key: 'secretKey', label: 'Application key', secret: true }, PREFIX] },
+  { id: 'r2', label: 'Cloudflare R2', group: 'storage', hint: 'An R2 bucket', tip: 'Make an R2 API token with Object Read & Write for this bucket only.', fields: [{ key: 'account', label: 'Account ID' }, { key: 'bucket', label: 'Bucket' }, ...S3_KEYS, PREFIX] },
+  { id: 'wasabi', label: 'Wasabi', group: 'storage', hint: 'A Wasabi bucket', tip: 'Use a key allowed only this bucket. Wasabi charges for at least 90 days of anything stored.', fields: [{ key: 'bucket', label: 'Bucket' }, { key: 'region', label: 'Region', initial: 'us-east-1' }, ...S3_KEYS, PREFIX] },
+  { id: 'spaces', label: 'DigitalOcean Spaces', group: 'storage', hint: 'A Space', tip: 'Use a Spaces key limited to this Space.', fields: [{ key: 'bucket', label: 'Space name' }, { key: 'region', label: 'Region', initial: 'nyc3' }, ...S3_KEYS, PREFIX] },
+  { id: 'gcs', label: 'Google Cloud Storage', group: 'storage', hint: 'A bucket, with a service account', tip: 'Give the service account Storage Object Admin on this bucket only. Keep the bucket out of the Archive class.', fields: [{ key: 'bucket', label: 'Bucket' }, { key: 'credentials', label: 'Service account key (JSON)', file: true }, PREFIX] },
+  { id: 'azure', label: 'Azure Blob Storage', group: 'storage', hint: 'A container', tip: 'Keep the container in the Hot or Cool tier: Archive can’t be backed up to.', fields: [{ key: 'account', label: 'Storage account' }, { key: 'container', label: 'Container' }, { key: 'key', label: 'Account key', secret: true }, PREFIX] },
+  { id: 's3', label: 'Other S3-compatible', group: 'storage', hint: 'MinIO, Garage, and more', tip: 'A server with its own certificate: add its certificate authority under Advanced.', fields: [{ key: 'endpoint', label: 'Endpoint', placeholder: 'https://s3.example.com' }, { key: 'bucket', label: 'Bucket' }, { key: 'region', label: 'Region', optional: true }, ...S3_KEYS, PREFIX, ...TLS] },
 
   {
     id: 'sftp',
     label: 'SFTP',
     group: 'server',
     hint: 'A server you can SSH into',
+    tip: 'A key file is safer than a password. Keys with a passphrase are used through your SSH agent.',
     fields: [
       { key: 'host', label: 'Server' },
       { key: 'port', label: 'Port', initial: '22' },
@@ -113,7 +120,7 @@ export const PROVIDERS: ProviderInfo[] = [
       { key: 'password', label: 'Password', secret: true, optional: true },
     ],
   },
-  { id: 'webdav', label: 'WebDAV', group: 'server', hint: 'Nextcloud, ownCloud, a NAS', fields: [{ key: 'url', label: 'Address', placeholder: 'https://cloud.example.com/remote.php/dav/files/me/Tessera' }, { key: 'username', label: 'User name', optional: true }, { key: 'password', label: 'Password', secret: true, optional: true }] },
+  { id: 'webdav', label: 'WebDAV', group: 'server', hint: 'Nextcloud, ownCloud, a NAS', tip: 'A server with a self-signed certificate has to be trusted by this computer first.', fields: [{ key: 'url', label: 'Address', placeholder: 'https://cloud.example.com/remote.php/dav/files/me/Tessera' }, { key: 'username', label: 'User name', optional: true }, { key: 'password', label: 'Password', secret: true, optional: true }] },
 ];
 
 export const providerInfo = (id: Provider): ProviderInfo => PROVIDERS.find((p) => p.id === id)!;
@@ -128,6 +135,7 @@ export const GROUPS: { id: ProviderGroup; label: string }[] = [
 export function targetProblem(t: StorageTarget): string | null {
   const info = providerInfo(t.provider);
   for (const f of info.fields) if (!f.optional && !t.values[f.key]?.trim()) return `Fill in “${f.label}”.`;
+  if (t.provider === 'icloud') return 'Use the iCloud Drive folder.';
   if (info.signIn && !t.values.remote) return 'Sign in first.';
   if (t.provider === 'sftp' && !t.values.keyFile && !t.values.password) return 'Give a key file or a password.';
   if (t.provider === 'sftp' && !t.values.knownHosts) return 'Check the server first.';
@@ -155,4 +163,20 @@ export function describeTarget(t: StorageTarget): string {
 export function withoutSecrets(t: StorageTarget): StorageTarget {
   const secret = new Set(providerInfo(t.provider).fields.filter((f) => f.secret).map((f) => f.key));
   return { provider: t.provider, values: Object.fromEntries(Object.entries(t.values).filter(([k]) => !secret.has(k))) };
+}
+
+/** An IAM policy that lets a key use one bucket and nothing else (Amazon S3 and compatible). */
+export function bucketPolicy(bucket: string): string {
+  const b = bucket || 'your-bucket';
+  return JSON.stringify(
+    {
+      Version: '2012-10-17',
+      Statement: [
+        { Effect: 'Allow', Action: ['s3:ListBucket', 's3:GetBucketLocation'], Resource: [`arn:aws:s3:::${b}`] },
+        { Effect: 'Allow', Action: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'], Resource: [`arn:aws:s3:::${b}/*`] },
+      ],
+    },
+    null,
+    2,
+  );
 }

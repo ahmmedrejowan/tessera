@@ -57,6 +57,8 @@ export function kopiaStorage(t: StorageTarget, rclone: RcloneSetup): KopiaStorag
     return { type: 'rclone', args: [`--remote-path=${v.remote}:${(v.folder ?? 'Tessera Backups').trim()}`, `--rclone-exe=${rclone.exe}`, `--rclone-env=RCLONE_CONFIG=${rclone.config}`], env: {} };
   }
   switch (t.provider) {
+    case 'icloud':
+      throw new UserError('icloud-folder', 'iCloud Drive is used through its folder.');
     case 'folder':
       return { type: 'filesystem', args: [`--path=${v.path}`], env: {} };
     case 'gcs':
