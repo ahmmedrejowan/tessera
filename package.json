@@ -14,26 +14,12 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit --composite false -p tsconfig.node.json && tsc --noEmit --composite false -p tsconfig.web.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "icon": "electron scripts/make-icon.cjs",
+    "package": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder"
   },
   "devDependencies": {
-    "@types/node": "^24.13.6",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "@types/three": "^0.186.0",
-    "@types/utif": "^3.0.6",
-    "@types/yauzl": "^3.4.0",
-    "@types/yazl": "^3.3.1",
-    "@vitejs/plugin-react": "^5.2.0",
-    "electron": "^44.4.3",
-    "electron-vite": "^5.0.0",
-    "playwright": "^1.63.0",
-    "tsx": "^4.23.15",
-    "typescript": "^5.9.3",
-    "vite": "^7.3.6",
-    "vitest": "^5.0.1"
-  },
-  "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fontsource-variable/roboto-flex": "^5.3.0",
@@ -42,14 +28,102 @@
     "@mui/material": "^9.4.0",
     "@tanstack/react-query": "^5.103.2",
     "@tanstack/react-virtual": "^3.14.13",
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@types/utif": "^3.0.6",
+    "@types/yauzl": "^3.4.0",
+    "@types/yazl": "^3.3.1",
+    "@vitejs/plugin-react": "^5.2.0",
     "ag-psd": "^31.0.2",
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "playwright": "^1.63.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "three": "^0.186.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
     "utif": "^3.1.0",
-    "yauzl": "^3.4.0",
+    "vite": "^7.3.6",
+    "vitest": "^5.0.1",
     "yazl": "^3.3.1",
-    "zod": "^4.6.5",
     "zustand": "^5.0.15"
+  },
+  "dependencies": {
+    "yauzl": "^3.4.0",
+    "zod": "^4.6.5"
+  },
+  "homepage": "https://github.com/ahmmedrejowan/tessera",
+  "build": {
+    "appId": "com.ahmmedrejowan.tessera",
+    "productName": "Tessera",
+    "copyright": "Copyright © 2026 K M Rejowan Ahmmed",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**",
+      "package.json"
+    ],
+    "asar": true,
+    "electronLanguages": [
+      "en"
+    ],
+    "afterPack": "scripts/adhoc-sign.cjs",
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.png",
+      "identity": null,
+      "hardenedRuntime": false
+    },
+    "dmg": {
+      "title": "Tessera ${version}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development",
+      "icon": "build/icon.png",
+      "maintainer": "K M Rejowan Ahmmed <kmrejowan@gmail.com>"
+    }
   }
 }
