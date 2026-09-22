@@ -1,3 +1,14 @@
+import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
+import EditOutlined from '@mui/icons-material/EditOutlined';
+import KeyRounded from '@mui/icons-material/KeyRounded';
+import MoreVertRounded from '@mui/icons-material/MoreVertRounded';
+import VisibilityOffOutlined from '@mui/icons-material/VisibilityOffOutlined';
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
+import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import Menu from '@mui/material/Menu';
+import Tooltip from '@mui/material/Tooltip';
 import { StatusSlot } from '../../components/StatusSlot';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -30,11 +41,15 @@ const ago = (iso: string) => {
 
 const STORE_NAME: Record<string, string> = { darwin: 'Keychain Access', win32: 'Credential Manager', linux: 'your keyring' };
 
+const MONO = 'ui-monospace, Menlo, Consolas, monospace';
+
 /** The backup password: see it, change it, and keep copies where they'll be found. */
 function PasswordRow() {
   const [shown, setShown] = useState<string | null>(null);
   const [changing, setChanging] = useState(false);
+  const [menu, setMenu] = useState<HTMLElement | null>(null);
   const act = async (fn: () => Promise<unknown>, done?: string) => {
+    setMenu(null);
     try {
       await fn();
       if (done) notify.success(done);
@@ -42,27 +57,49 @@ function PasswordRow() {
       failed(e);
     }
   };
+  const reveal = async () => shown ?? (await call('backup:revealPassword'));
   return (
     <>
       <Row
         title="Password"
         body={
-          shown ? (
-            <span style={{ fontFamily: 'ui-monospace, Menlo, Consolas, monospace', userSelect: 'text', color: md('onSurface') }}>{shown}</span>
-          ) : (
-            'Needed to restore on another computer. Keep a copy away from this one.'
-          )
+          <>
+            <span style={{ display: 'block', height: 22, lineHeight: '22px', fontFamily: MONO, fontSize: 14, letterSpacing: shown ? 0.5 : 2, color: md('onSurface'), userSelect: shown ? 'text' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {shown ?? '•••• •••• •••• ••••'}
+            </span>
+            Needed to restore on another computer. Keep a copy away from this one.
+          </>
         }
       >
-        <Button onClick={() => (shown ? setShown(null) : void act(async () => setShown(await call('backup:revealPassword'))))}>{shown ? 'Hide' : 'Show'}</Button>
+        <Tooltip title={shown ? 'Hide' : 'Show'}>
+          <IconButton aria-label={shown ? 'Hide the password' : 'Show the password'} onClick={() => (shown ? setShown(null) : void act(async () => setShown(await call('backup:revealPassword'))))}>
+            {shown ? <VisibilityOffOutlined /> : <VisibilityOutlined />}
+          </IconButton>
+        </Tooltip>
         <Button onClick={() => void act(async () => {
           const path = await call('backup:saveKit', { includeKeys: false });
           if (path) notify.success('Recovery kit saved.', { body: path });
         })}>
           Recovery kit…
         </Button>
-        <Button onClick={() => void act(() => call('backup:saveToKeychain'), `Saved in ${STORE_NAME[window.tessera.platform]}.`)}>Save in {STORE_NAME[window.tessera.platform]}</Button>
-        <Button onClick={() => setChanging(true)}>Change…</Button>
+        <IconButton aria-label="More password actions" onClick={(e) => setMenu(e.currentTarget)}>
+          <MoreVertRounded />
+        </IconButton>
+        <Menu anchorEl={menu} open={!!menu} onClose={() => setMenu(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
+          <MenuItem onClick={() => void act(async () => navigator.clipboard.writeText(await reveal()), 'Password copied.')}>
+            <ListItemIcon><ContentCopyRounded fontSize="small" /></ListItemIcon>
+            Copy
+          </MenuItem>
+          <MenuItem onClick={() => void act(() => call('backup:saveToKeychain'), `Saved in ${STORE_NAME[window.tessera.platform]}.`)}>
+            <ListItemIcon><KeyRounded fontSize="small" /></ListItemIcon>
+            Save in {STORE_NAME[window.tessera.platform]}
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={() => { setMenu(null); setChanging(true); }}>
+            <ListItemIcon><EditOutlined fontSize="small" /></ListItemIcon>
+            Change the password…
+          </MenuItem>
+        </Menu>
       </Row>
       <ChangePassword open={changing} onClose={() => setChanging(false)} />
     </>
