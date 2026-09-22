@@ -165,7 +165,8 @@ export function TopAppBar({ search, trailing }: { search: ReactNode; trailing?: 
         {/* On macOS the traffic lights sit above the rail; elsewhere the logo does. */}
         <div style={{ width: RAIL_WIDTH, flexShrink: 0, display: 'grid', placeItems: 'center' }}>{platform !== 'darwin' && <Logo />}</div>
         {platform === 'darwin' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: -8 }}>
+          // The window buttons end about 72 px in; the name keeps a clear gap from them.
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 16 }}>
             <Logo size={24} />
             <Typography variant="titleMedium" sx={{ color: md('onSurface') }}>
               Tessera
