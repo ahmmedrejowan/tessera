@@ -10,6 +10,7 @@ import { LibraryService } from './libraryService';
 import { BackupService } from './backup/service';
 import { registerDrag } from './drag';
 import { fileSecret } from './secrets';
+import { SyncService } from './sync/service';
 import { initLog, log } from './log';
 import { handleProtocol, registerSchemePrivileges } from './protocol';
 import { packFileUrl } from '@shared/urls';
@@ -37,7 +38,11 @@ let indexVersion = 0;
 const library = new LibraryService({
   dataDir,
   jobs,
-  onState: (state) => broadcast(windows, 'library:changed', state),
+  onState: (state) => {
+    broadcast(windows, 'library:changed', state);
+    // A library that syncs picks up where it left off.
+    if (state.status === 'ready') void sync.resume();
+  },
   onIndexChanged: () => {
     broadcast(windows, 'index:changed', ++indexVersion);
   },
@@ -92,6 +97,17 @@ const libraryId = () => {
   if (state.status !== 'ready') throw new UserError('no-library', 'No library is open.');
   return state.library.id;
 };
+
+let syncVersion = 0;
+const sync = new SyncService({
+  dataDir,
+  settings,
+  library: () => {
+    const state = library.getState();
+    return state.status === 'ready' ? state.library : null;
+  },
+  onChange: () => broadcast(windows, 'sync:changed', ++syncVersion),
+});
 
 registerSchemePrivileges();
 
@@ -313,6 +329,24 @@ function registerHandlers(): void {
   });
   handle('backup:turnOff', () => backups.turnOff());
 
+  handle('sync:status', () => sync.status());
+  handle('sync:enable', (mode) => sync.enable(mode));
+  handle('sync:setMode', (mode) => sync.setMode(mode));
+  handle('sync:disable', () => sync.disable());
+  handle('sync:addDevice', (id, name) => sync.addDevice(id, name));
+  handle('sync:removeDevice', (id) => sync.removeDevice(id));
+  handle('sync:receive', () => sync.startForReceiving());
+  handle('sync:acceptFolder', async (folderId, offeredBy, label, mode) => {
+    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
+    const options: Electron.OpenDialogOptions = { title: `Where should “${label}” go?`, buttonLabel: 'Put it here', properties: ['openDirectory', 'createDirectory'] };
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    const parent = result.canceled ? null : (result.filePaths[0] ?? null);
+    if (!parent) return null;
+    const path = join(parent, label);
+    await sync.acceptFolder(folderId, offeredBy, label, path, mode);
+    return path;
+  });
+
   handle('import:choose', async (what) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
     const options: Electron.OpenDialogOptions =
@@ -376,4 +410,7 @@ async function createWindow(): Promise<void> {
 app.on('window-all-closed', () => {
   if (platform !== 'darwin') app.quit();
 });
-app.on('before-quit', () => renderWindow?.close());
+app.on('before-quit', () => {
+  renderWindow?.close();
+  sync.shutdown();
+});

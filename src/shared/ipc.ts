@@ -8,7 +8,7 @@ import type { PackEdit, PackMeta, PackStatus } from './pack';
 import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } from './project';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
-import type { AppInfo, BackupStatus, CollectionChange, Detected, Snapshot, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { AppInfo, BackupStatus, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -96,6 +96,17 @@ export interface Invokes {
   'backup:restore': (id: string) => string | null;
   'backup:turnOff': () => void;
 
+  'sync:status': () => SyncStatus;
+  'sync:enable': (mode: SyncMode) => void;
+  'sync:setMode': (mode: SyncMode) => void;
+  'sync:disable': () => void;
+  'sync:addDevice': (deviceId: string, name: string) => void;
+  'sync:removeDevice': (deviceId: string) => void;
+  /** Start syncing with no library open, to receive one from another computer. */
+  'sync:receive': () => void;
+  /** Accept a library another computer offers: asks where to put it; returns that folder or null. */
+  'sync:acceptFolder': (folderId: string, offeredBy: string, label: string, mode: SyncMode) => string | null;
+
   /** Ask the user for files or a folder to add; null when they cancel. */
   'import:choose': (what: 'files' | 'folder' | 'folderOfPacks') => string[] | null;
   'import:plan': (paths: string[], eachInside: boolean) => ImportItem[];
@@ -117,6 +128,8 @@ export interface Events {
   'projects:changed': number;
   /** Backup settings or state changed. */
   'backup:changed': number;
+  /** Sync settings or state changed. */
+  'sync:changed': number;
 }
 
 export type InvokeChannel = keyof Invokes;
