@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2d5670"/>
+      <stop offset="1" stop-color="#16303f"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.14"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <!-- macOS icon grid: an 824 px rounded square centred in 1024. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#shine)"/>
+  <!-- Four tesserae, one set apart in the accent colour. -->
+  <rect x="262" y="262" width="236" height="236" rx="48" fill="#a8d4ee"/>
+  <rect x="526" y="262" width="236" height="236" rx="48" fill="#e6f0f7"/>
+  <rect x="262" y="526" width="236" height="236" rx="48" fill="#e6f0f7"/>
+  <rect x="526" y="526" width="236" height="236" rx="48" fill="#cdb8f0"/>
+</svg>

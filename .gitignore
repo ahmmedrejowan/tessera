@@ -8,3 +8,5 @@ coverage/
 .env
 .env.*
 docs/
+build/*.icns
+build/*.ico
