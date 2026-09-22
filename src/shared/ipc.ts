@@ -6,7 +6,8 @@
  */
 import type { PackEdit, PackMeta, PackStatus } from './pack';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, Page, PackRow, PackSort } from './query';
-import type { AppInfo, Detected, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
+import type { AppInfo, CollectionChange, Detected, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -51,6 +52,11 @@ export interface Invokes {
   'pack:reveal': (id: string, ref?: string) => void;
 
   'jobs:list': () => Job[];
+
+  'collections:list': () => CollectionSummary[];
+  /** Create a collection (manual with items, or smart with a query); returns its id. */
+  'collections:create': (name: string, init: { description?: string; items?: CollectionItem[]; query?: SmartQuery | null }) => string;
+  'collections:change': (id: string, change: CollectionChange) => void;
 
   /** Ask the user for files or a folder to add; null when they cancel. */
   'import:choose': (what: 'files' | 'folder' | 'folderOfPacks') => string[] | null;

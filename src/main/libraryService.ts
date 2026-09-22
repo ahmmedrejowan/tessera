@@ -2,7 +2,9 @@ import { watch, type FSWatcher } from 'node:fs';
 import { copyFile, mkdir, readdir, stat } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { missingForLibrary, type PackEdit, type PackStatus } from '@shared/pack';
-import type { Detected, FolderKind, ImportItem, ImportResult, LibraryState } from '@shared/types';
+import type { CollectionItem, CollectionSummary, SmartQuery } from '@shared/collection';
+import type { BrowseQuery, Filters } from '@shared/query';
+import type { CollectionChange, Detected, FolderKind, ImportItem, ImportResult, LibraryState } from '@shared/types';
 import { UserError } from './errors';
 import { listPackFiles } from './index/files';
 import { LibraryIndex } from './index/indexer';
@@ -10,6 +12,7 @@ import { planImport } from './import/plan';
 import { runImport } from './import/run';
 import { LibraryQueries } from './index/query';
 import type { Jobs } from './jobs';
+import { createCollection, deleteCollection, listCollections, updateCollection, withItems, withoutItems } from './library/collections';
 import { detectPack } from './library/detect';
 import { createLibrary, DIRS, inspectFolder, PACK_DIRS, readLibraryInfo } from './library/layout';
 import { safeFolderName, uniqueName } from './library/names';
@@ -66,6 +69,7 @@ export class LibraryService {
 
   async open(path: string): Promise<LibraryState> {
     this.close();
+    this.collectionsSig = '';
     this.setState({ status: 'opening', path });
     try {
       const info = await readLibraryInfo(path);
@@ -115,9 +119,11 @@ export class LibraryService {
       try {
         const result = await lib.index.sync(lib.root, (done, total, current) => job.update(total ? done / total : null, current));
         if (this.current !== lib) return;
+        // Collections may have changed on disk too (edited on another computer and synced).
+        const collectionsChanged = await this.reloadCollections();
         job.done(result.changed || result.removed ? `${result.changed} changed, ${result.removed} removed` : 'Up to date');
         if (this.state.status === 'ready') this.setState({ ...this.state, problems: result.problems });
-        if (result.changed || result.removed) this.d.onIndexChanged();
+        if (result.changed || result.removed || collectionsChanged) this.d.onIndexChanged();
       } catch (e) {
         job.fail(e);
       } finally {
@@ -133,7 +139,7 @@ export class LibraryService {
 
   private startWatching(root: string): void {
     try {
-      this.watcher = watch(join(root, DIRS.packs), { recursive: true }, () => {
+      this.watcher = watch(root, { recursive: true }, () => {
         if (this.watchTimer) clearTimeout(this.watchTimer);
         this.watchTimer = setTimeout(() => (this.busyWriting ? undefined : void this.sync()), 1500);
       });
@@ -156,6 +162,70 @@ export class LibraryService {
     const pack = await this.packRecord(id);
     const { files } = await listPackFiles(pack.dir);
     return detectPack(pack.dir, files);
+  }
+
+  // ---- collections ----
+
+  private collectionsSig = '';
+
+  /** Mirror collections into the index; true when they differ from last time. */
+  private async reloadCollections(): Promise<boolean> {
+    const lib = this.current;
+    if (!lib) return false;
+    const all = await listCollections(lib.root);
+    const sig = JSON.stringify(all.map((c) => [c.id, c.updatedAt, c.items.length]));
+    if (sig === this.collectionsSig) return false;
+    this.collectionsSig = sig;
+    lib.index.setCollections(all);
+    return true;
+  }
+
+  async collections(): Promise<CollectionSummary[]> {
+    const lib = this.require();
+    const out: CollectionSummary[] = [];
+    for (const c of await listCollections(lib.root)) {
+      const q: BrowseQuery = c.query
+        ? { scope: 'library', text: c.query.text, filters: c.query.filters as Filters, includeSupport: c.query.includeSupport }
+        : { scope: 'all', text: '', filters: {}, collectionId: c.id };
+      const page = lib.queries.assets(q, 'relevance', 0, 4);
+      out.push({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        kind: c.kind,
+        count: page.total,
+        samples: page.rows.map((r) => ({ packId: r.packId, ref: r.ref, ext: r.ext, kind: r.kind, type: r.type })),
+        updatedAt: c.updatedAt,
+        query: c.query,
+      });
+    }
+    return out;
+  }
+
+  async createCollection(name: string, init: { description?: string; items?: CollectionItem[]; query?: SmartQuery | null }): Promise<string> {
+    const c = await createCollection(this.require().root, name.trim() || 'Untitled', init);
+    await this.collectionsChanged();
+    return c.id;
+  }
+
+  async changeCollection(id: string, change: CollectionChange): Promise<void> {
+    const root = this.require().root;
+    if (change.delete) await deleteCollection(root, id);
+    else
+      await updateCollection(root, id, (c) => {
+        let next = { ...c };
+        if (change.name !== undefined) next.name = change.name.trim() || c.name;
+        if (change.description !== undefined) next.description = change.description;
+        if (change.add) next = withItems(next, change.add);
+        if (change.remove) next = withoutItems(next, change.remove);
+        return next;
+      });
+    await this.collectionsChanged();
+  }
+
+  private async collectionsChanged(): Promise<void> {
+    await this.reloadCollections();
+    this.d.onIndexChanged();
   }
 
   /** What adding these paths would create, with likely duplicates marked. */

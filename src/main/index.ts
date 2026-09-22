@@ -164,6 +164,10 @@ function registerHandlers(): void {
 
   handle('jobs:list', () => jobs.list());
 
+  handle('collections:list', () => library.collections());
+  handle('collections:create', (name, init) => library.createCollection(name, init));
+  handle('collections:change', (id, change) => library.changeCollection(id, change));
+
   handle('import:choose', async (what) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
     const options: Electron.OpenDialogOptions =

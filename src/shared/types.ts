@@ -112,3 +112,12 @@ export interface ImportResult {
   added: { id: string; name: string; status: 'inbox' | 'library' }[];
   failed: { name: string; error: string }[];
 }
+
+/** A change to a collection: rename, describe, add or remove items, or delete it. */
+export interface CollectionChange {
+  name?: string;
+  description?: string;
+  add?: { packId: string; ref: string }[];
+  remove?: { packId: string; ref: string }[];
+  delete?: boolean;
+}
