@@ -37,6 +37,7 @@ import type { CopySource } from './projects/copy';
 import { SettingsStore } from './settings';
 import { RenderWindow } from './thumbs/renderWindow';
 import { ThumbService } from './thumbs/service';
+import { Activity } from './activity';
 import { DownloadService, linksInFiles } from './downloads/service';
 import { linksIn } from '@shared/links';
 import { defaultSize, loadWindowState, trackWindowState } from './windowState';
@@ -103,6 +104,15 @@ onInternalError((channel, e) => {
   reports.record({ source: 'main', kind: 'ipc', name: err.name, message: err.message, ...(err.stack ? { stack: err.stack } : {}), context: { channel } });
 });
 const jobs = new Jobs((list) => broadcast(windows, 'jobs:changed', list));
+let activityVersion = 0;
+const activity = new Activity(
+  dataDir,
+  () => {
+    const state = library.getState();
+    return state.status === 'ready' ? state.library.id : null;
+  },
+  () => broadcast(windows, 'activity:changed', ++activityVersion),
+);
 const downloads = new DownloadService({
   dir: join(dataDir, 'downloads'),
   fetch: (url, init) => net.fetch(url, init),
@@ -190,7 +200,9 @@ async function addDownloaded(item: DownloadItem): Promise<void> {
       return;
     }
     const result = await library.import(planned.map((i) => ({ ...i, url: item.url })), record.skipInboxWhenSure, false);
-    downloads.done(item.id, result.added[0]?.name ?? null);
+    const made = result.added[0];
+    downloads.done(item.id, made?.name ?? null);
+    if (made) activity.add('downloaded', `Downloaded “${made.name}” from ${item.host}`, made.status === 'inbox' ? 'Waiting in Review for a licence' : undefined);
   } catch (e) {
     log.error('downloads', `could not add ${item.name}`, e);
   }
@@ -479,7 +491,11 @@ function registerHandlers(): void {
     // In the background, one page at a time: the add page doesn't wait for it.
     pageRecords = pageRecords.then(() => recordPage(id, what)).catch((e: unknown) => log.warn('pages', 'could not keep a record of a download page', e));
   });
-  handle('pack:status', (id, status) => library.setStatus(id, status));
+  handle('pack:status', async (id, status) => {
+    const name = library.require().queries.pack(id)?.name;
+    await library.setStatus(id, status);
+    if (status === 'library' && name) activity.add('reviewed', `“${name}” passed Review and is in the library`);
+  });
   handle('pack:remove', (id) => library.removePack(id, (path) => shell.trashItem(path)));
   handle('pack:proof', async (id) => (await library.proofFiles(id)).map((f) => ({ ...f, url: packFileUrl(id, `licence/${f.name}`) })));
   handle('pack:addProof', async (id) => {
@@ -541,6 +557,8 @@ function registerHandlers(): void {
   handle('projects:copy', async (id, items) => {
     const n = await projects.copy(id, items, copySource());
     projectsChanged();
+    const project = await projects.get(id).catch(() => null);
+    if (n) activity.add('project', `Copied ${n} asset${n === 1 ? '' : 's'} to ${project?.name ?? 'a project'}`);
     return n;
   });
   handle('projects:remove', async (id, items) => {
@@ -605,7 +623,11 @@ function registerHandlers(): void {
     // Only the local sign-in pages rclone serves, and the web.
     if (/^https?:\/\//.test(url)) void shell.openExternal(url);
   });
-  handle('backup:now', () => backups.backupNow());
+  handle('backup:now', async () => {
+    const done = await backups.backupNow();
+    activity.add('backup', 'Backed up this library');
+    return done;
+  });
   handle('backup:join', (libraryId) => backups.join(libraryId));
   handle('backup:setInterval', (hours) => backups.setInterval(hours));
   handle('backup:snapshots', () => backups.snapshots());
@@ -675,6 +697,8 @@ function registerHandlers(): void {
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     return result.canceled || !result.filePaths.length ? null : result.filePaths;
   });
+  handle('activity:list', (limit) => activity.list(limit ?? 20));
+
   handle('downloads:list', () => downloads.list());
   handle('downloads:add', (text) => downloads.add(linksIn(text)));
   handle('downloads:linksIn', (paths) => linksInFiles(paths));
@@ -695,7 +719,14 @@ function registerHandlers(): void {
   handle('downloads:done', (ids) => { for (const id of ids) void downloads.done(id, null); });
 
   handle('import:plan', (paths, eachInside) => library.planImport(paths, eachInside));
-  handle('import:run', (items, opts) => library.import(items, openRecord()?.skipInboxWhenSure ?? true, !!opts?.stage));
+  handle('import:run', async (items, opts) => {
+    const result = await library.import(items, openRecord()?.skipInboxWhenSure ?? true, !!opts?.stage);
+    const added = result.added.filter((a) => a.status === 'library');
+    const waiting = result.added.filter((a) => a.status === 'inbox');
+    if (added.length) activity.add('added', added.length === 1 ? `Added “${added[0]!.name}”` : `Added ${added.length} packs`, added.map((a) => a.name).slice(0, 6).join(', '));
+    if (waiting.length && !opts?.stage) activity.add('added', waiting.length === 1 ? `“${waiting[0]!.name}” is waiting in Review` : `${waiting.length} packs are waiting in Review`);
+    return result;
+  });
   handle('thumbs:get', (keys) => thumbs.get(keys.slice(0, 500)));
 
   handle('reports:capture', (input) => void reports.record({ ...input, source: 'window' }));

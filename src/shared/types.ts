@@ -312,6 +312,19 @@ export interface ImportItem {
   url?: string;
 }
 
+/** What kind of thing happened in a library. */
+export type ActivityKind = 'added' | 'downloaded' | 'reviewed' | 'backup' | 'sync' | 'project' | 'library';
+
+/** One thing that happened, as Home shows it. */
+export interface ActivityEntry {
+  at: string;
+  kind: ActivityKind;
+  /** One line, in the user's words. */
+  text: string;
+  /** A second line, when there's more worth saying. */
+  detail?: string;
+}
+
 /** Where a download has got to. */
 export type DownloadState = 'waiting' | 'running' | 'paused' | 'ready' | 'added' | 'failed' | 'cancelled';
 

@@ -9,7 +9,7 @@ import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } f
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { Provider, StorageTarget } from './storage';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
-import type { PackSuggestions, LibrarySummary, AppInfo, DownloadItem, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { PackSuggestions, LibrarySummary, AppInfo, ActivityEntry, DownloadItem, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -189,6 +189,9 @@ export interface Invokes {
   'import:samples': () => string[];
   /** `eachInside`: a folder is several packs; 'auto' decides from what's in it. */
   /** Links the user brought, on their way to becoming packs. */
+  /** What has been happening in the open library, newest first. */
+  'activity:list': (limit?: number) => ActivityEntry[];
+
   'downloads:list': () => DownloadItem[];
   /** Queue every web link in what was pasted or typed. */
   'downloads:add': (text: string) => { added: number; skipped: number };
@@ -243,6 +246,8 @@ export interface Events {
   'jobs:changed': Job[];
   /** The downloads list changed: rows, progress or state. */
   'downloads:changed': DownloadItem[];
+  /** Something happened worth noting on Home. */
+  'activity:changed': number;
   /** Thumbnails that became ready (or failed) since the last event. */
   'thumbs:ready': Record<string, ThumbState>;
   /** Projects or what's copied into them changed. */

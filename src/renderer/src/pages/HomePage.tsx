@@ -1,4 +1,11 @@
+import AddRounded from '@mui/icons-material/AddRounded';
 import ArrowForward from '@mui/icons-material/ArrowForward';
+import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined';
+import BackupOutlined from '@mui/icons-material/BackupOutlined';
+import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
+import RateReviewOutlined from '@mui/icons-material/RateReviewOutlined';
+import SportsEsportsOutlined from '@mui/icons-material/SportsEsportsOutlined';
+import SyncOutlined from '@mui/icons-material/SyncOutlined';
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
@@ -9,10 +16,11 @@ import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
-import { useQuery } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, type ComponentType, type ReactNode } from 'react';
 import { ASSET_TYPES, TYPE_LABELS, type AssetType } from '@shared/assets';
-import { call } from '../api';
+import type { ActivityKind } from '@shared/types';
+import { call, on } from '../api';
 import { formatBytes, formatCount, TYPE_ICONS } from '../components/labels';
 import { LicenceChip } from '../components/LicenceChip';
 import { useBrowse } from '../state/browse';
@@ -26,6 +34,65 @@ import { Page } from './Placeholder';
 import { PackCard } from './browse/PackCard';
 import { EngineBadge } from './projects/EngineBadge';
 import { useLinkProject } from './projects/ProjectsPage';
+
+
+/** Icons for the kinds of thing that happen in a library. */
+const ACTIVITY_ICONS: Record<ActivityKind, ComponentType<{ sx?: object }>> = {
+  added: AddRounded,
+  downloaded: DownloadOutlined,
+  reviewed: RateReviewOutlined,
+  backup: BackupOutlined,
+  sync: SyncOutlined,
+  project: SportsEsportsOutlined,
+  library: AutoStoriesOutlined,
+};
+
+/** When something happened, in words. */
+function ago(iso: string): string {
+  const mins = Math.round((Date.now() - Date.parse(iso)) / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? 'yesterday' : days < 30 ? `${days} days ago` : new Date(iso).toLocaleDateString();
+}
+
+/** What has been happening in this library: added, downloaded, reviewed, backed up, copied. */
+function Happening() {
+  const client = useQueryClient();
+  useEffect(() => on('activity:changed', () => void client.invalidateQueries({ queryKey: ['activity'] })), [client]);
+  // Things happen while another page is open, so this is read again whenever Home comes back.
+  const entries = useQuery({ queryKey: ['activity'], queryFn: () => call('activity:list', 12), staleTime: 0 }).data ?? [];
+  if (!entries.length) return null;
+  return (
+    <Section title="What’s been happening">
+      <div style={{ borderRadius: SHAPE.lg, background: md('surfaceContainerLow'), padding: '4px 20px' }}>
+        {entries.map((e, i) => {
+          const Icon = ACTIVITY_ICONS[e.kind] ?? AddRounded;
+          return (
+            <div key={`${e.at}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0', borderTop: i ? `1px solid ${md('outlineVariant')}` : 'none' }}>
+              <Icon sx={{ fontSize: 20, color: md('onSurfaceVariant') }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="bodyMedium" noWrap sx={{ color: md('onSurface') }}>
+                  {e.text}
+                </Typography>
+                {e.detail && (
+                  <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant') }}>
+                    {e.detail}
+                  </Typography>
+                )}
+              </div>
+              <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant'), flexShrink: 0 }}>
+                {ago(e.at)}
+              </Typography>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
 
 function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
@@ -276,6 +343,8 @@ export function HomePage() {
             </div>
           </Section>
         )}
+
+        <Happening />
       </div>
     </Page>
   );

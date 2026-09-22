@@ -9,7 +9,8 @@ import { useAdding } from './adding';
 export function useDownloads() {
   const client = useQueryClient();
   useEffect(() => on('downloads:changed', (list) => client.setQueryData(['downloads'], list)), [client]);
-  return useQuery({ queryKey: ['downloads'], queryFn: () => call('downloads:list') });
+  // Downloads carry on while other pages are open: read the list again on coming back.
+  return useQuery({ queryKey: ['downloads'], queryFn: () => call('downloads:list'), staleTime: 0 });
 }
 
 export const isGoing = (d: DownloadItem) => d.state === 'waiting' || d.state === 'running' || d.state === 'paused';
