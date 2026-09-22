@@ -1,6 +1,5 @@
 import HomeOutlined from '@mui/icons-material/HomeOutlined';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
-import SportsEsportsOutlined from '@mui/icons-material/SportsEsportsOutlined';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useState } from 'react';
 import { EmptyState } from './components/EmptyState';
@@ -12,6 +11,9 @@ import { BrowsePage } from './pages/browse/BrowsePage';
 import { CollectionPage } from './pages/collections/CollectionPage';
 import { CollectionsPage } from './pages/collections/CollectionsPage';
 import { InboxPage } from './pages/InboxPage';
+import { CopyConfirm } from './pages/projects/CopyConfirm';
+import { ProjectPage } from './pages/projects/ProjectPage';
+import { ProjectsPage } from './pages/projects/ProjectsPage';
 import { PackPage } from './pages/pack/PackPage';
 import { Page } from './pages/Placeholder';
 import { Welcome } from './pages/Welcome';
@@ -21,7 +23,6 @@ import { useNav } from './state/nav';
 
 const PLACEHOLDERS = {
   home: { title: 'Home', icon: HomeOutlined },
-  projects: { title: 'Projects', icon: SportsEsportsOutlined },
   settings: { title: 'Settings', icon: SettingsOutlined },
 };
 
@@ -32,6 +33,8 @@ function Current() {
   if (route.to === 'inbox') return <InboxPage />;
   if (route.to === 'collections') return <CollectionsPage />;
   if (route.to === 'collection') return <CollectionPage key={route.id} id={route.id} />;
+  if (route.to === 'projects') return <ProjectsPage />;
+  if (route.to === 'project') return <ProjectPage key={route.id} id={route.id} />;
   const p = PLACEHOLDERS[route.to];
   return (
     <Page title={p.title}>
@@ -68,6 +71,7 @@ export function App() {
       </AppShell>
       <AddMenu anchor={addAnchor} onClose={() => setAddAnchor(null)} />
       <ImportDialog />
+      <CopyConfirm />
       <DropOverlay enabled />
       <ToastHost />
     </>

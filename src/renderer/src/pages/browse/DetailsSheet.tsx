@@ -1,5 +1,6 @@
 import Close from '@mui/icons-material/Close';
 import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
+import DriveFileMoveOutlined from '@mui/icons-material/DriveFileMoveOutlined';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
 import OpenInNew from '@mui/icons-material/OpenInNew';
 import Button from '@mui/material/Button';
@@ -8,6 +9,7 @@ import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { CollectionMenu } from '../collections/CollectionMenu';
+import { copyToProject, useActiveProject } from '../../state/projects';
 import { TYPE_LABELS } from '@shared/assets';
 import { sourceInfo } from '@shared/sources';
 import { call } from '../../api';
@@ -107,6 +109,7 @@ function AssetDetails({ id }: { id: number }) {
   const go = useNav((s) => s.go);
   const asset = useQuery({ queryKey: ['asset', lib, v, id], queryFn: () => call('asset:get', id), enabled: !!lib, placeholderData: (p) => p }).data;
   const [collectAnchor, setCollectAnchor] = useState<HTMLElement | null>(null);
+  const project = useActiveProject();
   if (!asset) return null;
   return (
     <>
@@ -122,6 +125,9 @@ function AssetDetails({ id }: { id: number }) {
         </Typography>
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Button variant="contained" size="small" startIcon={<DriveFileMoveOutlined />} onClick={() => void copyToProject(project, [{ packId: asset.packId, ref: asset.ref }])}>
+          {project ? `Copy to ${project.name}` : 'Copy to project'}
+        </Button>
         <Button variant="outlined" size="small" startIcon={<OpenInNew />} onClick={() => go({ to: 'pack', id: asset.packId })}>
           Open pack
         </Button>

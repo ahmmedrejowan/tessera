@@ -32,7 +32,9 @@ export function ToastHost() {
       autoHideDuration={current?.action ? 8000 : 4000}
       onClose={(_, reason) => reason !== 'clickaway' && hide()}
       message={current?.message}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      // Bottom-left, clear of the rail and of the selection bar in the middle.
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      sx={{ left: { sm: 112 } }}
       action={
         current?.action && (
           <Button

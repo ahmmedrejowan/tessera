@@ -1,4 +1,6 @@
 import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
+import DriveFileMoveOutlined from '@mui/icons-material/DriveFileMoveOutlined';
+import Button from '@mui/material/Button';
 import ChevronLeft from '@mui/icons-material/ChevronLeft';
 import ChevronRight from '@mui/icons-material/ChevronRight';
 import Close from '@mui/icons-material/Close';
@@ -21,6 +23,7 @@ import { LicenceChip, licenceSummary } from '../components/LicenceChip';
 import { fileUrl, useIndexVersion, useLibraryId } from '../state/library';
 import { useNav } from '../state/nav';
 import { useThumb } from '../state/thumbs';
+import { copyToProject, useActiveProject } from '../state/projects';
 import { assetKey } from '@shared/urls';
 import { md, mdAlpha, SHAPE } from '../theme';
 import { useIsDark } from '../theme/AppThemeProvider';
@@ -116,6 +119,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
   const [fontInfo, setFontInfo] = useState<FontInfo | null>(null);
   const [stats, setStats] = useState<ModelStats | null>(null);
   const [collectAnchor, setCollectAnchor] = useState<HTMLElement | null>(null);
+  const project = useActiveProject();
 
   useEffect(() => setFileId(asset.id), [asset.id]);
   const thumb = useThumb(assetKey(asset.packId, asset.ref));
@@ -251,6 +255,9 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
             </IconButton>
           </Tooltip>
         )}
+        <Button variant="contained" size="small" startIcon={<DriveFileMoveOutlined />} onClick={() => void copyToProject(project, [{ packId: asset.packId, ref: asset.ref }])} sx={{ mr: 1 }}>
+          {project ? `Copy to ${project.name}` : 'Copy to project'}
+        </Button>
         <Tooltip title="Add to collection">
           <IconButton onClick={(e) => setCollectAnchor(e.currentTarget)} aria-label="Add to collection">
             <BookmarkAddOutlined />
