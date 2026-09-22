@@ -5,6 +5,7 @@ import { md, SHAPE } from '../theme';
 import { NavigationRail } from './NavigationRail';
 import { Activity } from './Activity';
 import { LibrarySwitcher } from './LibrarySwitcher';
+import { ShortcutsButton } from './Shortcuts';
 import { useStats } from '../state/library';
 import { SearchField, TopAppBar } from './TopAppBar';
 
@@ -67,6 +68,7 @@ export function AppShell({ children, onAdd, inboxCount, bare }: { children: Reac
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: md('surfaceContainer') }}>
       <TopAppBar search={bare ? null : <GlobalSearch />} trailing={bare ? null : (
           <>
+            <ShortcutsButton />
             <Activity />
             <LibrarySwitcher />
           </>

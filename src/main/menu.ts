@@ -45,8 +45,7 @@ export function installMenu(focused: () => BrowserWindow | undefined, logsDir: s
     {
       label: 'View',
       submenu: [
-        { label: 'Find…', accelerator: 'CmdOrCtrl+F', click: send('find') },
-        { label: 'Search or Go To…', accelerator: 'CmdOrCtrl+K', click: send('palette') },
+        { label: 'Search or Go To…', accelerator: 'CmdOrCtrl+F', click: send('find') },
         { type: 'separator' },
         { label: 'Home', accelerator: 'CmdOrCtrl+1', click: send('home') },
         { label: 'Browse', accelerator: 'CmdOrCtrl+2', click: send('browse') },
@@ -66,6 +65,8 @@ export function installMenu(focused: () => BrowserWindow | undefined, logsDir: s
     {
       role: 'help',
       submenu: [
+        { label: 'Keyboard Shortcuts', accelerator: 'CmdOrCtrl+/', click: send('shortcuts') },
+        { type: 'separator' },
         { label: 'Report a Problem…', click: send('reportProblem') },
         { label: 'Show Logs', click: () => void shell.openPath(logsDir) },
         { label: 'Tessera on GitHub', click: () => void shell.openExternal('https://github.com/ahmmedrejowan/tessera') },

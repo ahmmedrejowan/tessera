@@ -92,7 +92,7 @@ export function SearchField({ value, onChange, placeholder }: { value: string; o
           sx={{ flex: 1, color: md('onSurface'), typography: 'bodyLarge', '& input::placeholder': { color: md('onSurfaceVariant'), opacity: 1 } }}
         />
         <Typography variant="labelMedium" sx={{ px: 1, py: '2px', borderRadius: `${SHAPE.xs}px`, border: `1px solid ${md('outlineVariant')}` }}>
-          {modKey} K
+          {modKey} F
         </Typography>
       </label>
       <Popper open={open} anchorEl={anchor.current} placement="bottom-start" style={{ zIndex: 1300, width: anchor.current?.offsetWidth }}>

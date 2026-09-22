@@ -6,6 +6,7 @@ import { NoticeHost } from './notices/NoticeHost';
 import { ReportsHost } from './reports/ReportsHost';
 import { LibraryDialog } from './pages/library/LibraryDialog';
 import { Guides } from './pages/library/guides';
+import { ShortcutsDialog } from './shell/Shortcuts';
 import { AddMenu } from './import/AddMenu';
 import { DropOverlay } from './import/DropOverlay';
 import { ImportDialog } from './import/ImportDialog';
@@ -69,6 +70,7 @@ export function App() {
       <ReportsHost />
       <LibraryDialog />
       <Guides />
+      <ShortcutsDialog />
     </>
   );
 }
