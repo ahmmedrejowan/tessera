@@ -8,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
  * deleted and rebuilt; a schema change simply rebuilds it.
  */
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 const SCHEMA = `
 CREATE TABLE packs (
@@ -64,11 +64,21 @@ CREATE INDEX assets_ext ON assets(ext);
 
 -- Words of each asset's file name, and of the folders (and archives) it sits in; rowid is assets.id.
 CREATE VIRTUAL TABLE assets_fts USING fts5(name, path, content='', contentless_delete=1, tokenize='unicode61 remove_diacritics 2', prefix='2 3');
+-- Items of manual collections, mirrored from collections/*.json for queries.
+CREATE TABLE collection_items (
+  collection_id TEXT NOT NULL,
+  pack_id       TEXT NOT NULL,
+  ref           TEXT NOT NULL,
+  position      INTEGER NOT NULL,
+  PRIMARY KEY (collection_id, pack_id, ref)
+);
+CREATE INDEX collection_items_asset ON collection_items(pack_id, ref);
+
 -- Words describing each pack: name, source, creator, genres, styles, tags, description.
 CREATE VIRTUAL TABLE packs_fts USING fts5(pack_id UNINDEXED, words, tokenize='unicode61 remove_diacritics 2', prefix='2 3');
 `;
 
-const DROP = ['packs_fts', 'assets_fts', 'assets', 'pack_terms', 'packs'];
+const DROP = ['collection_items', 'packs_fts', 'assets_fts', 'assets', 'pack_terms', 'packs'];
 
 export function openIndexDb(path: string): DatabaseSync {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });

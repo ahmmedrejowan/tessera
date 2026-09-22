@@ -83,9 +83,14 @@ export class LibraryQueries {
     const out: Clause[] = [];
     if (q.scope !== 'all') out.push({ sql: 'p.status = ?', params: [q.scope] });
     if (q.packIds) out.push(inList('p.id', q.packIds.length ? q.packIds : ['']));
-    // Variants are always shown through the asset they belong to.
-    const role = q.includeSupport ? "a.role != 'variant'" : "a.role = 'main'";
-    if (mode === 'assets') out.push({ sql: role, params: [] });
+    if (q.collectionId) {
+      // A collection shows exactly what was put in it, supporting files included.
+      const inCollection = 'SELECT 1 FROM collection_items ci WHERE ci.collection_id = ? AND ci.pack_id = a.pack_id AND ci.ref = a.ref';
+      out.push(mode === 'assets' ? { sql: `EXISTS (${inCollection})`, params: [q.collectionId] } : { sql: `p.id IN (SELECT pack_id FROM collection_items WHERE collection_id = ?)`, params: [q.collectionId] });
+    } else if (mode === 'assets') {
+      // Variants are always shown through the asset they belong to.
+      out.push({ sql: q.includeSupport ? "a.role != 'variant'" : "a.role = 'main'", params: [] });
+    }
 
     for (const facet of FACETS) {
       const values = q.filters[facet];
@@ -141,7 +146,12 @@ export class LibraryQueries {
     const score = terms.length
       ? `(${terms.map(() => `(CASE WHEN ${hit} THEN 3 WHEN ${hit} THEN 2 WHEN ${hit} THEN 1 ELSE 0 END)`).join(' + ')}) DESC, `
       : '';
-    const rows = this.all<RawAsset>(`SELECT ${ASSET_FIELDS} ${from} ORDER BY ${score}${ASSET_SORT[sort]} LIMIT ? OFFSET ?`, [...w.params, ...exact, limit, offset]);
+    // In a collection, "best match" without search words is the order things were added.
+    const order = q.collectionId && !terms.length && sort === 'relevance'
+      ? '(SELECT position FROM collection_items ci WHERE ci.collection_id = ? AND ci.pack_id = a.pack_id AND ci.ref = a.ref), a.id'
+      : `${score}${ASSET_SORT[sort]}`;
+    const orderParams = q.collectionId && !terms.length && sort === 'relevance' ? [q.collectionId] : exact;
+    const rows = this.all<RawAsset>(`SELECT ${ASSET_FIELDS} ${from} ORDER BY ${order} LIMIT ? OFFSET ?`, [...w.params, ...orderParams, limit, offset]);
     return { rows: rows.map(toAsset), total };
   }
 

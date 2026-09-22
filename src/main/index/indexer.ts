@@ -249,6 +249,15 @@ export class LibraryIndex {
     });
   }
 
+  /** Mirror the manual collections' items into the index. */
+  setCollections(collections: { id: string; items: { packId: string; ref: string }[] }[]): void {
+    transaction(this.db, () => {
+      this.db.exec('DELETE FROM collection_items');
+      const insert = this.db.prepare('INSERT OR IGNORE INTO collection_items (collection_id, pack_id, ref, position) VALUES (?, ?, ?, ?)');
+      for (const c of collections) c.items.forEach((item, i) => insert.run(c.id, item.packId, item.ref, i));
+    });
+  }
+
   removePack(id: string): void {
     for (const { id: assetId } of this.st.assetIds!.all(id) as { id: number }[]) this.st.deleteAssetFts!.run(assetId);
     this.st.deletePackFts!.run(id);

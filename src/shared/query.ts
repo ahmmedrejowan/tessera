@@ -33,6 +33,8 @@ export interface BrowseQuery {
   packIds?: string[];
   /** Show supporting files (textures of models, .mtl, buffers) and pack previews too. */
   includeSupport?: boolean;
+  /** Only the items of this manual collection (any role), in the order they were added. */
+  collectionId?: string;
 }
 
 export interface AssetRow {
