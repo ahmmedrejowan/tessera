@@ -8,14 +8,15 @@ import { log } from '../log';
 import { assetKey, packFileUrl, splitAssetKey, thumbUrl } from '@shared/urls';
 
 /** Bump when thumbnails should be redrawn (a better renderer, a new size). */
-export const THUMB_VERSION = 1;
+export const THUMB_VERSION = 4;
 const SIZE = 384;
 
 /** Web images up to this size are drawn straight from the file; bigger ones get a small copy. */
 const DIRECT_MAX = 160 * 1024;
-const DIRECT = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp', 'avif']);
+// SVGs aren't drawn directly: many have no viewBox, so they won't scale in an <img>.
+const DIRECT = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'avif']);
 const MODEL = new Set(['glb', 'gltf', 'fbx', 'obj', 'dae', 'stl', 'ply', '3ds', 'usdz', 'vox']);
-const IMAGE = new Set([...DIRECT, 'tga']);
+const IMAGE = new Set([...DIRECT, 'tga', 'svg']);
 const HDR = new Set(['hdr', 'exr']);
 const AUDIO = new Set(['ogg', 'wav', 'mp3', 'flac', 'm4a', 'opus', 'aif', 'aiff']);
 const FONT = new Set(['ttf', 'otf', 'woff', 'woff2']);

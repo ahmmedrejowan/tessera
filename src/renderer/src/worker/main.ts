@@ -4,6 +4,7 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { TGALoader } from 'three/examples/jsm/loaders/TGALoader.js';
 import type { RenderJob, RenderResult } from '@shared/types';
+import { fitSvg } from '../svg';
 import { disposeObject, frame, loadModel } from '../three/loadModel';
 
 declare global {
@@ -86,12 +87,30 @@ async function drawImage(job: RenderJob): Promise<Uint8Array> {
     fctx.drawImage(canvas, 0, -img.height);
     return encode(flipped, job.size);
   }
+  if (job.ext === 'svg') return drawSvg(job);
   const blob = await (await fetch(job.url)).blob();
   const bitmap = await createImageBitmap(blob);
   try {
     return await encode(bitmap, job.size);
   } finally {
     bitmap.close();
+  }
+}
+
+/** SVGs at thumbnail size, measured first so ones without a viewBox draw whole. */
+async function drawSvg(job: RenderJob): Promise<Uint8Array> {
+  // A little room around the drawing, as raster icons usually have.
+  const { svg, width, height } = fitSvg(await (await fetch(job.url)).text(), 0.06);
+  const scale = job.size / Math.max(width, height);
+  const img = new Image(Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale)));
+  img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  try {
+    await img.decode();
+    const canvas = new OffscreenCanvas(img.width, img.height);
+    canvas.getContext('2d')!.drawImage(img, 0, 0, img.width, img.height);
+    return await encode(canvas, job.size);
+  } finally {
+    URL.revokeObjectURL(img.src);
   }
 }
 
