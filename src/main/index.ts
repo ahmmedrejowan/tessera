@@ -1,4 +1,4 @@
-import { app, BrowserWindow, crashReporter, dialog, nativeTheme, net, session, shell } from 'electron';
+import { app, BrowserWindow, crashReporter, dialog, nativeTheme, net, session, shell, systemPreferences } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import { release, tmpdir } from 'node:os';
 import { readdir, rm, stat } from 'node:fs/promises';
@@ -13,7 +13,9 @@ import { bundledTool, installTool } from './tools/install';
 import { backupPlaces, findBackups, RestoreService, storeAt } from './backup/restore';
 import { RcloneAuth } from './backup/rclone';
 import { hostKeys, keyFileNeedsPassphrase } from './backup/ssh';
-import { providerInfo } from '@shared/storage';
+import { describeTarget, providerInfo, type StorageTarget } from '@shared/storage';
+import { generatePassword, saveToKeychain } from './backup/password';
+import { writeRecoveryKit } from './backup/kit';
 import { findTool } from './tools/find';
 import { applySystemProxy } from './tools/proxy';
 import { LibraryService } from './libraryService';
@@ -427,6 +429,32 @@ function registerHandlers(): void {
   handle('backup:cancelSignIn', () => rcloneAuth.cancel());
   handle('backup:hostKey', (host, port) => hostKeys(host, port));
   handle('backup:keyNeedsPassphrase', (path) => keyFileNeedsPassphrase(path));
+  handle('backup:generatePassword', () => generatePassword());
+  handle('backup:revealPassword', async () => {
+    // Where the Mac can ask for Touch ID, it does before showing the password.
+    if (platform === 'darwin' && systemPreferences.canPromptTouchID()) {
+      await systemPreferences.promptTouchID('show your backup password').catch(() => {
+        throw new UserError('not-confirmed', 'The password stays hidden.');
+      });
+    }
+    return backups.password();
+  });
+  handle('backup:changePassword', (next) => backups.changePassword(next));
+  handle('backup:saveKit', async ({ password, target, includeKeys }) => {
+    const state = library.getState();
+    const where = target ?? (settings.get().backupTarget as StorageTarget | null);
+    if (!where) throw new UserError('no-backup', 'Backups aren’t set up yet.');
+    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
+    const options: Electron.SaveDialogOptions = { title: 'Save the recovery kit', defaultPath: join(app.getPath('documents'), 'Tessera recovery kit.pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] };
+    const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+    if (result.canceled || !result.filePath) return null;
+    await writeRecoveryKit(result.filePath, { library: state.status === 'ready' ? state.library.name : 'Your library', target: where, password: password ?? (await backups.password()), includeKeys: includeKeys && !!target });
+    return result.filePath;
+  });
+  handle('backup:saveToKeychain', async (password) => {
+    const target = settings.get().backupTarget as StorageTarget | null;
+    await saveToKeychain(target ? describeTarget(target) : 'Tessera', password ?? (await backups.password()));
+  });
   handle('dialog:file', async (title) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
     const options: Electron.OpenDialogOptions = { title, message: title, properties: ['openFile', 'showHiddenFiles'] };

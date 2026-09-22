@@ -109,6 +109,18 @@ export interface Invokes {
   'backup:hostKey': (host: string, port: string) => { data: string; fingerprint: string };
   /** Whether an SSH key file has a passphrase (then it's used through the SSH agent). */
   'backup:keyNeedsPassphrase': (path: string) => boolean;
+  /** A strong password in readable groups, to write down. */
+  'backup:generatePassword': () => string;
+  /** The backup password, to show its owner (after Touch ID where the Mac has it). */
+  'backup:revealPassword': () => string;
+  'backup:changePassword': (next: string) => void;
+  /**
+   * Save a recovery kit (PDF) where the user chooses; returns the file or null. During setup the
+   * password and target (with keys) are passed in; later the saved ones are used, without keys.
+   */
+  'backup:saveKit': (input: { password?: string; target?: StorageTarget; includeKeys: boolean }) => string | null;
+  /** Keep a copy of the password in the system's password store (Keychain Access, Credential Manager, keyring). */
+  'backup:saveToKeychain': (password?: string) => void;
   /** Ask the user for a file; null when they cancel. */
   'dialog:file': (title: string) => string | null;
   /** Open a web page in the browser. */

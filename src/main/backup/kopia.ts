@@ -84,6 +84,11 @@ export class Kopia {
     return ((JSON.parse(await this.run(['maintenance', 'info', '--json'], password, 60_000)) as { owner?: string }).owner ?? '');
   }
 
+  /** Change the store's password; the new one goes by environment, never on the command line. */
+  async changePassword(password: string, next: string): Promise<void> {
+    await this.run(['repository', 'change-password'], password, 120_000, { KOPIA_NEW_PASSWORD: next });
+  }
+
   /** How long snapshots are kept: recent ones in detail, older ones thinned out. */
   async setRetention(source: string, password: string): Promise<void> {
     await this.run(['policy', 'set', source, '--keep-latest=10', '--keep-hourly=0', '--keep-daily=14', '--keep-weekly=8', '--keep-monthly=12', '--keep-annual=3'], password);

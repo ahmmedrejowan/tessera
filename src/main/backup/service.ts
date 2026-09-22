@@ -111,6 +111,21 @@ export class BackupService {
     void this.backupNow().catch(() => undefined);
   }
 
+  /** The password in use, for showing to its owner or putting in a recovery kit. */
+  async password(): Promise<string> {
+    const password = await this.d.secrets.load();
+    if (!password) throw new UserError('no-backup', 'Backups aren’t set up yet.');
+    return password;
+  }
+
+  async changePassword(next: string): Promise<void> {
+    if (next.length < 8) throw new UserError('weak-password', 'Use a password of at least 8 characters.');
+    const { kopia, password } = await this.ready();
+    await kopia.changePassword(password, next);
+    await this.d.secrets.save(next);
+    this.d.onChange();
+  }
+
   async backupNow(): Promise<void> {
     if (this.running) return;
     const { kopia, password, source } = await this.ready();

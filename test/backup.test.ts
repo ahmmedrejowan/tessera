@@ -40,5 +40,11 @@ describe.skipIf(!exe)('kopia backups', () => {
     expect(await other.maintenanceOwner('correct horse')).toBe('old@lost-laptop');
     await other.takeMaintenance('correct horse');
     expect(await other.maintenanceOwner('correct horse')).not.toBe('old@lost-laptop');
+
+    // A new password: the old one stops working, the new one opens the store from anywhere.
+    await other.changePassword('correct horse', 'new horse staple');
+    const third = new Kopia(exe!, join(dir, 'config3'));
+    await expect(third.connect(folder, 'correct horse', false)).rejects.toThrow(/password/);
+    await third.connect(folder, 'new horse staple', false);
   }, 60_000);
 });
