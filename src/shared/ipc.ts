@@ -8,7 +8,7 @@ import type { PackEdit, PackMeta, PackStatus } from './pack';
 import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } from './project';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
-import type { AppInfo, CollectionChange, Detected, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { AppInfo, BackupStatus, CollectionChange, Detected, Snapshot, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -85,6 +85,17 @@ export interface Invokes {
   /** Show the project folder, or a file in it, in Finder / Explorer. */
   'projects:reveal': (id: string, rel?: string) => void;
 
+  'backup:status': () => BackupStatus;
+  /** Ask for a folder to keep backups in; null when cancelled. */
+  'backup:chooseFolder': () => string | null;
+  /** Start backing up to a folder, making a new store there or opening an existing one. */
+  'backup:setup': (repoPath: string, password: string, create: boolean) => void;
+  'backup:now': () => void;
+  'backup:snapshots': () => Snapshot[];
+  /** Restore a snapshot into a folder the user picks; returns that folder, or null when cancelled. */
+  'backup:restore': (id: string) => string | null;
+  'backup:turnOff': () => void;
+
   /** Ask the user for files or a folder to add; null when they cancel. */
   'import:choose': (what: 'files' | 'folder' | 'folderOfPacks') => string[] | null;
   'import:plan': (paths: string[], eachInside: boolean) => ImportItem[];
@@ -104,6 +115,8 @@ export interface Events {
   'thumbs:ready': Record<string, ThumbState>;
   /** Projects or what's copied into them changed. */
   'projects:changed': number;
+  /** Backup settings or state changed. */
+  'backup:changed': number;
 }
 
 export type InvokeChannel = keyof Invokes;

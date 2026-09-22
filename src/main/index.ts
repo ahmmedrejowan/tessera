@@ -7,7 +7,9 @@ import { parseRef } from './index/files';
 import { Jobs } from './jobs';
 import { DIRS } from './library/layout';
 import { LibraryService } from './libraryService';
+import { BackupService } from './backup/service';
 import { registerDrag } from './drag';
+import { fileSecret } from './secrets';
 import { initLog, log } from './log';
 import { handleProtocol, registerSchemePrivileges } from './protocol';
 import { packFileUrl } from '@shared/urls';
@@ -54,6 +56,18 @@ const thumbs = new ThumbService({
 });
 
 const projects = new ProjectService(dataDir, jobs);
+let backupVersion = 0;
+const backups = new BackupService({
+  dataDir,
+  settings,
+  secrets: fileSecret(join(dataDir, 'kopia-password.bin')),
+  jobs,
+  libraryPath: () => {
+    const state = library.getState();
+    return state.status === 'ready' ? state.library.path : null;
+  },
+  onChange: () => broadcast(windows, 'backup:changed', ++backupVersion),
+});
 let projectsVersion = 0;
 const projectsChanged = () => broadcast(windows, 'projects:changed', ++projectsVersion);
 
@@ -123,6 +137,7 @@ async function start(): Promise<void> {
     thumbDir,
   });
   if (s.libraryPath) void library.open(s.libraryPath);
+  backups.startSchedule();
   await createWindow();
   app.on('activate', () => {
     if (appWindows.size === 0) void createWindow();
@@ -276,6 +291,27 @@ function registerHandlers(): void {
     if (rel && !rel.split('/').includes('..')) shell.showItemInFolder(join(project.path, ...rel.split('/')));
     else void shell.openPath(project.path);
   });
+
+  handle('backup:status', () => backups.status());
+  handle('backup:chooseFolder', async () => {
+    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
+    const options: Electron.OpenDialogOptions = { title: 'Choose where to keep backups', buttonLabel: 'Choose', properties: ['openDirectory', 'createDirectory'] };
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    return result.canceled ? null : (result.filePaths[0] ?? null);
+  });
+  handle('backup:setup', (repo, password, create) => backups.setup(repo, password, create));
+  handle('backup:now', () => backups.backupNow());
+  handle('backup:snapshots', () => backups.snapshots());
+  handle('backup:restore', async (id) => {
+    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
+    const options: Electron.OpenDialogOptions = { title: 'Restore into…', buttonLabel: 'Restore here', properties: ['openDirectory', 'createDirectory'] };
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    const target = result.canceled ? null : (result.filePaths[0] ?? null);
+    if (!target) return null;
+    await backups.restore(id, target);
+    return target;
+  });
+  handle('backup:turnOff', () => backups.turnOff());
 
   handle('import:choose', async (what) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
