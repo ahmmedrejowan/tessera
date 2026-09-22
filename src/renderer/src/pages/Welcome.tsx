@@ -3,6 +3,7 @@ import CloseRounded from '@mui/icons-material/CloseRounded';
 import DevicesRounded from '@mui/icons-material/DevicesRounded';
 import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded';
 import FolderRounded from '@mui/icons-material/FolderRounded';
+import RestoreRounded from '@mui/icons-material/RestoreRounded';
 import LinkOffRounded from '@mui/icons-material/LinkOffRounded';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
@@ -23,6 +24,7 @@ import { failed } from '../notices/store';
 import { useSettings, useUpdateSettings } from '../state/queries';
 import { md, mdAlpha, SHAPE, STATE } from '../theme';
 import { ReceiveGuide } from './sync/ReceiveGuide';
+import { RestoreGuide } from './setup/RestoreGuide';
 
 const parentOf = (p: string) => p.slice(0, Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'))) || p;
 
@@ -72,6 +74,7 @@ export function Welcome({ state }: { state: LibraryState }) {
   const update = useUpdateSettings();
   const [busy, setBusy] = useState(false);
   const [receiving, setReceiving] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const missing = useQuery({
     queryKey: ['recent-missing', recent],
     queryFn: async () => new Set((await Promise.all(recent.map(async (p) => ((await call('library:inspect', p)) === 'library' ? null : p)))).filter(Boolean)),
@@ -172,9 +175,14 @@ export function Welcome({ state }: { state: LibraryState }) {
             >
               Open a library
             </Button>
-            <Button startIcon={<DevicesRounded />} onClick={() => setReceiving(true)} sx={{ alignSelf: 'center', mt: 0.5, color: md('onSurfaceVariant') }}>
-              Get one from another computer
-            </Button>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 4 }}>
+              <Button startIcon={<DevicesRounded />} onClick={() => setReceiving(true)} sx={{ color: md('onSurfaceVariant'), whiteSpace: 'nowrap', flexShrink: 0 }}>
+                From another computer
+              </Button>
+              <Button startIcon={<RestoreRounded />} onClick={() => setRestoring(true)} sx={{ color: md('onSurfaceVariant'), whiteSpace: 'nowrap', flexShrink: 0 }}>
+                From a backup
+              </Button>
+            </div>
           </div>
 
           {recent.length > 0 && (
@@ -191,6 +199,7 @@ export function Welcome({ state }: { state: LibraryState }) {
       </div>
 
       <ReceiveGuide open={receiving} onClose={() => setReceiving(false)} />
+      <RestoreGuide open={restoring} onClose={() => setRestoring(false)} />
     </div>
   );
 }

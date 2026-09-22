@@ -15,7 +15,7 @@ import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import type { Events } from '@shared/ipc';
-import type { Platform } from '@shared/types';
+import type { Platform, ToolName } from '@shared/types';
 import { call, on, platform } from '../../api';
 import { formatBytes } from '../../components/labels';
 import { failed, notify } from '../../notices/store';
@@ -28,17 +28,43 @@ interface Way {
   command: string;
 }
 
-const WAYS: Record<Platform, { name: string; ways: Way[] }> = {
-  darwin: { name: 'macOS', ways: [{ tool: 'brew', label: 'Homebrew', command: 'brew install syncthing' }] },
-  win32: { name: 'Windows', ways: [{ tool: 'winget', label: 'Windows Package Manager', command: 'winget install --id Syncthing.Syncthing -e' }] },
-  linux: {
-    name: 'Linux',
-    ways: [
-      { tool: 'apt', label: 'Debian, Ubuntu, Mint', command: 'sudo apt install syncthing' },
-      { tool: 'dnf', label: 'Fedora', command: 'sudo dnf install syncthing' },
-      { tool: 'pacman', label: 'Arch', command: 'sudo pacman -S syncthing' },
-      { tool: 'zypper', label: 'openSUSE', command: 'sudo zypper install syncthing' },
-    ],
+interface ToolInfo {
+  title: string;
+  size: string;
+  site: { label: string; url: string };
+  ways: Record<Platform, Way[]>;
+}
+
+const OS_NAMES: Record<Platform, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' };
+
+export const TOOL_INFO: Record<ToolName, ToolInfo> = {
+  syncthing: {
+    title: 'Syncthing',
+    size: '12 MB',
+    site: { label: 'syncthing.net', url: 'https://syncthing.net/downloads/' },
+    ways: {
+      darwin: [{ tool: 'brew', label: 'Homebrew', command: 'brew install syncthing' }],
+      win32: [{ tool: 'winget', label: 'winget', command: 'winget install --id Syncthing.Syncthing -e' }],
+      linux: [
+        { tool: 'apt', label: 'Debian, Ubuntu', command: 'sudo apt install syncthing' },
+        { tool: 'dnf', label: 'Fedora', command: 'sudo dnf install syncthing' },
+        { tool: 'pacman', label: 'Arch', command: 'sudo pacman -S syncthing' },
+        { tool: 'zypper', label: 'openSUSE', command: 'sudo zypper install syncthing' },
+      ],
+    },
+  },
+  kopia: {
+    title: 'Kopia',
+    size: '16 MB',
+    site: { label: 'kopia.io', url: 'https://kopia.io/docs/installation/' },
+    ways: {
+      darwin: [{ tool: 'brew', label: 'Homebrew', command: 'brew install kopia' }],
+      win32: [{ tool: 'winget', label: 'winget', command: 'winget install --id Kopia.KopiaUI -e' }],
+      linux: [
+        { tool: 'brew', label: 'Homebrew', command: 'brew install kopia' },
+        { tool: 'yay', label: 'Arch (AUR)', command: 'yay -S kopia-bin' },
+      ],
+    },
   },
 };
 
@@ -58,7 +84,7 @@ export function CommandLine({ command, found }: { command: string; found?: boole
   );
 }
 
-const STAGES: Record<Events['sync:installProgress']['stage'], string> = {
+const STAGES: Record<Events['tools:installProgress']['stage'], string> = {
   finding: 'Finding the latest version…',
   downloading: 'Downloading…',
   checking: 'Checking the download…',
@@ -67,21 +93,22 @@ const STAGES: Record<Events['sync:installProgress']['stage'], string> = {
 };
 
 /**
- * Getting Syncthing onto this computer: Tessera can fetch and check the official build itself, or
- * the user can install it with their system's package manager (commands for each system, since
- * the other computer may run something else).
+ * Getting an optional tool onto this computer: Tessera can fetch and check the official build
+ * itself, or the user can install it with their system's package manager (commands for each
+ * system, since another computer may run something else).
  */
-export function SyncthingSetup({ available, bundled, compact }: { available: boolean; bundled: boolean; compact?: boolean }) {
+export function ToolSetup({ tool, available, bundled, compact }: { tool: ToolName; available: boolean; bundled: boolean; compact?: boolean }) {
+  const info = TOOL_INFO[tool];
   const client = useQueryClient();
-  const [progress, setProgress] = useState<Events['sync:installProgress'] | null>(null);
+  const [progress, setProgress] = useState<Events['tools:installProgress'] | null>(null);
   const [busy, setBusy] = useState(false);
   const [os, setOs] = useState<Platform>(platform);
   const [way, setWay] = useState(0);
-  const managers = useQuery({ queryKey: ['package-managers'], queryFn: () => call('sync:packageManagers'), staleTime: Infinity }).data ?? [];
-  useEffect(() => on('sync:installProgress', setProgress), []);
+  const managers = useQuery({ queryKey: ['package-managers'], queryFn: () => call('tools:packageManagers'), staleTime: Infinity }).data ?? [];
+  useEffect(() => on('tools:installProgress', (p) => p.tool === tool && setProgress(p)), [tool]);
   // Installed by hand in the meantime? Look again when the window comes back into focus.
   useEffect(() => {
-    const again = () => void client.invalidateQueries({ queryKey: ['sync'] });
+    const again = () => void client.invalidateQueries({ queryKey: [tool === 'syncthing' ? 'sync' : 'backup'] });
     window.addEventListener('focus', again);
     return () => window.removeEventListener('focus', again);
   }, [client]);
@@ -89,11 +116,11 @@ export function SyncthingSetup({ available, bundled, compact }: { available: boo
   const install = async () => {
     setBusy(true);
     try {
-      const version = await call('sync:install');
-      notify.success(`Syncthing ${version} is ready.`);
-      await client.invalidateQueries({ queryKey: ['sync'] });
+      const version = await call('tools:install', tool);
+      notify.success(`${info.title} ${version} is ready.`);
+      await client.invalidateQueries({ queryKey: [tool === 'syncthing' ? 'sync' : 'backup'] });
     } catch (e) {
-      failed(e, 'Couldn’t get Syncthing');
+      failed(e, `Couldn’t get ${info.title}`);
     } finally {
       setBusy(false);
     }
@@ -104,13 +131,13 @@ export function SyncthingSetup({ available, bundled, compact }: { available: boo
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: SHAPE.lg, background: md('secondaryContainer'), color: md('onSecondaryContainer') }}>
         <CheckCircleRounded />
         <Typography variant="bodyMedium" sx={{ flex: 1 }}>
-          Syncthing is ready{bundled ? ' (Tessera’s own copy)' : ''}. Nothing else to set up.
+          {info.title} is ready{bundled ? ' (Tessera’s own copy)' : ''}. Nothing else to set up.
         </Typography>
       </div>
     );
   }
 
-  const current = WAYS[os].ways[way];
+  const current = info.ways[os][way];
   const pct = progress && progress.total ? (progress.received / progress.total) * 100 : null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 16 : 20 }}>
@@ -122,7 +149,7 @@ export function SyncthingSetup({ available, bundled, compact }: { available: boo
           <div style={{ flex: 1 }}>
             <Typography variant="titleMedium">Set it up for me</Typography>
             <Typography variant="bodySmall" component="div" sx={{ opacity: 0.85, mt: 0.25 }}>
-              The official build for {WAYS[platform].name}, about 12 MB. No installer, no admin password.
+              The official build for {OS_NAMES[platform]}, about {info.size}. No installer, no admin password.
             </Typography>
           </div>
         </div>
@@ -152,19 +179,19 @@ export function SyncthingSetup({ available, bundled, compact }: { available: boo
           <Typography variant="titleSmall" sx={{ color: md('onSurface'), flex: 1 }}>
             Or install it yourself
           </Typography>
-          <Button size="small" startIcon={<RefreshRounded />} onClick={() => void client.invalidateQueries({ queryKey: ['sync'] })}>
+          <Button size="small" startIcon={<RefreshRounded />} onClick={() => void client.invalidateQueries({ queryKey: [tool === 'syncthing' ? 'sync' : 'backup'] })}>
             Check again
           </Button>
         </div>
         <Tabs value={os} onChange={(_, v: Platform) => { setOs(v); setWay(0); }} sx={{ minHeight: 40, mb: 1.5, '& .MuiTab-root': { minHeight: 40, textTransform: 'none' } }}>
-          {(Object.keys(WAYS) as Platform[]).map((p) => (
-            <Tab key={p} value={p} label={WAYS[p].name} />
+          {(Object.keys(OS_NAMES) as Platform[]).map((p) => (
+            <Tab key={p} value={p} label={OS_NAMES[p]} />
           ))}
         </Tabs>
         {/* One command at a time, picked by these chips, so every system's tab is the same height. */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'flex', gap: 6, height: 28 }}>
-            {WAYS[os].ways.map((w, i) => (
+            {info.ways[os].map((w, i) => (
               <ButtonBase
                 key={w.label}
                 onClick={() => setWay(i)}
@@ -177,8 +204,8 @@ export function SyncthingSetup({ available, bundled, compact }: { available: boo
           {current && <CommandLine command={current.command} found={os === platform && !!current.tool && managers.includes(current.tool)} />}
           <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
             Or download it from{' '}
-            <a href="https://syncthing.net/downloads/" target="_blank" rel="noreferrer" style={{ color: md('primary') }}>
-              syncthing.net
+            <a href={info.site.url} target="_blank" rel="noreferrer" style={{ color: md('primary') }}>
+              {info.site.label}
             </a>
             .
           </Typography>

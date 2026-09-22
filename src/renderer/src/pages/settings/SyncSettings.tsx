@@ -20,7 +20,7 @@ import { failed, notify } from '../../notices/store';
 import { md, SHAPE } from '../../theme';
 import { Row } from './parts';
 import { StatusSlot } from '../../components/StatusSlot';
-import { SyncthingSetup } from '../sync/SyncthingSetup';
+import { ToolSetup } from '../setup/ToolSetup';
 
 export const MODES: { value: SyncMode; label: string; help: string }[] = [
   { value: 'push', label: 'Send only', help: 'This computer sends its changes; changes made elsewhere don’t come back. Good for the main computer.' },
@@ -75,7 +75,7 @@ function AddComputer({ open, onClose }: { open: boolean; onClose: () => void }) 
       <DialogTitle>Add a computer</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-          On the other computer, choose “Get one from another computer” and copy its ID.
+          On the other computer, choose “From another computer” and copy its ID.
         </Typography>
         <TextField autoFocus label="Its device ID" value={id} onChange={(e) => setId(e.target.value)} placeholder="XXXXXXX-XXXXXXX-…" sx={{ mt: 1 }} />
         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Desktop PC" />
@@ -114,7 +114,7 @@ export function SyncSettings() {
         <Typography variant="bodyMedium" sx={{ color: md('onSurface'), mb: 2 }}>
           Keep this library the same on your other computers.
         </Typography>
-        <SyncthingSetup available={false} bundled={false} compact />
+        <ToolSetup tool="syncthing" available={false} bundled={false} compact />
       </div>
     );
   }

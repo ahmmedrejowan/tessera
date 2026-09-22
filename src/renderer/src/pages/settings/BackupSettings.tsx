@@ -1,6 +1,9 @@
 import Alert from '@mui/material/Alert';
 import { StatusSlot } from '../../components/StatusSlot';
+import CloudOutlined from '@mui/icons-material/CloudOutlined';
+import UsbRounded from '@mui/icons-material/UsbRounded';
 import Button from '@mui/material/Button';
+import ButtonBase from '@mui/material/ButtonBase';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -18,6 +21,7 @@ import { failed, notify } from '../../notices/store';
 import { useUpdateSettings } from '../../state/queries';
 import { md } from '../../theme';
 import { Row } from './parts';
+import { ToolSetup } from '../setup/ToolSetup';
 
 const ago = (iso: string) => {
   const mins = Math.round((Date.now() - Date.parse(iso)) / 60_000);
@@ -29,6 +33,7 @@ const ago = (iso: string) => {
 };
 
 function SetupDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const places = useQuery({ queryKey: ['restore-places'], queryFn: () => call('restore:places'), enabled: open, staleTime: 60_000 }).data ?? [];
   const [mode, setMode] = useState<'new' | 'existing'>('new');
   const [folder, setFolder] = useState<string | null>(null);
   const [password, setPassword] = useState('');
@@ -62,7 +67,7 @@ function SetupDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
       <DialogTitle>Set up backups</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-          Encrypted, and only what changed is stored. Use another drive.
+          Encrypted, and only what changed is stored. A cloud drive or another drive lets you restore on any computer.
         </Typography>
         <SegmentedButton
           label="Backup store"
@@ -73,6 +78,25 @@ function SetupDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
             { value: 'existing', label: 'Use existing backups' },
           ]}
         />
+        {/* Somewhere another computer can reach: a cloud drive's folder or another drive. */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', minHeight: 32 }}>
+          {places
+            .filter((p) => p.kind !== 'folder')
+            .map((p) => {
+              const path = `${p.path}${p.path.endsWith('/') || p.path.endsWith('\\') ? '' : window.tessera.platform === 'win32' ? '\\' : '/'}Tessera Backups`;
+              const on = folder === path;
+              return (
+                <ButtonBase
+                  key={p.path}
+                  onClick={() => setFolder(path)}
+                  sx={{ gap: 0.75, px: 1.5, height: 32, borderRadius: '8px', fontSize: 13, border: `1px solid ${on ? md('secondaryContainer') : md('outlineVariant')}`, backgroundColor: on ? md('secondaryContainer') : 'transparent', color: on ? md('onSecondaryContainer') : md('onSurfaceVariant') }}
+                >
+                  {p.kind === 'cloud' ? <CloudOutlined sx={{ fontSize: 16 }} /> : <UsbRounded sx={{ fontSize: 16 }} />}
+                  {p.label}
+                </ButtonBase>
+              );
+            })}
+        </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <Button variant="outlined" onClick={async () => setFolder((await call('backup:chooseFolder')) ?? folder)}>
             Choose folder…
@@ -159,18 +183,12 @@ export function BackupSettings() {
 
   if (!status.available) {
     return (
-      <Row
-        title="Backups are off"
-        body={
-          <>
-            Backups use Kopia, free and open-source. Install it from{' '}
-            <a href="https://kopia.io/docs/installation/" target="_blank" rel="noreferrer" style={{ color: md('primary') }}>
-              kopia.io
-            </a>
-            .
-          </>
-        }
-      />
+      <div style={{ padding: '16px 0' }}>
+        <Typography variant="bodyMedium" sx={{ color: md('onSurface'), mb: 2 }}>
+          Encrypted backups of the library to another drive or a cloud folder.
+        </Typography>
+        <ToolSetup tool="kopia" available={false} bundled={false} compact />
+      </div>
     );
   }
   if (!status.repoPath) {

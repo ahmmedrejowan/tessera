@@ -70,7 +70,7 @@ const SIDES: Record<Mode, { icon: ComponentType<{ sx?: object }>; title: string;
     tips: [
       { icon: SearchRounded, title: 'Close is fine', body: 'A folder in it or above it works.' },
       { icon: UsbRounded, title: 'On a drive?', body: 'Connect it first.' },
-      { icon: DevicesRounded, title: 'On another computer?', body: 'Use “Get one from another computer”.' },
+      { icon: DevicesRounded, title: 'On another computer?', body: 'Use “From another computer”.' },
     ],
   },
 };

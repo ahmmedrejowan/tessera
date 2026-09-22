@@ -21,7 +21,7 @@ import { md, mdAlpha, SHAPE } from '../../theme';
 import { DIALOG_HEIGHT, DIALOG_WIDTH, SetupFrame, Side } from '../library/LibraryDialog';
 import { LocationFields, SectionLabel, useLocation } from '../library/Location';
 import { DeviceId, useSyncStatus } from '../settings/SyncSettings';
-import { SyncthingSetup } from './SyncthingSetup';
+import { ToolSetup } from '../setup/ToolSetup';
 
 type Step = 'setup' | 'pair' | 'choose' | 'where' | 'arriving';
 
@@ -178,7 +178,7 @@ export function ReceiveGuide({ open, onClose }: { open: boolean; onClose: () => 
     body = (
       <>
         <Heading title="Get Syncthing" sub="Both computers need it. Tessera can set it up." />
-        <SyncthingSetup available={available} bundled={!!status?.bundled} />
+        <ToolSetup tool="syncthing" available={available} bundled={!!status?.bundled} />
       </>
     );
     next = (
