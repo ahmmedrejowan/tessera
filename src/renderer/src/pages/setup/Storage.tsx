@@ -173,7 +173,7 @@ function SignIn({ target, onChange, onMessage }: { target: StorageTarget; onChan
   const signIn = async () => {
     setBusy(true);
     setUrl(null);
-    onMessage({ tone: 'info', busy: true, text: 'Finish signing in in your browser…' });
+    onMessage({ tone: 'info', busy: true, text: `Finish in your browser: ${info.label} asks you to allow “rclone”, the tool Tessera uses to reach it.` });
     try {
       const remote = await call('backup:signIn', target.provider, { ...(target.values.clientId ? { id: target.values.clientId } : {}), ...(target.values.clientSecret ? { secret: target.values.clientSecret } : {}) });
       onChange({ ...target, values: { ...target.values, remote } });
@@ -218,7 +218,7 @@ function DriveModes({ target, onChange }: { target: StorageTarget; onChange: (t:
       <ModeCard
         icon={LoginRounded}
         title="Sign in directly"
-        lines={['No app needed, on any computer.', 'Nothing extra is kept on this disk.']}
+        lines={['No app needed, on any computer; nothing extra kept on this disk.', `${info.label}’s page asks you to allow “rclone”, the open-source tool Tessera uses.`]}
         disabled={!info.signIn}
         disabledText={`${info.label} can’t be signed into from other apps.`}
         onClick={() => onChange({ ...target, values: { ...target.values, mode: 'direct' } })}
