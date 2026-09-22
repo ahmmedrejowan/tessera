@@ -226,3 +226,19 @@ describe('index and queries', () => {
     expect(q.stats()).toMatchObject({ packs: 1, inbox: 0, assets: 2, byType: { model: 2 } });
   });
 });
+
+describe('licence health', () => {
+  it('lists library packs missing a credit line or not fit for commercial games', async () => {
+    const root = tempDir();
+    await createLibrary(root, 'lib');
+    await createPack(root, 'Icons', { status: 'library', licence: { id: 'CC-BY-3.0', attribution: null, proof: [], notes: '' } });
+    await createPack(root, 'Credited', { status: 'library', licence: { id: 'CC-BY-4.0', attribution: 'By someone', proof: [], notes: '' } });
+    await createPack(root, 'Hobby', { status: 'library', licence: { id: 'CC-BY-NC-4.0', attribution: 'x', proof: [], notes: '' } });
+    await createPack(root, 'Free', { status: 'library', licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' } });
+    const index = new LibraryIndex(':memory:');
+    await index.sync(root);
+    const h = new LibraryQueries(index.db).health();
+    expect(h.noCreditLine.map((p) => p.name)).toEqual(['Icons']);
+    expect(h.restricted.map((p) => p.name)).toEqual(['Hobby']);
+  });
+});

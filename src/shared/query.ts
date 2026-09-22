@@ -99,3 +99,11 @@ export interface LibraryStats {
   size: number;
   byType: Partial<Record<AssetType, number>>;
 }
+
+/** Packs in the library whose licence needs attention before shipping. */
+export interface LicenceHealth {
+  /** The licence asks for credit, but no credit line is recorded. */
+  noCreditLine: { id: string; name: string; licence: string }[];
+  /** Not allowed in commercial games, or terms Tessera can't judge (custom, personal). */
+  restricted: { id: string; name: string; licence: string }[];
+}

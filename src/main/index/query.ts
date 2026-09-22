@@ -1,6 +1,7 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
 import type { AssetType } from '@shared/assets';
 import { pathWords } from '@shared/assets';
+import { licenceInfo } from '@shared/licences';
 import type { PackMeta } from '@shared/pack';
 import {
   FACETS,
@@ -10,6 +11,7 @@ import {
   type Facet,
   type FacetCounts,
   type LibraryStats,
+  type LicenceHealth,
   type Page,
   type PackRow,
   type PackSort,
@@ -279,6 +281,20 @@ export class LibraryQueries {
     return out;
   }
 
+  /** Library packs whose licence needs attention (see LicenceHealth). */
+  health(): LicenceHealth {
+    const rows = this.all<{ id: string; name: string; licence: string; attribution: string | null }>(
+      `SELECT id, name, licence, json_extract(meta_json, '$.licence.attribution') AS attribution FROM packs WHERE status = 'library' AND licence IS NOT NULL ORDER BY name COLLATE NOCASE`,
+    );
+    const out: LicenceHealth = { noCreditLine: [], restricted: [] };
+    for (const r of rows) {
+      const info = licenceInfo(r.licence);
+      if (!info || !info.commercial) out.restricted.push({ id: r.id, name: r.name, licence: r.licence });
+      else if (info.attribution && !r.attribution) out.noCreditLine.push({ id: r.id, name: r.name, licence: r.licence });
+    }
+    return out;
+  }
+
   stats(): LibraryStats {
     const packs = this.get<{ packs: number; inbox: number; size: number }>(
       `SELECT count(*) FILTER (WHERE status = 'library') AS packs, count(*) FILTER (WHERE status = 'inbox') AS inbox, coalesce(sum(size), 0) AS size FROM packs`,
@@ -318,7 +334,7 @@ export class LibraryQueries {
          WHERE role = 'main' AND pack_id IN (${marks})
          WINDOW w AS (PARTITION BY pack_id ORDER BY
            (lower(dir) GLOB '*anim*' OR lower(dir) GLOB '*rig*' OR lower(dir) GLOB '*sample*' OR lower(name) GLOB 'rig*'),
-           (kind = 'image') DESC, dir, name))
+           (kind = 'image' AND ext IN ('png', 'jpg', 'jpeg', 'webp', 'gif')) DESC, (kind = 'model') DESC, dir, name))
        WHERE (n - 1) % MAX(1, c / 4) = 0 AND n <= MAX(1, c / 4) * 4`,
       ids,
     )) {
