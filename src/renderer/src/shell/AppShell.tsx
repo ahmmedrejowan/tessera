@@ -53,7 +53,7 @@ function GlobalSearch() {
   );
 }
 
-export function AppShell({ children, onAdd, inboxCount, bare }: { children: ReactNode; onAdd: (anchor: HTMLElement) => void; inboxCount?: number; bare?: boolean }) {
+export function AppShell({ children, onAdd, inboxCount, downloadCount, bare }: { children: ReactNode; onAdd: (anchor: HTMLElement) => void; inboxCount?: number; downloadCount?: number; bare?: boolean }) {
   useHistoryKeys();
   if (bare) {
     // Full-bleed screens (welcome, opening): no bar, just a strip along the top to drag the window by.
@@ -74,7 +74,7 @@ export function AppShell({ children, onAdd, inboxCount, bare }: { children: Reac
           </>
         )} />
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-        {!bare && <NavigationRail onAdd={onAdd} {...(inboxCount ? { inboxCount } : {})} />}
+        {!bare && <NavigationRail onAdd={onAdd} {...(inboxCount ? { inboxCount } : {})} {...(downloadCount ? { downloadCount } : {})} />}
         <main
           style={{
             flex: 1,

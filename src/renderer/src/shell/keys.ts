@@ -44,7 +44,7 @@ export function shortcutGroups(platform: Platform): { title: string; items: Shor
       title: 'Anywhere',
       items: [
         { label: 'Search, or go to a page or action', keys: [c('F', 'mod')] },
-        { label: 'Go to Home … Review', keys: [c('1', 'mod'), c('5', 'mod')], between: '–' },
+        { label: 'Go to Home … Downloads', keys: [c('1', 'mod'), c('6', 'mod')], between: '–' },
         { label: 'Back · forward', keys: mac ? [c('[', 'mod'), c(']', 'mod')] : [c('←', 'alt'), c('→', 'alt')] },
         { label: 'Add downloads', keys: [c('O', 'mod')] },
         { label: 'Add a folder of packs', keys: [c('O', 'mod', 'shift')] },

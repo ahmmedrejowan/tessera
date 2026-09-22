@@ -1,6 +1,8 @@
 import Add from '@mui/icons-material/Add';
 import CollectionsBookmark from '@mui/icons-material/CollectionsBookmark';
 import CollectionsBookmarkOutlined from '@mui/icons-material/CollectionsBookmarkOutlined';
+import Download from '@mui/icons-material/Download';
+import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import GridView from '@mui/icons-material/GridView';
 import GridViewOutlined from '@mui/icons-material/GridViewOutlined';
 import Home from '@mui/icons-material/Home';
@@ -32,6 +34,7 @@ const MAIN: Item[] = [
   { to: 'collections', label: 'Collections', icon: CollectionsBookmarkOutlined, activeIcon: CollectionsBookmark },
   { to: 'projects', label: 'Projects', icon: SportsEsportsOutlined, activeIcon: SportsEsports },
   { to: 'inbox', label: 'Review', icon: RateReviewOutlined, activeIcon: RateReview },
+  { to: 'downloads', label: 'Downloads', icon: DownloadOutlined, activeIcon: Download },
 ];
 const SETTINGS: Item = { to: 'settings', label: 'Settings', icon: SettingsOutlined, activeIcon: Settings };
 
@@ -81,7 +84,7 @@ function RailItem({ item, badge }: { item: Item; badge?: number }) {
   );
 }
 
-export function NavigationRail({ inboxCount, onAdd }: { inboxCount?: number; onAdd: (anchor: HTMLElement) => void }) {
+export function NavigationRail({ inboxCount, downloadCount, onAdd }: { inboxCount?: number; downloadCount?: number; onAdd: (anchor: HTMLElement) => void }) {
   return (
     <nav
       aria-label="Main"
@@ -107,7 +110,7 @@ export function NavigationRail({ inboxCount, onAdd }: { inboxCount?: number; onA
         </ButtonBase>
       </Tooltip>
       {MAIN.map((item) => (
-        <RailItem key={item.to} item={item} {...(item.to === 'inbox' && inboxCount ? { badge: inboxCount } : {})} />
+        <RailItem key={item.to} item={item} {...(item.to === 'inbox' && inboxCount ? { badge: inboxCount } : item.to === 'downloads' && downloadCount ? { badge: downloadCount } : {})} />
       ))}
       <div style={{ flex: 1 }} />
       <RailItem item={SETTINGS} />

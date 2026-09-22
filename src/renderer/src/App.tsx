@@ -15,6 +15,7 @@ import { CollectionsPage } from './pages/collections/CollectionsPage';
 import { HomePage } from './pages/HomePage';
 import { AddPage } from './pages/add/AddPage';
 import { InboxPage } from './pages/InboxPage';
+import { DownloadsPage } from './pages/DownloadsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { MenuCommands } from './shell/MenuCommands';
 import { CopyConfirm } from './pages/projects/CopyConfirm';
@@ -26,6 +27,7 @@ import { AppShell } from './shell/AppShell';
 import { useLibraryId, useLibraryState, useStats } from './state/library';
 import { useBrowse } from './state/browse';
 import { useAdding } from './state/adding';
+import { isGoing, useDownloads } from './state/downloads';
 import { useNav } from './state/nav';
 
 function Current() {
@@ -39,6 +41,8 @@ function Current() {
       return <PackPage key={route.id} id={route.id} />;
     case 'inbox':
       return <InboxPage />;
+    case 'downloads':
+      return <DownloadsPage />;
     case 'collections':
       return <CollectionsPage />;
     case 'collection':
@@ -99,6 +103,9 @@ function Screen() {
   // Packs open on the add page aren't waiting in Review yet.
   const adding = useAdding((s) => s.drafts.filter((d) => d.packId).length);
   const inbox = Math.max(0, (useStats().data?.inbox ?? 0) - adding);
+  const downloading = (useDownloads().data ?? []).filter(isGoing).length;
+  // The Downloads page takes drops of its own (links, and files holding links).
+  const onDownloads = useNav((s) => s.route.to) === 'downloads';
   const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null);
   if (!state) return null;
   if (state.status === 'opening') {
@@ -119,7 +126,7 @@ function Screen() {
   }
   return (
     <>
-      <AppShell onAdd={setAddAnchor} {...(inbox ? { inboxCount: inbox } : {})}>
+      <AppShell onAdd={setAddAnchor} {...(inbox ? { inboxCount: inbox } : {})} {...(downloading ? { downloadCount: downloading } : {})}>
         <RoutedBoundary>
           <Current />
         </RoutedBoundary>
@@ -127,7 +134,7 @@ function Screen() {
       <AddMenu anchor={addAnchor} onClose={() => setAddAnchor(null)} />
       <CopyConfirm />
       <MenuCommands />
-      <DropOverlay enabled />
+      <DropOverlay enabled={!onDownloads} />
     </>
   );
 }

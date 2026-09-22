@@ -96,7 +96,8 @@ interface AddingState {
   busy: boolean;
   /** The user picked in the list: the page stops choosing for them. */
   touched: boolean;
-  start(paths: string[], eachInside: boolean | 'auto'): Promise<void>;
+  /** `urls`: where each path was downloaded from, when Tessera fetched it. */
+  start(paths: string[], eachInside: boolean | 'auto', urls?: Record<string, string>): Promise<void>;
   addAnyway(item: ImportItem): Promise<void>;
   select(ids: string[]): void;
   edit(itemId: string, patch: Partial<AddForm>, found?: Draft['found']): void;
@@ -174,13 +175,15 @@ export const useAdding = create<AddingState>((set, get) => ({
   busy: false,
   touched: false,
 
-  async start(paths, eachInside) {
+  async start(paths, eachInside, urls) {
     if (!paths.length) return;
     // Packs still open here from before are kept for Review first.
     if (get().drafts.length) await get().finishLater();
     let items: ImportItem[];
     try {
-      items = await call('import:plan', paths, eachInside);
+      const planned = await call('import:plan', paths, eachInside);
+      // A downloaded pack knows the link it came from.
+      items = urls ? planned.map((i) => ({ ...i, ...(urls[i.sources[0] ?? ''] ? { url: urls[i.sources[0]!]! } : {}) })) : planned;
     } catch (e) {
       failed(e);
       return;
