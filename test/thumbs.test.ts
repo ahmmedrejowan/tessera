@@ -71,7 +71,9 @@ describe('thumbnail service', () => {
     expect(await svc.get([byName('c.glb'), byName('wood.png')])).toMatchObject({ [byName('wood.png')]: 'direct' });
     release();
     await vi.waitFor(() => expect(Object.keys(published)).toHaveLength(3), { timeout: 2000 });
-    expect(order).toEqual(['a.glb', 'b.glb', 'c.glb']);
+    // The first two run side by side, in either order; the third waits for a free slot.
+    expect(order.slice(0, 2).sort()).toEqual(['a.glb', 'b.glb']);
+    expect(order[2]).toBe('c.glb');
     expect(published[byName('c.glb')]).toBe('failed');
     const again = await svc.get([byName('a.glb'), byName('c.glb')]);
     expect(again[byName('a.glb')]).toMatch(/^tessera:\/\/thumb\/[0-9a-f]+\.webp$/);
