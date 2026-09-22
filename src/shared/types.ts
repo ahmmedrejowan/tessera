@@ -34,6 +34,27 @@ export interface Settings {
   backupIntervalHours: number;
   lastBackupAt: string | null;
   lastBackupError: string | null;
+  /** Syncing the library with other computers (Syncthing) is on. */
+  syncEnabled: boolean;
+  syncMode: SyncMode;
+}
+
+/** Push: this computer sends changes only. Pull: it receives only. Full: both ways. */
+export type SyncMode = 'push' | 'pull' | 'full';
+
+export interface SyncStatus {
+  /** Syncthing is installed. */
+  available: boolean;
+  enabled: boolean;
+  mode: SyncMode;
+  running: boolean;
+  /** This computer's device ID, to give to the other computers. */
+  myId: string | null;
+  devices: { id: string; name: string; connected: boolean; shared: boolean; completion: number | null }[];
+  folder: { state: string; needBytes: number; errors: number } | null;
+  /** Computers asking to connect, and libraries other computers offer to this one. */
+  pendingDevices: { id: string; name: string }[];
+  pendingFolders: { id: string; label: string; offeredBy: string }[];
 }
 
 export type SettingsPatch = Partial<Settings>;
