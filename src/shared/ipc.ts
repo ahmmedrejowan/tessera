@@ -8,7 +8,7 @@ import type { PackEdit, PackMeta, PackStatus } from './pack';
 import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } from './project';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
-import type { AppInfo, BackupStatus, ErrorInput, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { AppInfo, BackupStatus, ErrorInput, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -17,8 +17,17 @@ export interface Invokes {
   /** Colours for the window controls drawn by the OS on Windows and Linux, to match the app bar. */
   'window:chrome': (colors: { background: string; foreground: string }) => void;
 
-  /** Ask the user for a folder; null when they cancel. */
-  'dialog:folder': (title: string) => string | null;
+  /**
+   * Ask the user for a folder; null when they cancel. `message` shows above the picker on macOS
+   * (where the title isn't shown); `defaultPath` is where it opens.
+   */
+  'dialog:folder': (title: string, options?: { message?: string; defaultPath?: string; buttonLabel?: string }) => string | null;
+  /** The folders to suggest first: Documents, the home folder, the desktop. */
+  'fs:places': () => { documents: string; home: string; desktop: string; separator: string };
+  /** What a folder is and whether a library can go there (it may not exist yet). */
+  'fs:describe': (path: string) => FolderInfo;
+  /** The library a picked folder means: itself, one it's inside, or ones inside it. */
+  'library:locate': (path: string) => LocateResult;
   'library:state': () => LibraryState;
   'library:inspect': (path: string) => FolderKind;
   'library:create': (path: string, name: string) => LibraryState;
@@ -106,8 +115,14 @@ export interface Invokes {
   'sync:removeDevice': (deviceId: string) => void;
   /** Start syncing with no library open, to receive one from another computer. */
   'sync:receive': () => void;
-  /** Accept a library another computer offers: asks where to put it; returns that folder or null. */
-  'sync:acceptFolder': (folderId: string, offeredBy: string, label: string, mode: SyncMode) => string | null;
+  /** Accept a library another computer offers, to arrive in `path` (a new or empty folder). */
+  'sync:acceptFolder': (folderId: string, offeredBy: string, label: string, path: string, mode: SyncMode) => void;
+  /** How much of a library that's arriving is here. */
+  'sync:folderProgress': (folderId: string) => { state: string; globalBytes: number; inSyncBytes: number; needBytes: number } | null;
+  /** Download Syncthing into Tessera's data folder (progress comes as `sync:installProgress`); returns its version. */
+  'sync:install': () => string;
+  /** Package managers on this system that can install Syncthing. */
+  'sync:packageManagers': () => string[];
 
   /** Ask the user for files or a folder to add; null when they cancel. */
   'import:choose': (what: 'files' | 'folder' | 'folderOfPacks') => string[] | null;
@@ -148,6 +163,7 @@ export interface Events {
   'backup:changed': number;
   /** Sync settings or state changed. */
   'sync:changed': number;
+  'sync:installProgress': { stage: 'finding' | 'downloading' | 'checking' | 'unpacking' | 'done'; received: number; total: number; version?: string };
   'menu:command': MenuCommand;
   /** Errors were caught and consent is "ask": time to ask. */
   'reports:ask': number;

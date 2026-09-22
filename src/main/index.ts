@@ -2,12 +2,15 @@ import { app, BrowserWindow, crashReporter, dialog, nativeTheme, net, shell } fr
 import { writeFile } from 'node:fs/promises';
 import { release, tmpdir } from 'node:os';
 import { readdir, rm, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import type { Platform } from '@shared/types';
 import { broadcast, handle, onInternalError, UserError } from './ipc';
 import { parseRef } from './index/files';
 import { Jobs } from './jobs';
 import { DIRS } from './library/layout';
+import { describeFolder, locateLibrary } from './library/locate';
+import { installSyncthing } from './sync/install';
+import { findTool } from './tools/find';
 import { LibraryService } from './libraryService';
 import { BackupService } from './backup/service';
 import { registerDrag } from './drag';
@@ -248,12 +251,21 @@ function registerHandlers(): void {
     for (const w of windows()) w.setTitleBarOverlay({ color: background, symbolColor: foreground, height: 64 });
   });
 
-  handle('dialog:folder', async (title) => {
+  handle('dialog:folder', async (title, extra = {}) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options = { title, properties: ['openDirectory', 'createDirectory'] as ('openDirectory' | 'createDirectory')[] };
+    const options: Electron.OpenDialogOptions = {
+      title,
+      message: extra.message ?? title,
+      ...(extra.defaultPath ? { defaultPath: extra.defaultPath } : {}),
+      ...(extra.buttonLabel ? { buttonLabel: extra.buttonLabel } : {}),
+      properties: ['openDirectory', 'createDirectory'],
+    };
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     return result.canceled ? null : (result.filePaths[0] ?? null);
   });
+  handle('fs:places', () => ({ documents: app.getPath('documents'), home: app.getPath('home'), desktop: app.getPath('desktop'), separator: sep }));
+  handle('fs:describe', (path) => describeFolder(path));
+  handle('library:locate', (path) => locateLibrary(path));
   handle('library:state', () => library.getState());
   handle('library:inspect', (path) => library.inspect(path));
   handle('library:create', async (path, name) => {
@@ -411,16 +423,14 @@ function registerHandlers(): void {
   handle('sync:addDevice', (id, name) => sync.addDevice(id, name));
   handle('sync:removeDevice', (id) => sync.removeDevice(id));
   handle('sync:receive', () => sync.startForReceiving());
-  handle('sync:acceptFolder', async (folderId, offeredBy, label, mode) => {
-    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options: Electron.OpenDialogOptions = { title: `Where should “${label}” go?`, buttonLabel: 'Put it here', properties: ['openDirectory', 'createDirectory'] };
-    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-    const parent = result.canceled ? null : (result.filePaths[0] ?? null);
-    if (!parent) return null;
-    const path = join(parent, label);
-    await sync.acceptFolder(folderId, offeredBy, label, path, mode);
-    return path;
+  handle('sync:acceptFolder', (folderId, offeredBy, label, path, mode) => sync.acceptFolder(folderId, offeredBy, label, path, mode));
+  handle('sync:folderProgress', (folderId) => sync.folderProgress(folderId));
+  handle('sync:install', async () => {
+    const version = await installSyncthing(dataDir, (url, init) => net.fetch(url, init), (p) => broadcast(windows, 'sync:installProgress', p));
+    broadcast(windows, 'sync:changed', ++syncVersion);
+    return version;
   });
+  handle('sync:packageManagers', () => ['brew', 'winget', 'apt', 'dnf', 'pacman', 'zypper', 'flatpak', 'snap'].filter((tool) => !!findTool(tool)));
 
   handle('import:choose', async (what) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];

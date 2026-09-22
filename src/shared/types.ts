@@ -82,6 +82,8 @@ export type SyncMode = 'push' | 'pull' | 'full';
 export interface SyncStatus {
   /** Syncthing is installed. */
   available: boolean;
+  /** The Syncthing in use is the copy Tessera downloaded. */
+  bundled: boolean;
   enabled: boolean;
   mode: SyncMode;
   running: boolean;
@@ -110,6 +112,29 @@ export type LibraryState =
 
 /** What a folder the user picked is. */
 export type FolderKind = 'library' | 'empty' | 'missing' | 'other';
+
+/** A folder as the library dialogs show it. */
+export interface FolderInfo {
+  path: string;
+  name: string;
+  kind: FolderKind;
+  /** Files and folders in it, ignoring system clutter (0 when missing). */
+  entries: number;
+  /** Tessera can make folders and files there. */
+  writable: boolean;
+  /** Free space on its drive, in bytes; null when unknown. */
+  free: number | null;
+  /** The cloud service that syncs it, if any. */
+  cloud: string | null;
+  /** When it is a library: its name and how many packs it holds. */
+  library: { name: string; packs: number } | null;
+}
+
+/** Libraries found from a folder the user picked: the folder itself, one it's inside, or ones in it. */
+export interface LocateResult {
+  via: 'itself' | 'parent' | 'inside' | 'none';
+  found: { path: string; name: string; packs: number }[];
+}
 
 /** A piece of background work, shown in the activity indicator. */
 export interface Job {
