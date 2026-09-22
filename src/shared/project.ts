@@ -27,6 +27,8 @@ export interface ProjectSummary extends Project {
   assets: number;
   packs: number;
   lastCopy: string | null;
+  /** Where its assets came from: each library and how many assets from it. */
+  sources: { libraryId: string; libraryName: string; assets: number }[];
 }
 
 /** What the project's folder looks like, before linking it. */
@@ -42,6 +44,10 @@ export interface ProjectProbe {
 
 /** One asset copied into a project, as recorded in its manifest. */
 export interface ManifestEntry {
+  /** The library it came from (older entries: the manifest's). */
+  libraryId?: string;
+  /** That library's name when copied, to show when the library isn't known here. */
+  libraryName?: string;
   packId: string;
   packName: string;
   /** The asset's ref in its pack (the file that stands for it). */

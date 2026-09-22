@@ -1,6 +1,7 @@
 import AddLinkOutlined from '@mui/icons-material/AddLinkOutlined';
 import CheckCircle from '@mui/icons-material/CheckCircle';
 import SportsEsportsOutlined from '@mui/icons-material/SportsEsportsOutlined';
+import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined';
 import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
@@ -9,6 +10,7 @@ import { ENGINE_LABELS, type ProjectProbe, type ProjectSummary } from '@shared/p
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
 import { failed, notify } from '../../notices/store';
+import { useLibraryId } from '../../state/library';
 import { useNav } from '../../state/nav';
 import { useActiveProject, useProjects } from '../../state/projects';
 import { md, SHAPE } from '../../theme';
@@ -46,6 +48,21 @@ export function useLinkProject() {
   return { start, dialog };
 }
 
+/** Which libraries a project's assets came from, and how many from each. */
+export function SourceChips({ sources }: { sources: ProjectSummary['sources'] }) {
+  const openId = useLibraryId();
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6, minHeight: 22 }}>
+      {sources.map((s) => (
+        <span key={s.libraryId} title={s.libraryId === openId ? 'The open library' : 'Another library'} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 22, padding: '0 10px 0 8px', borderRadius: SHAPE.full, fontSize: 12, background: s.libraryId === openId ? md('secondaryContainer') : md('surfaceContainerHighest'), color: s.libraryId === openId ? md('onSecondaryContainer') : md('onSurfaceVariant') }}>
+          <AutoStoriesOutlined sx={{ fontSize: 14 }} />
+          {s.libraryName} · {s.assets}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function ProjectCard({ p, active }: { p: ProjectSummary; active: boolean }) {
   const go = useNav((s) => s.go);
   return (
@@ -64,6 +81,7 @@ function ProjectCard({ p, active }: { p: ProjectSummary; active: boolean }) {
           {!p.exists && <WarningAmberOutlined sx={{ fontSize: 14 }} />}
           {p.exists ? p.path : `Can’t find ${p.path}`}
         </Typography>
+        <SourceChips sources={p.sources} />
       </div>
     </div>
   );

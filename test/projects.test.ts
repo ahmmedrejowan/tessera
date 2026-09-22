@@ -8,6 +8,8 @@ import { createLibrary } from '../src/main/library/layout';
 import { createPack } from '../src/main/library/packs';
 import { planCopy, readManifest, removeFromProject, runCopy, type CopySource } from '../src/main/projects/copy';
 import { creditsMarkdown } from '../src/main/projects/credits';
+import { ProjectService } from '../src/main/projects/service';
+import { Jobs } from '../src/main/jobs';
 import { dependencies, resolveRef } from '../src/main/projects/deps';
 import { probeProject } from '../src/main/projects/engines';
 import { tempDir } from './helpers';
@@ -90,6 +92,7 @@ describe('copying into a project', () => {
     const q = new LibraryQueries(index.db);
     const src: CopySource = {
       libraryId: 'lib-1',
+      libraryName: 'Main',
       packDir: (id) => (id === kit.meta.id ? kit.dir : icons.dir),
       pack: (id) => {
         const row = q.pack(id);
@@ -128,6 +131,30 @@ describe('copying into a project', () => {
     expect(existsSync(join(base, 'Car Kit'))).toBe(false);
     expect(existsSync(join(base, 'Icons', 'sword.png'))).toBe(true);
     expect(readFileSync(join(game, 'CREDITS.md'), 'utf8')).not.toContain('Car Kit');
+
+    // A second library (here a restored copy: same pack ids) copies into the same project. Its
+    // entries are its own: copying and removing never touch the first library's.
+    const copySrc: CopySource = { ...src, libraryId: 'lib-2', libraryName: 'Main from Sep 22' };
+    const again = await planCopy(project, items.slice(1), copySrc, false);
+    expect(again.plan.updating).toBe(0);
+    await runCopy(project, again.jobs, copySrc, () => undefined);
+    const both = await readManifest(game, 'lib-1');
+    expect(both.entries.map((e) => [e.libraryId, e.libraryName, e.copiedRef.split('/').pop()])).toEqual([
+      ['lib-1', 'Main', 'sword.png'],
+      ['lib-2', 'Main from Sep 22', 'sword.png'],
+    ]);
+    await removeFromProject(project, 'lib-1', [{ ...items[1]!, libraryId: 'lib-2' }]);
+    expect((await readManifest(game, 'lib-1')).entries.map((e) => e.libraryId)).toEqual(['lib-1']);
+
+    // The project's summary says where its assets came from, by the names this computer knows.
+    const svc = new ProjectService(tempDir(), new Jobs(() => undefined));
+    await svc.add({ path: game, name: 'Game', engine: 'unity', engineVersion: null, target: 'Assets/ThirdParty', gltf: false } as never);
+    await runCopy(project, again.jobs, copySrc, () => undefined);
+    const [summary] = await svc.list('lib-1', (id) => (id === 'lib-1' ? 'Main library' : null));
+    expect(summary!.sources).toEqual([
+      { libraryId: 'lib-1', libraryName: 'Main library', assets: 1 },
+      { libraryId: 'lib-2', libraryName: 'Main from Sep 22', assets: 1 },
+    ]);
   });
 
   it('writes a credits file even before anything is copied', () => {

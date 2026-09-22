@@ -160,6 +160,9 @@ const backups = new BackupService({
   rclone: rcloneSetup,
   onChange: () => broadcast(windows, 'backup:changed', ++backupVersion),
 });
+/** A known library's name, by id. */
+const libraryNameOf = (id: string) => recordOf(settings, id)?.name ?? null;
+
 /** The open library's record (its own settings), or null. */
 function openRecord() {
   const state = library.getState();
@@ -199,6 +202,7 @@ function copySource(): CopySource {
   const { queries, index } = library.require();
   return {
     libraryId: state.library.id,
+    libraryName: state.library.name,
     packDir: (id) => join(state.library.path, DIRS.packs, index.known(id)?.folder ?? ''),
     pack: (id) => {
       const row = queries.pack(id);
@@ -432,7 +436,7 @@ function registerHandlers(): void {
   handle('collections:create', (name, init) => library.createCollection(name, init));
   handle('collections:change', (id, change) => library.changeCollection(id, change));
 
-  handle('projects:list', () => projects.list(libraryId()));
+  handle('projects:list', () => projects.list(libraryId(), libraryNameOf));
   handle('projects:choose', async () => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
     const options: Electron.OpenDialogOptions = { title: 'Choose a game project', buttonLabel: 'Choose', properties: ['openDirectory'] };
@@ -455,7 +459,7 @@ function registerHandlers(): void {
     if (settings.get().activeProjectId === id) await settings.update({ activeProjectId: null });
     projectsChanged();
   });
-  handle('projects:entries', (id) => projects.entries(id, libraryId()));
+  handle('projects:entries', (id) => projects.entries(id, libraryId(), libraryNameOf));
   handle('projects:plan', (id, items) => projects.plan(id, items, copySource()));
   handle('projects:copy', async (id, items) => {
     const n = await projects.copy(id, items, copySource());

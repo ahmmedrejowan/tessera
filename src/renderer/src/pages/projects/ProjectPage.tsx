@@ -4,6 +4,7 @@ import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import EditOutlined from '@mui/icons-material/EditOutlined';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
 import LinkOffOutlined from '@mui/icons-material/LinkOffOutlined';
+import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 import RefreshOutlined from '@mui/icons-material/RefreshOutlined';
 import SportsEsportsOutlined from '@mui/icons-material/SportsEsportsOutlined';
 import Button from '@mui/material/Button';
@@ -26,6 +27,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { displayName } from '../../components/labels';
 import { LicenceChip } from '../../components/LicenceChip';
 import { failed, notify } from '../../notices/store';
+import { useLibraryId } from '../../state/library';
 import { useNav } from '../../state/nav';
 import { copyToProject, useActiveProject, useProjects } from '../../state/projects';
 import { useUpdateSettings } from '../../state/queries';
@@ -60,16 +62,25 @@ export function ProjectPage({ id }: { id: string }) {
   const [editingTarget, setEditingTarget] = useState<string | null>(null);
   const [unlinking, setUnlinking] = useState(false);
 
-  const byPack = useMemo(() => {
-    const m = new Map<string, ManifestEntry[]>();
-    for (const e of entries) m.set(e.packId, [...(m.get(e.packId) ?? []), e]);
-    return [...m.values()].sort((a, b) => a[0]!.packName.localeCompare(b[0]!.packName));
-  }, [entries]);
+  const openId = useLibraryId();
+  // By library (the open one first), then by pack.
+  const byLibrary = useMemo(() => {
+    const libs = new Map<string, { id: string; name: string; packs: Map<string, ManifestEntry[]> }>();
+    for (const e of entries) {
+      const id = e.libraryId ?? '';
+      const lib = libs.get(id) ?? { id, name: e.libraryName ?? 'Another library', packs: new Map() };
+      lib.packs.set(e.packId, [...(lib.packs.get(e.packId) ?? []), e]);
+      libs.set(id, lib);
+    }
+    return [...libs.values()]
+      .sort((a, b) => Number(b.id === openId) - Number(a.id === openId) || a.name.localeCompare(b.name))
+      .map((l) => ({ ...l, packs: [...l.packs.values()].sort((a, b) => a[0]!.packName.localeCompare(b[0]!.packName)) }));
+  }, [entries, openId]);
 
   if (!project) return null;
   const isActive = active?.id === id;
   const remove = async (items: ManifestEntry[]) => {
-    const n = await call('projects:remove', id, items.map((e) => ({ packId: e.packId, ref: e.ref })));
+    const n = await call('projects:remove', id, items.map((e) => ({ packId: e.packId, ref: e.ref, ...(e.libraryId ? { libraryId: e.libraryId } : {}) })));
     notify.success(`Removed ${n} asset${n === 1 ? '' : 's'} from ${project.name}.`);
   };
 
@@ -141,17 +152,26 @@ export function ProjectPage({ id }: { id: string }) {
             actions={<Button onClick={() => go({ to: 'browse' })}>Go to Browse</Button>}
           />
         ) : (
-          byPack.map((list) => {
+          byLibrary.map((lib) => (
+            <div key={lib.id}>
+              {(byLibrary.length > 1 || lib.id !== openId) && (
+                <Typography variant="labelLarge" component="div" sx={{ color: md('onSurfaceVariant'), mt: 2, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  From “{lib.name}”
+                  {lib.id !== openId && <span style={{ fontWeight: 400 }}>· open that library to preview or copy these again</span>}
+                </Typography>
+              )}
+              {lib.packs.map((list) => {
             const first = list[0]!;
+            const here = (first.libraryId ?? '') === openId;
             return (
               <section key={first.packId} style={{ marginBottom: 16, padding: 12, borderRadius: SHAPE.lg, background: md('surfaceContainerLow') }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                  <Typography variant="titleSmall" sx={{ color: md('onSurface'), flex: 1, cursor: 'pointer' }} onClick={() => go({ to: 'pack', id: first.packId })}>
+                  <Typography variant="titleSmall" sx={{ color: md('onSurface'), flex: 1, cursor: here ? 'pointer' : 'default' }} onClick={() => here && go({ to: 'pack', id: first.packId })}>
                     {first.packName}
                   </Typography>
                   <LicenceChip id={first.licence} />
-                  <Tooltip title="Copy again, picking up changes">
-                    <IconButton size="small" onClick={() => void copyToProject(project, list.map((e) => ({ packId: e.packId, ref: e.ref })))}>
+                  <Tooltip title={here ? 'Copy again, picking up changes' : ''}>
+                    <IconButton size="small" disabled={!here} sx={{ visibility: here ? 'visible' : 'hidden' }} onClick={() => void copyToProject(project, list.map((e) => ({ packId: e.packId, ref: e.ref })))}>
                       <RefreshOutlined fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -171,7 +191,13 @@ export function ProjectPage({ id }: { id: string }) {
                     const kind = kindOf(e.copiedRef);
                     return (
                       <div key={e.ref} className="tile" style={{ padding: 6, borderRadius: SHAPE.md }} title={e.files.join('\n')} onDoubleClick={() => void call('projects:reveal', id, e.files[0]!)}>
-                        <AssetThumb asset={{ packId: e.packId, ref: e.ref, ext: extOf(e.ref), kind, type: TYPE_OF[kind] ?? 'other' }} size={108} />
+                        {here ? (
+                          <AssetThumb asset={{ packId: e.packId, ref: e.ref, ext: extOf(e.ref), kind, type: TYPE_OF[kind] ?? 'other' }} size={108} />
+                        ) : (
+                          <div style={{ height: 108, borderRadius: SHAPE.sm, display: 'grid', placeItems: 'center', background: md('surfaceContainerHighest'), color: md('onSurfaceVariant') }}>
+                            <InsertDriveFileOutlined />
+                          </div>
+                        )}
                         <Typography variant="labelMedium" noWrap component="div" sx={{ mt: 0.5, color: md('onSurface') }}>
                           {displayName(e.copiedRef.split(/[/!]/).pop()!)}
                         </Typography>
@@ -185,7 +211,9 @@ export function ProjectPage({ id }: { id: string }) {
                 </div>
               </section>
             );
-          })
+              })}
+            </div>
+          ))
         )}
       </div>
 

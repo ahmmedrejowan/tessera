@@ -6,7 +6,7 @@ import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } f
 import { UserError } from '../errors';
 import { readJson, writeJson } from '../fsx';
 import type { Jobs } from '../jobs';
-import { MANIFEST, planCopy, readManifest, removeFromProject, runCopy, type CopySource } from './copy';
+import { entryLibrary, MANIFEST, planCopy, readManifest, removeFromProject, runCopy, type CopySource } from './copy';
 import { writeCredits } from './credits';
 import { probeProject } from './engines';
 
@@ -58,18 +58,27 @@ export class ProjectService {
     return p;
   }
 
-  async list(libraryId: string): Promise<ProjectSummary[]> {
+  /** Linked projects, with what's been copied into each and which libraries it came from. */
+  async list(libraryId: string, nameOf: (id: string) => string | null = () => null): Promise<ProjectSummary[]> {
     const out: ProjectSummary[] = [];
     for (const p of await this.load()) {
       const exists = existsSync(p.path);
       const m = exists ? await readManifest(p.path, libraryId) : null;
       const entries = m?.entries ?? [];
+      const sources = new Map<string, { libraryId: string; libraryName: string; assets: number }>();
+      for (const e of entries) {
+        const id = entryLibrary(e, m!);
+        const s = sources.get(id) ?? { libraryId: id, libraryName: nameOf(id) ?? e.libraryName ?? 'Another library', assets: 0 };
+        s.assets++;
+        sources.set(id, s);
+      }
       out.push({
         ...p,
         exists,
         assets: entries.length,
-        packs: new Set(entries.map((e) => e.packId)).size,
+        packs: new Set(entries.map((e) => `${entryLibrary(e, m!)}/${e.packId}`)).size,
         lastCopy: entries.map((e) => e.copiedAt).sort().at(-1) ?? null,
+        sources: [...sources.values()].sort((a, b) => b.assets - a.assets),
       });
     }
     return out.sort((a, b) => a.name.localeCompare(b.name));
@@ -113,8 +122,13 @@ export class ProjectService {
     await this.save((await this.load()).filter((p) => p.id !== id));
   }
 
-  async entries(id: string, libraryId: string): Promise<ManifestEntry[]> {
-    return (await readManifest((await this.get(id)).path, libraryId)).entries;
+  /** What's been copied into a project, each entry with the library it came from. */
+  async entries(id: string, libraryId: string, nameOf: (id: string) => string | null = () => null): Promise<ManifestEntry[]> {
+    const m = await readManifest((await this.get(id)).path, libraryId);
+    return m.entries.map((e) => {
+      const from = entryLibrary(e, m);
+      return { ...e, libraryId: from, libraryName: nameOf(from) ?? e.libraryName ?? 'Another library' };
+    });
   }
 
   async plan(id: string, items: { packId: string; ref: string }[], src: CopySource): Promise<CopyPlan> {
@@ -133,7 +147,7 @@ export class ProjectService {
     });
   }
 
-  async remove(id: string, items: { packId: string; ref: string }[], libraryId: string): Promise<number> {
+  async remove(id: string, items: { packId: string; ref: string; libraryId?: string }[], libraryId: string): Promise<number> {
     return removeFromProject(await this.get(id), libraryId, items);
   }
 
@@ -145,8 +159,9 @@ export class ProjectService {
     for (const project of await this.load()) {
       if (!existsSync(project.path)) continue;
       const manifest = await readManifest(project.path, libraryId);
-      if (!manifest.entries.some((e) => e.packId === packId)) continue;
-      manifest.entries = manifest.entries.map((e) => (e.packId === packId ? { ...e, ...info } : e));
+      const mine = (e: ManifestEntry) => e.packId === packId && entryLibrary(e, manifest) === libraryId;
+      if (!manifest.entries.some(mine)) continue;
+      manifest.entries = manifest.entries.map((e) => (mine(e) ? { ...e, ...info } : e));
       await writeJson(join(project.path, MANIFEST), manifest);
       if (project.creditsFile) await writeCredits(join(project.path, ...project.creditsFile.split('/')), manifest.entries);
     }

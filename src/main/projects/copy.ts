@@ -18,6 +18,7 @@ export const MANIFEST = '.tessera/manifest.json';
 /** What copying needs to know about the library. */
 export interface CopySource {
   libraryId: string;
+  libraryName: string;
   packDir(packId: string): string;
   pack(packId: string): { meta: PackMeta; folder: string } | null;
   /** Every file of an asset: the one that stands for it and its other formats. */
@@ -37,6 +38,12 @@ interface EntryJob {
   entry: Omit<ManifestEntry, 'files' | 'copiedAt'>;
   files: FileJob[];
 }
+
+/** The library an entry came from. */
+export const entryLibrary = (e: ManifestEntry, m: Manifest) => e.libraryId ?? m.libraryId;
+
+/** Whether an entry is this asset from this library. */
+const same = (e: ManifestEntry, m: Manifest, libraryId: string, packId: string, ref: string) => e.packId === packId && e.ref === ref && entryLibrary(e, m) === libraryId;
 
 export async function readManifest(projectPath: string, libraryId: string): Promise<Manifest> {
   const raw = (await readJson(join(projectPath, MANIFEST)).catch(() => null)) as Manifest | null;
@@ -112,6 +119,8 @@ export async function planCopy(
     if (m.status === 'inbox') warnings.add(`“${m.name}” is still in the Inbox.`);
     jobs.push({
       entry: {
+        libraryId: src.libraryId,
+        libraryName: src.libraryName,
         packId: item.packId,
         packName: m.name,
         ref: item.ref,
@@ -124,7 +133,7 @@ export async function planCopy(
       files,
     });
   }
-  const updating = jobs.filter((j) => manifest.entries.some((e) => e.packId === j.entry.packId && e.ref === j.entry.ref)).length;
+  const updating = jobs.filter((j) => manifest.entries.some((e) => same(e, manifest, src.libraryId, j.entry.packId, j.entry.ref))).length;
   return {
     plan: {
       assets: jobs.length,
@@ -176,7 +185,7 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
       await writeFileAtomic(join(project.path, ...packRoot.split('/'), 'LICENCE.txt'), licenceText(pack.meta));
     }
     const entry: ManifestEntry = { ...job.entry, files: job.files.map((f) => f.dest), copiedAt: new Date().toISOString() };
-    manifest.entries = manifest.entries.filter((e) => !(e.packId === entry.packId && e.ref === entry.ref));
+    manifest.entries = manifest.entries.filter((e) => !same(e, manifest, src.libraryId, entry.packId, entry.ref));
     manifest.entries.push(entry);
     written.push(entry);
   }
@@ -186,9 +195,9 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
 }
 
 /** Remove assets from a project: their files (if still there), their entries, then empty folders. */
-export async function removeFromProject(project: Project, libraryId: string, items: { packId: string; ref: string }[]): Promise<number> {
+export async function removeFromProject(project: Project, libraryId: string, items: { packId: string; ref: string; libraryId?: string }[]): Promise<number> {
   const manifest = await readManifest(project.path, libraryId);
-  const going = manifest.entries.filter((e) => items.some((i) => i.packId === e.packId && i.ref === e.ref));
+  const going = manifest.entries.filter((e) => items.some((i) => same(e, manifest, i.libraryId ?? libraryId, i.packId, i.ref)));
   const keep = manifest.entries.filter((e) => !going.includes(e));
   // A file another remaining entry also uses (a shared texture) stays.
   const stillUsed = new Set(keep.flatMap((e) => e.files));
