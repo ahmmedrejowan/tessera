@@ -7,6 +7,7 @@ import { platform } from '../api';
 import { Logo } from '../components/Logo';
 import { md, mdAlpha, SHAPE } from '../theme';
 import { useCommands } from './commands';
+import { comboText } from './keys';
 import { RAIL_WIDTH } from './NavigationRail';
 
 export const TOP_BAR_HEIGHT = 64;
@@ -17,7 +18,6 @@ const OVERLAY_ROOM = platform === 'darwin' ? 16 : 150;
 const drag = { WebkitAppRegion: 'drag' } as CSSProperties;
 const noDrag = { WebkitAppRegion: 'no-drag' } as CSSProperties;
 
-export const modKey = platform === 'darwin' ? '⌘' : 'Ctrl';
 
 export function SearchField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   const [focused, setFocused] = useState(false);
@@ -92,7 +92,7 @@ export function SearchField({ value, onChange, placeholder }: { value: string; o
           sx={{ flex: 1, color: md('onSurface'), typography: 'bodyLarge', '& input::placeholder': { color: md('onSurfaceVariant'), opacity: 1 } }}
         />
         <Typography variant="labelMedium" sx={{ px: 1, py: '2px', borderRadius: `${SHAPE.xs}px`, border: `1px solid ${md('outlineVariant')}` }}>
-          {modKey} F
+          {comboText(platform, 'F', 'mod')}
         </Typography>
       </label>
       <Popper open={open} anchorEl={anchor.current} placement="bottom-start" style={{ zIndex: 1300, width: anchor.current?.offsetWidth }}>

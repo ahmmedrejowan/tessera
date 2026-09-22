@@ -9,7 +9,8 @@ const bridge: Bridge = {
     ipcRenderer.on(channel, wrapped);
     return () => ipcRenderer.off(channel, wrapped);
   },
-  platform: (['darwin', 'win32'].includes(process.platform) ? process.platform : 'linux') as Platform,
+  // In end-to-end runs a window can be shown as another system would show it.
+  platform: ((process.env.TESSERA_E2E === '1' && process.env.TESSERA_E2E_PLATFORM) || (['darwin', 'win32'].includes(process.platform) ? process.platform : 'linux')) as Platform,
   pathsFor: (files) => files.map((f) => webUtils.getPathForFile(f)).filter(Boolean),
   prepareDrag: (items) => ipcRenderer.invoke('drag:prepare', items) as Promise<string[]>,
   startDrag: (paths) => ipcRenderer.send('drag:start', paths),
