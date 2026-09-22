@@ -14,16 +14,16 @@ import ButtonBase from '@mui/material/ButtonBase';
 import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import IconButton from '@mui/material/IconButton';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { create } from 'zustand';
 import { baseName } from '@shared/folders';
 import { call } from '../../api';
+import { StatusSlot, type SlotMessage } from '../../components/StatusSlot';
 import { failed, notify } from '../../notices/store';
 import { md, mdAlpha, SHAPE } from '../../theme';
-import { LocationFields, Note, tidyPath, useLocation } from './Location';
+import { FolderCard, LocationFields, SectionLabel, tidyPath, useFolder, useLocation } from './Location';
 
 type Mode = 'create' | 'open';
 
@@ -42,45 +42,48 @@ export const useLibraryDialog = create<LibraryDialogState>((set) => ({
   hide: () => set({ mode: null }),
 }));
 
+/** One size for every state, so nothing jumps as the form changes. */
+export const DIALOG_HEIGHT = 600;
+export const DIALOG_WIDTH = 960;
+
 interface Tip {
   icon: ComponentType<{ sx?: object }>;
   title: string;
   body: string;
 }
 
-const TIPS: Record<Mode, { icon: ComponentType<{ sx?: object }>; title: string; lead: string; tips: Tip[] }> = {
+const SIDES: Record<Mode, { icon: ComponentType<{ sx?: object }>; title: string; lead: string; tips: Tip[] }> = {
   create: {
     icon: LibraryAddRounded,
     title: 'Create a library',
-    lead: 'One folder for every pack you own, with its licence kept beside it.',
+    lead: 'A home for every pack you own.',
     tips: [
-      { icon: Inventory2Outlined, title: 'Downloads, untouched', body: 'Packs are stored as they arrived. Nothing is converted or renamed.' },
-      { icon: SavingsOutlined, title: 'Room to grow', body: 'Libraries get big. A roomy drive, inside or external, is ideal.' },
-      { icon: DriveFileMoveOutlined, title: 'Just a folder', body: 'Move it, back it up or sync it whenever you like.' },
+      { icon: Inventory2Outlined, title: 'Kept as downloaded', body: 'Packs are never changed.' },
+      { icon: SavingsOutlined, title: 'Room to grow', body: 'Pick a roomy drive.' },
+      { icon: DriveFileMoveOutlined, title: 'Just a folder', body: 'Move or back it up anytime.' },
     ],
   },
   open: {
     icon: FolderOpenRounded,
     title: 'Open a library',
-    lead: 'Pick up a library you already have, on this computer or a drive.',
+    lead: 'One you already have.',
     tips: [
-      { icon: SearchRounded, title: 'Close is good enough', body: 'Pick the library, a folder inside it, or the folder that holds it. Tessera finds it.' },
-      { icon: UsbRounded, title: 'On another drive?', body: 'Connect the drive first, then choose the library on it.' },
-      { icon: DevicesRounded, title: 'On another computer?', body: 'Use “Get one from another computer” on the welcome screen instead.' },
+      { icon: SearchRounded, title: 'Close is fine', body: 'A folder in it or above it works.' },
+      { icon: UsbRounded, title: 'On a drive?', body: 'Connect it first.' },
+      { icon: DevicesRounded, title: 'On another computer?', body: 'Use “Get one from another computer”.' },
     ],
   },
 };
 
-/** The coloured side of the dialog: what this is, and a few things worth knowing. */
-function Side({ mode }: { mode: Mode }) {
-  const { icon: Icon, title, lead, tips } = TIPS[mode];
+/** The coloured side of a setup dialog: what this is, and a few things worth knowing. */
+export function Side({ icon: Icon, title, lead, children }: { icon: ComponentType<{ sx?: object }>; title: string; lead: ReactNode; children?: ReactNode }) {
   return (
     <div
       style={{
         padding: '32px 28px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 28,
+        gap: 32,
         background: `radial-gradient(120% 70% at 0% 0%, ${mdAlpha('primaryContainer', 0.9)} 0%, transparent 70%), radial-gradient(100% 60% at 100% 100%, ${mdAlpha('tertiaryContainer', 0.7)} 0%, transparent 70%), ${md('secondaryContainer')}`,
         color: md('onSecondaryContainer'),
       }}
@@ -92,57 +95,70 @@ function Side({ mode }: { mode: Mode }) {
         <Typography variant="headlineSmall" component="h2" sx={{ fontWeight: 500 }}>
           {title}
         </Typography>
-        <Typography variant="bodyMedium" sx={{ mt: 1, opacity: 0.85 }}>
+        <Typography variant="bodyMedium" component="div" sx={{ mt: 1, opacity: 0.85 }}>
           {lead}
         </Typography>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-        {tips.map(({ icon: TipIcon, title: t, body }) => (
-          <div key={t} style={{ display: 'flex', gap: 12 }}>
-            <span style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', background: mdAlpha('surface', 0.55), flexShrink: 0 }}>
-              <TipIcon sx={{ fontSize: 18 }} />
-            </span>
-            <div>
-              <Typography variant="labelLarge" component="div">
-                {t}
-              </Typography>
-              <Typography variant="bodySmall" component="div" sx={{ opacity: 0.8 }}>
-                {body}
-              </Typography>
-            </div>
-          </div>
-        ))}
-      </div>
+      {children}
     </div>
   );
 }
 
-function Shell({ mode, onClose, children, footer }: { mode: Mode; onClose: () => void; children: ReactNode; footer: ReactNode }) {
+function Tips({ tips }: { tips: Tip[] }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '300px minmax(0, 1fr)', minHeight: 560 }}>
-      <Side mode={mode} />
-      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}>
-        <IconButton aria-label="Close" onClick={onClose} sx={{ position: 'absolute', top: 12, right: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {tips.map(({ icon: TipIcon, title, body }) => (
+        <div key={title} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <span style={{ width: 36, height: 36, borderRadius: 12, display: 'grid', placeItems: 'center', background: mdAlpha('surface', 0.55), flexShrink: 0 }}>
+            <TipIcon sx={{ fontSize: 18 }} />
+          </span>
+          <div>
+            <Typography variant="labelLarge" component="div">
+              {title}
+            </Typography>
+            <Typography variant="bodySmall" component="div" sx={{ opacity: 0.8 }}>
+              {body}
+            </Typography>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The frame every setup dialog shares: side panel, content that scrolls if it must, and actions. */
+export function SetupFrame({ side, onClose, children, footer }: { side: ReactNode; onClose: () => void; children: ReactNode; footer: ReactNode }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '300px minmax(0, 1fr)', height: '100%' }}>
+      {side}
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, position: 'relative' }}>
+        <IconButton aria-label="Close" onClick={onClose} sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}>
           <CloseRounded />
         </IconButton>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '36px 32px 16px' }}>{children}</div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '36px 32px 16px' }}>{children}</div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, padding: '16px 24px 20px', borderTop: `1px solid ${md('outlineVariant')}` }}>{footer}</div>
       </div>
     </div>
   );
 }
 
+function ModeSide({ mode }: { mode: Mode }) {
+  const s = SIDES[mode];
+  return (
+    <Side icon={s.icon} title={s.title} lead={s.lead}>
+      <Tips tips={s.tips} />
+    </Side>
+  );
+}
+
 function CreatePane({ start, onClose, onOpenInstead }: { start: string | null; onClose: () => void; onOpenInstead: (path: string) => void }) {
-  const loc = useLocation('Tessera Library', start);
-  const [libName, setLibName] = useState<string | null>(null);
+  const loc = useLocation('Tessera Library', start, onOpenInstead);
   const [busy, setBusy] = useState(false);
-  // The library's name follows the folder's until it's changed by hand.
-  const name = libName ?? (loc.itself ? (loc.parentInfo?.name ?? '') : loc.name.trim());
   const create = async () => {
-    if (!loc.target || loc.blocker) return;
+    if (!loc.target || loc.blocked) return;
     setBusy(true);
     try {
-      const s = await call('library:create', loc.target, name.trim() || baseName(loc.target));
+      const s = await call('library:create', loc.target, loc.libraryName);
       if (s.status === 'ready') onClose();
       else if (s.status === 'error') notify.error('Couldn’t create the library', { body: s.message });
     } catch (e) {
@@ -152,30 +168,20 @@ function CreatePane({ start, onClose, onOpenInstead }: { start: string | null; o
     }
   };
   return (
-    <Shell
-      mode="create"
+    <SetupFrame
+      side={<ModeSide mode="create" />}
       onClose={onClose}
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button variant="contained" disabled={busy || !!loc.blocker} onClick={() => void create()} startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <LibraryAddRounded />} sx={{ px: 3 }}>
+          <Button variant="contained" disabled={busy || loc.blocked} onClick={() => void create()} startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <LibraryAddRounded />} sx={{ px: 3 }}>
             Create library
           </Button>
         </>
       }
     >
-      <LocationFields loc={loc} what="library" pickerTitle="Choose where your library goes" onOpenExisting={onOpenInstead} />
-      <div style={{ marginTop: 24 }}>
-        <TextField
-          fullWidth
-          size="small"
-          label="Library name (shown in Tessera)"
-          value={name}
-          onChange={(e) => setLibName(e.target.value)}
-          helperText="You can change it later. The folder keeps its own name."
-        />
-      </div>
-    </Shell>
+      <LocationFields loc={loc} pickerTitle="Choose where your library goes" />
+    </SetupFrame>
   );
 }
 
@@ -185,17 +191,19 @@ function FoundCard({ lib, selected, onSelect }: { lib: { path: string; name: str
       onClick={onSelect}
       sx={{
         width: '100%',
+        height: 76,
+        flexShrink: 0,
         justifyContent: 'flex-start',
         gap: 1.75,
-        p: 1.75,
+        px: 1.75,
         borderRadius: `${SHAPE.lg}px`,
         textAlign: 'left',
         border: `2px solid ${selected ? md('primary') : md('outlineVariant')}`,
         backgroundColor: selected ? md('primaryContainer') : md('surfaceContainerLow'),
-        transition: 'all 150ms',
+        transition: 'background-color 150ms, border-color 150ms',
       }}
     >
-      <span style={{ width: 48, height: 48, borderRadius: 14, display: 'grid', placeItems: 'center', background: selected ? md('primary') : md('secondaryContainer'), color: selected ? md('onPrimary') : md('onSecondaryContainer'), flexShrink: 0 }}>
+      <span style={{ width: 44, height: 44, borderRadius: 14, display: 'grid', placeItems: 'center', background: selected ? md('primary') : md('secondaryContainer'), color: selected ? md('onPrimary') : md('onSecondaryContainer'), flexShrink: 0 }}>
         <AutoStoriesOutlined />
       </span>
       <span style={{ flex: 1, minWidth: 0 }}>
@@ -216,12 +224,13 @@ function OpenPane({ start, onClose, onCreateHere }: { start: string | null; onCl
   const [chosen, setChosen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const info = useFolder(picked).data;
   const result = useQuery({ queryKey: ['locate', picked], queryFn: () => call('library:locate', picked!), enabled: !!picked, staleTime: 0 });
   const found = result.data?.found ?? [];
   useEffect(() => setChosen(found.length === 1 ? found[0]!.path : null), [result.data]);
 
   const choose = async () => {
-    const p = await call('dialog:folder', 'Choose your library', { message: 'Choose your library’s folder, or a folder inside it', buttonLabel: 'Choose', ...(picked ? { defaultPath: picked } : {}) });
+    const p = await call('dialog:folder', 'Choose your library', { message: 'Choose your library’s folder', buttonLabel: 'Choose', ...(picked ? { defaultPath: picked } : {}) });
     if (p) setPicked(p);
   };
   const open = async () => {
@@ -238,9 +247,27 @@ function OpenPane({ start, onClose, onCreateHere }: { start: string | null; onCl
     }
   };
 
+  const via = result.data?.via;
+  const message: SlotMessage | null =
+    via === 'none'
+      ? {
+          tone: 'error',
+          text: `No library in “${baseName(picked ?? '')}”.`,
+          action: (
+            <Button size="small" color="inherit" startIcon={<LibraryAddRounded />} onClick={() => onCreateHere(picked!)}>
+              Create one here
+            </Button>
+          ),
+        }
+      : via === 'parent'
+        ? { tone: 'info', text: 'That folder is inside a library; the library opens.' }
+        : via === 'inside' && found.length > 1
+          ? { tone: 'info', text: `${found.length} libraries here. Pick one.` }
+          : null;
+
   return (
-    <Shell
-      mode="open"
+    <SetupFrame
+      side={<ModeSide mode="open" />}
       onClose={onClose}
       footer={
         <>
@@ -263,83 +290,47 @@ function OpenPane({ start, onClose, onCreateHere }: { start: string | null; onCl
           const path = window.tessera.pathsFor([...e.dataTransfer.files])[0];
           if (path) setPicked(path);
         }}
-        style={{ display: 'flex', flexDirection: 'column', gap: 20 }}
+        style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 20 }}
       >
-        {!picked ? (
-          <ButtonBase
-            onClick={() => void choose()}
-            sx={{ flexDirection: 'column', gap: 1.5, py: 6, borderRadius: `${SHAPE.xl}px`, border: `2px dashed ${dragging ? md('primary') : md('outlineVariant')}`, backgroundColor: dragging ? md('primaryContainer') : md('surfaceContainerLow'), transition: 'all 150ms' }}
+        <div>
+          <SectionLabel n={1}>Choose its folder</SectionLabel>
+          <FolderCard info={info} path={picked} onChange={() => void choose()} placeholder="Choose, or drop a folder here" />
+        </div>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <SectionLabel n={2}>Library</SectionLabel>
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              borderRadius: SHAPE.lg,
+              border: found.length ? 'none' : `2px dashed ${dragging ? md('primary') : md('outlineVariant')}`,
+              background: dragging && !found.length ? md('primaryContainer') : 'transparent',
+              ...(found.length ? {} : { alignItems: 'center', justifyContent: 'center' }),
+            }}
           >
-            <span style={{ width: 64, height: 64, borderRadius: 20, display: 'grid', placeItems: 'center', background: md('secondaryContainer'), color: md('onSecondaryContainer') }}>
-              <FolderOpenRounded sx={{ fontSize: 32 }} />
-            </span>
-            <Typography variant="titleMedium" sx={{ color: md('onSurface') }}>
-              Choose the library’s folder
-            </Typography>
-            <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-              or drop it here
-            </Typography>
-          </ButtonBase>
-        ) : (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 10px 10px 16px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow'), border: `1px ${dragging ? 'dashed' : 'solid'} ${dragging ? md('primary') : md('outlineVariant')}` }}>
-              <FolderOpenRounded sx={{ color: md('onSurfaceVariant') }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="labelMedium" component="div" sx={{ color: md('onSurfaceVariant') }}>
-                  You chose
-                </Typography>
-                <Typography variant="bodyMedium" component="div" noWrap sx={{ color: md('onSurface') }} title={picked}>
-                  {tidyPath(picked)}
-                </Typography>
-              </div>
-              <Button variant="outlined" onClick={() => void choose()}>
-                Change…
-              </Button>
-            </div>
-
-            {result.isFetching && !result.data && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: md('onSurfaceVariant') }}>
-                <CircularProgress size={18} /> Looking for a library…
-              </div>
+            {found.length ? (
+              found.map((lib) => <FoundCard key={lib.path} lib={lib} selected={chosen === lib.path} onSelect={() => setChosen(lib.path)} />)
+            ) : result.isFetching ? (
+              <CircularProgress size={24} />
+            ) : (
+              <ButtonBase onClick={() => void choose()} sx={{ flexDirection: 'column', gap: 1, p: 2, borderRadius: `${SHAPE.md}px`, color: md('onSurfaceVariant') }}>
+                <SearchRounded />
+                <Typography variant="bodySmall">{picked ? 'Nothing found' : 'Found libraries show up here'}</Typography>
+              </ButtonBase>
             )}
-            {result.data && result.data.via !== 'none' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <Typography variant="titleSmall" sx={{ color: md('onSurface') }}>
-                  {result.data.via === 'itself' ? 'Found it' : result.data.via === 'parent' ? 'This folder is part of a library' : found.length > 1 ? `${found.length} libraries in this folder — pick one` : 'Found a library in this folder'}
-                </Typography>
-                {found.map((lib) => (
-                  <FoundCard key={lib.path} lib={lib} selected={chosen === lib.path} onSelect={() => setChosen(lib.path)} />
-                ))}
-              </div>
-            )}
-            {result.data?.via === 'none' && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 10, padding: '28px 16px', borderRadius: SHAPE.xl, background: md('surfaceContainerLow') }}>
-                <span style={{ width: 56, height: 56, borderRadius: 18, display: 'grid', placeItems: 'center', background: md('surfaceContainerHighest'), color: md('onSurfaceVariant') }}>
-                  <SearchRounded />
-                </span>
-                <Typography variant="titleMedium" sx={{ color: md('onSurface') }}>
-                  No library here
-                </Typography>
-                <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant'), maxWidth: 360 }}>
-                  “{baseName(picked)}” isn’t a Tessera library, isn’t inside one, and doesn’t hold one.
-                </Typography>
-                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                  <Button onClick={() => void choose()}>Choose another</Button>
-                  <Button variant="outlined" startIcon={<LibraryAddRounded />} onClick={() => onCreateHere(picked)}>
-                    Create one here
-                  </Button>
-                </div>
-              </div>
-            )}
-            {result.data?.via === 'parent' && <Note tone="info">You picked a folder inside the library; it’s the library itself that opens.</Note>}
-          </>
-        )}
+          </div>
+        </div>
+        <StatusSlot message={message} />
       </div>
-    </Shell>
+    </SetupFrame>
   );
 }
 
-/** Create or open a library: one roomy dialog with the choice of folder, the name and anything worth knowing. */
+/** Create or open a library: one dialog of fixed size with the folder, the name and anything worth knowing. */
 export function LibraryDialog() {
   const { mode, start, show, hide } = useLibraryDialog();
   // Keep the last mode while the dialog animates out.
@@ -349,7 +340,12 @@ export function LibraryDialog() {
   }, [mode]);
   const current = mode ?? shown;
   return (
-    <Dialog open={!!mode} onClose={hide} maxWidth={false} slotProps={{ paper: { sx: { width: 920, maxWidth: 'calc(100vw - 48px)', maxHeight: 'calc(100vh - 48px)', borderRadius: `${SHAPE.xl}px`, overflow: 'hidden', backgroundImage: 'none', p: 0 } } }}>
+    <Dialog
+      open={!!mode}
+      onClose={hide}
+      maxWidth={false}
+      slotProps={{ paper: { sx: { width: DIALOG_WIDTH, height: DIALOG_HEIGHT, maxWidth: 'calc(100vw - 48px)', maxHeight: 'calc(100vh - 48px)', borderRadius: `${SHAPE.xl}px`, overflow: 'hidden', backgroundImage: 'none', p: 0 } } }}
+    >
       {current === 'create' ? (
         <CreatePane key={`c${start}`} start={start} onClose={hide} onOpenInstead={(p) => show('open', p)} />
       ) : (

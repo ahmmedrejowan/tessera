@@ -5,6 +5,7 @@ import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import TerminalRounded from '@mui/icons-material/TerminalRounded';
 import VerifiedUserOutlined from '@mui/icons-material/VerifiedUserOutlined';
 import Button from '@mui/material/Button';
+import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
 import Tab from '@mui/material/Tab';
@@ -75,6 +76,7 @@ export function SyncthingSetup({ available, bundled, compact }: { available: boo
   const [progress, setProgress] = useState<Events['sync:installProgress'] | null>(null);
   const [busy, setBusy] = useState(false);
   const [os, setOs] = useState<Platform>(platform);
+  const [way, setWay] = useState(0);
   const managers = useQuery({ queryKey: ['package-managers'], queryFn: () => call('sync:packageManagers'), staleTime: Infinity }).data ?? [];
   useEffect(() => on('sync:installProgress', setProgress), []);
   // Installed by hand in the meantime? Look again when the window comes back into focus.
@@ -102,12 +104,13 @@ export function SyncthingSetup({ available, bundled, compact }: { available: boo
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: SHAPE.lg, background: md('secondaryContainer'), color: md('onSecondaryContainer') }}>
         <CheckCircleRounded />
         <Typography variant="bodyMedium" sx={{ flex: 1 }}>
-          Syncthing is ready on this computer{bundled ? ' (the copy Tessera keeps for itself)' : ''}. Tessera runs it for you; there’s nothing to set up in Syncthing itself.
+          Syncthing is ready{bundled ? ' (Tessera’s own copy)' : ''}. Nothing else to set up.
         </Typography>
       </div>
     );
   }
 
+  const current = WAYS[os].ways[way];
   const pct = progress && progress.total ? (progress.received / progress.total) * 100 : null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 16 : 20 }}>
@@ -119,12 +122,12 @@ export function SyncthingSetup({ available, bundled, compact }: { available: boo
           <div style={{ flex: 1 }}>
             <Typography variant="titleMedium">Set it up for me</Typography>
             <Typography variant="bodySmall" component="div" sx={{ opacity: 0.85, mt: 0.25 }}>
-              Tessera downloads the official Syncthing for {WAYS[platform].name} (about 12 MB) from Syncthing’s GitHub releases, checks it against their published checksum, and keeps it in its own folder. No installer, no admin password.
+              The official build for {WAYS[platform].name}, about 12 MB. No installer, no admin password.
             </Typography>
           </div>
         </div>
         {busy && progress ? (
-          <div>
+          <div style={{ height: 40, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <LinearProgress variant={pct === null ? 'indeterminate' : 'determinate'} {...(pct === null ? {} : { value: pct })} sx={{ height: 6, borderRadius: 3 }} />
             <Typography variant="bodySmall" component="div" sx={{ mt: 0.75, opacity: 0.85 }}>
               {STAGES[progress.stage]}
@@ -132,12 +135,12 @@ export function SyncthingSetup({ available, bundled, compact }: { available: boo
             </Typography>
           </div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ height: 40, display: 'flex', alignItems: 'center', gap: 12 }}>
             <Button variant="contained" startIcon={<DownloadRounded />} disabled={busy} onClick={() => void install()}>
               Download and set up
             </Button>
             <Typography variant="bodySmall" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, opacity: 0.8 }}>
-              <VerifiedUserOutlined sx={{ fontSize: 16 }} /> Checked before it’s used
+              <VerifiedUserOutlined sx={{ fontSize: 16 }} /> Checksum verified
             </Typography>
           </div>
         )}
@@ -153,26 +156,31 @@ export function SyncthingSetup({ available, bundled, compact }: { available: boo
             Check again
           </Button>
         </div>
-        <Tabs value={os} onChange={(_, v: Platform) => setOs(v)} sx={{ minHeight: 40, mb: 1.5, '& .MuiTab-root': { minHeight: 40, textTransform: 'none' } }}>
+        <Tabs value={os} onChange={(_, v: Platform) => { setOs(v); setWay(0); }} sx={{ minHeight: 40, mb: 1.5, '& .MuiTab-root': { minHeight: 40, textTransform: 'none' } }}>
           {(Object.keys(WAYS) as Platform[]).map((p) => (
-            <Tab key={p} value={p} label={p === platform ? `${WAYS[p].name} · this computer` : WAYS[p].name} />
+            <Tab key={p} value={p} label={WAYS[p].name} />
           ))}
         </Tabs>
+        {/* One command at a time, picked by these chips, so every system's tab is the same height. */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {WAYS[os].ways.map((w) => (
-            <div key={w.command}>
-              <Typography variant="labelMedium" component="div" sx={{ color: md('onSurfaceVariant'), mb: 0.5 }}>
+          <div style={{ display: 'flex', gap: 6, height: 28 }}>
+            {WAYS[os].ways.map((w, i) => (
+              <ButtonBase
+                key={w.label}
+                onClick={() => setWay(i)}
+                sx={{ px: 1.5, borderRadius: `${SHAPE.sm}px`, fontSize: 12, border: `1px solid ${i === way ? md('secondaryContainer') : md('outlineVariant')}`, backgroundColor: i === way ? md('secondaryContainer') : 'transparent', color: i === way ? md('onSecondaryContainer') : md('onSurfaceVariant') }}
+              >
                 {w.label}
-              </Typography>
-              <CommandLine command={w.command} found={os === platform && !!w.tool && managers.includes(w.tool)} />
-            </div>
-          ))}
+              </ButtonBase>
+            ))}
+          </div>
+          {current && <CommandLine command={current.command} found={os === platform && !!current.tool && managers.includes(current.tool)} />}
           <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-            Or get it from{' '}
+            Or download it from{' '}
             <a href="https://syncthing.net/downloads/" target="_blank" rel="noreferrer" style={{ color: md('primary') }}>
-              syncthing.net/downloads
+              syncthing.net
             </a>
-            . Once it’s installed, come back here; Tessera notices on its own.
+            .
           </Typography>
         </div>
       </div>
