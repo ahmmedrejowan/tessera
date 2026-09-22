@@ -1,6 +1,7 @@
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useRef, useState, type PointerEvent, type WheelEvent } from 'react';
 import { checker } from '../components/AssetThumb';
+import { useBrowse } from '../state/browse';
 import { md } from '../theme';
 
 export interface ImageInfo {
@@ -25,6 +26,7 @@ export function ImageView({ src, onInfo, command }: { src: string; onInfo?: (i: 
   const [t, setT] = useState<Transform>({ scale: 1, x: 0, y: 0 });
   const [failed, setFailed] = useState(false);
   const drag = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+  const background = useBrowse((s) => s.tileBackground);
 
   const fit = useCallback(() => {
     const el = box.current;
@@ -112,7 +114,7 @@ export function ImageView({ src, onInfo, command }: { src: string; onInfo?: (i: 
             imageRendering: t.scale >= 2 ? 'pixelated' : 'auto',
             visibility: natural ? 'visible' : 'hidden',
             maxWidth: 'none',
-            ...checker(8 / Math.max(t.scale, 0.1)),
+            ...checker(8 / Math.max(t.scale, 0.1), background),
           }}
         />
       )}
