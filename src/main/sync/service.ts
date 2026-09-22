@@ -11,7 +11,7 @@ import { log } from '../log';
 import type { SettingsStore } from '../settings';
 import { findTool } from '../tools/find';
 import { SyncthingApi, type StFolder } from './api';
-import { bundledSyncthing } from './install';
+import { bundledTool } from '../tools/install';
 
 /** How each mode maps to a Syncthing folder type. */
 export const FOLDER_TYPE: Record<SyncMode, StFolder['type']> = { push: 'sendonly', pull: 'receiveonly', full: 'sendreceive' };
@@ -22,7 +22,7 @@ export type Launcher = (home: string, exe: string) => Promise<{ base: string; ke
 const MAC_APP = '/Applications/Syncthing.app/Contents/Resources/syncthing/syncthing';
 
 /** Syncthing installed on the system, or the copy Tessera downloaded into its data folder. */
-export const findSyncthing = (dataDir: string) => findTool('syncthing', [MAC_APP, bundledSyncthing(dataDir)]);
+export const findSyncthing = (dataDir: string) => findTool('syncthing', [MAC_APP, bundledTool(dataDir, 'syncthing')]);
 
 interface Deps {
   dataDir: string;
@@ -99,7 +99,7 @@ export class SyncService {
 
   /** Whether the Syncthing in use is Tessera's own downloaded copy. */
   bundled(): boolean {
-    return !this.d.launcher && findSyncthing(this.d.dataDir) === bundledSyncthing(this.d.dataDir);
+    return !this.d.launcher && findSyncthing(this.d.dataDir) === bundledTool(this.d.dataDir, 'syncthing');
   }
 
   private ensureRunning(): Promise<SyncthingApi> {
