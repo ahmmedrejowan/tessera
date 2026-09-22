@@ -432,7 +432,7 @@ function registerHandlers(): void {
   handle('backup:generatePassword', () => generatePassword());
   handle('backup:revealPassword', async () => {
     // Where the Mac can ask for Touch ID, it does before showing the password.
-    if (platform === 'darwin' && systemPreferences.canPromptTouchID()) {
+    if (platform === 'darwin' && process.env.TESSERA_E2E !== '1' && systemPreferences.canPromptTouchID()) {
       await systemPreferences.promptTouchID('show your backup password').catch(() => {
         throw new UserError('not-confirmed', 'The password stays hidden.');
       });

@@ -1,9 +1,6 @@
 import Alert from '@mui/material/Alert';
 import { StatusSlot } from '../../components/StatusSlot';
-import CloudOutlined from '@mui/icons-material/CloudOutlined';
-import UsbRounded from '@mui/icons-material/UsbRounded';
 import Button from '@mui/material/Button';
-import ButtonBase from '@mui/material/ButtonBase';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -16,7 +13,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { call, on } from '../../api';
 import { formatBytes } from '../../components/labels';
-import { SegmentedButton } from '../../components/SegmentedButton';
 import { failed, notify } from '../../notices/store';
 import { useUpdateSettings } from '../../state/queries';
 import { md } from '../../theme';
@@ -32,6 +28,94 @@ const ago = (iso: string) => {
   if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
   return new Date(iso).toLocaleDateString();
 };
+
+const STORE_NAME: Record<string, string> = { darwin: 'Keychain Access', win32: 'Credential Manager', linux: 'your keyring' };
+
+/** The backup password: see it, change it, and keep copies where they'll be found. */
+function PasswordRow() {
+  const [shown, setShown] = useState<string | null>(null);
+  const [changing, setChanging] = useState(false);
+  const act = async (fn: () => Promise<unknown>, done?: string) => {
+    try {
+      await fn();
+      if (done) notify.success(done);
+    } catch (e) {
+      failed(e);
+    }
+  };
+  return (
+    <>
+      <Row
+        title="Password"
+        body={
+          shown ? (
+            <span style={{ fontFamily: 'ui-monospace, Menlo, Consolas, monospace', userSelect: 'text', color: md('onSurface') }}>{shown}</span>
+          ) : (
+            'Needed to restore on another computer. Keep a copy away from this one.'
+          )
+        }
+      >
+        <Button onClick={() => (shown ? setShown(null) : void act(async () => setShown(await call('backup:revealPassword'))))}>{shown ? 'Hide' : 'Show'}</Button>
+        <Button onClick={() => void act(async () => {
+          const path = await call('backup:saveKit', { includeKeys: false });
+          if (path) notify.success('Recovery kit saved.', { body: path });
+        })}>
+          Recovery kit…
+        </Button>
+        <Button onClick={() => void act(() => call('backup:saveToKeychain'), `Saved in ${STORE_NAME[window.tessera.platform]}.`)}>Save in {STORE_NAME[window.tessera.platform]}</Button>
+        <Button onClick={() => setChanging(true)}>Change…</Button>
+      </Row>
+      <ChangePassword open={changing} onClose={() => setChanging(false)} />
+    </>
+  );
+}
+
+function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [next, setNext] = useState('');
+  const [again, setAgain] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (open) {
+      setNext('');
+      setAgain('');
+      setError(null);
+    }
+  }, [open]);
+  const ok = next.length >= 8 && next === again;
+  const change = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await call('backup:changePassword', next);
+      notify.success('Password changed.', { body: 'Save a new recovery kit: the old one no longer opens the backups.' });
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>Change the backup password</DialogTitle>
+      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
+          All backups, old and new, open with the new password afterwards.
+        </Typography>
+        <TextField type="password" label="New password" value={next} onChange={(e) => setNext(e.target.value)} helperText="At least 8 characters." autoComplete="new-password" />
+        <TextField type="password" label="New password again" value={again} onChange={(e) => setAgain(e.target.value)} error={!!again && again !== next} helperText={again && again !== next ? 'The two don’t match.' : ' '} autoComplete="new-password" />
+        <StatusSlot message={error ? { tone: 'error', text: error } : null} />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" disabled={!ok || busy} onClick={() => void change()}>
+          {busy ? 'Changing…' : 'Change'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
 
 function RestoreDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const snapshots = useQuery({ queryKey: ['snapshots'], queryFn: () => call('backup:snapshots'), enabled: open });
@@ -140,6 +224,7 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
           <MenuItem value={168}>Every week</MenuItem>
         </Select>
       </Row>
+      <PasswordRow />
       <Row title="Restore" body="Bring back the library as it was at an earlier backup.">
         <Button onClick={() => setRestoring(true)}>Restore…</Button>
       </Row>

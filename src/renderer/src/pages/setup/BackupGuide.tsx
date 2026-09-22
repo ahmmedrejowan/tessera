@@ -1,6 +1,17 @@
 import BackupRounded from '@mui/icons-material/BackupRounded';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
+import AutoAwesomeRounded from '@mui/icons-material/AutoAwesomeRounded';
 import CheckRounded from '@mui/icons-material/CheckRounded';
+import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
+import KeyRounded from '@mui/icons-material/KeyRounded';
+import PictureAsPdfOutlined from '@mui/icons-material/PictureAsPdfOutlined';
+import VisibilityOffRounded from '@mui/icons-material/VisibilityOffRounded';
+import VisibilityRounded from '@mui/icons-material/VisibilityRounded';
+import ButtonBase from '@mui/material/ButtonBase';
+import Checkbox from '@mui/material/Checkbox';
+import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
+import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
@@ -8,10 +19,11 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
-import { describeTarget, targetProblem, type Provider, type StorageTarget } from '@shared/storage';
+import { describeTarget, providerInfo, targetProblem, type Provider, type StorageTarget } from '@shared/storage';
 import { call, on } from '../../api';
 import { SegmentedButton } from '../../components/SegmentedButton';
 import { StatusSlot, type SlotMessage } from '../../components/StatusSlot';
+import { useSettings, useUpdateSettings } from '../../state/queries';
 import { md, mdAlpha, SHAPE } from '../../theme';
 import { DIALOG_HEIGHT, DIALOG_WIDTH, SetupFrame, Side } from '../library/LibraryDialog';
 import { newTarget, ProviderGrid, StorageForm } from './Storage';
@@ -23,8 +35,10 @@ const STEPS: { id: Step; title: string }[] = [
   { id: 'kopia', title: 'Get Kopia' },
   { id: 'where', title: 'Where to keep them' },
   { id: 'password', title: 'Password' },
-  { id: 'done', title: 'Done' },
+  { id: 'done', title: 'Keep it safe' },
 ];
+
+const STORE_NAME: Record<string, string> = { darwin: 'Keychain Access', win32: 'Credential Manager', linux: 'your keyring' };
 
 export function StepRail<S extends string>({ steps, step, done }: { steps: { id: S; title: string }[]; step: S; done: (s: S) => boolean }) {
   return (
@@ -62,6 +76,27 @@ export function StepRail<S extends string>({ steps, step, done }: { steps: { id:
   );
 }
 
+/** One way to keep the password safe, ticked once done. */
+function SafeCard({ icon, title, sub, done, onClick, children }: { icon: ReactNode; title: string; sub: string; done: boolean; onClick: () => void; children?: ReactNode }) {
+  return (
+    <ButtonBase
+      onClick={onClick}
+      sx={{ height: 76, justifyContent: 'flex-start', gap: 1.75, px: 1.75, borderRadius: `${SHAPE.lg}px`, textAlign: 'left', border: `1px solid ${done ? md('primary') : md('outlineVariant')}`, backgroundColor: done ? md('primaryContainer') : md('surfaceContainerLow') }}
+    >
+      <span style={{ width: 44, height: 44, borderRadius: 14, display: 'grid', placeItems: 'center', flexShrink: 0, background: done ? md('primary') : md('secondaryContainer'), color: done ? md('onPrimary') : md('onSecondaryContainer') }}>{done ? <CheckRounded /> : icon}</span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="titleSmall" component="div" sx={{ color: md('onSurface') }}>
+          {title}
+        </Typography>
+        <Typography variant="bodySmall" component="div" noWrap sx={{ color: md('onSurfaceVariant') }}>
+          {sub}
+        </Typography>
+      </span>
+      {children}
+    </ButtonBase>
+  );
+}
+
 export function Heading({ title, sub }: { title: string; sub: string }) {
   return (
     <div style={{ marginBottom: 20 }}>
@@ -90,6 +125,12 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
   const [again, setAgain] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [shown, setShown] = useState(false);
+  const [kept, setKept] = useState<{ kit?: string; keychain?: boolean; copied?: boolean; confirmed?: boolean }>({});
+  const [includeKeys, setIncludeKeys] = useState(true);
+  const [safeMsg, setSafeMsg] = useState<SlotMessage | null>(null);
+  const settings = useSettings().data;
+  const update = useUpdateSettings();
   const available = !!status?.available;
 
   useEffect(() => on('backup:changed', () => void client.invalidateQueries({ queryKey: ['backup'] })), [client]);
@@ -103,6 +144,9 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
       setAgain('');
       setError(null);
       setWhereMsg(null);
+      setShown(false);
+      setKept({});
+      setSafeMsg(null);
     }
   }, [open]);
   // A folder that already holds backups is almost certainly meant to be used again.
@@ -116,7 +160,35 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
     setWhereMsg(null);
   };
   const problem = target ? targetProblem(target) : 'Choose a place.';
-  const pwProblem = password.length < 8 ? 'At least 8 characters.' : mode === 'new' && again !== password ? 'The two don’t match.' : null;
+  const noKeychain = status ? !status.keychain : false;
+  const pwProblem = password.length < 8 ? 'At least 8 characters.' : mode === 'new' && again !== password ? 'The two don’t match.' : noKeychain && !settings?.backupPasswordInFile ? 'Choose how to keep the password.' : null;
+  const generate = async () => {
+    const pw = await call('backup:generatePassword');
+    setPassword(pw);
+    setAgain(pw);
+    setShown(true);
+  };
+  const keepSafe = async (what: 'kit' | 'keychain' | 'copy') => {
+    try {
+      if (what === 'kit') {
+        const path = await call('backup:saveKit', { password, ...(target ? { target } : {}), includeKeys });
+        if (path) {
+          setKept((k) => ({ ...k, kit: path }));
+          setSafeMsg({ tone: 'success', text: `Saved to ${path}. Print it, or keep it off this computer.` });
+        }
+      } else if (what === 'keychain') {
+        await call('backup:saveToKeychain', password);
+        setKept((k) => ({ ...k, keychain: true }));
+        setSafeMsg({ tone: 'success', text: `Saved in ${STORE_NAME[window.tessera.platform]} as “Tessera backup password”.` });
+      } else {
+        await navigator.clipboard.writeText(password);
+        setKept((k) => ({ ...k, copied: true }));
+        setSafeMsg({ tone: 'success', text: 'Copied. Paste it into your password manager.' });
+      }
+    } catch (e) {
+      setSafeMsg({ tone: 'error', text: e instanceof Error ? e.message : String(e) });
+    }
+  };
 
   const turnOn = async () => {
     if (!target || pwProblem) return;
@@ -181,9 +253,33 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
               { value: 'existing', label: 'Use existing backups' },
             ]}
           />
-          <TextField type="password" label="Password" value={password} onChange={(e) => setPassword(e.target.value)} helperText="At least 8 characters. Without it, backups can’t be read." autoComplete="new-password" />
           <TextField
-            type="password"
+            type={shown ? 'text' : 'password'}
+            label="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            helperText="At least 8 characters. Without it, backups can’t be read."
+            autoComplete="new-password"
+            slotProps={{
+              input: {
+                sx: { fontFamily: shown ? 'ui-monospace, Menlo, Consolas, monospace' : undefined },
+                endAdornment: (
+                  <InputAdornment position="end">
+                    {mode === 'new' && (
+                      <Button size="small" startIcon={<AutoAwesomeRounded />} onClick={() => void generate()}>
+                        Make one
+                      </Button>
+                    )}
+                    <IconButton aria-label={shown ? 'Hide password' : 'Show password'} onClick={() => setShown(!shown)}>
+                      {shown ? <VisibilityOffRounded /> : <VisibilityRounded />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+          <TextField
+            type={shown ? 'text' : 'password'}
             label="Password again"
             value={again}
             onChange={(e) => setAgain(e.target.value)}
@@ -193,6 +289,19 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
             sx={{ visibility: mode === 'new' ? 'visible' : 'hidden' }}
             autoComplete="new-password"
           />
+          {noKeychain && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+              <div style={{ flex: 1 }}>
+                <Typography variant="bodyMedium" sx={{ color: md('onSurface') }}>
+                  Keep the password in a file only you can read
+                </Typography>
+                <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
+                  This computer has no keychain. Automatic backups need the password kept somewhere, like SSH keys are.
+                </Typography>
+              </div>
+              <Switch checked={!!settings?.backupPasswordInFile} onChange={(_, v) => update.mutate({ backupPasswordInFile: v })} slotProps={{ input: { 'aria-label': 'Keep the password in a file' } }} />
+            </label>
+          )}
           <StatusSlot message={error ? { tone: 'error', text: error } : busy ? { tone: 'info', busy: true, text: 'Connecting…' } : null} />
         </div>
       </>
@@ -203,26 +312,35 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
       </Button>
     );
   } else {
+    const secretFields = target ? providerInfo(target.provider).fields.some((f) => f.secret && target.values[f.key]) : false;
     body = (
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 12 }}>
-        <span style={{ width: 72, height: 72, borderRadius: 24, display: 'grid', placeItems: 'center', background: md('primaryContainer'), color: md('onPrimaryContainer') }}>
-          <CheckCircleRounded sx={{ fontSize: 36 }} />
-        </span>
-        <Typography variant="headlineSmall" sx={{ color: md('onSurface') }}>
-          Backups are on
-        </Typography>
-        <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), maxWidth: 380 }}>
-          The first one is running now. Keep the password somewhere safe: it’s the only way to restore.
-        </Typography>
-        <div style={{ padding: '8px 14px', borderRadius: SHAPE.md, background: md('surfaceContainerHigh'), marginTop: 8 }}>
-          <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-            {target ? describeTarget(target) : ''}
-          </Typography>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+          <CheckCircleRounded sx={{ color: md('primary'), fontSize: 28 }} />
+          <div>
+            <Typography variant="titleLarge" sx={{ color: md('onSurface') }}>
+              Backups are on
+            </Typography>
+            <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
+              The first is running. Now keep the password where you’ll find it, away from this computer.
+            </Typography>
+          </div>
         </div>
+        <SafeCard icon={<PictureAsPdfOutlined />} title="Save a recovery kit" sub="A page with the password and where the backups are. Print it, or keep it in a safe place." done={!!kept.kit} onClick={() => void keepSafe('kit')}>
+          {secretFields && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: md('onSurfaceVariant'), cursor: 'pointer' }} onClick={(e) => e.stopPropagation()}>
+              <Checkbox size="small" checked={includeKeys} onChange={(_, v) => setIncludeKeys(v)} sx={{ p: 0.5 }} />
+              With the storage keys
+            </label>
+          )}
+        </SafeCard>
+        <SafeCard icon={<KeyRounded />} title={`Save in ${STORE_NAME[window.tessera.platform]}`} sub="A copy in this computer’s password store, apart from Tessera." done={!!kept.keychain} onClick={() => void keepSafe('keychain')} />
+        <SafeCard icon={<ContentCopyRounded />} title="Copy for a password manager" sub="1Password, Bitwarden, your browser’s: paste it there." done={!!kept.copied} onClick={() => void keepSafe('copy')} />
+        <StatusSlot message={safeMsg} />
       </div>
     );
     next = (
-      <Button variant="contained" onClick={onClose}>
+      <Button variant="contained" disabled={!kept.kit && !kept.keychain && !kept.copied} onClick={onClose}>
         Done
       </Button>
     );
@@ -247,6 +365,7 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
             {back && step !== 'done' && !(step === 'where' && !target && back === 'kopia' && available) && <Button onClick={() => (step === 'where' && target ? setTarget(null) : setStep(back))}>Back</Button>}
             <span style={{ flex: 1 }} />
             {step !== 'done' && <Button onClick={onClose}>Cancel</Button>}
+            {step === 'done' && !kept.kit && !kept.keychain && !kept.copied && <Button onClick={onClose}>Later</Button>}
             {next}
           </>
         }
