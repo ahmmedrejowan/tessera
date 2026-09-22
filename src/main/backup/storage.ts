@@ -125,6 +125,9 @@ export function hostKeys(host: string, port: string, keyscan = 'ssh-keyscan'): P
 /** Kopia's errors about a store, said plainly. */
 export function storageError(message: string): string {
   if (/invalid (repository )?password|incorrect password/i.test(message)) return 'That password doesn’t open these backups.';
+  if (/RequestTimeTooSkewed|time.{0,20}skew|clock skew/i.test(message)) return 'This computer’s clock is off, so the storage service refused it. Set the date and time automatically, then try again.';
+  if (/x509|certificate (signed by unknown|is not trusted|has expired|is valid for)|unknown authority|tls: failed to verify/i.test(message)) return 'The server’s certificate isn’t trusted by this computer. For a self-signed certificate, add its certificate authority under Advanced (S3), or to this computer’s trusted certificates (WebDAV).';
+  if (/rateLimitExceeded|userRateLimitExceeded|too many requests|429/i.test(message)) return 'The service is limiting how fast Tessera can go. It carries on later; for large backups, use your own client ID (Advanced).';
   if (/found existing data|already (exists|initialized)/i.test(message)) return 'There are backups here already. Choose “Use existing backups”.';
   if (/NoSuchBucket|bucket.*not exist/i.test(message)) return 'That bucket doesn’t exist.';
   if (/access denied|forbidden|403|InvalidAccessKeyId|SignatureDoesNotMatch|unauthorized|401/i.test(message)) return 'The keys or password were refused. Check them and try again.';

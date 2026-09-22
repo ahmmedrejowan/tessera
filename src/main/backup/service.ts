@@ -99,6 +99,8 @@ export class BackupService {
     } catch (e) {
       throw new UserError('backup-connect', e instanceof Error ? e.message : String(e));
     }
+    // Joining backups made elsewhere (a new or restored computer): this one does the tidying now.
+    if (!create) await kopia.takeMaintenance(password).catch((e: unknown) => log.warn('backup', 'could not take over maintenance', e));
     await kopia.setRetention(source, password);
     await this.d.secrets.save(password);
     await this.d.settings.update({ backupRepo: describeTarget(target), backupTarget: withoutSecrets(target), lastBackupError: null });

@@ -13,6 +13,14 @@ interface Step {
   Error: string;
 }
 
+/** rclone's sign-in failures, said plainly. */
+export function signInError(stderr: string): string {
+  if (/AADSTS65001|AADSTS90094|admin(istrator)? (approval|consent)|needs admin/i.test(stderr)) return 'Your organisation needs an administrator to approve this app for your Microsoft account. Ask your IT admin, or use another place.';
+  if (/access_denied|user denied|consent_required/i.test(stderr)) return 'Signing in was cancelled in the browser.';
+  const last = stderr.trim().split('\n').at(-1) ?? '';
+  return `Signing in didn’t finish: ${last.replace(/^\S+ \S+ (NOTICE|ERROR|CRITICAL): /, '')}`;
+}
+
 const AUTH_URL = /(http:\/\/127\.0\.0\.1:\d+\/auth\?state=[\w-]+)/;
 
 /**
@@ -59,7 +67,7 @@ export class RcloneAuth {
       p.on('exit', (code) => {
         clearTimeout(timer);
         this.current = null;
-        if (code !== 0) return reject(new UserError('sign-in-failed', code === null ? 'Signing in was stopped.' : `Signing in didn’t finish: ${err.trim().split('\n').at(-1) ?? code}`));
+        if (code !== 0) return reject(new UserError('sign-in-failed', code === null ? 'Signing in was stopped.' : signInError(err)));
         try {
           const start = out.indexOf('{');
           resolve(start >= 0 ? (JSON.parse(out.slice(start)) as Step) : { State: '', Option: null, Error: '' });

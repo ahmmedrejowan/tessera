@@ -50,6 +50,8 @@ describe('storage for Kopia', () => {
     expect(storageError('The specified bucket does not exist (NoSuchBucket)')).toMatch(/bucket/);
     expect(storageError('dial tcp 10.0.0.1:443: connection refused')).toMatch(/reach/);
     expect(storageError('repository not initialized in the provided storage')).toMatch(/No backups here/);
+    expect(storageError('RequestTimeTooSkewed: The difference between the request time and the current time is too large.')).toMatch(/clock/);
+    expect(storageError('Get "https://nas.local/": x509: certificate signed by unknown authority')).toMatch(/certificate/);
   });
 });
 

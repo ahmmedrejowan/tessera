@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -33,5 +34,11 @@ describe.skipIf(!exe)('kopia backups', () => {
     await expect(other.connect(folder, 'wrong password', false)).rejects.toThrow();
     await other.connect(folder, 'correct horse', false);
     expect((await other.list(library, 'correct horse')).length).toBe(1);
+
+    // The computer that made the store tidies it, until another takes over (after a restore, say).
+    execFileSync(exe!, ['maintenance', 'set', '--owner=old@lost-laptop', `--config-file=${join(dir, 'config2', 'repository.config')}`], { env: { ...process.env, KOPIA_PASSWORD: 'correct horse' } });
+    expect(await other.maintenanceOwner('correct horse')).toBe('old@lost-laptop');
+    await other.takeMaintenance('correct horse');
+    expect(await other.maintenanceOwner('correct horse')).not.toBe('old@lost-laptop');
   }, 60_000);
 });

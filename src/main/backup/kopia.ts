@@ -66,8 +66,22 @@ export class Kopia {
     await mkdir(this.dir, { recursive: true });
     if (create && storage.type === 'filesystem') await mkdir(storage.args[0]!.slice('--path='.length), { recursive: true });
     if (create && storage.prepare) await storage.prepare();
-    const args = ['repository', create ? 'create' : 'connect', storage.type, ...storage.args, `--cache-directory=${this.cache}`, '--no-persist-credentials', ...(readOnly ? ['--readonly'] : [])];
+    // A modest local cache: Kopia's default can grow to several gigabytes.
+    const cache = [`--cache-directory=${this.cache}`, '--content-cache-size-mb=1024', '--metadata-cache-size-mb=512'];
+    const args = ['repository', create ? 'create' : 'connect', storage.type, ...storage.args, ...cache, '--no-persist-credentials', ...(readOnly ? ['--readonly'] : [])];
     await this.run(args, password, 10 * 60_000, storage.env);
+  }
+
+  /**
+   * Make this computer the one that tidies the store (removes data no snapshot needs any more).
+   * Kopia lets one computer do that; after a restore on a new computer, the old one may be gone.
+   */
+  async takeMaintenance(password: string): Promise<void> {
+    await this.run(['maintenance', 'set', '--owner=me'], password, 60_000);
+  }
+
+  async maintenanceOwner(password: string): Promise<string> {
+    return ((JSON.parse(await this.run(['maintenance', 'info', '--json'], password, 60_000)) as { owner?: string }).owner ?? '');
   }
 
   /** How long snapshots are kept: recent ones in detail, older ones thinned out. */
