@@ -1,4 +1,4 @@
-import { app, BrowserWindow, crashReporter, dialog, nativeTheme, net, shell } from 'electron';
+import { app, BrowserWindow, crashReporter, dialog, nativeTheme, net, session, shell } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import { release, tmpdir } from 'node:os';
 import { readdir, rm, stat } from 'node:fs/promises';
@@ -15,6 +15,7 @@ import { RcloneAuth } from './backup/rclone';
 import { hostKeys } from './backup/storage';
 import { providerInfo } from '@shared/storage';
 import { findTool } from './tools/find';
+import { applySystemProxy } from './tools/proxy';
 import { LibraryService } from './libraryService';
 import { BackupService, findKopia } from './backup/service';
 import { registerDrag } from './drag';
@@ -208,6 +209,7 @@ async function start(): Promise<void> {
     broadcast(windows, 'settings:changed', next);
   });
   registerHandlers();
+  void applySystemProxy((url) => session.defaultSession.resolveProxy(url)).then((p) => p && log.info('app', 'using the system proxy for helper programs'));
   installMenu(() => BrowserWindow.getFocusedWindow() ?? windows()[0], join(dataDir, 'logs'));
   registerDrag({
     cacheDir: () => {
