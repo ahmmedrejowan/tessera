@@ -56,7 +56,7 @@ describe('a site the user has settled', () => {
     expect(pack.meta.source.creator).toBe('Stone Person');
 
     const { files } = await listPackFiles(pack.dir);
-    const found = await detectPack(pack.dir, files, 'stone-set.zip', rules);
+    const found = await detectPack(pack.dir, files, { downloadName: 'stone-set.zip', rules });
     expect(found.licenceFrom).toBe('your rule for free-stones.example');
   });
 

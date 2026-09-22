@@ -160,6 +160,8 @@ export interface LibraryRecord {
    * into the library; the rest wait in the Inbox. Off: every import waits in the Inbox.
    */
   skipInboxWhenSure: boolean;
+  /** Finished downloads are added to this library by themselves, instead of waiting to be added. */
+  autoAddDownloads: boolean;
   sync: LibrarySync;
   backup: LibraryBackup | null;
 }
@@ -304,6 +306,32 @@ export interface ImportItem {
   duplicateOf: string | null;
   /** The folder of downloads it was found in, when a folder was taken as several packs. */
   folder?: string;
+  /** The link it was downloaded from, when Tessera fetched it. */
+  url?: string;
+}
+
+/** Where a download has got to. */
+export type DownloadState = 'waiting' | 'running' | 'paused' | 'ready' | 'added' | 'failed' | 'cancelled';
+
+/** One link the user brought, on its way to becoming a pack. */
+export interface DownloadItem {
+  id: string;
+  url: string;
+  /** The site it's from, without "www.", shown before anything is fetched. */
+  host: string;
+  name: string;
+  state: DownloadState;
+  received: number;
+  /** Bytes in all, when the site says; null when it doesn't. */
+  total: number | null;
+  /** Bytes a second while it runs. */
+  speed: number;
+  error: string | null;
+  /** The finished file, until it's added or cleared. */
+  file: string | null;
+  addedAt: string;
+  /** What it became, once it's in the library. */
+  packName?: string | null;
 }
 
 export interface ImportResult {
@@ -351,4 +379,4 @@ export interface Snapshot {
 }
 
 /** Commands the application menu sends to the window. */
-export type MenuCommand = 'add' | 'addFolder' | 'addFolderOfPacks' | 'linkProject' | 'settings' | 'find' | 'shortcuts' | 'home' | 'browse' | 'collections' | 'projects' | 'inbox' | 'reportProblem';
+export type MenuCommand = 'add' | 'addFolder' | 'addFolderOfPacks' | 'linkProject' | 'settings' | 'find' | 'shortcuts' | 'home' | 'browse' | 'collections' | 'projects' | 'inbox' | 'downloads' | 'reportProblem';

@@ -188,7 +188,7 @@ export class LibraryService {
   async detect(id: string): Promise<Detected> {
     const pack = await this.packRecord(id);
     const { files } = await listPackFiles(pack.dir);
-    return detectPack(pack.dir, files, undefined, this.d.siteRules());
+    return detectPack(pack.dir, files, { rules: this.d.siteRules(), url: pack.meta.source.url });
   }
 
   /**
@@ -199,7 +199,7 @@ export class LibraryService {
     const pack = await this.packRecord(id);
     const { files } = await listPackFiles(pack.dir);
     const download = (await readdir(join(pack.dir, PACK_DIRS.original)).catch(() => [] as string[])).find((n) => !n.startsWith('.')) ?? pack.meta.name;
-    const [detected, texts] = await Promise.all([detectPack(pack.dir, files, download, this.d.siteRules()), packTexts(pack.dir, files)]);
+    const [detected, texts] = await Promise.all([detectPack(pack.dir, files, { downloadName: download, rules: this.d.siteRules(), url: pack.meta.source.url }), packTexts(pack.dir, files)]);
     return { detected, suggestions: suggestDetails({ files, texts, downloadName: download }) };
   }
 

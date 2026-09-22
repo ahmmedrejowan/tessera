@@ -16,6 +16,7 @@ const libraryRecord = z.object({
   path: z.string(),
   lastOpenedAt: z.string(),
   skipInboxWhenSure: z.boolean().catch(true),
+  autoAddDownloads: z.boolean().catch(true),
   sync: z.object({ enabled: z.boolean(), mode: z.enum(['push', 'pull', 'full']), whileClosed: z.boolean() }).catch({ enabled: false, mode: 'full', whileClosed: true }),
   backup: z
     .object({

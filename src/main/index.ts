@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import { release, tmpdir } from 'node:os';
 import { readdir, rm, stat } from 'node:fs/promises';
 import { join, sep } from 'node:path';
-import type { LibrarySummary, Platform, Settings } from '@shared/types';
+import type { DownloadItem, LibrarySummary, Platform, Settings } from '@shared/types';
 import { byRecent, patchRecord, recordOf, touchLibrary } from './libraries';
 import { broadcast, handle, onInternalError, UserError } from './ipc';
 import { parseRef } from './index/files';
@@ -37,6 +37,8 @@ import type { CopySource } from './projects/copy';
 import { SettingsStore } from './settings';
 import { RenderWindow } from './thumbs/renderWindow';
 import { ThumbService } from './thumbs/service';
+import { DownloadService, linksInFiles } from './downloads/service';
+import { linksIn } from '@shared/links';
 import { defaultSize, loadWindowState, trackWindowState } from './windowState';
 
 const platform = (['darwin', 'win32'].includes(process.platform) ? process.platform : 'linux') as Platform;
@@ -101,6 +103,12 @@ onInternalError((channel, e) => {
   reports.record({ source: 'main', kind: 'ipc', name: err.name, message: err.message, ...(err.stack ? { stack: err.stack } : {}), context: { channel } });
 });
 const jobs = new Jobs((list) => broadcast(windows, 'jobs:changed', list));
+const downloads = new DownloadService({
+  dir: join(dataDir, 'downloads'),
+  fetch: (url, init) => net.fetch(url, init),
+  onChanged: () => broadcast(windows, 'downloads:changed', downloads.list()),
+  onReady: (item) => void addDownloaded(item),
+});
 let indexVersion = 0;
 const library = new LibraryService({
   dataDir,
@@ -166,6 +174,27 @@ const backups = new BackupService({
 const libraryNameOf = (id: string) => recordOf(settings, id)?.name ?? null;
 
 /** The open library's record (its own settings), or null. */
+/**
+ * A download finished. Unless the library is set to leave them to the user, it is added like any
+ * other pack: what the pack says (and any rule for its site) decides whether it waits in Review.
+ */
+async function addDownloaded(item: DownloadItem): Promise<void> {
+  const record = openRecord();
+  if (!record?.autoAddDownloads || !item.file) return;
+  try {
+    const planned = await library.planImport([item.file], 'auto');
+    const already = planned.find((i) => i.duplicateOf);
+    if (already) {
+      downloads.done(item.id, already.duplicateOf);
+      return;
+    }
+    const result = await library.import(planned.map((i) => ({ ...i, url: item.url })), record.skipInboxWhenSure, false);
+    downloads.done(item.id, result.added[0]?.name ?? null);
+  } catch (e) {
+    log.error('downloads', `could not add ${item.name}`, e);
+  }
+}
+
 function openRecord() {
   const state = library.getState();
   return state.status === 'ready' ? recordOf(settings, state.library.id) : null;
@@ -314,6 +343,7 @@ async function start(): Promise<void> {
     },
     thumbDir,
   });
+  await downloads.load();
   if (s.libraryPath) void library.open(s.libraryPath);
   backups.startSchedule();
   // Libraries that sync while not open start syncing even before one is opened.
@@ -388,7 +418,7 @@ function registerHandlers(): void {
   handle('library:setPrefs', async (prefs) => {
     const record = openRecord();
     if (!record) throw new UserError('no-library', 'No library is open.');
-    await patchRecord(settings, record.id, { skipInboxWhenSure: prefs.skipInboxWhenSure });
+    await patchRecord(settings, record.id, prefs);
     librariesChanged();
   });
   handle('libraries:list', () => librarySummaries());
@@ -644,6 +674,20 @@ function registerHandlers(): void {
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     return result.canceled || !result.filePaths.length ? null : result.filePaths;
   });
+  handle('downloads:list', () => downloads.list());
+  handle('downloads:add', (text) => downloads.add(linksIn(text)));
+  handle('downloads:linksIn', (paths) => linksInFiles(paths));
+  handle('downloads:pause', (id) => downloads.pause(id));
+  handle('downloads:resume', (id) => downloads.resume(id));
+  handle('downloads:cancel', (id) => downloads.cancel(id));
+  handle('downloads:clear', () => downloads.clear());
+  handle('downloads:files', (ids) => ids.flatMap((id) => {
+    const path = downloads.fileOf(id);
+    const url = downloads.urlOf(id);
+    return path && url ? [{ id, path, url }] : [];
+  }));
+  handle('downloads:done', (ids) => { for (const id of ids) void downloads.done(id, null); });
+
   handle('import:plan', (paths, eachInside) => library.planImport(paths, eachInside));
   handle('import:run', (items, opts) => library.import(items, openRecord()?.skipInboxWhenSure ?? true, !!opts?.stage));
   handle('thumbs:get', (keys) => thumbs.get(keys.slice(0, 500)));
@@ -716,6 +760,7 @@ app.on('window-all-closed', () => {
   if (platform !== 'darwin') app.quit();
 });
 app.on('before-quit', () => {
+  downloads.stopAll();
   reports.dispose();
   renderWindow?.close();
   sync.shutdown();

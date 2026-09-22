@@ -38,12 +38,23 @@ export async function packTexts(packDir: string, files: PackFile[]): Promise<{ f
   return texts;
 }
 
+/** What is known about a pack before its files are read. */
+interface Clues {
+  /** The file or folder name it was added from. */
+  downloadName?: string;
+  /** The user's own rules for sites they have settled. */
+  rules?: SiteRule[];
+  /** The link it was downloaded from, when Tessera fetched it. */
+  url?: string | null;
+}
+
 /**
  * Read a pack's licence and readme files (and the name it was downloaded as) for its licence,
  * the site it came from and its creator, with the user's own rules for sites they have already
  * settled. Nothing is applied: the caller shows these as suggestions.
  */
-export async function detectPack(packDir: string, files: PackFile[], downloadName?: string, rules: SiteRule[] = []): Promise<Detected> {
+export async function detectPack(packDir: string, files: PackFile[], clues: Clues = {}): Promise<Detected> {
+  const { downloadName, rules = [], url: downloadUrl } = clues;
   const out: Detected = { licence: null, licenceFrom: null, licenceSure: false, site: null, url: null, creator: null };
   const texts = await packTexts(packDir, files);
 
@@ -82,6 +93,12 @@ export async function detectPack(packDir: string, files: PackFile[], downloadNam
   if (out.site === 'kenney' && slug && (!out.url || !/kenney\.nl\/assets\//i.test(out.url))) {
     out.url = `https://kenney.nl/assets/${slug.toLowerCase()}`;
     out.urlFrom = 'the file name';
+  }
+  // The link it was fetched from, when the pack's own files didn't give one.
+  if (!out.url && downloadUrl) {
+    out.url = downloadUrl;
+    out.urlFrom = 'the link you downloaded it from';
+    out.site ??= sourceFromUrl(downloadUrl)?.id ?? null;
   }
   const info = sourceInfo(out.site);
   out.creator = info?.creator ?? null;

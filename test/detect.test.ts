@@ -50,6 +50,6 @@ describe('detecting a pack', () => {
     const pack = await createPack(root, 'Nature');
     writeFileSync(join(pack.dir, 'original', 'quaternius_nature.zip'), 'not really a zip');
     const { files } = await listPackFiles(pack.dir);
-    expect(await detectPack(pack.dir, files, 'quaternius_nature.zip')).toMatchObject({ licence: 'CC0-1.0', licenceFrom: 'Quaternius (usual licence)', site: 'quaternius' });
+    expect(await detectPack(pack.dir, files, { downloadName: 'quaternius_nature.zip' })).toMatchObject({ licence: 'CC0-1.0', licenceFrom: 'Quaternius (usual licence)', site: 'quaternius' });
   });
 });

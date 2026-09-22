@@ -52,6 +52,7 @@ export function installMenu(focused: () => BrowserWindow | undefined, logsDir: s
         { label: 'Collections', accelerator: 'CmdOrCtrl+3', click: send('collections') },
         { label: 'Projects', accelerator: 'CmdOrCtrl+4', click: send('projects') },
         { label: 'Review', accelerator: 'CmdOrCtrl+5', click: send('inbox') },
+        { label: 'Downloads', accelerator: 'CmdOrCtrl+6', click: send('downloads') },
         { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },

@@ -76,7 +76,7 @@ export async function runImport(items: ImportItem[], d: ImportDeps): Promise<Imp
         }, d.signal);
       }
       const { files } = await listPackFiles(pack.dir);
-      const found = await detectPack(pack.dir, files, basename(item.sources[0]!), d.siteRules ?? []);
+      const found = await detectPack(pack.dir, files, { downloadName: basename(item.sources[0]!), rules: d.siteRules ?? [], url: item.url });
       // Sure: the licence was read in the pack or set by the user's rule, and where it came from is known.
       const sure = !!found.licence && !!found.licenceSure && (!!found.site || !!found.url);
       const status = sure && d.skipInboxWhenSure && !d.stage ? 'library' : 'inbox';

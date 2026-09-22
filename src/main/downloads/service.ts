@@ -1,0 +1,327 @@
+/**
+ * Downloads: links the user brings, fetched into Tessera's own folder and then added to the
+ * library like any other pack. A few at a time, each one resumable, and nothing is ever run —
+ * a download is a file on disk until the user (or the library's own rule) adds it.
+ */
+import { createWriteStream } from 'node:fs';
+import { mkdir, readFile, rename, rm, stat } from 'node:fs/promises';
+import { join } from 'node:path';
+import { hostLabel, isWebLink, linksIn, nameFromUrl } from '@shared/links';
+import type { DownloadItem, DownloadState } from '@shared/types';
+import { readJson, writeJson } from '../fsx';
+import { log } from '../log';
+
+type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
+
+interface Deps {
+  /** Where downloads are kept until they're added or cleared (inside the app's data folder). */
+  dir: string;
+  fetch: Fetch;
+  /** Something about the list changed: the window should show it. */
+  onChanged: () => void;
+  /** A download finished. */
+  onReady: (item: DownloadItem) => void;
+}
+
+/** Enough at once to keep a connection busy, few enough to stay polite to a site. */
+const AT_ONCE = 3;
+const UA = 'Tessera asset library';
+/** Links pasted in one go; more than this is a mistake, not a batch. */
+export const MOST_AT_ONCE = 500;
+
+const nowIso = () => new Date().toISOString();
+const sizeOf = (p: string) => stat(p).then((s) => s.size).catch(() => 0);
+
+/** A name that is safe as a file name, keeping the extension the link gave. */
+export function safeName(name: string): string {
+  const cleaned = name
+    .replace(/[\u0000-\u001f\u007f<>:"/\\|?*]+/g, ' ')
+    // What's left of a path: "../.." says nothing about the file.
+    .replace(/(^|\s)\.+(?=\s|$)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned.slice(0, 120) || 'download';
+}
+
+/** The file name a response says it has, else the one its link suggests. */
+export function nameFor(url: string, disposition: string | null): string {
+  const star = /filename\*=(?:UTF-8'')?([^;]+)/i.exec(disposition ?? '')?.[1];
+  const plain = /filename="?([^";]+)"?/i.exec(disposition ?? '')?.[1];
+  const said = star ? decodeURIComponent(star.trim().replace(/^"|"$/g, '')) : plain?.trim();
+  return safeName(said || nameFromUrl(url) || hostLabel(url));
+}
+
+/** The web links inside files the user dropped: a list, a JSON file, bookmarks, .url shortcuts. */
+export async function linksInFiles(paths: string[]): Promise<string[]> {
+  const out: string[] = [];
+  for (const path of paths.slice(0, 20)) {
+    try {
+      if ((await stat(path)).size > 4 * 1024 * 1024) continue;
+      out.push(...linksIn(await readFile(path, 'utf8')));
+    } catch {
+      // not a text file, or unreadable: skip it
+    }
+  }
+  return [...new Set(out)];
+}
+
+interface Live extends DownloadItem {
+  stop?: AbortController;
+}
+
+export class DownloadService {
+  private items: Live[] = [];
+  private saving: Promise<void> = Promise.resolve();
+  private announce: NodeJS.Timeout | null = null;
+
+  constructor(private readonly d: Deps) {}
+
+  /** Read back the list from last time; anything that was going is paused, ready to resume. */
+  async load(): Promise<void> {
+    const raw = (await readJson(join(this.d.dir, 'downloads.json')).catch(() => null)) as { items?: DownloadItem[] } | null;
+    this.items = (raw?.items ?? []).map((i) => ({ ...i, speed: 0, state: i.state === 'running' || i.state === 'waiting' ? 'paused' : i.state }));
+    this.changed();
+  }
+
+  list(): DownloadItem[] {
+    return this.items.map(({ stop: _stop, ...rest }) => rest);
+  }
+
+  /** Queue these links. Ones already in the list (and not finished with) are left alone. */
+  add(urls: string[]): { added: number; skipped: number } {
+    let added = 0;
+    let skipped = 0;
+    for (const url of urls.slice(0, MOST_AT_ONCE)) {
+      if (!isWebLink(url)) {
+        skipped++;
+        continue;
+      }
+      if (this.items.some((i) => i.url === url && i.state !== 'failed' && i.state !== 'cancelled')) {
+        skipped++;
+        continue;
+      }
+      added++;
+      this.items.unshift({
+        id: `dl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        url,
+        host: hostLabel(url),
+        name: safeName(nameFromUrl(url) || hostLabel(url)),
+        state: 'waiting',
+        received: 0,
+        total: null,
+        speed: 0,
+        error: null,
+        file: null,
+        addedAt: nowIso(),
+      });
+    }
+    this.changed();
+    this.fill();
+    return { added, skipped };
+  }
+
+  pause(id: string): void {
+    const item = this.find(id);
+    if (!item || (item.state !== 'running' && item.state !== 'waiting')) return;
+    item.state = 'paused';
+    item.speed = 0;
+    item.stop?.abort();
+    this.changed();
+    this.fill();
+  }
+
+  resume(id: string): void {
+    const item = this.find(id);
+    if (!item || (item.state !== 'paused' && item.state !== 'failed')) return;
+    item.state = 'waiting';
+    item.error = null;
+    this.changed();
+    this.fill();
+  }
+
+  cancel(id: string): void {
+    const item = this.find(id);
+    if (!item) return;
+    item.state = 'cancelled';
+    item.speed = 0;
+    item.stop?.abort();
+    void this.wipe(item);
+    this.changed();
+    this.fill();
+  }
+
+  /** Forget the rows that are finished with, and delete the files they kept. */
+  async clear(): Promise<void> {
+    const going = this.items.filter((i) => i.state === 'waiting' || i.state === 'running' || i.state === 'paused');
+    const gone = this.items.filter((i) => !going.includes(i));
+    this.items = going;
+    this.changed();
+    for (const item of gone) await this.wipe(item);
+  }
+
+  /**
+   * The download is in the library now. Its file stays until the list is cleared: the library
+   * has its own copy, but nothing the user downloaded is thrown away behind their back.
+   */
+  done(id: string, packName: string | null): void {
+    const item = this.find(id);
+    if (!item) return;
+    item.state = 'added';
+    item.packName = packName;
+    item.speed = 0;
+    this.changed();
+  }
+
+  /** What a finished download is called on disk, for adding it to the library. */
+  fileOf(id: string): string | null {
+    const item = this.find(id);
+    return item?.state === 'ready' || item?.state === 'added' ? item.file : null;
+  }
+
+  /** What the files still kept for finished downloads take up. */
+  async held(): Promise<number> {
+    let total = 0;
+    for (const item of this.items) if (item.file) total += await sizeOf(item.file);
+    return total;
+  }
+
+  urlOf(id: string): string | null {
+    return this.find(id)?.url ?? null;
+  }
+
+  /** Stop everything (the app is closing); part-files stay for next time. */
+  stopAll(): void {
+    for (const item of this.items) {
+      if (item.state === 'running') {
+        item.state = 'paused';
+        item.stop?.abort();
+      }
+    }
+    void this.save();
+  }
+
+  /** Read the state as it is now: a pause or a cancel may have changed it mid-download. */
+  private stateOf(item: Live): DownloadState {
+    return item.state;
+  }
+
+  private find(id: string): Live | undefined {
+    return this.items.find((i) => i.id === id);
+  }
+
+  private dirOf(item: DownloadItem): string {
+    return join(this.d.dir, item.id);
+  }
+
+  private async wipe(item: DownloadItem): Promise<void> {
+    await rm(this.dirOf(item), { recursive: true, force: true }).catch((e: unknown) => log.warn('downloads', 'could not remove a download', e));
+  }
+
+  /** Start as many as are allowed to run at once. */
+  private fill(): void {
+    const running = this.items.filter((i) => i.state === 'running').length;
+    for (const item of this.items.filter((i) => i.state === 'waiting').reverse().slice(0, Math.max(0, AT_ONCE - running))) {
+      void this.run(item);
+    }
+  }
+
+  private changed(): void {
+    this.d.onChanged();
+    void this.save();
+  }
+
+  /** Progress moves all the time: the window hears about it a few times a second at most. */
+  private tick(): void {
+    if (this.announce) return;
+    this.announce = setTimeout(() => {
+      this.announce = null;
+      this.d.onChanged();
+    }, 400);
+  }
+
+  private save(): Promise<void> {
+    const items = this.list();
+    this.saving = this.saving
+      .then(() => mkdir(this.d.dir, { recursive: true }))
+      .then(() => writeJson(join(this.d.dir, 'downloads.json'), { items }))
+      .catch((e: unknown) => log.warn('downloads', 'could not save the list', e));
+    return this.saving;
+  }
+
+  private async run(item: Live): Promise<void> {
+    item.state = 'running';
+    item.error = null;
+    const stop = new AbortController();
+    item.stop = stop;
+    this.changed();
+    const dir = this.dirOf(item);
+    const part = join(dir, 'part');
+    try {
+      await mkdir(dir, { recursive: true });
+      // Carry on where a pause or a closed app left off, when the site allows it.
+      let from = await sizeOf(part);
+      const headers: Record<string, string> = { 'User-Agent': UA, Accept: '*/*' };
+      if (from) headers.Range = `bytes=${from}-`;
+      const res = await this.d.fetch(item.url, { headers, signal: stop.signal, redirect: 'follow' });
+      if (!res.ok) throw new Error(res.status === 404 ? 'The link doesn’t lead to a file any more (404).' : `The site answered ${res.status}.`);
+      if (from && res.status !== 206) from = 0;
+      const type = res.headers.get('content-type') ?? '';
+      // A page, not a file: Tessera can't tell what to download from it yet.
+      if (/text\/html|application\/xhtml/i.test(type)) throw new Error('That link opens a web page, not a file. Open it in your browser and bring the download link.');
+      if (!res.body) throw new Error('The site sent nothing.');
+
+      item.name = nameFor(res.url || item.url, res.headers.get('content-disposition'));
+      const length = Number(res.headers.get('content-length') ?? 0);
+      item.total = length ? from + length : null;
+      item.received = from;
+      this.changed();
+
+      const out = createWriteStream(part, { flags: from ? 'a' : 'w' });
+      const reader = res.body.getReader();
+      let mark = Date.now();
+      let at = from;
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!out.write(value)) await new Promise<void>((r) => out.once('drain', () => r()));
+          item.received += value.byteLength;
+          const since = Date.now() - mark;
+          if (since >= 500) {
+            item.speed = Math.round(((item.received - at) * 1000) / since);
+            mark = Date.now();
+            at = item.received;
+            this.tick();
+          }
+        }
+      } finally {
+        await new Promise<void>((resolve) => out.end(() => resolve()));
+      }
+
+      const file = join(dir, item.name);
+      await rename(part, file);
+      item.file = file;
+      item.total = item.received;
+      item.speed = 0;
+      item.state = 'ready';
+      item.stop = undefined;
+      this.changed();
+      this.d.onReady({ ...item, stop: undefined } as DownloadItem);
+    } catch (e) {
+      item.speed = 0;
+      item.stop = undefined;
+      // A pause or a cancel isn't a failure (either changed the state while this was in flight).
+      const state = this.stateOf(item);
+      if (state === 'paused' || state === 'cancelled') {
+        this.changed();
+      } else {
+        item.state = 'failed';
+        item.error = e instanceof Error ? e.message : String(e);
+        log.warn('downloads', `could not download ${item.url}`, e);
+        this.changed();
+      }
+    } finally {
+      this.fill();
+    }
+  }
+}

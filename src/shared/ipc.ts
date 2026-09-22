@@ -9,7 +9,7 @@ import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } f
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { Provider, StorageTarget } from './storage';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
-import type { PackSuggestions, LibrarySummary, AppInfo, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { PackSuggestions, LibrarySummary, AppInfo, DownloadItem, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -36,7 +36,7 @@ export interface Invokes {
   /** Give the open library a new name (its folder keeps its own). */
   'library:rename': (name: string) => LibraryState;
   /** The open library's own preferences. */
-  'library:setPrefs': (prefs: { skipInboxWhenSure: boolean }) => void;
+  'library:setPrefs': (prefs: { skipInboxWhenSure?: boolean; autoAddDownloads?: boolean }) => void;
   /** Every library this computer knows, most recently opened first. */
   'libraries:list': () => LibrarySummary[];
   /** Take a library off the list (not the open one); its folder is left alone. */
@@ -188,6 +188,22 @@ export interface Invokes {
   /** The sample packs that come with the app. */
   'import:samples': () => string[];
   /** `eachInside`: a folder is several packs; 'auto' decides from what's in it. */
+  /** Links the user brought, on their way to becoming packs. */
+  'downloads:list': () => DownloadItem[];
+  /** Queue every web link in what was pasted or typed. */
+  'downloads:add': (text: string) => { added: number; skipped: number };
+  /** The links inside files dropped on the window: a list, a JSON file, bookmarks, .url shortcuts. */
+  'downloads:linksIn': (paths: string[]) => string[];
+  'downloads:pause': (id: string) => void;
+  'downloads:resume': (id: string) => void;
+  'downloads:cancel': (id: string) => void;
+  /** Forget the rows that are finished with, and delete the files they kept. */
+  'downloads:clear': () => void;
+  /** Finished downloads as files, with the link each came from, ready for the add page. */
+  'downloads:files': (ids: string[]) => { id: string; path: string; url: string }[];
+  /** These downloads are in the library now (their files stay until the list is cleared). */
+  'downloads:done': (ids: string[]) => void;
+
   'import:plan': (paths: string[], eachInside: boolean | 'auto') => ImportItem[];
   /** `stage`: for the add page, where every pack waits until the user decides. */
   'import:run': (items: ImportItem[], opts?: { stage?: boolean }) => ImportResult;
@@ -218,6 +234,8 @@ export interface Events {
   /** The index changed; the number only increases, so the window can tell stale data apart. */
   'index:changed': number;
   'jobs:changed': Job[];
+  /** The downloads list changed: rows, progress or state. */
+  'downloads:changed': DownloadItem[];
   /** Thumbnails that became ready (or failed) since the last event. */
   'thumbs:ready': Record<string, ThumbState>;
   /** Projects or what's copied into them changed. */
