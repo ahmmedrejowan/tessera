@@ -4,6 +4,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { DialogHost } from './notices/DialogHost';
 import { NoticeHost } from './notices/NoticeHost';
 import { ReportsHost } from './reports/ReportsHost';
+import { LibraryDialog } from './pages/library/LibraryDialog';
 import { AddMenu } from './import/AddMenu';
 import { DropOverlay } from './import/DropOverlay';
 import { ImportDialog } from './import/ImportDialog';
@@ -65,6 +66,7 @@ export function App() {
       <NoticeHost />
       <DialogHost />
       <ReportsHost />
+      <LibraryDialog />
     </>
   );
 }

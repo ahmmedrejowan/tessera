@@ -6,39 +6,25 @@ import FolderRounded from '@mui/icons-material/FolderRounded';
 import LinkOffRounded from '@mui/icons-material/LinkOffRounded';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
-import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import type { LibraryState } from '@shared/types';
-import { call, platform } from '../api';
+import { call } from '../api';
 import { Logo } from '../components/Logo';
 import { MosaicHero } from '../components/MosaicHero';
 import { ask } from '../notices/dialogs';
-import { failed, notify } from '../notices/store';
+import { useLibraryDialog } from './library/LibraryDialog';
+import { tidyPath } from './library/Location';
+import { baseName } from '@shared/folders';
+import { failed } from '../notices/store';
 import { useSettings, useUpdateSettings } from '../state/queries';
 import { md, mdAlpha, SHAPE, STATE } from '../theme';
-import { ReceiveDialog } from './ReceiveDialog';
+import { ReceiveGuide } from './sync/ReceiveGuide';
 
-const SEP = platform === 'win32' ? '\\' : '/';
-const join = (dir: string, name: string) => (dir.endsWith(SEP) ? dir + name : dir + SEP + name);
-const baseName = (p: string) => p.split(/[\\/]/).filter(Boolean).at(-1) ?? p;
 const parentOf = (p: string) => p.slice(0, Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'))) || p;
-/** "/Users/sam/Documents/Game Assets" → "~/Documents/Game Assets" where the home folder is recognisable. */
-const tidyPath = (p: string) => p.replace(/^\/(Users|home)\/[^/]+/, '~').replace(/^[A-Z]:\\Users\\[^\\]+/i, '~');
-
-interface CreatePlan {
-  parent: string;
-  name: string;
-  /** The picked folder has other files, so the library goes in a new folder inside it. */
-  inside: boolean;
-}
 
 /** A library opened before: click to open it; one that can't be found says so. */
 function RecentCard({ path, missing, onOpen, onForget }: { path: string; missing: boolean; onOpen: () => void; onForget: () => void }) {
@@ -84,7 +70,6 @@ function RecentCard({ path, missing, onOpen, onForget }: { path: string; missing
 export function Welcome({ state }: { state: LibraryState }) {
   const recent = useSettings().data?.recentLibraries ?? [];
   const update = useUpdateSettings();
-  const [plan, setPlan] = useState<CreatePlan | null>(null);
   const [busy, setBusy] = useState(false);
   const [receiving, setReceiving] = useState(false);
   const missing = useQuery({
@@ -109,40 +94,6 @@ export function Welcome({ state }: { state: LibraryState }) {
       await call('library:open', path);
     });
 
-  const startCreate = () =>
-    act(async () => {
-      const folder = await call('dialog:folder', 'Choose where to keep your library');
-      if (!folder) return;
-      const kind = await call('library:inspect', folder);
-      if (kind === 'library') {
-        await open(folder);
-        return;
-      }
-      if (kind === 'other') setPlan({ parent: folder, name: 'Tessera Library', inside: true });
-      else setPlan({ parent: parentOf(folder), name: baseName(folder), inside: false });
-    });
-
-  const create = () =>
-    plan &&
-    act(async () => {
-      const path = join(plan.parent, plan.name.trim());
-      const s = await call('library:create', path, plan.name.trim());
-      if (s.status === 'error') notify.error('Couldn’t create the library', { body: s.message });
-      else setPlan(null);
-    });
-
-  const chooseExisting = () =>
-    act(async () => {
-      const folder = await call('dialog:folder', 'Open a Tessera library');
-      if (!folder) return;
-      const kind = await call('library:inspect', folder);
-      if (kind !== 'library') {
-        notify.warning(`“${baseName(folder)}” isn’t a Tessera library`, { body: 'To start one there, choose Create a library.' });
-        return;
-      }
-      await open(folder);
-    });
-
   const forget = (path: string) => update.mutate({ recentLibraries: recent.filter((p) => p !== path) });
 
   // A library that couldn't be opened is serious enough to ask about, once per failure.
@@ -163,7 +114,7 @@ export function Welcome({ state }: { state: LibraryState }) {
         ],
       }).then((choice) => {
         if (choice === 'forget') forget(state.path);
-        if (choice === 'locate') void chooseExisting();
+        if (choice === 'locate') useLibraryDialog.getState().show('open', parentOf(state.path));
       });
     } else {
       void ask({
@@ -208,7 +159,7 @@ export function Welcome({ state }: { state: LibraryState }) {
               variant="contained"
               startIcon={<AddRounded />}
               disabled={busy}
-              onClick={() => void startCreate()}
+              onClick={() => useLibraryDialog.getState().show('create')}
               sx={{ height: 60, fontSize: 17, fontWeight: 500, borderRadius: `${SHAPE.full}px`, boxShadow: `0 6px 20px ${mdAlpha('primary', 0.28)}`, '&:hover': { boxShadow: `0 8px 26px ${mdAlpha('primary', 0.34)}` } }}
             >
               Create a library
@@ -216,7 +167,7 @@ export function Welcome({ state }: { state: LibraryState }) {
             <Button
               startIcon={<FolderOpenRounded />}
               disabled={busy}
-              onClick={() => void chooseExisting()}
+              onClick={() => useLibraryDialog.getState().show('open')}
               sx={{ height: 56, fontSize: 16, borderRadius: `${SHAPE.full}px`, backgroundColor: md('secondaryContainer'), color: md('onSecondaryContainer'), '&:hover': { backgroundColor: mdAlpha('secondaryContainer', 1 - STATE.hover) } }}
             >
               Open a library
@@ -239,31 +190,7 @@ export function Welcome({ state }: { state: LibraryState }) {
         </div>
       </div>
 
-      <ReceiveDialog open={receiving} onClose={() => setReceiving(false)} />
-      <Dialog open={!!plan} onClose={() => setPlan(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Name your library</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          <TextField
-            autoFocus
-            label="Name"
-            value={plan?.name ?? ''}
-            onChange={(e) => plan && setPlan({ ...plan, name: e.target.value })}
-            onKeyDown={(e) => e.key === 'Enter' && plan?.name.trim() && void create()}
-            fullWidth
-            sx={{ mt: 1 }}
-          />
-          <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant'), wordBreak: 'break-all' }}>
-            {plan && tidyPath(join(plan.parent, plan.name.trim() || '…'))}
-            {plan?.inside && ' · in a folder of its own, as the one you picked has other files'}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPlan(null)}>Cancel</Button>
-          <Button variant="contained" disabled={busy || !plan?.name.trim()} onClick={() => void create()}>
-            Create
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ReceiveGuide open={receiving} onClose={() => setReceiving(false)} />
     </div>
   );
 }
