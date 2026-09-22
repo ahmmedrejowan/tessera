@@ -1,6 +1,7 @@
 import CreateNewFolderOutlined from '@mui/icons-material/CreateNewFolderOutlined';
 import ErrorOutlineOutlined from '@mui/icons-material/ErrorOutlineOutlined';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
+import DevicesOutlined from '@mui/icons-material/DevicesOutlined';
 import HistoryOutlined from '@mui/icons-material/HistoryOutlined';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
@@ -17,6 +18,7 @@ import { call, platform } from '../api';
 import { Logo } from '../components/Logo';
 import { useSettings } from '../state/queries';
 import { md, SHAPE, STATE } from '../theme';
+import { ReceiveDialog } from './ReceiveDialog';
 
 const SEP = platform === 'win32' ? '\\' : '/';
 const join = (dir: string, name: string) => (dir.endsWith(SEP) ? dir + name : dir + SEP + name);
@@ -73,6 +75,7 @@ export function Welcome({ state }: { state: LibraryState }) {
   const [plan, setPlan] = useState<CreatePlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [receiving, setReceiving] = useState(false);
 
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -128,7 +131,7 @@ export function Welcome({ state }: { state: LibraryState }) {
 
   return (
     <div style={{ height: '100%', overflow: 'auto', display: 'grid', placeItems: 'center', padding: 32 }}>
-      <div style={{ width: '100%', maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ width: '100%', maxWidth: 900, display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center', marginBottom: 8 }}>
           <Logo size={56} />
           <Typography variant="displaySmall" sx={{ color: md('onSurface') }}>
@@ -158,6 +161,7 @@ export function Welcome({ state }: { state: LibraryState }) {
             onClick={() => void startCreate()}
           />
           <OptionCard icon={FolderOpenOutlined} title="Open a library" body="Pick a folder that already holds a Tessera library, like one synced from another computer." onClick={() => void chooseExisting()} />
+          <OptionCard icon={DevicesOutlined} title="Receive from another computer" body="Get a library another computer keeps, directly between the two, and keep them in step." onClick={() => setReceiving(true)} />
         </div>
 
         {recent.length > 0 && (
@@ -186,6 +190,7 @@ export function Welcome({ state }: { state: LibraryState }) {
         )}
       </div>
 
+      <ReceiveDialog open={receiving} onClose={() => setReceiving(false)} />
       <Dialog open={!!plan} onClose={() => setPlan(null)} maxWidth="sm" fullWidth>
         <DialogTitle>Name your library</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

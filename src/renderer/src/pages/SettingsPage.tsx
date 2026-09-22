@@ -16,6 +16,7 @@ import { md } from '../theme';
 import { schemeFromSeed } from '../theme/m3';
 import { Page } from './Placeholder';
 import { BackupSettings } from './settings/BackupSettings';
+import { SyncSettings } from './settings/SyncSettings';
 import { Group, Row } from './settings/parts';
 
 /** Seeds for the colour scheme; each gives a full Material 3 palette in light and dark. */
@@ -118,6 +119,10 @@ export function SettingsPage() {
 
         <Group title="Backups">
           <BackupSettings />
+        </Group>
+
+        <Group title="Sync between computers">
+          <SyncSettings />
         </Group>
 
         <Group title="Adding packs">
