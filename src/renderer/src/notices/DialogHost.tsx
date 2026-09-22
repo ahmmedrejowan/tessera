@@ -61,6 +61,7 @@ export function DialogHost() {
   const { spec } = d;
   const tone = TONES[spec.tone];
   const Icon = spec.icon ?? tone.icon;
+  const stacked = spec.actions.length > 2;
   return (
     <Dialog open={!!current} onClose={() => close(d.id, null)} maxWidth={false} slotProps={{ paper: { sx: { width: 440, maxWidth: 'calc(100vw - 48px)', borderRadius: `${SHAPE.xl}px`, p: 3, backgroundImage: 'none' } } }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 16 }}>
@@ -78,14 +79,17 @@ export function DialogHost() {
         {spec.extra}
         {spec.details && <Details text={spec.details} />}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8, marginTop: 24 }}>
+      {/* Two choices sit side by side; three or more stack, the main one on top. */}
+      <div style={stacked ? { display: 'flex', flexDirection: 'column-reverse', gap: 8, marginTop: 24 } : { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
         {spec.actions.map((a, i) => (
           <Button
             key={a.label}
+            fullWidth={stacked}
             autoFocus={a.kind === 'primary' || (i === spec.actions.length - 1 && !spec.actions.some((x) => x.kind === 'primary'))}
-            variant={a.kind === 'primary' ? 'contained' : 'text'}
+            variant={a.kind === 'primary' ? 'contained' : stacked && a.kind !== 'text' ? 'outlined' : 'text'}
             color={a.kind === 'danger' ? 'error' : 'primary'}
             onClick={() => close(d.id, a.value)}
+            sx={stacked ? { height: 44 } : undefined}
           >
             {a.label}
           </Button>
