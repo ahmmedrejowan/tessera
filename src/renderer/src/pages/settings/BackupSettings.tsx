@@ -1,4 +1,5 @@
 import Alert from '@mui/material/Alert';
+import { StatusSlot } from '../../components/StatusSlot';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -61,7 +62,7 @@ function SetupDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
       <DialogTitle>Set up backups</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-          Backups are encrypted and only store what changed since last time. Keep them on another drive — an external disk or a network folder — so one failure can’t take both.
+          Encrypted, and only what changed is stored. Use another drive.
         </Typography>
         <SegmentedButton
           label="Backup store"
@@ -80,9 +81,19 @@ function SetupDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
             {folder ?? 'No folder chosen'}
           </Typography>
         </div>
-        <TextField type="password" label="Password" value={password} onChange={(e) => setPassword(e.target.value)} helperText="At least 8 characters. Without it the backups can’t be read — not even by you — so keep it somewhere safe." />
-        {mode === 'new' && <TextField type="password" label="Password again" value={again} onChange={(e) => setAgain(e.target.value)} error={!!again && again !== password} helperText={again && again !== password ? 'The two don’t match.' : ' '} />}
-        {error && <Alert severity="error">{error}</Alert>}
+        <TextField type="password" label="Password" value={password} onChange={(e) => setPassword(e.target.value)} helperText="At least 8 characters. Without it, backups can’t be read." />
+        {/* Kept in place (just hidden) for existing backups, so the dialog doesn't change size. */}
+        <TextField
+          type="password"
+          label="Password again"
+          value={again}
+          onChange={(e) => setAgain(e.target.value)}
+          error={!!again && again !== password}
+          helperText={again && again !== password ? 'The two don’t match.' : ' '}
+          disabled={mode !== 'new'}
+          sx={{ visibility: mode === 'new' ? 'visible' : 'hidden' }}
+        />
+        <StatusSlot message={error ? { tone: 'error', text: error } : null} />
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
@@ -152,11 +163,11 @@ export function BackupSettings() {
         title="Backups are off"
         body={
           <>
-            Tessera backs up with Kopia, a free, open-source backup tool. Install it from{' '}
+            Backups use Kopia, free and open-source. Install it from{' '}
             <a href="https://kopia.io/docs/installation/" target="_blank" rel="noreferrer" style={{ color: md('primary') }}>
               kopia.io
             </a>
-            , then come back here.
+            .
           </>
         }
       />
@@ -165,7 +176,7 @@ export function BackupSettings() {
   if (!status.repoPath) {
     return (
       <>
-        <Row title="Backups are off" body={`Kopia ${status.version ?? ''} is installed. Back up the library to another drive, encrypted, keeping only what changed each time.`}>
+        <Row title="Backups are off" body={`Kopia ${status.version ?? ''} is ready. Encrypted backups to another drive.`}>
           <Button variant="contained" onClick={() => setSetup(true)}>
             Set up
           </Button>
