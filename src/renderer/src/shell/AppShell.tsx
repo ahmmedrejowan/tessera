@@ -3,6 +3,7 @@ import { useBrowse } from '../state/browse';
 import { useNav } from '../state/nav';
 import { md, SHAPE } from '../theme';
 import { NavigationRail } from './NavigationRail';
+import { Activity } from './Activity';
 import { TargetProject } from './TargetProject';
 import { SearchField, TopAppBar } from './TopAppBar';
 
@@ -52,7 +53,12 @@ export function AppShell({ children, onAdd, inboxCount, bare }: { children: Reac
   useHistoryKeys();
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: md('surfaceContainer') }}>
-      <TopAppBar search={bare ? null : <GlobalSearch />} trailing={bare ? null : <TargetProject />} />
+      <TopAppBar search={bare ? null : <GlobalSearch />} trailing={bare ? null : (
+          <>
+            <Activity />
+            <TargetProject />
+          </>
+        )} />
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
         {!bare && <NavigationRail onAdd={onAdd} {...(inboxCount ? { inboxCount } : {})} />}
         <main
