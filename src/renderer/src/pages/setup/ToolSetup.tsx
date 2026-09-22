@@ -53,6 +53,20 @@ export const TOOL_INFO: Record<ToolName, ToolInfo> = {
       ],
     },
   },
+  rclone: {
+    title: 'rclone',
+    size: '25 MB',
+    site: { label: 'rclone.org', url: 'https://rclone.org/downloads/' },
+    ways: {
+      darwin: [{ tool: 'brew', label: 'Homebrew', command: 'brew install rclone' }],
+      win32: [{ tool: 'winget', label: 'winget', command: 'winget install --id Rclone.Rclone -e' }],
+      linux: [
+        { tool: 'apt', label: 'Debian, Ubuntu', command: 'sudo apt install rclone' },
+        { tool: 'dnf', label: 'Fedora', command: 'sudo dnf install rclone' },
+        { tool: 'pacman', label: 'Arch', command: 'sudo pacman -S rclone' },
+      ],
+    },
+  },
   kopia: {
     title: 'Kopia',
     size: '16 MB',

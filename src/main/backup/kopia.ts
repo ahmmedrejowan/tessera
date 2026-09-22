@@ -48,7 +48,7 @@ export class Kopia {
           // Kopia's own message is the useful part: the last non-empty lines of stderr.
           const lines = stderr.split('\n').map((l) => l.trim()).filter(Boolean);
           const message = lines.slice(-2).join(' ') || err.message;
-          reject(new KopiaError(/invalid (repository )?password|incorrect password/i.test(message) ? 'That password doesn’t open this backup.' : message));
+          reject(new KopiaError(storageError(message)));
         },
       );
     });

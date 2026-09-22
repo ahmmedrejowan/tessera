@@ -97,7 +97,7 @@ export const PROVIDERS: ProviderInfo[] = [
       { key: 'username', label: 'User name' },
       { key: 'path', label: 'Folder on the server', initial: 'tessera-backups' },
       { key: 'keyFile', label: 'Private key file', file: true, optional: true },
-      { key: 'password', label: 'Password (without a key file)', secret: true, optional: true },
+      { key: 'password', label: 'Password', secret: true, optional: true },
     ],
   },
   { id: 'webdav', label: 'WebDAV', group: 'server', hint: 'Nextcloud, ownCloud, a NAS', fields: [{ key: 'url', label: 'Address', placeholder: 'https://cloud.example.com/remote.php/dav/files/me/Tessera' }, { key: 'username', label: 'User name', optional: true }, { key: 'password', label: 'Password', secret: true, optional: true }] },

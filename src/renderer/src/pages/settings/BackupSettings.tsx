@@ -22,6 +22,7 @@ import { useUpdateSettings } from '../../state/queries';
 import { md } from '../../theme';
 import { Row } from './parts';
 import { ToolSetup } from '../setup/ToolSetup';
+import { BackupGuide } from '../setup/BackupGuide';
 
 const ago = (iso: string) => {
   const mins = Math.round((Date.now() - Date.parse(iso)) / 60_000);
@@ -31,103 +32,6 @@ const ago = (iso: string) => {
   if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
   return new Date(iso).toLocaleDateString();
 };
-
-function SetupDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const places = useQuery({ queryKey: ['restore-places'], queryFn: () => call('restore:places'), enabled: open, staleTime: 60_000 }).data ?? [];
-  const [mode, setMode] = useState<'new' | 'existing'>('new');
-  const [folder, setFolder] = useState<string | null>(null);
-  const [password, setPassword] = useState('');
-  const [again, setAgain] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    if (open) {
-      setFolder(null);
-      setPassword('');
-      setAgain('');
-      setError(null);
-    }
-  }, [open]);
-  const ok = !!folder && password.length >= 8 && (mode === 'existing' || password === again);
-  const submit = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      await call('backup:setup', folder!, password, mode === 'new');
-      notify.success('Backups are on. The first one is running now.');
-      onClose();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Set up backups</DialogTitle>
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-          Encrypted, and only what changed is stored. A cloud drive or another drive lets you restore on any computer.
-        </Typography>
-        <SegmentedButton
-          label="Backup store"
-          value={mode}
-          onChange={setMode}
-          options={[
-            { value: 'new', label: 'Start new backups' },
-            { value: 'existing', label: 'Use existing backups' },
-          ]}
-        />
-        {/* Somewhere another computer can reach: a cloud drive's folder or another drive. */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', minHeight: 32 }}>
-          {places
-            .filter((p) => p.kind !== 'folder')
-            .map((p) => {
-              const path = `${p.path}${p.path.endsWith('/') || p.path.endsWith('\\') ? '' : window.tessera.platform === 'win32' ? '\\' : '/'}Tessera Backups`;
-              const on = folder === path;
-              return (
-                <ButtonBase
-                  key={p.path}
-                  onClick={() => setFolder(path)}
-                  sx={{ gap: 0.75, px: 1.5, height: 32, borderRadius: '8px', fontSize: 13, border: `1px solid ${on ? md('secondaryContainer') : md('outlineVariant')}`, backgroundColor: on ? md('secondaryContainer') : 'transparent', color: on ? md('onSecondaryContainer') : md('onSurfaceVariant') }}
-                >
-                  {p.kind === 'cloud' ? <CloudOutlined sx={{ fontSize: 16 }} /> : <UsbRounded sx={{ fontSize: 16 }} />}
-                  {p.label}
-                </ButtonBase>
-              );
-            })}
-        </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <Button variant="outlined" onClick={async () => setFolder((await call('backup:chooseFolder')) ?? folder)}>
-            Choose folder…
-          </Button>
-          <Typography variant="bodySmall" noWrap sx={{ color: folder ? md('onSurface') : md('onSurfaceVariant') }} title={folder ?? ''}>
-            {folder ?? 'No folder chosen'}
-          </Typography>
-        </div>
-        <TextField type="password" label="Password" value={password} onChange={(e) => setPassword(e.target.value)} helperText="At least 8 characters. Without it, backups can’t be read." />
-        {/* Kept in place (just hidden) for existing backups, so the dialog doesn't change size. */}
-        <TextField
-          type="password"
-          label="Password again"
-          value={again}
-          onChange={(e) => setAgain(e.target.value)}
-          error={!!again && again !== password}
-          helperText={again && again !== password ? 'The two don’t match.' : ' '}
-          disabled={mode !== 'new'}
-          sx={{ visibility: mode === 'new' ? 'visible' : 'hidden' }}
-        />
-        <StatusSlot message={error ? { tone: 'error', text: error } : null} />
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" disabled={!ok || busy} onClick={() => void submit()}>
-          {busy ? 'Setting up…' : 'Turn on backups'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
 
 function RestoreDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const snapshots = useQuery({ queryKey: ['snapshots'], queryFn: () => call('backup:snapshots'), enabled: open });
@@ -173,11 +77,22 @@ function RestoreDialog({ open, onClose }: { open: boolean; onClose: () => void }
 
 /** The Backups section of Settings. */
 export function BackupSettings() {
+  const [setup, setSetup] = useState(false);
+  // The guide sits outside the rows, so it stays put (and finishes on its "Backups are on" page)
+  // when the rows change from "Backups are off" to the backups that are on.
+  return (
+    <>
+      <BackupRows onSetup={() => setSetup(true)} />
+      <BackupGuide open={setup} onClose={() => setSetup(false)} />
+    </>
+  );
+}
+
+function BackupRows({ onSetup }: { onSetup: () => void }) {
   const client = useQueryClient();
   useEffect(() => on('backup:changed', () => void client.invalidateQueries({ queryKey: ['backup'] })), [client]);
   const status = useQuery({ queryKey: ['backup'], queryFn: () => call('backup:status'), refetchInterval: 60_000 }).data;
   const update = useUpdateSettings();
-  const [setup, setSetup] = useState(false);
   const [restoring, setRestoring] = useState(false);
   if (!status) return null;
 
@@ -194,12 +109,11 @@ export function BackupSettings() {
   if (!status.repoPath) {
     return (
       <>
-        <Row title="Backups are off" body={`Kopia ${status.version ?? ''} is ready. Encrypted backups to another drive.`}>
-          <Button variant="contained" onClick={() => setSetup(true)}>
+        <Row title="Backups are off" body={`Kopia ${status.version ?? ''} is ready. Encrypted backups to a drive, a cloud drive, cloud storage or a server.`}>
+          <Button variant="contained" onClick={onSetup}>
             Set up
           </Button>
         </Row>
-        <SetupDialog open={setup} onClose={() => setSetup(false)} />
       </>
     );
   }
@@ -235,6 +149,7 @@ export function BackupSettings() {
         </Button>
       </Row>
       <RestoreDialog open={restoring} onClose={() => setRestoring(false)} />
+
     </>
   );
 }

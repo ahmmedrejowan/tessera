@@ -26,7 +26,9 @@ import { failed, notify } from '../../notices/store';
 import { md, mdAlpha, SHAPE } from '../../theme';
 import { DIALOG_HEIGHT, DIALOG_WIDTH, SetupFrame, Side } from '../library/LibraryDialog';
 import { LocationFields, SectionLabel, tidyPath, useLocation } from '../library/Location';
+import { newTarget, ProviderGrid, StorageForm } from './Storage';
 import { ToolSetup } from './ToolSetup';
+import { describeTarget, targetProblem, type StorageTarget } from '@shared/storage';
 
 type Step = 'setup' | 'find' | 'unlock' | 'choose' | 'where' | 'restoring';
 
@@ -124,6 +126,9 @@ export function RestoreGuide({ open, onClose }: { open: boolean; onClose: () => 
   const status = useQuery({ queryKey: ['backup'], queryFn: () => call('backup:status'), enabled: open, staleTime: 0 }).data;
   const [step, setStep] = useState<Step>('setup');
   const [repo, setRepo] = useState<FoundBackup | null>(null);
+  /** A store elsewhere: a cloud drive, cloud storage or a server. */
+  const [remote, setRemote] = useState<StorageTarget | null>(null);
+  const [remoteMsg, setRemoteMsg] = useState<SlotMessage | null>(null);
   const [notHere, setNotHere] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [wrong, setWrong] = useState<string | null>(null);
@@ -166,12 +171,13 @@ export function RestoreGuide({ open, onClose }: { open: boolean; onClose: () => 
     }
   };
 
+  const target: StorageTarget | null = remote ? (targetProblem(remote) ? null : remote) : repo ? { provider: 'folder', values: { path: repo.path } } : null;
   const unlock = async () => {
-    if (!repo) return;
+    if (!target) return;
     setBusy(true);
     setWrong(null);
     try {
-      const list = await call('restore:unlock', repo.path, password);
+      const list = await call('restore:unlock', target, password);
       setSources(list);
       setSource(list[0] ?? null);
       setSnapshotId(list[0]?.snapshots[0]?.id ?? '');
@@ -205,7 +211,7 @@ export function RestoreGuide({ open, onClose }: { open: boolean; onClose: () => 
     }
   };
 
-  const done = (s: Step) => ({ setup: available, find: !!repo, unlock: sources.length > 0, choose: !!snapshot && step !== 'choose' && step !== 'unlock', where: step === 'restoring', restoring: false })[s];
+  const done = (s: Step) => ({ setup: available, find: !!target, unlock: sources.length > 0, choose: !!snapshot && step !== 'choose' && step !== 'unlock', where: step === 'restoring', restoring: false })[s];
   const order = STEPS.map((s) => s.id);
   const back = order[order.indexOf(step) - 1];
 
@@ -223,6 +229,13 @@ export function RestoreGuide({ open, onClose }: { open: boolean; onClose: () => 
         Next
       </Button>
     );
+  } else if (step === 'find' && remote) {
+    body = <StorageForm target={remote} onChange={setRemote} onBack={() => setRemote(null)} message={remoteMsg ?? (targetProblem(remote) ? { tone: 'info', text: targetProblem(remote) } : null)} onMessage={setRemoteMsg} />;
+    next = (
+      <Button variant="contained" disabled={!target} onClick={() => setStep('unlock')}>
+        Next
+      </Button>
+    );
   } else if (step === 'find') {
     const list = found.data ?? [];
     const shown = repo && !list.some((f) => f.path === repo.path) ? [repo, ...list] : list;
@@ -231,11 +244,11 @@ export function RestoreGuide({ open, onClose }: { open: boolean; onClose: () => 
       : found.isFetching
         ? { tone: 'info', busy: true, text: `Looking in ${places.map((p) => p.label).slice(0, 4).join(', ') || 'this computer'}…` }
         : !list.length
-          ? { tone: 'info', text: 'None found nearby. Is the drive connected, or the cloud folder synced? You can also choose the folder.' }
+          ? { tone: 'info', text: 'Nothing found on this computer. Choose a folder, or where else they are.' }
           : null;
     body = (
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <Heading title="Find the backup" sub="In a cloud drive folder or on a drive." />
+        <Heading title="Find the backup" sub="On this computer, a drive, or online." />
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {shown.map((f) => (
             <Choice key={f.path} icon={PLACE_ICON[f.kind]} title={baseName(f.path)} sub={`${f.place} · ${tidyPath(f.path)}`} selected={repo?.path === f.path} onClick={() => setRepo(f)} />
@@ -243,6 +256,16 @@ export function RestoreGuide({ open, onClose }: { open: boolean; onClose: () => 
           <Button variant="outlined" startIcon={<FolderOpenRounded />} onClick={() => void pickFolder()} sx={{ alignSelf: 'flex-start', flexShrink: 0 }}>
             Choose the folder…
           </Button>
+          <div style={{ marginTop: 12 }}>
+            <ProviderGrid
+              withFolder={false}
+              onPick={(p) => {
+                setRepo(null);
+                setRemoteMsg(null);
+                setRemote(newTarget(p));
+              }}
+            />
+          </div>
         </div>
         <div style={{ marginTop: 16 }}>
           <StatusSlot message={slot} />
@@ -250,7 +273,7 @@ export function RestoreGuide({ open, onClose }: { open: boolean; onClose: () => 
       </div>
     );
     next = (
-      <Button variant="contained" disabled={!repo} onClick={() => setStep('unlock')}>
+      <Button variant="contained" disabled={!target} onClick={() => setStep('unlock')}>
         Next
       </Button>
     );
@@ -260,8 +283,8 @@ export function RestoreGuide({ open, onClose }: { open: boolean; onClose: () => 
         <Heading title="Unlock it" sub="The password chosen when backups were set up." />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow'), marginBottom: 20 }}>
           <LockOutlined sx={{ color: md('onSurfaceVariant') }} />
-          <Typography variant="bodyMedium" noWrap sx={{ color: md('onSurface') }} title={repo?.path}>
-            {repo ? `${repo.place} · ${tidyPath(repo.path)}` : ''}
+          <Typography variant="bodyMedium" noWrap sx={{ color: md('onSurface') }}>
+            {remote ? describeTarget(remote) : repo ? `${repo.place} · ${tidyPath(repo.path)}` : ''}
           </Typography>
         </div>
         <TextField
@@ -381,7 +404,7 @@ export function RestoreGuide({ open, onClose }: { open: boolean; onClose: () => 
         onClose={onClose}
         footer={
           <>
-            {back && step !== 'restoring' && <Button onClick={() => setStep(back)}>Back</Button>}
+            {back && step !== 'restoring' && <Button onClick={() => (step === 'find' && remote ? setRemote(null) : setStep(back))}>Back</Button>}
             <span style={{ flex: 1 }} />
             <Button onClick={onClose} disabled={busy && step === 'restoring'}>
               Cancel
