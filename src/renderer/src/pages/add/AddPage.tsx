@@ -32,7 +32,7 @@ import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
-import { LICENCES, licenceInfo } from '@shared/licences';
+import { LICENCES, licenceInfo, OWN_WORK } from '@shared/licences';
 import { hostOf, ruleFor } from '@shared/siteRules';
 import { SOURCES, sourceFromUrl, sourceInfo } from '@shared/sources';
 import { call } from '../../api';
@@ -77,6 +77,25 @@ function ColumnTitle({ children }: { children: ReactNode }) {
     <Typography variant="titleSmall" component="div" sx={{ color: md('primary'), mb: -0.5 }}>
       {children}
     </Typography>
+  );
+}
+
+/** One part of the form, in a card of its own: a title, a line about it, and the fields. */
+function Card({ title, note, span, children }: { title: string; note?: string; span?: boolean; children: ReactNode }) {
+  return (
+    <section style={{ gridColumn: span ? '1 / -1' : 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 20px 20px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow') }}>
+      <div>
+        <Typography variant="titleSmall" component="h2" sx={{ color: md('onSurface') }}>
+          {title}
+        </Typography>
+        {note && (
+          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.25 }}>
+            {note}
+          </Typography>
+        )}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -147,7 +166,28 @@ function SourceField({ form, onEdit, found }: { form: AddForm; onEdit: Edit; fou
             [I_DONT_KNOW, 'I don’t know', <HelpOutlineRounded key="h" />],
             [I_MADE_IT, 'I made it', <PersonOutlineRounded key="p" />],
           ].map(([v, label, icon]) => (
-            <Chip key={v as string} icon={icon as never} label={label as string} variant={form.sourceName === v ? 'filled' : 'outlined'} color={form.sourceName === v ? 'primary' : 'default'} onClick={() => onEdit({ sourceName: form.sourceName === v ? null : (v as string), url: '', site: null })} />
+            <Chip
+              key={v as string}
+              icon={icon as never}
+              label={label as string}
+              variant={form.sourceName === v ? 'filled' : 'outlined'}
+              color={form.sourceName === v ? 'primary' : 'default'}
+              onClick={() => {
+                const off = form.sourceName === v;
+                const mine = !off && v === I_MADE_IT;
+                onEdit(
+                  {
+                    sourceName: off ? null : (v as string),
+                    url: '',
+                    site: null,
+                    // Your own work carries its own licence, and nobody to credit.
+                    ...(mine ? { licence: form.licence ?? OWN_WORK, creator: '', attribution: '' } : {}),
+                    ...(off && form.licence === OWN_WORK ? { licence: null } : {}),
+                  },
+                  mine ? { licence: { from: 'you: it is your own work', sure: true } } : {},
+                );
+              }}
+            />
           ))}
         </div>
       ) : (
@@ -199,98 +239,124 @@ function RememberSite({ form }: { form: AddForm }) {
   );
 }
 
-function Essentials({ d, onEdit, compact }: { d: Draft; onEdit: Edit; compact?: boolean }) {
+/** The two things a pack cannot join the library without, and what follows from them. */
+function TermsCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
   const f = d.form;
   const lic = licenceInfo(f.licence);
+  const mine = f.sourceName === I_MADE_IT;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-      <ColumnTitle>What you need</ColumnTitle>
-      {!compact && (
-        <div>
-          <Label>Name</Label>
-          <TextField fullWidth value={f.name} onChange={(e) => onEdit({ name: e.target.value })} />
-          <FoundNote found={d.found.name} />
-        </div>
-      )}
-      <LicenceField form={f} onEdit={onEdit} found={d.found.licence} compact={compact} />
+    <Card title="Licence and source" note={mine ? 'Your own work: nothing to credit, nowhere it came from.' : 'The two things every pack needs before it joins the library.'}>
       <SourceField form={f} onEdit={onEdit} found={d.found.source} />
-      <RememberSite form={f} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        {compact && (
+      <LicenceField form={f} onEdit={onEdit} found={d.found.licence} />
+      {!mine && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div>
-            <Label>Name</Label>
-            <TextField fullWidth value={f.name} onChange={(e) => onEdit({ name: e.target.value })} />
-            <FoundNote found={d.found.name} />
+            <Label>Creator</Label>
+            <TextField fullWidth value={f.creator} onChange={(e) => onEdit({ creator: e.target.value })} placeholder="Who made it" />
+            <FoundNote found={f.creator ? d.found.creator : undefined} />
           </div>
-        )}
-        <div>
-          <Label>Creator</Label>
-          <TextField fullWidth value={f.creator} onChange={(e) => onEdit({ creator: e.target.value })} placeholder="Who made it" />
-          <FoundNote found={f.creator ? d.found.creator : undefined} />
-        </div>
-        {!compact && (
           <div>
             <Label>Credit line</Label>
             <TextField fullWidth value={f.attribution} onChange={(e) => onEdit({ attribution: e.target.value })} disabled={!!lic && !lic.attribution} placeholder={lic && !lic.attribution ? `Not needed for ${lic.short}` : 'If the licence asks'} />
-            <FoundNote found={undefined} />
+            <FoundNote found={undefined} hint={lic?.attribution ? 'Copied into a project’s credits' : ' '} />
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+      <RememberSite form={f} />
+    </Card>
   );
 }
 
-function MoreDetails({ d, onEdit, compact }: { d: Draft; onEdit: Edit; compact?: boolean }) {
+/** What the pack is called, and which version of it this is. */
+function NameCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
   const f = d.form;
-  const hasUrl = /^https?:\/\//i.test(f.url.trim());
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-      <ColumnTitle>More details</ColumnTitle>
-      {!compact && (
-        <div>
-          <Label>Description</Label>
-          <TextField fullWidth multiline minRows={2} maxRows={4} value={f.description} onChange={(e) => onEdit({ description: e.target.value })} placeholder="What’s in it, in a line or two" />
-          <FoundNote found={f.description ? d.found.description : undefined} />
-        </div>
-      )}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <div>
-          <Label>Version</Label>
-          <TextField fullWidth value={f.version} onChange={(e) => onEdit({ version: e.target.value })} />
-          <FoundNote found={f.version ? d.found.version : undefined} />
-        </div>
+    <Card title="Name and version" note="How it will show up in your library.">
+      <div>
+        <Label>Name</Label>
+        <TextField fullWidth value={f.name} onChange={(e) => onEdit({ name: e.target.value })} />
+        <FoundNote found={d.found.name} />
+      </div>
+      <div>
+        <Label>Version</Label>
+        <TextField fullWidth value={f.version} onChange={(e) => onEdit({ version: e.target.value })} placeholder="If the download says one" />
+        <FoundNote found={f.version ? d.found.version : undefined} />
+      </div>
+    </Card>
+  );
+}
+
+/** What is inside, in the words you will search for later. */
+function DescribeCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
+  const f = d.form;
+  return (
+    <Card title="What’s inside" note="What you will search for in six months.">
+      <div>
+        <Label>Description</Label>
+        <TextField fullWidth multiline minRows={2} maxRows={4} value={f.description} onChange={(e) => onEdit({ description: e.target.value })} placeholder="What’s in it, in a line or two" />
+        <FoundNote found={f.description ? d.found.description : undefined} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div>
           <Label>Style</Label>
           <Autocomplete multiple freeSolo options={STYLES} value={f.styles} onChange={(_, v) => onEdit({ styles: v as string[] })} renderInput={(p) => <TextField {...p} placeholder={f.styles.length ? '' : 'Pixel art, low poly…'} />} />
           <FoundNote found={f.styles.length ? d.found.styles : undefined} />
         </div>
-      </div>
-      <div>
-        <Label>Tags</Label>
-        <Autocomplete multiple freeSolo options={[]} value={f.tags} onChange={(_, v) => onEdit({ tags: (v as string[]).map((t) => t.trim().toLowerCase()).filter(Boolean) })} renderInput={(p) => <TextField {...p} placeholder={f.tags.length ? '' : 'Type and press Enter'} />} />
-        <FoundNote found={f.tags.length ? d.found.tags : undefined} />
-      </div>
-      <div>
-        <ColumnTitle>Keep a record of the download page</ColumnTitle>
-        <div style={{ marginTop: 12, border: `1px solid ${md('outlineVariant')}`, borderRadius: SHAPE.lg, background: md('surfaceContainerLowest'), padding: '2px 14px' }}>
-          {[
-            ['snapshot', <PhotoCameraOutlined key="c" />, 'Save a snapshot of the page', 'Kept with the pack, as proof of its licence'],
-            ['archive', <AccountBalanceOutlined key="a" />, 'Save it on archive.org', 'A public copy in the Wayback Machine, in the background'],
-          ].map(([key, icon, title, sub], i) => (
-            <label key={key as string} style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, borderTop: i ? `1px solid ${md('surfaceContainerHigh')}` : 'none', cursor: hasUrl ? 'pointer' : 'default' }}>
-              <span style={{ color: md('onSurfaceVariant'), display: 'flex' }}>{icon}</span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="bodyMedium" component="div" sx={{ color: hasUrl ? md('onSurface') : md('onSurfaceVariant') }}>
-                  {title as string}
-                </Typography>
-                <Typography variant="bodySmall" component="div" noWrap sx={{ color: md('onSurfaceVariant') }}>
-                  {hasUrl ? (sub as string) : 'Needs the page link'}
-                </Typography>
-              </span>
-              <Switch checked={hasUrl && f[key as 'snapshot' | 'archive']} disabled={!hasUrl} onChange={(_, v) => onEdit({ [key as string]: v })} slotProps={{ input: { 'aria-label': title as string } }} />
-            </label>
-          ))}
+        <div>
+          <Label>Tags</Label>
+          <Autocomplete multiple freeSolo options={[]} value={f.tags} onChange={(_, v) => onEdit({ tags: (v as string[]).map((t) => t.trim().toLowerCase()).filter(Boolean) })} renderInput={(p) => <TextField {...p} placeholder={f.tags.length ? '' : 'Type and press Enter'} />} />
+          <FoundNote found={f.tags.length ? d.found.tags : undefined} />
         </div>
+      </div>
+    </Card>
+  );
+}
+
+/** Proof of where it came from, kept with the pack. */
+function RecordCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
+  const f = d.form;
+  const hasUrl = /^https?:\/\//i.test(f.url.trim());
+  return (
+    <Card title="Keep a record of the page" note={hasUrl ? 'Proof of what the page said the day you downloaded it.' : 'Needs a page link above.'}>
+      <div style={{ border: `1px solid ${md('outlineVariant')}`, borderRadius: SHAPE.lg, background: md('surfaceContainerLowest'), padding: '2px 14px' }}>
+        {[
+          ['snapshot', <PhotoCameraOutlined key="c" />, 'Save a snapshot of the page', 'Kept with the pack, as proof of its licence'],
+          ['archive', <AccountBalanceOutlined key="a" />, 'Save it on archive.org', 'A public copy in the Wayback Machine, in the background'],
+        ].map(([key, icon, title, sub], i) => (
+          <label key={key as string} style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, borderTop: i ? `1px solid ${md('surfaceContainerHigh')}` : 'none', cursor: hasUrl ? 'pointer' : 'default' }}>
+            <span style={{ color: md('onSurfaceVariant'), display: 'flex' }}>{icon}</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="bodyMedium" component="div" sx={{ color: hasUrl ? md('onSurface') : md('onSurfaceVariant') }}>
+                {title as string}
+              </Typography>
+              <Typography variant="bodySmall" component="div" noWrap sx={{ color: md('onSurfaceVariant') }}>
+                {hasUrl ? (sub as string) : 'Needs the page link'}
+              </Typography>
+            </span>
+            <Switch checked={hasUrl && f[key as 'snapshot' | 'archive']} disabled={!hasUrl} onChange={(_, v) => onEdit({ [key as string]: v })} slotProps={{ input: { 'aria-label': title as string } }} />
+          </label>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * Every card a pack needs, in two columns that keep to themselves, so one long card does not
+ * leave a hole beside it. Narrow windows put them in one column instead.
+ */
+function Details({ d, onEdit }: { d: Draft; onEdit: Edit }) {
+  const mine = d.form.sourceName === I_MADE_IT;
+  const column = { display: 'flex', flexDirection: 'column' as const, gap: 16, minWidth: 0 };
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 16, alignItems: 'start' }}>
+      <div style={column}>
+        <TermsCard d={d} onEdit={onEdit} />
+        {!mine && <RecordCard d={d} onEdit={onEdit} />}
+      </div>
+      <div style={column}>
+        <NameCard d={d} onEdit={onEdit} />
+        <DescribeCard d={d} onEdit={onEdit} />
       </div>
     </div>
   );
@@ -412,10 +478,9 @@ function SinglePage({ d }: { d: Draft }) {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <Header title="Add pack" file={<FileChip icon={d.item.kind === 'folder' ? <FolderOutlined sx={{ fontSize: 16 }} /> : <FolderZipOutlined sx={{ fontSize: 16 }} />}>{d.item.sources[0]?.split(/[\\/]/).pop()}</FileChip>} />
       <Skipped />
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: '300px minmax(0, 1fr) minmax(0, 1fr)', gap: 28, padding: '0 28px 20px', alignItems: 'start' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: '300px minmax(0, 1fr)', gap: 24, padding: '0 32px 24px', alignItems: 'start' }}>
         <Preview d={d} />
-        <Essentials d={d} onEdit={onEdit} />
-        <MoreDetails d={d} onEdit={onEdit} />
+        <Details d={d} onEdit={onEdit} />
       </div>
       <Footer tone={ready ? 'ok' : 'warn'} note={d.state === 'copying' ? 'Reading the pack…' : ready ? 'Everything needed is filled in' : 'Add a licence and source now, or finish later from Review.'}>
         <Button onClick={() => void cancel()} disabled={busy}>
@@ -600,10 +665,7 @@ function BatchPage() {
                   {formatBytes(primary.item.size)} · {primary.item.sources[0]?.split(/[\\/]/).pop()}
                 </Typography>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 28 }}>
-                <Essentials d={primary} onEdit={(p, found) => edit(primary.item.id, p, found)} compact />
-                <MoreDetails d={primary} onEdit={(p, found) => edit(primary.item.id, p, found)} compact />
-              </div>
+              <Details d={primary} onEdit={(p, found) => edit(primary.item.id, p, found)} />
             </>
           )}
         </div>

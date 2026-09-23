@@ -42,7 +42,12 @@ export const LICENCES: LicenceInfo[] = [
   { id: 'subscription', name: 'Subscription (while subscribed)', short: 'Subscription', url: null, commercial: true, attribution: false, shareAlike: false, modify: true, free: false },
   { id: 'personal', name: 'Personal use only', short: 'Personal', url: null, commercial: false, attribution: false, shareAlike: false, modify: true, free: true },
   { id: 'custom', name: 'Custom licence (see proof)', short: 'Custom', url: null, commercial: false, attribution: false, shareAlike: false, modify: true, free: true },
+  // Your own work: nobody to credit, nothing to check, and no terms to keep to.
+  { id: 'own-work', name: 'My own work', short: 'Mine', url: null, commercial: true, attribution: false, shareAlike: false, modify: true, free: true },
 ];
+
+/** The licence for something you made yourself. */
+export const OWN_WORK = 'own-work';
 
 const BY_ID = new Map(LICENCES.map((l) => [l.id.toLowerCase(), l]));
 
