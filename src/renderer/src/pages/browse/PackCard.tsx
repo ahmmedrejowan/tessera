@@ -1,10 +1,13 @@
+import MoreVertRounded from '@mui/icons-material/MoreVertRounded';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { memo, useState, type MouseEvent } from 'react';
 import type { PackRow } from '@shared/query';
 import { AssetThumb, checker } from '../../components/AssetThumb';
 import { licenceShort, sourceName, typeSummary } from '../../components/labels';
 import { fileUrl } from '../../state/library';
-import { md, SHAPE } from '../../theme';
+import { md, mdAlpha, SHAPE } from '../../theme';
 import { useHold } from './useHold';
 
 export const PACK_LABEL_HEIGHT = 76;
@@ -86,12 +89,38 @@ export const PackCard = memo(function PackCard({ pack, width, selected, onClick,
         height,
         padding: 6,
         borderRadius: SHAPE.md,
+        position: 'relative',
         background: selected ? md('secondaryContainer') : md('surfaceContainerLow'),
         outline: selected ? `2px solid ${md('primary')}` : 'none',
         outlineOffset: -2,
         cursor: 'default',
       }}
     >
+      {onMenu && (
+        <Tooltip title="More">
+          <IconButton
+            size="small"
+            aria-label={`More for ${pack.name}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMenu(e.currentTarget, pack);
+            }}
+            sx={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              zIndex: 1,
+              opacity: selected ? 1 : 0,
+              backgroundColor: mdAlpha('surface', 0.86),
+              '&:hover': { backgroundColor: md('surface') },
+              '.tile:hover &': { opacity: 1 },
+              '&:focus-visible': { opacity: 1 },
+            }}
+          >
+            <MoreVertRounded fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
       <Cover pack={pack} width={width} />
       <div style={{ padding: '8px 6px 0', minWidth: 0 }}>
         <Typography variant="titleSmall" noWrap component="div" sx={{ color: selected ? md('onSecondaryContainer') : md('onSurface') }}>

@@ -1,11 +1,13 @@
 import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
 import Close from '@mui/icons-material/Close';
+import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { useEffect, useState } from 'react';
 import { call } from '../../api';
-import { useNotices } from '../../notices/store';
+import { ask } from '../../notices/dialogs';
+import { failed, notify, useNotices } from '../../notices/store';
 import { useBrowse } from '../../state/browse';
 import { CopyButton } from '../projects/CopyButton';
 import { md, mdAlpha, SHAPE } from '../../theme';
@@ -21,7 +23,41 @@ export function SelectionBar({ packs }: { packs?: boolean } = {}) {
     useNotices.getState().setLift(68);
     return () => useNotices.getState().setLift(0);
   }, []);
-  const refs = () => call('assets:refs', [...selection].map(Number));
+  /** What was picked, as files: asset ids directly, or everything inside the packs. */
+  const refs = async () => {
+    if (!packs) return call('assets:refs', [...selection].map(Number));
+    const out: { packId: string; ref: string }[] = [];
+    for (const id of [...selection].map(String)) {
+      for (const file of await call('pack:files', id)) out.push({ packId: file.packId, ref: file.ref });
+    }
+    return out;
+  };
+
+  /** Move the picked packs to the wastebasket, once. */
+  const remove = async () => {
+    const ids = [...selection].map(String);
+    const yes = await ask<boolean>({
+      tone: 'warning',
+      title: ids.length === 1 ? 'Remove this pack?' : `Remove ${ids.length} packs?`,
+      body: 'Their folders go to the wastebasket. Anything already copied into a game stays where it is.',
+      actions: [
+        { label: 'Keep them', value: false, kind: 'text' },
+        { label: 'Remove', value: true, kind: 'danger' },
+      ],
+    });
+    if (!yes) return;
+    let gone = 0;
+    for (const id of ids) {
+      try {
+        await call('pack:remove', id);
+        gone++;
+      } catch (e) {
+        failed(e);
+      }
+    }
+    select([], null);
+    if (gone) notify.success(gone === 1 ? 'The pack is in the wastebasket.' : `${gone} packs are in the wastebasket.`);
+  };
   return (
     <div
       style={{
@@ -43,18 +79,19 @@ export function SelectionBar({ packs }: { packs?: boolean } = {}) {
       <Typography variant="labelLarge" sx={{ mr: 1 }}>
         {selection.size} picked
       </Typography>
-      {!packs && (
-        <>
-          <Button startIcon={<BookmarkAddOutlined />} onClick={(e) => setAnchor(e.currentTarget)} sx={{ color: md('inversePrimary') }}>
-            Add to collection
-          </Button>
-          <CopyButton items={refs} variant="text" size="medium" color={md('inversePrimary')} />
-        </>
+      <Button startIcon={<BookmarkAddOutlined />} onClick={(e) => setAnchor(e.currentTarget)} sx={{ color: md('inversePrimary') }}>
+        {packs ? 'Collect their assets' : 'Add to collection'}
+      </Button>
+      <CopyButton items={refs} variant="text" size="medium" color={md('inversePrimary')} />
+      {packs && (
+        <Button startIcon={<DeleteOutlineRounded />} onClick={() => void remove()} sx={{ color: md('inversePrimary') }}>
+          Remove
+        </Button>
       )}
       <IconButton aria-label="Clear selection" onClick={() => select([], null)} sx={{ color: md('inverseOnSurface') }}>
         <Close fontSize="small" />
       </IconButton>
-      {!packs && <CollectionMenu anchor={anchor} onClose={() => setAnchor(null)} items={refs} />}
+      <CollectionMenu anchor={anchor} onClose={() => setAnchor(null)} items={refs} />
     </div>
   );
 }
