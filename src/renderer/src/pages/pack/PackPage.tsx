@@ -13,10 +13,6 @@ import SearchOutlined from '@mui/icons-material/SearchOutlined';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
 import InputBase from '@mui/material/InputBase';
 import Tab from '@mui/material/Tab';
@@ -41,6 +37,7 @@ import { useNav } from '../../state/nav';
 import { md, SHAPE } from '../../theme';
 import { AssetTile, TILE_LABEL_HEIGHT } from '../browse/AssetTile';
 import { archivePack } from '../browse/archiving';
+import { removePacks } from '../browse/deleting';
 import { PackParts } from './PackParts';
 import { AssetMenu } from '../browse/TileMenu';
 import { useBrowse } from '../../state/browse';
@@ -88,7 +85,6 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   const [type, setType] = useState<AssetType | null>(null);
   const [find, setFind] = useState('');
   const [viewing, setViewing] = useState<{ list: AssetRow[]; index: number } | null>(null);
-  const [removing, setRemoving] = useState(false);
 
   const pack = useQuery({ queryKey: ['pack', lib, version, id], queryFn: () => call('pack:get', id), enabled: !!lib, placeholderData: (p) => p }).data;
   const files = useQuery({ queryKey: ['pack-files', lib, version, id], queryFn: () => call('pack:files', id), enabled: !!lib }).data ?? [];
@@ -181,8 +177,14 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
             >
               {pack.meta.archived ? 'Bring it back' : 'Put it away'}
             </Button>
-            <Button color="error" startIcon={<DeleteOutlined />} onClick={() => setRemoving(true)}>
-              Remove
+            <Button
+              color="error"
+              startIcon={<DeleteOutlined />}
+              onClick={async () => {
+                if (await removePacks([id], pack.name)) go({ to: 'browse' });
+              }}
+            >
+              Delete
             </Button>
           </div>
         </div>
@@ -366,33 +368,6 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
         )}
       </div>
 
-      <Dialog open={removing} onClose={() => setRemoving(false)}>
-        <DialogTitle>Remove “{pack.name}”?</DialogTitle>
-        <DialogContent>
-          <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-            The pack’s folder goes to the {window.tessera.platform === 'win32' ? 'Recycle Bin' : 'Trash'}, so you can put it back from there. Copies already in your game projects stay.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRemoving(false)}>Cancel</Button>
-          <Button
-            color="error"
-            variant="contained"
-            onClick={async () => {
-              setRemoving(false);
-              try {
-                const name = await call('pack:remove', id);
-                notify.success(`Moved “${name}” to the ${window.tessera.platform === 'win32' ? 'Recycle Bin' : 'Trash'}.`);
-                go({ to: 'browse' });
-              } catch (e) {
-                failed(e);
-              }
-            }}
-          >
-            Remove
-          </Button>
-        </DialogActions>
-      </Dialog>
       <PackEditor packId={id} meta={pack.meta} open={editing} onClose={() => setEditing(false)} />
       {menu && (
         <AssetMenu

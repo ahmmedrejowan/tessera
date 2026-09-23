@@ -459,7 +459,7 @@ export class LibraryService {
   }
 
   /**
-   * Take single files out of their packs, to the system wastebasket so they can be put back. A
+   * Take single files out of their packs, into the library's bin so they can be put back. A
    * file that lives inside a pack's archive can't be taken out on its own and is left alone; the
    * count of those comes back so the window can say so.
    */
