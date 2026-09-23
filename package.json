@@ -83,6 +83,14 @@
       {
         "from": "LICENSE",
         "to": "LICENSE"
+      },
+      {
+        "from": "CHANGELOG.md",
+        "to": "CHANGELOG.md"
+      },
+      {
+        "from": "PRIVACY.md",
+        "to": "PRIVACY.md"
       }
     ],
     "asar": true,

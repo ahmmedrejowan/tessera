@@ -41,6 +41,8 @@ export interface Settings {
   afterDownload: AfterDownload;
   /** Look for a newer Tessera on start and once a day. */
   updateCheck: boolean;
+  /** Fetch a newer version's installer as soon as one is found (it still waits to be opened). */
+  autoInstallUpdates: boolean;
 }
 
 /** A site the user has set the licence for, so packs from it fill themselves in. */
@@ -339,6 +341,9 @@ export interface UpdateStatus {
   newer: boolean;
   /** This build knows where to look. */
   canCheck: boolean;
+  /** An installer for this computer is being fetched, or is ready to open. */
+  downloading: boolean;
+  installer: string | null;
 }
 
 /** What kind of thing happened in a library. */

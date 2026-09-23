@@ -123,6 +123,9 @@ const downloads = new DownloadService({
 });
 const updates = new Updates({
   version: app.getVersion(),
+  dir: join(dataDir, 'updates'),
+  platform: process.platform,
+  auto: () => settings.get().autoInstallUpdates,
   feed: process.env.TESSERA_UPDATE_FEED || __TESSERA_UPDATE_FEED__,
   fetch: (url, init) => net.fetch(url, init),
   onChanged: () => broadcast(windows, 'updates:changed', updates.get()),
@@ -218,14 +221,16 @@ async function addDownloaded(item: DownloadItem): Promise<void> {
   }
 }
 
-/** Tessera's own licence text: beside the packaged app, or in the project while developing. */
-async function readLicence(): Promise<string> {
-  const places = [join(process.resourcesPath, 'LICENSE'), join(app.getAppPath(), 'LICENSE'), join(app.getAppPath(), '..', 'LICENSE')];
-  for (const place of places) {
+const DOCUMENTS = { licence: 'LICENSE', changelog: 'CHANGELOG.md', privacy: 'PRIVACY.md' } as const;
+
+/** One of Tessera's own documents: beside the packaged app, or in the project while developing. */
+async function readDocument(name: keyof typeof DOCUMENTS): Promise<string> {
+  const file = DOCUMENTS[name];
+  for (const place of [join(process.resourcesPath, file), join(app.getAppPath(), file), join(app.getAppPath(), '..', file)]) {
     const text = await readFile(place, 'utf8').catch(() => null);
     if (text) return text;
   }
-  throw new UserError('no-licence', 'The licence file isn’t in this build. It is the GNU General Public License, version 3 or later.');
+  throw new UserError('no-document', `${file} isn’t in this build.`);
 }
 
 function openRecord() {
@@ -721,7 +726,13 @@ function registerHandlers(): void {
   handle('activity:list', (limit) => activity.list(limit ?? 20));
   handle('updates:status', () => updates.get());
   handle('updates:check', () => updates.check());
-  handle('app:licence', () => readLicence());
+  handle('app:document', (name) => readDocument(name));
+  handle('updates:download', () => updates.download());
+  handle('updates:openInstaller', () => {
+    const file = updates.get().installer;
+    if (!file) throw new UserError('no-installer', 'There is no installer to open yet.');
+    shell.showItemInFolder(file);
+  });
 
   handle('downloads:list', () => downloads.list());
   handle('downloads:add', (text) => downloads.add(linksIn(text)));

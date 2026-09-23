@@ -1,4 +1,6 @@
+import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
+import MailOutlineRounded from '@mui/icons-material/MailOutlineRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import Button from '@mui/material/Button';
@@ -9,6 +11,7 @@ import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { BUILT_WITH, HELPERS, LICENCE, LINKS } from '@shared/about';
+import { parseChangelog, plainLine, releaseFor } from '@shared/changelog';
 import { call, on } from '../api';
 import { Logo } from '../components/Logo';
 import { failed } from '../notices/store';
@@ -36,14 +39,14 @@ function Link({ href, children }: { href: string; children: string }) {
   );
 }
 
-/** The whole licence, for reading in the app rather than taking on trust. */
-function LicenceText({ onClose }: { onClose: () => void }) {
-  const text = useQuery({ queryKey: ['licence'], queryFn: () => call('app:licence') });
+/** One of Tessera's own documents, read in the app rather than taken on trust. */
+function Document({ name, title, onClose }: { name: 'licence' | 'privacy'; title: string; onClose: () => void }) {
+  const text = useQuery({ queryKey: ['document', name], queryFn: () => call('app:document', name) });
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth slotProps={{ paper: { sx: { borderRadius: `${SHAPE.lg}px`, backgroundColor: md('surfaceContainerHigh'), backgroundImage: 'none' } } }}>
       <div style={{ padding: '20px 24px 8px' }}>
         <Typography variant="titleLarge" sx={{ color: md('onSurface') }}>
-          {LICENCE.name}
+          {title}
         </Typography>
       </div>
       <div style={{ padding: '0 24px', overflow: 'auto', maxHeight: '64vh' }}>
@@ -58,16 +61,37 @@ function LicenceText({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Changelog lines as prose and bullets, rather than the markdown they are written in. */
+function Notes({ lines }: { lines: string[] }) {
+  const read = lines.map(plainLine).filter((l) => l.text);
+  return (
+    <span style={{ display: 'block' }}>
+      {read.map((line, i) => (
+        <span key={`${i}-${line.text.slice(0, 16)}`} style={{ display: 'flex', gap: 8, marginTop: i ? 6 : 0 }}>
+          {line.bullet && <span style={{ color: md('primary') }}>•</span>}
+          <span>{line.text}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** The changelog, as the app ships it: what's in this version, and what came before. */
+function useReleases() {
+  const text = useQuery({ queryKey: ['document', 'changelog'], queryFn: () => call('app:document', 'changelog') }).data;
+  return text ? parseChangelog(text) : [];
+}
+
 /** Whether a newer Tessera has been published, and how to get it. */
-function Updates() {
+function Updates({ version }: { version: string }) {
   const client = useQueryClient();
   const settings = useSettings().data;
   const update = useUpdateSettings();
   useEffect(() => on('updates:changed', (s) => client.setQueryData(['updates'], s)), [client]);
   const status = useQuery({ queryKey: ['updates'], queryFn: () => call('updates:status'), staleTime: 0 }).data;
-  const check = async () => {
+  const run = async (what: 'updates:check' | 'updates:download' | 'updates:openInstaller') => {
     try {
-      await call('updates:check');
+      await call(what);
     } catch (e) {
       failed(e);
     }
@@ -80,46 +104,87 @@ function Updates() {
       : status?.error
         ? 'Couldn’t check just now'
         : status?.latest
-          ? 'This is the newest version'
-          : 'Not checked yet';
-  const body = status?.error ?? (status?.newer ? status.notes : null) ?? `Last checked ${when(status?.lastCheckedAt ?? null)}`;
+          ? `This is the newest version (${version})`
+          : `Tessera ${version}`;
+  const notes = status?.newer && status.notes ? status.notes.split('\n') : null;
+  const body = status?.error ?? (notes ? <Notes lines={notes} /> : `Last checked ${when(status?.lastCheckedAt ?? null)}`);
 
   return (
-    <Group title="Updates" note="Tessera looks for a newer version and tells you; it never installs anything by itself.">
+    <Group title="Updates" note="Tessera looks for a newer version and tells you. Nothing is installed without you opening it.">
       <Row title={title} body={body}>
-        {status?.newer && status.url && (
-          <Button variant="contained" startIcon={<OpenInNewRounded />} onClick={() => open(status.url!)}>
-            Get it
+        {status?.newer && status.installer && (
+          <Button variant="contained" startIcon={<FolderOpenOutlined />} onClick={() => void run('updates:openInstaller')}>
+            Show the installer
           </Button>
         )}
-        <Button startIcon={status?.checking ? <CircularProgress size={16} /> : <RefreshRounded />} disabled={!!status?.checking} onClick={() => void check()}>
+        {status?.newer && !status.installer && (
+          <Button variant="contained" startIcon={status.downloading ? <CircularProgress size={16} /> : <DownloadOutlined />} disabled={status.downloading} onClick={() => void run('updates:download')}>
+            {status.downloading ? 'Fetching…' : 'Get it'}
+          </Button>
+        )}
+        {status?.newer && status.url && (
+          <Button startIcon={<OpenInNewRounded />} onClick={() => open(status.url!)}>
+            Release page
+          </Button>
+        )}
+        <Button startIcon={status?.checking ? <CircularProgress size={16} /> : <RefreshRounded />} disabled={!!status?.checking} onClick={() => void run('updates:check')}>
           Check now
         </Button>
       </Row>
-      <Row title="Check on start, and once a day" body={status?.canCheck ? undefined : 'This build has nowhere to check yet — no releases are published.'}>
+      <Row title="Check on start, and once a day" body={status?.canCheck ? 'A read of the published release list. Nothing about you or your library is sent.' : 'This build has nowhere to check yet — no releases are published.'}>
         <Switch checked={settings?.updateCheck ?? true} onChange={(_, v) => update.mutate({ updateCheck: v })} slotProps={{ input: { 'aria-label': 'Check for updates' } }} />
+      </Row>
+      <Row title="Fetch the installer as soon as one is found" body="It waits in Tessera’s folder until you open it — installing is always your move.">
+        <Switch checked={settings?.autoInstallUpdates ?? false} onChange={(_, v) => update.mutate({ autoInstallUpdates: v })} slotProps={{ input: { 'aria-label': 'Fetch updates by themselves' } }} />
       </Row>
     </Group>
   );
 }
 
+/** What is in this version, and what came before it. */
+function Versions({ version }: { version: string }) {
+  const releases = useReleases();
+  const [all, setAll] = useState(false);
+  const current = releaseFor(releases, version);
+  const earlier = releases.filter((r) => r.version !== version);
+
+  return (
+    <Group title="What’s in this version" note={current?.when ? `${version} · ${current.when}` : version}>
+      <Row
+        title={current ? `Tessera ${current.version}` : `Tessera ${version}`}
+        body={current ? <Notes lines={current.lines} /> : 'This build ships no notes for its own version.'}
+      />
+      {earlier.length > 0 && (
+        <Row title="Version log" body={all ? undefined : `${earlier.length} earlier version${earlier.length === 1 ? '' : 's'}`}>
+          <Button onClick={() => setAll(!all)}>{all ? 'Hide' : 'Show'}</Button>
+        </Row>
+      )}
+      {all &&
+        earlier.map((r) => (
+          <Row key={r.version} title={`${r.version}${r.when ? ` · ${r.when}` : ''}`} body={<Notes lines={r.lines} />} />
+        ))}
+    </Group>
+  );
+}
+
 /**
- * About: what this build is, whether a newer one exists, the terms Tessera itself comes under,
- * and what it is made of — the separate programs it can fetch, and the libraries it is built on.
+ * About: what this build is, whether a newer one exists, what changed, the terms Tessera comes
+ * under, what it is made of, who makes it and how to reach them.
  */
 export function AboutPage() {
   const info = useAppInfo().data;
-  const [licence, setLicence] = useState(false);
+  const [document, setDocument] = useState<'licence' | 'privacy' | null>(null);
+  const version = info?.version ?? '';
 
   return (
-    <Page title="About" subtitle="What this build is, and what it’s made of" width={880}>
+    <Page title="About" subtitle="What this build is, and what it’s made of" width={1080}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '4px 0 28px' }}>
         <span style={{ width: 72, height: 72, borderRadius: 22, display: 'grid', placeItems: 'center', background: md('surfaceContainerLow') }}>
           <Logo size={44} />
         </span>
         <div style={{ minWidth: 0 }}>
           <Typography variant="headlineSmall" sx={{ color: md('onSurface') }}>
-            Tessera {info?.version ?? ''}
+            Tessera {version}
           </Typography>
           <Typography variant="bodyMedium" component="div" sx={{ color: md('onSurfaceVariant') }}>
             A desktop library for game assets: every pack in one place, with its licence and source on record.
@@ -132,11 +197,15 @@ export function AboutPage() {
         </div>
       </div>
 
-      <Updates />
+      <Updates version={version} />
+      <Versions version={version} />
 
-      <Group title="Licence" note="Tessera’s own terms — not the ones your packs carry.">
+      <Group title="Licence and privacy" note="Tessera’s own terms — not the ones your packs carry.">
         <Row title={LICENCE.name} body={LICENCE.summary}>
-          <Button onClick={() => setLicence(true)}>Read it</Button>
+          <Button onClick={() => setDocument('licence')}>Read it</Button>
+        </Row>
+        <Row title="Privacy" body="What stays on this computer, what leaves it only when you ask, and what Tessera never does.">
+          <Button onClick={() => setDocument('privacy')}>Read it</Button>
         </Row>
         <Row title="Source code" body={LINKS.repo}>
           <Button startIcon={<OpenInNewRounded />} onClick={() => open(LINKS.repo)}>
@@ -145,15 +214,12 @@ export function AboutPage() {
         </Row>
       </Group>
 
-      <Group title="Helpers" note="Separate programs Tessera can fetch and drive. Each stays its own project, under its own licence.">
+      <Group title="Credits" note="Tessera stands on other people’s work.">
         {HELPERS.map((h) => (
-          <Row key={h.name} title={<Link href={h.url}>{h.name}</Link>} body={`${h.what} · ${h.licence}`} />
+          <Row key={h.name} title={<Link href={h.url}>{h.name}</Link>} body={`${h.what} · ${h.licence} · a separate program Tessera can fetch and drive`} />
         ))}
-      </Group>
-
-      <Group title="Built with" note="The libraries Tessera itself is made from.">
         <Row
-          title="Open-source libraries"
+          title="Built with"
           body={
             <>
               {BUILT_WITH.map((b, i) => (
@@ -169,10 +235,28 @@ export function AboutPage() {
           title="Sample packs"
           body={
             <>
-              Mini Arcade, 1-Bit Platformer Pack and Interface Sounds, by <Link href="https://kenney.nl">Kenney</Link>, under CC0.
+              Mini Arcade, 1-Bit Platformer Pack and Interface Sounds, by <Link href="https://kenney.nl">Kenney</Link>, under CC0. Offered on a new library’s Home to look around with.
             </>
           }
         />
+      </Group>
+
+      <Group title="Who makes it" note="One person, and the ways to reach them.">
+        <Row title={LINKS.creator.name} body={LINKS.creator.what}>
+          <Button startIcon={<OpenInNewRounded />} onClick={() => open(LINKS.creator.github)}>
+            GitHub
+          </Button>
+        </Row>
+        <Row title="Email" body={LINKS.email}>
+          <Button startIcon={<MailOutlineRounded />} onClick={() => open(`mailto:${LINKS.email}?subject=Tessera`)}>
+            Write
+          </Button>
+        </Row>
+        <Row title="Issue tracker" body="Where bugs and ideas are decided, in the open.">
+          <Button startIcon={<OpenInNewRounded />} onClick={() => open(LINKS.issues)}>
+            Open
+          </Button>
+        </Row>
       </Group>
 
       <Group title="This computer" note="Where Tessera keeps its own things — never your library.">
@@ -183,7 +267,7 @@ export function AboutPage() {
         </Row>
       </Group>
 
-      {licence && <LicenceText onClose={() => setLicence(false)} />}
+      {document && <Document name={document} title={document === 'licence' ? LICENCE.name : 'Privacy'} onClose={() => setDocument(null)} />}
     </Page>
   );
 }

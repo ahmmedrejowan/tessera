@@ -17,7 +17,8 @@ import { AddPage } from './pages/add/AddPage';
 import { InboxPage } from './pages/InboxPage';
 import { DownloadsPage } from './pages/DownloadsPage';
 import { AboutPage } from './pages/AboutPage';
-import { HelpPage } from './pages/HelpPage';
+import { HelpPage } from './pages/help/HelpPage';
+import { HelpTopicPage } from './pages/help/HelpTopicPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { MenuCommands } from './shell/MenuCommands';
 import { CopyConfirm } from './pages/projects/CopyConfirm';
@@ -47,6 +48,8 @@ function Current() {
       return <DownloadsPage />;
     case 'help':
       return <HelpPage />;
+    case 'helpTopic':
+      return <HelpTopicPage key={route.id} id={route.id} {...(route.question ? { question: route.question } : {})} />;
     case 'about':
       return <AboutPage />;
     case 'collections':

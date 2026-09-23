@@ -27,7 +27,7 @@ interface PageProps {
   aside?: ReactNode;
   /** Go back (a pack, a collection or a project opened from somewhere else). */
   onBack?: () => void;
-  /** Widest the content gets, centred; left as it is when not given. */
+  /** Widest the content gets. Pages line up on the left, so this only stops long lines. */
   width?: number;
   /** The content sees to its own padding (a grid that goes to the edges). */
   flush?: boolean;
@@ -36,11 +36,11 @@ interface PageProps {
 
 /** Page frame: a headline, what the page says about itself, its actions, and the page below. */
 export function Page({ title, subtitle, actions, aside, onBack, width, flush, children }: PageProps) {
-  // A page with a width keeps its title over its content, not away at the window's edge.
-  const middle = width ? { maxWidth: width, margin: '0 auto' } : {};
+  // Every page starts at the same left edge; a width only stops lines running too long.
+  const column = width ? { maxWidth: width } : {};
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <header style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: PAGE.header, ...middle, width: '100%', boxSizing: 'border-box' }}>
+      <header style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: PAGE.header, ...column, width: '100%', boxSizing: 'border-box' }}>
         {onBack && (
           <Tooltip title="Back">
             <IconButton onClick={onBack} aria-label="Back" sx={{ ml: -1.5, mt: -0.5 }}>
@@ -62,7 +62,7 @@ export function Page({ title, subtitle, actions, aside, onBack, width, flush, ch
         {actions && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>{actions}</div>}
       </header>
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        {flush ? children : <div style={{ padding: PAGE.body, ...middle }}>{children}</div>}
+        {flush ? children : <div style={{ padding: PAGE.body, ...column }}>{children}</div>}
       </div>
     </div>
   );

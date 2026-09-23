@@ -192,8 +192,12 @@ export interface Invokes {
   /** Is there a newer Tessera? Nothing is downloaded or installed by the check. */
   'updates:status': () => UpdateStatus;
   'updates:check': () => UpdateStatus;
-  /** Tessera's own licence, in full. */
-  'app:licence': () => string;
+  /** One of Tessera's own documents, as written: its licence, changelog or privacy notice. */
+  'app:document': (name: 'licence' | 'changelog' | 'privacy') => string;
+  /** Fetch the newest version's installer for this computer, ready to open. */
+  'updates:download': () => UpdateStatus;
+  /** Open the installer that was fetched. */
+  'updates:openInstaller': () => void;
 
   /** What has been happening in the open library, newest first. */
   'activity:list': (limit?: number) => ActivityEntry[];

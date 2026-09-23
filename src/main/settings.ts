@@ -51,6 +51,7 @@ const schema = z.object({
   downloadsAtOnce: z.number().int().min(1).max(5).catch(3),
   afterDownload: z.enum(['add', 'review', 'ask']).catch('add'),
   updateCheck: z.boolean().catch(true),
+  autoInstallUpdates: z.boolean().catch(false),
 });
 
 export const DEFAULT_SETTINGS: Settings = schema.parse({});

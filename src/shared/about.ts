@@ -3,7 +3,13 @@
 export const LINKS = {
   repo: 'https://github.com/ahmmedrejowan/tessera',
   issues: 'https://github.com/ahmmedrejowan/tessera/issues',
-  email: 'kmrejowan@gmail.com',
+  email: 'hello@rejowan.com',
+  /** Who makes Tessera. */
+  creator: {
+    name: 'K M Rejowan Ahmmed',
+    what: 'Android and desktop developer, and the one person behind Tessera.',
+    github: 'https://github.com/ahmmedrejowan',
+  },
 };
 
 /** Tessera's own terms. */

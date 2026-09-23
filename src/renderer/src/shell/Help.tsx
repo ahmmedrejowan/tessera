@@ -1,7 +1,7 @@
 import HelpOutlineRounded from '@mui/icons-material/HelpOutlineRounded';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
-import { useWorries } from '../pages/HelpPage';
+import { useHealth } from '../state/health';
 import { useNav } from '../state/nav';
 import { md } from '../theme';
 
@@ -11,7 +11,7 @@ import { md } from '../theme';
  */
 export function HelpButton() {
   const go = useNav((s) => s.go);
-  const worries = useWorries();
+  const { worries } = useHealth();
   return (
     <Tooltip title="Help and how your library is doing">
       <IconButton onClick={() => go({ to: 'help' })} aria-label="Help" sx={{ color: md('onSurfaceVariant') }}>
