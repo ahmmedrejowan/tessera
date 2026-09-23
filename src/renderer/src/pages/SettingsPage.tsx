@@ -17,7 +17,7 @@ import { useLibraryRecord, useLibraryState } from '../state/library';
 import { useAppInfo, useSettings, useUpdateSettings } from '../state/queries';
 import { md, mdAlpha, SHAPE } from '../theme';
 import { schemeFromSeed } from '../theme/m3';
-import { Page } from './Placeholder';
+import { PAGE, Page } from './Placeholder';
 import { BackupSettings } from './settings/BackupSettings';
 import { PairedComputers, SyncSettings } from './settings/SyncSettings';
 import { Helpers } from './settings/Helpers';
@@ -184,7 +184,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
         </nav>
 
         <div ref={scroller} style={{ overflowY: 'auto', minHeight: 0 }}>
-          <div style={{ maxWidth: 880, padding: '0 40px 64px 8px' }}>
+          <div style={{ maxWidth: PAGE.column, padding: '0 32px 64px' }}>
             <PartBar part={SECTIONS.find((x) => x.id === current)?.part ?? 'library'} libraryName={lib?.name ?? 'This library'} />
             <div {...at('general')}>
               <Group title="General" note="What this library is called, where it lives, and closing it.">

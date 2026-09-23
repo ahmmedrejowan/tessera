@@ -11,7 +11,7 @@ export function Group({ title, note, children }: { title: string; note?: ReactNo
         {title}
       </Typography>
       {note && (
-        <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5, maxWidth: 640 }}>
+        <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5, maxWidth: 680 }}>
           {note}
         </Typography>
       )}
@@ -43,7 +43,7 @@ export function Row({ title, body, children }: { title: ReactNode; body?: ReactN
           {title}
         </Typography>
         {body && (
-          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.25, wordBreak: 'break-word', maxWidth: 560 }}>
+          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.25, wordBreak: 'break-word', maxWidth: 680 }}>
             {body}
           </Typography>
         )}

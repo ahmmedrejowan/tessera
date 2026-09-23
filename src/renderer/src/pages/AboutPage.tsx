@@ -23,7 +23,7 @@ import { Logo } from '../components/Logo';
 import { failed } from '../notices/store';
 import { useAppInfo, useSettings, useUpdateSettings } from '../state/queries';
 import { md, SHAPE } from '../theme';
-import { Page } from './Placeholder';
+import { PAGE, Page } from './Placeholder';
 import { Group, Row } from './settings/parts';
 
 const open = (url: string) => void call('app:openExternal', url);
@@ -266,7 +266,7 @@ export function AboutPage() {
   const version = info?.version ?? '';
 
   return (
-    <Page title="About" subtitle="What this build is, and what it’s made of" width={1080}>
+    <Page title="About" subtitle="What this build is, and what it’s made of" width={PAGE.column}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '4px 0 28px' }}>
         <span style={{ width: 72, height: 72, borderRadius: 22, display: 'grid', placeItems: 'center', background: md('surfaceContainerLow') }}>
           <Logo size={44} />
@@ -295,6 +295,11 @@ export function AboutPage() {
         </Row>
         <Row title="Privacy" body="What stays on this computer, what leaves it only when you ask, and what Tessera never does.">
           <Button onClick={() => setDocument('privacy')}>Read it</Button>
+        </Row>
+        <Row title="Tessera’s page" body={LINKS.site.replace('https://', '')}>
+          <Button startIcon={<OpenInNewRounded />} onClick={() => open(LINKS.site)}>
+            Open
+          </Button>
         </Row>
         <Row title="Source code" body={LINKS.repo}>
           <Button startIcon={<OpenInNewRounded />} onClick={() => open(LINKS.repo)}>

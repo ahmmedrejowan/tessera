@@ -1,6 +1,8 @@
 /** Facts about Tessera itself: where it lives, what it is made of, and how to reach its author. */
 
 export const LINKS = {
+  /** Tessera's own page: what it is, what it can do, and where to get it. */
+  site: 'https://tessara.rejowan.com',
   repo: 'https://github.com/ahmmedrejowan/tessera',
   issues: 'https://github.com/ahmmedrejowan/tessera/issues',
   email: 'hello@rejowan.com',

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { HELP, topicById } from '@shared/help';
 import { useNav } from '../../state/nav';
 import { md, SHAPE } from '../../theme';
-import { Page } from '../Placeholder';
+import { PAGE, Page } from '../Placeholder';
 import { HelpFooter } from './HelpFooter';
 import { TOPIC_ICONS } from './HelpPage';
 
@@ -29,7 +29,7 @@ export function HelpTopicPage({ id, question }: { id: string; question?: string 
 
   if (!topic) {
     return (
-      <Page title="Help" width={1080} {...(back.length ? { onBack: goBack } : {})}>
+      <Page title="Help" width={PAGE.column} {...(back.length ? { onBack: goBack } : {})}>
         <Typography variant="bodyLarge" sx={{ color: md('onSurfaceVariant') }}>
           That topic has gone. Help lists them all.
         </Typography>
@@ -43,7 +43,7 @@ export function HelpTopicPage({ id, question }: { id: string; question?: string 
     <Page
       title={topic.title}
       subtitle={topic.summary}
-      width={1080}
+      width={PAGE.column}
       onBack={() => (back.length ? goBack() : go({ to: 'help' }))}
       aside={
         <span style={{ width: 44, height: 44, borderRadius: 14, display: 'grid', placeItems: 'center', background: md('secondaryContainer'), color: md('onSecondaryContainer') }}>

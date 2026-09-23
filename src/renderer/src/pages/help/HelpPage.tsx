@@ -22,7 +22,7 @@ import { HELP, searchHelp, type HelpTopic } from '@shared/help';
 import { useHealth } from '../../state/health';
 import { useNav } from '../../state/nav';
 import { md, SHAPE, STATE } from '../../theme';
-import { Page } from '../Placeholder';
+import { PAGE, Page } from '../Placeholder';
 import { HelpFooter } from './HelpFooter';
 
 /** The icon each topic is shown with. */
@@ -134,7 +134,7 @@ export function HelpPage() {
   const found = searchHelp(text);
 
   return (
-    <Page title="Help" subtitle="How Tessera works, and what to do when it doesn’t" width={1080}>
+    <Page title="Help" subtitle="How Tessera works, and what to do when it doesn’t" width={PAGE.column}>
       <TextField
         fullWidth
         value={text}

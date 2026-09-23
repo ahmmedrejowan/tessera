@@ -15,6 +15,8 @@ export const PAGE = {
   /** Around what's under it. */
   body: '0 32px 32px',
   gutter: 32,
+  /** One reading column for the pages made of rows and cards: Settings, About, Help. */
+  column: 1000,
 } as const;
 
 interface PageProps {

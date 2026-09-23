@@ -35,6 +35,9 @@ export function HelpFooter() {
         <Button startIcon={<MailOutlineRounded />} onClick={() => open(`mailto:${LINKS.email}?subject=Tessera`)}>
           {LINKS.email}
         </Button>
+        <Button startIcon={<OpenInNewRounded />} onClick={() => open(LINKS.site)}>
+          Tessera’s page
+        </Button>
         <Button startIcon={<OpenInNewRounded />} onClick={() => open(LINKS.repo)}>
           Source code
         </Button>
