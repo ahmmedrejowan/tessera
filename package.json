@@ -58,7 +58,7 @@
     "yauzl": "^3.4.0",
     "zod": "^4.6.5"
   },
-  "homepage": "https://tessara.rejowan.com",
+  "homepage": "https://tessera.rejowan.com",
   "build": {
     "appId": "com.rejowan.tessera",
     "productName": "Tessera",

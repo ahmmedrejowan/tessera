@@ -1,6 +1,6 @@
 # Tessera
 
-[tessara.rejowan.com](https://tessara.rejowan.com)
+[tessera.rejowan.com](https://tessera.rejowan.com)
 
 A desktop library for game assets. Keep every pack you collect: models, textures, sprites, UI,
 audio, music, fonts, HDRIs: in one place, with its licence and source on record, find the piece

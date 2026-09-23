@@ -2,7 +2,7 @@
 
 export const LINKS = {
   /** Tessera's own page: what it is, what it can do, and where to get it. */
-  site: 'https://tessara.rejowan.com',
+  site: 'https://tessera.rejowan.com',
   repo: 'https://github.com/ahmmedrejowan/tessera',
   issues: 'https://github.com/ahmmedrejowan/tessera/issues',
   email: 'hello@rejowan.com',
