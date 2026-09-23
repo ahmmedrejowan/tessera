@@ -21,6 +21,8 @@ interface BrowseState {
   filtersOpen: boolean;
   /** What shows through transparent images: a checkerboard, or plain dark or light. */
   tileBackground: 'checker' | 'dark' | 'light';
+  /** The same choice behind a file in the viewer. */
+  viewerBackground: 'checker' | 'dark' | 'light';
   /** Ids selected in the current mode. */
   selection: Set<number | string>;
   /** The item shown in the details sheet. */
@@ -40,12 +42,13 @@ interface BrowseState {
   setTileSize(v: number): void;
   setFiltersOpen(v: boolean): void;
   setTileBackground(v: 'checker' | 'dark' | 'light'): void;
+  setViewerBackground(v: 'checker' | 'dark' | 'light'): void;
   select(ids: (number | string)[], anchor?: number | null): void;
   focus(item: Selected | null): void;
 }
 
 const STORAGE_KEY = 'tessera.browse';
-type Persisted = Pick<BrowseState, 'mode' | 'assetSort' | 'packSort' | 'includeSupport' | 'tileSize' | 'filtersOpen' | 'tileBackground'>;
+type Persisted = Pick<BrowseState, 'mode' | 'assetSort' | 'packSort' | 'includeSupport' | 'tileSize' | 'filtersOpen' | 'tileBackground' | 'viewerBackground'>;
 
 function load(): Partial<Persisted> {
   try {
@@ -69,6 +72,7 @@ export const useBrowse = create<BrowseState>((set, get) => ({
   tileSize: 160,
   filtersOpen: true,
   tileBackground: 'checker',
+  viewerBackground: 'checker',
   selection: new Set(),
   focused: null,
   anchor: null,
@@ -90,6 +94,7 @@ export const useBrowse = create<BrowseState>((set, get) => ({
   setTileSize: (tileSize) => set({ tileSize: Math.max(TILE_MIN, Math.min(TILE_MAX, Math.round(tileSize))) }),
   setFiltersOpen: (filtersOpen) => set({ filtersOpen }),
   setTileBackground: (tileBackground) => set({ tileBackground }),
+  setViewerBackground: (viewerBackground) => set({ viewerBackground }),
   select: (ids, anchor) => set({ selection: new Set(ids), ...(anchor !== undefined ? { anchor } : {}) }),
   focus: (focused) => set({ focused }),
 }));
@@ -102,7 +107,7 @@ on('index:changed', () => {
 
 // Remember view preferences, not the search or the selection.
 useBrowse.subscribe((s) => {
-  const keep: Persisted = { mode: s.mode, assetSort: s.assetSort, packSort: s.packSort, includeSupport: s.includeSupport, tileSize: s.tileSize, filtersOpen: s.filtersOpen, tileBackground: s.tileBackground };
+  const keep: Persisted = { mode: s.mode, assetSort: s.assetSort, packSort: s.packSort, includeSupport: s.includeSupport, tileSize: s.tileSize, filtersOpen: s.filtersOpen, tileBackground: s.tileBackground, viewerBackground: s.viewerBackground };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(keep));
   } catch {

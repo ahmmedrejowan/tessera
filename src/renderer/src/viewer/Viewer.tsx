@@ -9,6 +9,7 @@ import OpenInNew from '@mui/icons-material/OpenInNew';
 import StarOutlineRounded from '@mui/icons-material/StarOutlineRounded';
 import StarRounded from '@mui/icons-material/StarRounded';
 import IconButton from '@mui/material/IconButton';
+import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
@@ -29,6 +30,9 @@ import ButtonBase from '@mui/material/ButtonBase';
 import { hostLabel } from '@shared/links';
 import { sourceInfo } from '@shared/sources';
 import { EditIcon } from '../components/icons';
+import GridOnOutlined from '@mui/icons-material/GridOnOutlined';
+import { checker } from '../components/AssetThumb';
+import { useBrowse } from '../state/browse';
 import { starAsset } from '../pages/browse/StarButton';
 import { FileLicence } from './FileLicence';
 import { FilmStrip } from './FilmStrip';
@@ -161,6 +165,8 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
   // The licence covering this very file: a pack can hold parts with terms of their own.
   const part = pack ? licenceForPath(pack.meta, assetPath(file.ref)) : null;
   const [editingLicence, setEditingLicence] = useState(false);
+  const [backgroundEl, setBackgroundEl] = useState<HTMLElement | null>(null);
+  const background = useBrowse((b) => b.viewerBackground);
   const proof = useQuery({ queryKey: ['proof', lib, version, asset.packId], queryFn: () => call('pack:proof', asset.packId), enabled: !!lib && infoOpen }).data ?? [];
   const shots = proof.filter((f) => /\.(png|jpe?g|webp|gif)$/i.test(f.name));
   const page = pack ? (pack.meta.source.url ?? sourceInfo(pack.meta.source.site)?.url ?? null) : null;
@@ -288,6 +294,31 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
             ))}
           </Select>
         )}
+        <Tooltip title="What shows behind it">
+          <IconButton onClick={(e) => setBackgroundEl(e.currentTarget)} aria-label="Background">
+            <GridOnOutlined />
+          </IconButton>
+        </Tooltip>
+        <Menu anchorEl={backgroundEl} open={!!backgroundEl} onClose={() => setBackgroundEl(null)}>
+          {(
+            [
+              { value: 'checker', label: 'Checkerboard' },
+              { value: 'light', label: 'White' },
+              { value: 'dark', label: 'Black' },
+            ] as const
+          ).map((o) => (
+            <MenuItem
+              key={o.value}
+              selected={background === o.value}
+              onClick={() => {
+                useBrowse.getState().setViewerBackground(o.value);
+                setBackgroundEl(null);
+              }}
+            >
+              {o.label}
+            </MenuItem>
+          ))}
+        </Menu>
         {stage === 'image' && (
           <Tooltip title="Fit (F) · Actual size (1)">
             <IconButton onClick={() => setCommand({ kind: 'fit', n: Date.now() })} aria-label="Fit">
@@ -330,7 +361,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
         </Tooltip>
       </header>
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-        <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+        <div style={{ flex: 1, minWidth: 0, position: 'relative', ...checker(12, background) }}>
           {side('left', onPrev)}
           {view}
           {side('right', onNext)}
