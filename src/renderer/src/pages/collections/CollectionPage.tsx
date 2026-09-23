@@ -21,7 +21,7 @@ import type { AssetRow, BrowseQuery, Filters } from '@shared/query';
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
 import { formatBytes, formatCount } from '../../components/labels';
-import { failed, notify } from '../../notices/store';
+import { failed, notify, useNotices } from '../../notices/store';
 import { VirtualGrid } from '../../components/VirtualGrid';
 import { useBrowse } from '../../state/browse';
 import { useCollections } from '../../state/collections';
@@ -62,6 +62,14 @@ export function CollectionPage({ id }: { id: string }) {
   const [menu, setMenu] = useState<{ anchor: HTMLElement; asset: AssetRow; index: number } | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Toasts rise above the bar while it is showing, as they do in Browse.
+  const picking = selected.size > 0;
+  useEffect(() => {
+    if (!picking) return;
+    useNotices.getState().setLift(68);
+    return () => useNotices.getState().setLift(0);
+  }, [picking]);
 
   useEffect(() => {
     let live = true;

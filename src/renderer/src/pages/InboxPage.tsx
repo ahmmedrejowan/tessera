@@ -136,6 +136,11 @@ function ReviewCard({ pack, selected, onSelect }: { pack: PackRow; selected: boo
             <OpenInFullRounded />
           </IconButton>
         </Tooltip>
+        <Tooltip title="Delete this pack">
+          <IconButton onClick={() => void removePacks([pack.id], pack.name)} aria-label={`Delete ${pack.name}`} sx={{ color: md('onSurfaceVariant') }}>
+            <DeleteOutlineRounded />
+          </IconButton>
+        </Tooltip>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

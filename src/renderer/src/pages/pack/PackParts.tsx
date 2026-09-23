@@ -78,6 +78,11 @@ function RuleDialog({ open, files, rule, onClose, onSave }: { open: boolean; fil
           value={licence}
           onChange={(_, v) => setLicence(v)}
           getOptionLabel={(l) => l.name}
+          // People type the short form as often as the full name: "CC BY 4.0" finds it too.
+          filterOptions={(options, { inputValue }) => {
+            const q = inputValue.trim().toLowerCase().replace(/[\s-]+/g, '');
+            return q ? options.filter((l) => `${l.name} ${l.short} ${l.id}`.toLowerCase().replace(/[\s-]+/g, '').includes(q)) : options;
+          }}
           isOptionEqualToValue={(a, b) => a.id === b.id}
           renderInput={(p) => <TextField {...p} label="Licence" />}
         />

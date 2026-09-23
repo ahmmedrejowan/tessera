@@ -175,7 +175,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
               startIcon={pack.meta.archived ? <UnarchiveOutlined /> : <ArchiveOutlined />}
               onClick={() => void archivePack(id, !pack.meta.archived)}
             >
-              {pack.meta.archived ? 'Bring it back' : 'Archive it'}
+              {pack.meta.archived ? 'Bring it back' : 'Archive'}
             </Button>
             <Button
               color="error"

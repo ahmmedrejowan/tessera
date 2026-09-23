@@ -42,12 +42,12 @@ export async function removeAssets(items: () => Promise<Items>, count: number, n
   const first = await confirm(
     many ? `Delete ${count.toLocaleString()} assets?` : `Delete ${name ?? 'this asset'}?`,
     many
-      ? 'Their files go to the library’s bin. The packs they came from stay, with their licences and credit lines as they are.'
-      : 'Its file goes to the library’s bin. The pack it came from stays, with its licence and credit line as they are.',
+      ? 'Their files move to the library’s bin, where they wait until you empty it. Emptying the bin is what deletes them for good. The packs they came from stay as they are.'
+      : 'Its file moves to the library’s bin, where it waits until you empty it. Emptying the bin is what deletes it for good. The pack it came from stays as it is.',
     'Delete',
   );
   if (!first) return false;
-  if (many && !(await confirm(`Really delete ${count.toLocaleString()} assets?`, 'That is every one of them, in one go. Anything already copied into a game stays where it is.', 'Delete them'))) return false;
+  if (many && !(await confirm(`Really delete ${count.toLocaleString()} assets?`, 'That is every one of them, in one go. They will be in the bin until you empty it, and anything already copied into a game stays where it is.', 'Delete them'))) return false;
 
   try {
     const before = new Set((await call('bin:list').catch(() => [] as BinEntry[])).map((e) => e.id));
@@ -79,12 +79,12 @@ export async function removePacks(ids: string[], name?: string): Promise<boolean
   const first = await confirm(
     many ? `Delete ${ids.length} packs?` : `Delete ${name ?? 'this pack'}?`,
     many
-      ? 'Their folders go to the library’s bin, licences and all, where they wait until the bin is emptied. Anything already copied into a game stays where it is.'
-      : 'Its folder goes to the library’s bin, licence and all, where it waits until the bin is emptied. Anything already copied into a game stays where it is.',
+      ? 'Their folders move to the library’s bin, licences and all, where they wait until you empty it. Emptying the bin is what deletes them for good. Anything already copied into a game stays where it is.'
+      : 'Its folder moves to the library’s bin, licence and all, where it waits until you empty it. Emptying the bin is what deletes it for good. Anything already copied into a game stays where it is.',
     'Delete',
   );
   if (!first) return false;
-  if (many && !(await confirm(`Really delete ${ids.length} packs?`, 'Every file in them goes at once, and the library forgets them.', 'Delete them'))) return false;
+  if (many && !(await confirm(`Really delete ${ids.length} packs?`, 'Every file in them goes to the bin at once, and the library forgets them until they are put back.', 'Delete them'))) return false;
 
   const before = new Set((await call('bin:list').catch(() => [] as BinEntry[])).map((e) => e.id));
   let gone = 0;

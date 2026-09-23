@@ -131,14 +131,13 @@ export function PackMenu({ anchor, pack, onClose, onOpen }: { anchor: HTMLElemen
         <Item icon={<OpenInFullRounded fontSize="small" />} primary="Open the pack" onClick={run(onOpen)} />
         <Item icon={<FolderOpenOutlined fontSize="small" />} primary="Show its folder" onClick={run(() => void call('pack:reveal', pack.id).catch(failed))} />
         <Divider />
-        <Item icon={<BookmarkAddOutlined fontSize="small" />} primary="Collect its assets" onClick={(e) => setCollections(e.currentTarget)} />
+        <Item icon={<BookmarkAddOutlined fontSize="small" />} primary="Add its assets to a collection" onClick={(e) => setCollections(e.currentTarget)} />
         <Item icon={<DriveFileMoveOutlined fontSize="small" />} primary="Copy its assets to a project" onClick={(e) => setProjects(e.currentTarget)} />
         {page && <Item icon={<LanguageRounded fontSize="small" />} primary="Its page on the web" secondary={hostLabel(page)} onClick={run(() => void call('app:openExternal', page).catch(failed))} />}
         <Divider />
         <Item
           icon={pack.archived ? <UnarchiveOutlined fontSize="small" /> : <ArchiveOutlined fontSize="small" />}
-          primary={pack.archived ? 'Bring it back' : 'Archive it'}
-          {...(pack.archived ? {} : { secondary: 'Kept in full, out of the way of browsing' })}
+          primary={pack.archived ? 'Bring it back' : 'Archive'}
           onClick={run(() => void archivePack(pack.id, !pack.archived))}
         />
         <Item danger icon={<DeleteOutlineRounded fontSize="small" />} primary="Delete" onClick={run(() => void removePacks([pack.id], pack.name))} />

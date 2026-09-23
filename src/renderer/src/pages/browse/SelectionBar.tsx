@@ -99,7 +99,7 @@ export function SelectionBar({ packs, total, all }: { packs?: boolean; total?: n
         </Button>
       )}
       <Button startIcon={<BookmarkAddOutlined />} onClick={(e) => setAnchor(e.currentTarget)} sx={action}>
-        {packs ? 'Collect their assets' : 'Add to collection'}
+        {packs ? 'Add their assets to a collection' : 'Add to a collection'}
       </Button>
       <CopyButton items={refs} variant="text" size="medium" color={md('inversePrimary')} />
       {packs && (
