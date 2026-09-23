@@ -344,14 +344,23 @@ export class LibraryQueries {
 
   /** Library packs whose licence needs attention (see LicenceHealth). */
   health(): LicenceHealth {
-    const rows = this.all<{ id: string; name: string; licence: string; attribution: string | null }>(
-      `SELECT id, name, licence, json_extract(meta_json, '$.licence.attribution') AS attribution FROM packs WHERE status = 'library' AND licence IS NOT NULL ORDER BY name COLLATE NOCASE`,
+    const rows = this.all<{ id: string; name: string; licence: string | null; attribution: string | null; site: string | null; sourceName: string | null; url: string | null }>(
+      `SELECT id, name, licence,
+         json_extract(meta_json, '$.licence.attribution') AS attribution,
+         json_extract(meta_json, '$.source.site') AS site,
+         json_extract(meta_json, '$.source.name') AS sourceName,
+         json_extract(meta_json, '$.source.url') AS url
+       FROM packs WHERE status = 'library' AND archived = 0 ORDER BY name COLLATE NOCASE`,
     );
-    const out: LicenceHealth = { noCreditLine: [], restricted: [] };
+    const out: LicenceHealth = { noLicence: [], noSource: [], noCreditLine: [], restricted: [] };
     for (const r of rows) {
       const info = licenceInfo(r.licence);
-      if (!info || !info.commercial) out.restricted.push({ id: r.id, name: r.name, licence: r.licence });
-      else if (info.attribution && !r.attribution) out.noCreditLine.push({ id: r.id, name: r.name, licence: r.licence });
+      // Missing facts are faults. A licence that forbids selling is a decision, and belongs to
+      // the game that uses it, not to a list of things wrong with the library.
+      if (!r.licence) out.noLicence.push({ id: r.id, name: r.name, licence: r.licence });
+      if (!r.site && !r.sourceName && !r.url) out.noSource.push({ id: r.id, name: r.name, licence: r.licence });
+      if (info?.attribution && !r.attribution) out.noCreditLine.push({ id: r.id, name: r.name, licence: r.licence });
+      if (r.licence && (!info || !info.commercial)) out.restricted.push({ id: r.id, name: r.name, licence: r.licence });
     }
     return out;
   }

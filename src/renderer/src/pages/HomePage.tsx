@@ -17,14 +17,16 @@ import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, type ComponentType, type ReactNode } from 'react';
+import { useState, useEffect, type ComponentType, type ReactNode } from 'react';
 import { ASSET_TYPES, TYPE_LABELS, type AssetType } from '@shared/assets';
 import type { ActivityKind } from '@shared/types';
 import { call, on } from '../api';
 import { formatBytes, formatCount, TYPE_ICONS } from '../components/labels';
 import { LicenceChip } from '../components/LicenceChip';
 import { FAVOURITES } from '@shared/collection';
-import { AssetTile } from './browse/AssetTile';
+import { PackMenu } from './browse/TileMenu';
+import { CollectionIcon, ReviewIcon } from '../components/icons';
+import type { PackRow } from '@shared/query';
 import { useBrowse } from '../state/browse';
 import { useCollections } from '../state/collections';
 import { useImport } from '../state/importer';
@@ -39,7 +41,7 @@ import { useLinkProject } from './projects/ProjectsPage';
 
 
 /** Icons for the kinds of thing that happen in a library. */
-const ACTIVITY_ICONS: Record<ActivityKind, ComponentType<{ sx?: object }>> = {
+export const ACTIVITY_ICONS: Record<ActivityKind, ComponentType<{ sx?: object }>> = {
   added: AddRounded,
   downloaded: DownloadOutlined,
   reviewed: RateReviewOutlined,
@@ -50,7 +52,7 @@ const ACTIVITY_ICONS: Record<ActivityKind, ComponentType<{ sx?: object }>> = {
 };
 
 /** When something happened, in words. */
-function ago(iso: string): string {
+export function ago(iso: string): string {
   const mins = Math.round((Date.now() - Date.parse(iso)) / 60_000);
   if (mins < 1) return 'just now';
   if (mins < 60) return `${mins} min ago`;
@@ -65,10 +67,11 @@ function Happening() {
   const client = useQueryClient();
   useEffect(() => on('activity:changed', () => void client.invalidateQueries({ queryKey: ['activity'] })), [client]);
   // Things happen while another page is open, so this is read again whenever Home comes back.
-  const entries = useQuery({ queryKey: ['activity'], queryFn: () => call('activity:list', 12), staleTime: 0 }).data ?? [];
+  const entries = (useQuery({ queryKey: ['activity'], queryFn: () => call('activity:list', 12), staleTime: 0 }).data ?? []).slice(0, 3);
+  const go = useNav((s) => s.go);
   if (!entries.length) return null;
   return (
-    <Section title="What’s been happening">
+    <Section title="Activity" action={<SeeAll onClick={() => go({ to: 'activity' })} />}>
       <div style={{ borderRadius: SHAPE.lg, background: md('surfaceContainerLow'), padding: '4px 20px' }}>
         {entries.map((e, i) => {
           const Icon = ACTIVITY_ICONS[e.kind] ?? AddRounded;
@@ -107,6 +110,13 @@ function Section({ title, action, children }: { title: string; action?: ReactNod
       </div>
       {children}
     </section>
+  );
+}
+
+/** A row of cards that runs off the side rather than wrapping: Home stays one screen deep. */
+function Row({ children }: { children: ReactNode }) {
+  return (
+    <div style={{ display: 'flex', gap: 16, overflowX: 'auto', overflowY: 'hidden', paddingBottom: 8, scrollbarWidth: 'thin' }}>{children}</div>
   );
 }
 
@@ -242,12 +252,19 @@ export function HomePage() {
   }).data;
   const projects = useProjects().data ?? [];
   const collections = useCollections().data ?? [];
+  const [packMenu, setPackMenu] = useState<{ anchor: HTMLElement; pack: PackRow } | null>(null);
   const name = state?.status === 'ready' ? state.library.name : '';
 
   if (stats && stats.packs === 0 && stats.inbox === 0) return <EmptyHome />;
 
   const types = ASSET_TYPES.filter((t) => t !== 'other' && (stats?.byType[t] ?? 0) > 0);
-  const attention = (stats?.inbox ?? 0) + (health?.noCreditLine.length ?? 0) + (health?.restricted.length ?? 0);
+  // Only what is actually missing. A licence that forbids selling is a choice, and the game that
+  // uses it is where that matters.
+  const watching = [
+    ...(health?.noLicence ?? []).map((p) => ({ ...p, why: 'has no licence on record' })),
+    ...(health?.noSource ?? []).map((p) => ({ ...p, why: 'has nothing on record about where it came from' })),
+    ...(health?.noCreditLine ?? []).map((p) => ({ ...p, why: 'needs a credit line' })),
+  ];
 
   return (
     <Page title={name} subtitle={
@@ -292,19 +309,19 @@ export function HomePage() {
           </div>
         )}
 
-        {attention > 0 ? (
-          <Section title="Needs you">
+        {watching.length > 0 ? (
+          <Section title="Watcher" action={<SeeAll onClick={() => go({ to: 'inbox' })} />}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(stats?.inbox ?? 0) > 0 && (
                 <ButtonBase onClick={() => go({ to: 'inbox' })} sx={{ justifyContent: 'flex-start', gap: 2, p: 2, borderRadius: `${SHAPE.md}px`, backgroundColor: md('tertiaryContainer'), color: md('onTertiaryContainer') }}>
-                  <InboxOutlined />
+                  <ReviewIcon />
                   <Typography variant="bodyLarge" sx={{ flex: 1, textAlign: 'left' }}>
-                    {stats!.inbox} pack{stats!.inbox === 1 ? '' : 's'} waiting in Review for a licence or source
+                    {stats!.inbox} pack{stats!.inbox === 1 ? '' : 's'} waiting in Review for a licence or a source
                   </Typography>
                   <ArrowForward />
                 </ButtonBase>
               )}
-              {[...(health?.restricted ?? []).map((p) => ({ ...p, why: 'isn’t allowed in commercial games' })), ...(health?.noCreditLine ?? []).map((p) => ({ ...p, why: 'needs a credit line' }))].map((p) => (
+              {watching.slice(0, 6).map((p) => (
                 <ButtonBase key={p.id + p.why} onClick={() => go({ to: 'pack', id: p.id })} sx={{ justifyContent: 'flex-start', gap: 2, px: 2, py: 1.25, borderRadius: `${SHAPE.md}px`, backgroundColor: md('surfaceContainerLow'), '&:hover': { backgroundColor: md('surfaceContainer') } }}>
                   <WarningAmberOutlined sx={{ color: md('error') }} />
                   <Typography variant="bodyMedium" sx={{ flex: 1, textAlign: 'left', color: md('onSurface') }}>
@@ -324,77 +341,79 @@ export function HomePage() {
           )
         )}
 
-        {(starredPacks.length > 0 || (starredAssets?.total ?? 0) > 0) && (
-          <Section
-            title="Starred"
-            action={<SeeAll onClick={() => go({ to: 'collection', id: FAVOURITES })} />}
-          >
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+        {starredPacks.length > 0 && (
+          <Section title="Starred" action={<SeeAll onClick={() => go({ to: 'collection', id: FAVOURITES })} />}>
+            <Row>
               {starredPacks.map((p) => (
-                <div key={p.id} style={{ width: 200 }}>
-                  <PackCard pack={p} width={200} selected={false} onClick={() => go({ to: 'pack', id: p.id })} onOpen={() => go({ to: 'pack', id: p.id })} />
+                <div key={p.id} style={{ width: 200, flexShrink: 0 }}>
+                  <PackCard pack={p} width={200} selected={false} onClick={() => go({ to: 'pack', id: p.id })} onOpen={() => go({ to: 'pack', id: p.id })} onMenu={(anchor, x) => setPackMenu({ anchor, pack: x })} />
                 </div>
               ))}
-              {(starredAssets?.rows ?? []).slice(0, 8).map((a) => (
-                <div key={a.id} style={{ width: 120 }}>
-                  <AssetTile
-                    asset={a}
-                    width={120}
-                    selected={false}
-                    onClick={() => openStarred(a)}
-                    onOpen={() => openStarred(a)}
-                    dragItems={(x) => [{ packId: x.packId, ref: x.ref }]}
-                  />
-                </div>
-              ))}
-            </div>
+            </Row>
           </Section>
         )}
 
         {recent && recent.length > 0 && (
           <Section title="Recently added" action={<SeeAll onClick={() => (useBrowse.getState().setMode('packs'), useBrowse.getState().setPackSort('added'), go({ to: 'browse' }))} />}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 16 }}>
+            <Row>
               {recent.map((p) => (
-                <PackCard key={p.id} pack={p} width={200} selected={false} onClick={() => go({ to: 'pack', id: p.id })} onOpen={() => go({ to: 'pack', id: p.id })} />
+                <div key={p.id} style={{ width: 200, flexShrink: 0 }}>
+                  <PackCard pack={p} width={200} selected={false} onClick={() => go({ to: 'pack', id: p.id })} onOpen={() => go({ to: 'pack', id: p.id })} onMenu={(anchor, x) => setPackMenu({ anchor, pack: x })} />
+                </div>
               ))}
-            </div>
+            </Row>
+          </Section>
+        )}
+
+        {collections.length > 0 && (
+          <Section title="Collections" action={<SeeAll onClick={() => go({ to: 'collections' })} />}>
+            <Row>
+              {collections.slice(0, 12).map((c) => (
+                <ButtonBase
+                  key={c.id}
+                  onClick={() => go({ to: 'collection', id: c.id })}
+                  sx={{ flexShrink: 0, width: 200, justifyContent: 'flex-start', gap: 1.5, p: 1.5, borderRadius: `${SHAPE.lg}px`, backgroundColor: md('surfaceContainerLow'), '&:hover': { backgroundColor: md('surfaceContainer') } }}
+                >
+                  <span style={{ width: 40, height: 40, borderRadius: SHAPE.md, display: 'grid', placeItems: 'center', background: md('secondaryContainer'), color: md('onSecondaryContainer'), flexShrink: 0 }}>
+                    <CollectionIcon />
+                  </span>
+                  <span style={{ textAlign: 'left', minWidth: 0 }}>
+                    <Typography variant="titleSmall" noWrap component="div" sx={{ color: md('onSurface') }}>
+                      {c.name}
+                    </Typography>
+                    <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant') }}>
+                      {formatCount(c.assets)} asset{c.assets === 1 ? '' : 's'}
+                    </Typography>
+                  </span>
+                </ButtonBase>
+              ))}
+            </Row>
           </Section>
         )}
 
         {projects.length > 0 && (
-          <Section title="Projects" action={<SeeAll onClick={() => go({ to: 'projects' })} />}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-              {projects.slice(0, 6).map((p) => (
-                <ButtonBase key={p.id} onClick={() => go({ to: 'project', id: p.id })} sx={{ justifyContent: 'flex-start', gap: 2, p: 1.5, borderRadius: `${SHAPE.lg}px`, backgroundColor: md('surfaceContainerLow'), '&:hover': { backgroundColor: md('surfaceContainer') } }}>
+          <Section title="Games" action={<SeeAll onClick={() => go({ to: 'projects' })} />}>
+            <Row>
+              {projects.slice(0, 8).map((p) => (
+                <ButtonBase key={p.id} onClick={() => go({ to: 'project', id: p.id })} sx={{ flexShrink: 0, width: 260, justifyContent: 'flex-start', gap: 2, p: 1.5, borderRadius: `${SHAPE.lg}px`, backgroundColor: md('surfaceContainerLow'), '&:hover': { backgroundColor: md('surfaceContainer') } }}>
                   <EngineBadge engine={p.engine} />
                   <span style={{ textAlign: 'left', minWidth: 0 }}>
                     <Typography variant="titleSmall" noWrap component="div" sx={{ color: md('onSurface') }}>
                       {p.name}
                     </Typography>
                     <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
-                      {p.assets} asset{p.assets === 1 ? '' : 's'} copied
+                      {p.assets} asset{p.assets === 1 ? '' : 's'} linked
                     </Typography>
                   </span>
                 </ButtonBase>
               ))}
-            </div>
-          </Section>
-        )}
-
-        {collections.length > 0 && (
-          <Section title="Collections" action={<SeeAll onClick={() => go({ to: 'collections' })} />}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {collections.slice(0, 12).map((c) => (
-                <Button key={c.id} variant="outlined" onClick={() => go({ to: 'collection', id: c.id })}>
-                  {c.name} · {c.count}
-                </Button>
-              ))}
-            </div>
+            </Row>
           </Section>
         )}
 
         <Happening />
       </div>
+      {packMenu && <PackMenu anchor={packMenu.anchor} pack={packMenu.pack} onClose={() => setPackMenu(null)} onOpen={() => go({ to: 'pack', id: packMenu.pack.id })} />}
     </Page>
   );
 }

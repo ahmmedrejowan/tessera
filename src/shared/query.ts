@@ -119,8 +119,12 @@ export interface LibraryStats {
 
 /** Packs in the library whose licence needs attention before shipping. */
 export interface LicenceHealth {
+  /** No licence on record at all: the one thing that must be fixed. */
+  noLicence: { id: string; name: string; licence: string | null }[];
+  /** Nothing on record about where it came from. */
+  noSource: { id: string; name: string; licence: string | null }[];
   /** The licence asks for credit, but no credit line is recorded. */
-  noCreditLine: { id: string; name: string; licence: string }[];
-  /** Not allowed in commercial games, or terms Tessera can't judge (custom, personal). */
-  restricted: { id: string; name: string; licence: string }[];
+  noCreditLine: { id: string; name: string; licence: string | null }[];
+  /** Not allowed in commercial games, or terms Tessera can't judge: a choice for the game to make. */
+  restricted: { id: string; name: string; licence: string | null }[];
 }
