@@ -3,7 +3,7 @@ import { assetPath } from '@shared/assets';
 import { linksIn } from '@shared/links';
 import { NO_RULES, type CollectionItem } from '@shared/collection';
 import { LICENCES } from '@shared/licences';
-import type { PackEdit } from '@shared/pack';
+import { missingForLibrary, type PackEdit } from '@shared/pack';
 import type { AssetSort, BrowseQuery, Facet, PackSort } from '@shared/query';
 import type { ToolGroup } from '@shared/mcp';
 
@@ -373,7 +373,9 @@ export const TOOLS: Tool[] = [
       }
       await ctx.library.editPack(args.packId, edit);
       ctx.note(`An agent edited “${pack.name}”`, Object.keys(edit).join(', '));
-      return { done: true, stillNeeds: [] };
+      // What the pack still wants before it can leave Review, read back rather than assumed.
+      const after = ctx.library.require().queries.pack(args.packId);
+      return { done: true, stillNeeds: after ? missingForLibrary(after.meta) : [], inReview: after?.meta.status === 'inbox' };
     },
   }),
   define({
@@ -390,12 +392,20 @@ export const TOOLS: Tool[] = [
     run: async (args, ctx) => {
       const pack = ctx.library.require().queries.pack(args.packId);
       if (!pack) throw new Error(`No pack with id ${args.packId}.`);
-      const rules = pack.meta.licences.filter((r) => r.path.toLowerCase() !== args.path.toLowerCase());
+      // A rule that covers nothing is worse than none: it reads as done and changes no file.
+      const at = args.path.replace(/^\/+|\/+$/g, '').toLowerCase();
+      const paths = ctx.library.require().queries.packFiles(args.packId).map((f) => assetPath(f.ref));
+      const covers = paths.filter((p) => p.toLowerCase() === at || p.toLowerCase().startsWith(`${at}/`));
+      if (!covers.length) {
+        const folders = [...new Set(paths.map((p) => p.split('/').slice(0, -1).join('/')).filter(Boolean))].slice(0, 12);
+        throw new Error(`Nothing in this pack is at “${args.path}”. Use a path as list_files shows it${folders.length ? `, for instance a folder like ${folders.slice(0, 3).map((f) => `“${f}”`).join(', ')}` : ''}.`);
+      }
+      const rules = pack.meta.licences.filter((r) => r.path.toLowerCase() !== at);
       await ctx.library.editPack(args.packId, {
         licences: [...rules, { path: args.path, licence: { id: args.licence, attribution: args.creditLine, proof: [], notes: '' } }].sort((a, b) => a.path.localeCompare(b.path)),
       });
       ctx.note(`An agent set the licence for ${args.path}`);
-      return { done: true };
+      return { done: true, files: covers.length };
     },
   }),
   define({
@@ -427,7 +437,8 @@ export const TOOLS: Tool[] = [
     input: z.object({ packIds: z.array(z.string()).min(1), on: z.boolean().default(true) }),
     run: async (args, ctx) => {
       for (const id of args.packIds) await ctx.library.archivePack(id, args.on);
-      ctx.note(args.on ? `An agent archived ${args.packIds.length} pack(s)` : `An agent brought ${args.packIds.length} pack${args.packIds.length === 1 ? '' : 's'} back`);
+      const many = args.packIds.length === 1 ? 'pack' : 'packs';
+      ctx.note(args.on ? `An agent archived ${args.packIds.length} ${many}` : `An agent brought ${args.packIds.length} ${many} back`);
       return { done: true };
     },
   }),
