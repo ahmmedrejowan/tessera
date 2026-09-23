@@ -608,6 +608,8 @@ function registerHandlers(): void {
     if (change.tool) next.off = change.tool.on ? now.off.filter((t) => t !== change.tool!.name) : [...new Set([...now.off, change.tool.name])];
     await settings.update({ mcp: next });
     await mcp.apply();
+    // Which tools are on changes nothing about the socket, so say so here: the window is showing it.
+    broadcast(windows, 'mcp:changed', 0);
     return mcp.status();
   });
   handle('mcp:portFree', (port) => portFree(port));
