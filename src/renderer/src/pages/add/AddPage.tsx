@@ -81,9 +81,9 @@ function ColumnTitle({ children }: { children: ReactNode }) {
 }
 
 /** One part of the form, in a card of its own: a title, a line about it, and the fields. */
-function Card({ title, note, span, children }: { title: string; note?: string; span?: boolean; children: ReactNode }) {
+function Card({ title, note, grow, children }: { title: string; note?: string; grow?: boolean; children: ReactNode }) {
   return (
-    <section style={{ gridColumn: span ? '1 / -1' : 'auto', display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 20px 20px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow') }}>
+    <section style={{ flex: grow ? 1 : 'none', display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 20px 20px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow') }}>
       <div>
         <Typography variant="titleSmall" component="h2" sx={{ color: md('onSurface') }}>
           {title}
@@ -240,12 +240,12 @@ function RememberSite({ form }: { form: AddForm }) {
 }
 
 /** The two things a pack cannot join the library without, and what follows from them. */
-function TermsCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
+function TermsCard({ d, onEdit, grow }: { d: Draft; onEdit: Edit; grow?: boolean }) {
   const f = d.form;
   const lic = licenceInfo(f.licence);
   const mine = f.sourceName === I_MADE_IT;
   return (
-    <Card title="Licence and source" note={mine ? 'Your own work: nothing to credit, nowhere it came from.' : 'The two things every pack needs before it joins the library.'}>
+    <Card title="Licence and source" note={mine ? 'Your own work: nothing to credit, nowhere it came from.' : 'The two things every pack needs before it joins the library.'} grow={grow}>
       <SourceField form={f} onEdit={onEdit} found={d.found.source} />
       <LicenceField form={f} onEdit={onEdit} found={d.found.licence} />
       {!mine && (
@@ -267,19 +267,25 @@ function TermsCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
   );
 }
 
-/** What the pack is called, and which version of it this is. */
+/** What the pack is called: the first thing to get right, so it sits at the top. */
 function NameCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
-  const f = d.form;
   return (
-    <Card title="Name and version" note="How it will show up in your library.">
+    <Card title="Name" note="How it will show up in your library.">
       <div>
-        <Label>Name</Label>
-        <TextField fullWidth value={f.name} onChange={(e) => onEdit({ name: e.target.value })} />
+        <TextField fullWidth value={d.form.name} onChange={(e) => onEdit({ name: e.target.value })} />
         <FoundNote found={d.found.name} />
       </div>
+    </Card>
+  );
+}
+
+/** Which version of the pack this is, beside its picture. */
+function VersionCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
+  const f = d.form;
+  return (
+    <Card title="Version" note="If the download says one.">
       <div>
-        <Label>Version</Label>
-        <TextField fullWidth value={f.version} onChange={(e) => onEdit({ version: e.target.value })} placeholder="If the download says one" />
+        <TextField fullWidth value={f.version} onChange={(e) => onEdit({ version: e.target.value })} placeholder="1.0" />
         <FoundNote found={f.version ? d.found.version : undefined} />
       </div>
     </Card>
@@ -287,26 +293,24 @@ function NameCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
 }
 
 /** What is inside, in the words you will search for later. */
-function DescribeCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
+function DescribeCard({ d, onEdit, grow }: { d: Draft; onEdit: Edit; grow?: boolean }) {
   const f = d.form;
   return (
-    <Card title="What’s inside" note="What you will search for in six months.">
+    <Card title="What’s inside" note="What you will search for in six months." grow={grow}>
       <div>
         <Label>Description</Label>
         <TextField fullWidth multiline minRows={2} maxRows={4} value={f.description} onChange={(e) => onEdit({ description: e.target.value })} placeholder="What’s in it, in a line or two" />
         <FoundNote found={f.description ? d.found.description : undefined} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div>
-          <Label>Style</Label>
-          <Autocomplete multiple freeSolo options={STYLES} value={f.styles} onChange={(_, v) => onEdit({ styles: v as string[] })} renderInput={(p) => <TextField {...p} placeholder={f.styles.length ? '' : 'Pixel art, low poly…'} />} />
-          <FoundNote found={f.styles.length ? d.found.styles : undefined} />
-        </div>
-        <div>
-          <Label>Tags</Label>
-          <Autocomplete multiple freeSolo options={[]} value={f.tags} onChange={(_, v) => onEdit({ tags: (v as string[]).map((t) => t.trim().toLowerCase()).filter(Boolean) })} renderInput={(p) => <TextField {...p} placeholder={f.tags.length ? '' : 'Type and press Enter'} />} />
-          <FoundNote found={f.tags.length ? d.found.tags : undefined} />
-        </div>
+      <div>
+        <Label>Style</Label>
+        <Autocomplete multiple freeSolo options={STYLES} value={f.styles} onChange={(_, v) => onEdit({ styles: v as string[] })} renderInput={(p) => <TextField {...p} placeholder={f.styles.length ? '' : 'Pixel art, low poly…'} />} />
+        <FoundNote found={f.styles.length ? d.found.styles : undefined} />
+      </div>
+      <div>
+        <Label>Tags</Label>
+        <Autocomplete multiple freeSolo options={[]} value={f.tags} onChange={(_, v) => onEdit({ tags: (v as string[]).map((t) => t.trim().toLowerCase()).filter(Boolean) })} renderInput={(p) => <TextField {...p} placeholder={f.tags.length ? '' : 'Type and press Enter'} />} />
+        <FoundNote found={f.tags.length ? d.found.tags : undefined} />
       </div>
     </Card>
   );
@@ -342,21 +346,22 @@ function RecordCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
 }
 
 /**
- * Every card a pack needs, in two columns that keep to themselves, so one long card does not
- * leave a hole beside it. Narrow windows put them in one column instead.
+ * The two columns beside the preview: what the pack is allowed to be used for on the left, what
+ * it holds on the right, with the record of its page under that. Narrow windows stack them.
  */
 function Details({ d, onEdit }: { d: Draft; onEdit: Edit }) {
   const mine = d.form.sourceName === I_MADE_IT;
+  // Both columns stretch to the taller of the two, so the page ends level on either side.
   const column = { display: 'flex', flexDirection: 'column' as const, gap: 16, minWidth: 0 };
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 16, alignItems: 'start' }}>
-      <div style={column}>
-        <TermsCard d={d} onEdit={onEdit} />
-        {!mine && <RecordCard d={d} onEdit={onEdit} />}
-      </div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 16, alignItems: 'stretch' }}>
       <div style={column}>
         <NameCard d={d} onEdit={onEdit} />
-        <DescribeCard d={d} onEdit={onEdit} />
+        <TermsCard d={d} onEdit={onEdit} grow />
+      </div>
+      <div style={column}>
+        <DescribeCard d={d} onEdit={onEdit} grow={mine} />
+        {!mine && <RecordCard d={d} onEdit={onEdit} />}
       </div>
     </div>
   );
@@ -479,7 +484,10 @@ function SinglePage({ d }: { d: Draft }) {
       <Header title="Add pack" file={<FileChip icon={d.item.kind === 'folder' ? <FolderOutlined sx={{ fontSize: 16 }} /> : <FolderZipOutlined sx={{ fontSize: 16 }} />}>{d.item.sources[0]?.split(/[\\/]/).pop()}</FileChip>} />
       <Skipped />
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: '300px minmax(0, 1fr)', gap: 24, padding: '0 32px 24px', alignItems: 'start' }}>
-        <Preview d={d} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          <Preview d={d} />
+          <VersionCard d={d} onEdit={onEdit} />
+        </div>
         <Details d={d} onEdit={onEdit} />
       </div>
       <Footer tone={ready ? 'ok' : 'warn'} note={d.state === 'copying' ? 'Reading the pack…' : ready ? 'Everything needed is filled in' : 'Add a licence and source now, or finish later from Review.'}>
