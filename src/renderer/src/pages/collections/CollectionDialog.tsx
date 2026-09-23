@@ -10,7 +10,7 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { create } from 'zustand';
 import { hasRules, NO_RULES, type CollectionItem, type CollectionRules } from '@shared/collection';
 import { LICENCES, licenceInfo } from '@shared/licences';
@@ -32,6 +32,22 @@ function useTerms(field: 'style' | 'tag' | 'creator') {
   const lib = useLibraryId();
   const version = useIndexVersion();
   return useQuery({ queryKey: ['terms', lib, version, field], queryFn: () => call('library:terms', field), enabled: !!lib }).data ?? [];
+}
+
+/** A part of the form, headed and boxed, as the add page does it. */
+function Card({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 18px 18px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow') }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <AutoAwesomeOutlined sx={{ fontSize: 18, color: md('tertiary') }} />
+        <Typography variant="titleSmall" component="h2" sx={{ flex: 1, color: md('onSurface') }}>
+          {title}
+        </Typography>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 function Rule({ label, note, options, value, onChange, labelOf }: { label: string; note: string; options: string[]; value: string[]; onChange: (v: string[]) => void; labelOf?: (v: string) => string }) {
@@ -96,32 +112,35 @@ export function CollectionDialog({
     >
       <DialogTitle>{title}</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <TextField autoFocus label="Name" value={draft.name} onChange={(e) => set({ name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && draft.name.trim() && onDone({ ...draft, name: draft.name.trim() })} sx={{ mt: 1 }} />
-        <TextField label="What it is for (optional)" value={draft.description} onChange={(e) => set({ description: e.target.value })} multiline minRows={2} />
-        <TextField select label="The game it is for" value={draft.projectId ?? ''} onChange={(e) => set({ projectId: e.target.value || null })} helperText="Its assets can then be copied there in one go.">
-          <MenuItem value="">No game in particular</MenuItem>
-          {projects.map((p) => (
-            <MenuItem key={p.id} value={p.id}>
-              {p.name}
-            </MenuItem>
-          ))}
-        </TextField>
+        <Card title="What it is called">
+          <TextField autoFocus label="Name" value={draft.name} onChange={(e) => set({ name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && draft.name.trim() && onDone({ ...draft, name: draft.name.trim() })} />
+          <TextField label="What it is for (optional)" value={draft.description} onChange={(e) => set({ description: e.target.value })} multiline minRows={2} />
+        </Card>
 
-        <div style={{ padding: 12, borderRadius: SHAPE.md, background: md('surfaceContainerLow') }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <AutoAwesomeOutlined sx={{ fontSize: 18, color: md('tertiary') }} />
-            <Typography variant="titleSmall" sx={{ flex: 1, color: md('onSurface') }}>
-              Only take things that fit
-            </Typography>
+        <Card title="The game it is for">
+          <TextField select label="Game" value={draft.projectId ?? ''} onChange={(e) => set({ projectId: e.target.value || null })} helperText="Everything in it can then be linked to that game in one go.">
+            <MenuItem value="">No game in particular</MenuItem>
+            {projects.map((p) => (
+              <MenuItem key={p.id} value={p.id}>
+                {p.name}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Card>
+
+        <Card
+          title="Only take things that fit"
+          action={
             <Button size="small" onClick={() => (showRules ? (rule(NO_RULES), setShowRules(false)) : setShowRules(true))}>
               {showRules ? 'No rules' : 'Set rules'}
             </Button>
-          </div>
-          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5 }}>
+          }
+        >
+          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: -0.5 }}>
             Anything that does not fit is turned away as it is added, and says why. Leave a line empty and it is not fussy about that.
           </Typography>
           {showRules && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Rule
                 label="Licence"
                 note="CC0, CC BY 4.0…"
@@ -135,7 +154,7 @@ export function CollectionDialog({
               <Rule label="Tags" note="forest, ui…" options={tags.map((t) => t.value)} value={draft.rules.tags} onChange={(tags) => rule({ tags })} />
             </div>
           )}
-        </div>
+        </Card>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
