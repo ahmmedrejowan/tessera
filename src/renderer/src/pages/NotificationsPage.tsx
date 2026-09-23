@@ -115,8 +115,7 @@ export function NotificationsPage() {
           ))}
         </div>
       ) : (
-        <div style={{ minHeight: 320 }}>
-          <EmptyState
+        <EmptyState
             icon={tab === 'recent' ? NotificationsNoneOutlined : InventoryOutlined}
             title={tab === 'recent' ? 'Nothing new' : 'The archive is empty'}
             body={
@@ -124,8 +123,7 @@ export function NotificationsPage() {
                 ? 'Messages about adding packs, downloads, backups and anything that went wrong show up here. Once read, or once the day is over, they move to the archive.'
                 : 'Messages you have read, and ones from earlier days, are kept here.'
             }
-          />
-        </div>
+        />
       )}
     </Page>
   );

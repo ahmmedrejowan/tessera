@@ -389,7 +389,7 @@ export function DownloadsPage() {
         )}
 
         {!rows.length && (
-          <div style={{ flex: 1, minHeight: 260 }}>
+          <div style={{ flex: 1, display: 'flex' }}>
             <EmptyState
               icon={DownloadOutlined}
               title="Bring links, get packs"
