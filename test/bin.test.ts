@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { binFiles, binPack, emptyBin, readBin, restoreFromBin, sweepBin } from '../src/main/library/bin';
 import { createLibrary, DIRS } from '../src/main/library/layout';
@@ -41,7 +41,7 @@ describe('the library bin', () => {
 
   it('takes a whole pack and gives it back', async () => {
     const { root, pack } = await library();
-    const folder = pack.dir.slice(pack.dir.lastIndexOf('/') + 1);
+    const folder = basename(pack.dir);
     await binPack(root, pack.meta.id, 'City Kit', folder, pack.dir, 10);
     expect(existsSync(pack.dir)).toBe(false);
     const [entry] = await readBin(root);
