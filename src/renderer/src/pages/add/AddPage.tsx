@@ -52,22 +52,22 @@ type Edit = (p: Partial<AddForm>, found?: Draft['found']) => void;
 const QUICK = ['CC0-1.0', 'CC-BY-4.0', 'CC-BY-SA-4.0', 'royalty-free'];
 const STYLES = ['Pixel art', 'Low poly', 'Voxel', 'Hand-painted', 'Isometric', 'Cartoon', 'Realistic', 'Sci-fi', 'Stylized'];
 
-/** Under a field: where its value came from. Green when read in the pack, blue when worked out. */
-function FoundNote({ found, hint }: { found: Found | undefined; hint?: string }) {
-  if (!found) return <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5, minHeight: 18 }}>{hint ?? ' '}</Typography>;
+/** Beside a label: a tick when the value was read in the pack, a sparkle when it was worked out. */
+function Found({ found }: { found: Found | undefined }) {
+  if (!found) return null;
   return (
-    <Typography variant="bodySmall" component="div" sx={{ mt: 0.5, minHeight: 18, display: 'flex', alignItems: 'center', gap: 0.5, color: found.sure ? md('primary') : md('onSurfaceVariant') }}>
-      {found.sure ? <CheckCircleRounded sx={{ fontSize: 15 }} /> : <AutoAwesomeRounded sx={{ fontSize: 15, color: md('primary') }} />}
-      From {found.from}
-    </Typography>
+    <Tooltip title={`From ${found.from}`}>
+      <span style={{ display: 'flex', color: md('primary') }}>{found.sure ? <CheckCircleRounded sx={{ fontSize: 14 }} /> : <AutoAwesomeRounded sx={{ fontSize: 14 }} />}</span>
+    </Tooltip>
   );
 }
 
-function Label({ children, needed }: { children: ReactNode; needed?: boolean }) {
+function Label({ children, needed, found }: { children: ReactNode; needed?: boolean; found?: Found }) {
   return (
     <Typography variant="labelMedium" component="div" sx={{ color: md('onSurfaceVariant'), mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.5 }}>
       {children}
       {needed && <ErrorRounded sx={{ fontSize: 15, color: md('tertiary') }} />}
+      <Found found={found} />
     </Typography>
   );
 }
@@ -81,19 +81,13 @@ function ColumnTitle({ children }: { children: ReactNode }) {
 }
 
 /** One part of the form, in a card of its own: a title, a line about it, and the fields. */
-function Card({ title, note, grow, children }: { title: string; note?: string; grow?: boolean; children: ReactNode }) {
+function Card({ title, grow, found, children }: { title: string; grow?: boolean; found?: Found; children: ReactNode }) {
   return (
     <section style={{ flex: grow ? 1 : 'none', display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 20px 20px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow') }}>
-      <div>
-        <Typography variant="titleSmall" component="h2" sx={{ color: md('onSurface') }}>
-          {title}
-        </Typography>
-        {note && (
-          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.25 }}>
-            {note}
-          </Typography>
-        )}
-      </div>
+      <Typography variant="titleSmall" component="h2" sx={{ color: md('onSurface'), display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        {title}
+        <Found found={found} />
+      </Typography>
       {children}
     </section>
   );
@@ -106,7 +100,7 @@ function LicenceField({ form, onEdit, found, compact }: { form: AddForm; onEdit:
   const value = LICENCES.find((l) => l.id === form.licence) ?? null;
   return (
     <div>
-      <Label needed={!form.licence}>Licence</Label>
+      <Label needed={!form.licence} found={form.licence ? found : undefined}>Licence</Label>
       <Autocomplete
         options={LICENCES}
         value={value}
@@ -115,14 +109,12 @@ function LicenceField({ form, onEdit, found, compact }: { form: AddForm; onEdit:
         isOptionEqualToValue={(a, b) => a.id === b.id}
         renderInput={(p) => <TextField {...p} placeholder="Not found in the pack" sx={needSx(!form.licence)} />}
       />
-      {!form.licence ? (
+      {!form.licence && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
           {QUICK.map((id) => (
             <Chip key={id} label={compact ? licenceInfo(id)!.short : licenceInfo(id)!.id === 'royalty-free' ? 'Royalty-free (bought)' : licenceInfo(id)!.short} variant="outlined" onClick={() => onEdit({ licence: id })} />
           ))}
         </div>
-      ) : (
-        <FoundNote found={found} hint={licenceInfo(form.licence)?.attribution ? 'Asks for credit: fill in the credit line' : 'No credit needed'} />
       )}
     </div>
   );
@@ -134,7 +126,7 @@ function SourceField({ form, onEdit, found }: { form: AddForm; onEdit: Edit; fou
   const need = !form.site && !form.url.trim() && !form.sourceName;
   return (
     <div>
-      <Label needed={need}>Where it came from</Label>
+      <Label needed={need} found={form.url || form.site ? found : undefined}>Source</Label>
       <TextField
         fullWidth
         value={form.url}
@@ -160,7 +152,7 @@ function SourceField({ form, onEdit, found }: { form: AddForm; onEdit: Edit; fou
         sx={needSx(need)}
         slotProps={{ input: { startAdornment: <LinkRounded sx={{ color: md('onSurfaceVariant'), mr: 1 }} /> } }}
       />
-      {need || form.sourceName ? (
+      {(need || form.sourceName) && (
         <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
           {[
             [I_DONT_KNOW, 'I don’t know', <HelpOutlineRounded key="h" />],
@@ -190,8 +182,6 @@ function SourceField({ form, onEdit, found }: { form: AddForm; onEdit: Edit; fou
             />
           ))}
         </div>
-      ) : (
-        <FoundNote found={found} hint={site ? `${site.name}` : undefined} />
       )}
     </div>
   );
@@ -245,20 +235,18 @@ function TermsCard({ d, onEdit, grow }: { d: Draft; onEdit: Edit; grow?: boolean
   const lic = licenceInfo(f.licence);
   const mine = f.sourceName === I_MADE_IT;
   return (
-    <Card title="Licence and source" note={mine ? 'Your own work: nothing to credit, nowhere it came from.' : 'The two things every pack needs before it joins the library.'} grow={grow}>
+    <Card title="Licence and source" grow={grow}>
       <SourceField form={f} onEdit={onEdit} found={d.found.source} />
       <LicenceField form={f} onEdit={onEdit} found={d.found.licence} />
       {!mine && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div>
-            <Label>Creator</Label>
+            <Label found={f.creator ? d.found.creator : undefined}>Creator</Label>
             <TextField fullWidth value={f.creator} onChange={(e) => onEdit({ creator: e.target.value })} placeholder="Who made it" />
-            <FoundNote found={f.creator ? d.found.creator : undefined} />
           </div>
           <div>
             <Label>Credit line</Label>
             <TextField fullWidth value={f.attribution} onChange={(e) => onEdit({ attribution: e.target.value })} disabled={!!lic && !lic.attribution} placeholder={lic && !lic.attribution ? `Not needed for ${lic.short}` : 'If the licence asks'} />
-            <FoundNote found={undefined} hint={lic?.attribution ? 'Copied into a project’s credits' : ' '} />
           </div>
         </div>
       )}
@@ -270,11 +258,8 @@ function TermsCard({ d, onEdit, grow }: { d: Draft; onEdit: Edit; grow?: boolean
 /** What the pack is called: the first thing to get right, so it sits at the top. */
 function NameCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
   return (
-    <Card title="Name" note="How it will show up in your library.">
-      <div>
-        <TextField fullWidth value={d.form.name} onChange={(e) => onEdit({ name: e.target.value })} />
-        <FoundNote found={d.found.name} />
-      </div>
+    <Card title="Name" {...(d.found.name ? { found: d.found.name } : {})}>
+      <TextField fullWidth value={d.form.name} onChange={(e) => onEdit({ name: e.target.value })} />
     </Card>
   );
 }
@@ -283,11 +268,8 @@ function NameCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
 function VersionCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
   const f = d.form;
   return (
-    <Card title="Version" note="If the download says one.">
-      <div>
-        <TextField fullWidth value={f.version} onChange={(e) => onEdit({ version: e.target.value })} placeholder="1.0" />
-        <FoundNote found={f.version ? d.found.version : undefined} />
-      </div>
+    <Card title="Version" {...(f.version && d.found.version ? { found: d.found.version } : {})}>
+      <TextField fullWidth value={f.version} onChange={(e) => onEdit({ version: e.target.value })} placeholder="1.0" />
     </Card>
   );
 }
@@ -296,21 +278,18 @@ function VersionCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
 function DescribeCard({ d, onEdit, grow }: { d: Draft; onEdit: Edit; grow?: boolean }) {
   const f = d.form;
   return (
-    <Card title="What’s inside" note="What you will search for in six months." grow={grow}>
+    <Card title="Details" grow={grow}>
       <div>
-        <Label>Description</Label>
+        <Label found={f.description ? d.found.description : undefined}>Description</Label>
         <TextField fullWidth multiline minRows={2} maxRows={4} value={f.description} onChange={(e) => onEdit({ description: e.target.value })} placeholder="What’s in it, in a line or two" />
-        <FoundNote found={f.description ? d.found.description : undefined} />
       </div>
       <div>
-        <Label>Style</Label>
+        <Label found={f.styles.length ? d.found.styles : undefined}>Style</Label>
         <Autocomplete multiple freeSolo options={STYLES} value={f.styles} onChange={(_, v) => onEdit({ styles: v as string[] })} renderInput={(p) => <TextField {...p} placeholder={f.styles.length ? '' : 'Pixel art, low poly…'} />} />
-        <FoundNote found={f.styles.length ? d.found.styles : undefined} />
       </div>
       <div>
-        <Label>Tags</Label>
+        <Label found={f.tags.length ? d.found.tags : undefined}>Tags</Label>
         <Autocomplete multiple freeSolo options={[]} value={f.tags} onChange={(_, v) => onEdit({ tags: (v as string[]).map((t) => t.trim().toLowerCase()).filter(Boolean) })} renderInput={(p) => <TextField {...p} placeholder={f.tags.length ? '' : 'Type and press Enter'} />} />
-        <FoundNote found={f.tags.length ? d.found.tags : undefined} />
       </div>
     </Card>
   );
@@ -321,7 +300,7 @@ function RecordCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
   const f = d.form;
   const hasUrl = /^https?:\/\//i.test(f.url.trim());
   return (
-    <Card title="Keep a record of the page" note={hasUrl ? 'Proof of what the page said the day you downloaded it.' : 'Needs a page link above.'}>
+    <Card title="Proof">
       <div style={{ border: `1px solid ${md('outlineVariant')}`, borderRadius: SHAPE.lg, background: md('surfaceContainerLowest'), padding: '2px 14px' }}>
         {[
           ['snapshot', <PhotoCameraOutlined key="c" />, 'Save a snapshot of the page', 'Kept with the pack, as proof of its licence'],
