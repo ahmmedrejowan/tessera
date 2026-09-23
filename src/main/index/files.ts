@@ -1,6 +1,6 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
-import { isIgnored } from '@shared/assets';
+import { assetPath, isIgnored } from '@shared/assets';
 import { PACK_DIRS } from '../library/layout';
 import { isZip, listZip, readZipEntry } from './zip';
 import { readCachedEntry } from './zipCache';
@@ -36,9 +36,7 @@ export function parseRef(ref: string): { file: string; inside: string[] } {
 }
 
 /** The path shown to people: the ref without `original/` and with archives shown as folders. */
-export function displayPath(ref: string): string {
-  return ref.replace(/^original\//, '').replace(/!/g, '/');
-}
+export const displayPath = assetPath;
 
 async function walk(dir: string, out: string[] = []): Promise<string[]> {
   for (const e of await readdir(dir, { withFileTypes: true }).catch(() => [])) {

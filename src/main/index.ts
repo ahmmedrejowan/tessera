@@ -513,6 +513,7 @@ function registerHandlers(): void {
     }
   });
   handle('pack:detect', (id) => library.detect(id));
+  handle('pack:partLicences', (id) => library.partLicences(id));
   handle('pack:details', (id) => library.details(id));
   handle('pack:discard', (id) => library.discardPack(id));
   handle('pack:recordPage', (id, what) => {

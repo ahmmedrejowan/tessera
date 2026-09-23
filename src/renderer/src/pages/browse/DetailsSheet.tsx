@@ -14,6 +14,8 @@ import { sourceInfo } from '@shared/sources';
 import { call } from '../../api';
 import { AssetThumb } from '../../components/AssetThumb';
 import { formatBytes, formatCount, sourceName, typeSummary } from '../../components/labels';
+import { assetPath } from '@shared/assets';
+import { licenceForPath } from '@shared/pack';
 import { LicenceChip, licenceSummary } from '../../components/LicenceChip';
 import { useBrowse, type Selected } from '../../state/browse';
 import { useIndexVersion, useLibraryId } from '../../state/library';
@@ -42,9 +44,11 @@ function usePack(id: string | null) {
   return useQuery({ queryKey: ['pack', lib, v, id], queryFn: () => call('pack:get', id!), enabled: !!id && !!lib, placeholderData: (p) => p });
 }
 
-function PackSection({ packId }: { packId: string }) {
+function PackSection({ packId, fileRef }: { packId: string; fileRef?: string }) {
   const pack = usePack(packId).data;
   if (!pack) return null;
+  // An asset shows the licence covering it, which may be a rule for part of the pack.
+  const licence = fileRef ? licenceForPath(pack.meta, assetPath(fileRef)) : pack.meta.licence;
   const site = sourceInfo(pack.meta.source.site);
   return (
     <>
@@ -52,13 +56,18 @@ function PackSection({ packId }: { packId: string }) {
       {pack.creator && <Row label="Creator">{pack.creator}</Row>}
       <Row label="Licence">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
-          <LicenceChip id={pack.licence} />
+          <LicenceChip id={licence.id} />
           <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-            {licenceSummary(pack.licence)}
+            {licenceSummary(licence.id)}
           </Typography>
-          {pack.meta.licence.attribution && (
+          {licence !== pack.meta.licence && (
+            <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+              From the part of the pack this file is in.
+            </Typography>
+          )}
+          {licence.attribution && (
             <Typography variant="bodySmall" sx={{ color: md('onSurface'), fontStyle: 'italic' }}>
-              “{pack.meta.licence.attribution}”
+              “{licence.attribution}”
             </Typography>
           )}
         </div>
@@ -139,7 +148,7 @@ function AssetDetails({ id }: { id: number }) {
       <div>
         <Row label="Pack">{asset.packName}</Row>
         {asset.dir && <Row label="Folder">{asset.dir}</Row>}
-        <PackSection packId={asset.packId} />
+        <PackSection packId={asset.packId} fileRef={asset.ref} />
       </div>
     </>
   );

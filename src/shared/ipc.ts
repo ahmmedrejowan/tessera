@@ -68,6 +68,8 @@ export interface Invokes {
   'pack:edit': (id: string, edit: PackEdit) => void;
   /** Licence, source and creator read from the pack's own files. */
   'pack:detect': (id: string) => Detected;
+  /** Licence files inside the pack: parts that may have terms of their own. */
+  'pack:partLicences': (id: string) => { path: string; licence: string; from: string }[];
   /** For the add page: what was detected (with where from) and details worth filling in. */
   'pack:details': (id: string) => { detected: Detected; suggestions: PackSuggestions };
   /** Delete a pack that was only just added and isn't in the library yet (the add page's Cancel). */

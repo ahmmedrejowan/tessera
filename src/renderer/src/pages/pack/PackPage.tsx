@@ -41,6 +41,7 @@ import { useNav } from '../../state/nav';
 import { md, SHAPE } from '../../theme';
 import { AssetTile, TILE_LABEL_HEIGHT } from '../browse/AssetTile';
 import { archivePack } from '../browse/archiving';
+import { PackParts } from './PackParts';
 import { AssetMenu } from '../browse/TileMenu';
 import { useBrowse } from '../../state/browse';
 import { coverHeight, PackCard } from '../browse/PackCard';
@@ -318,6 +319,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
                   </Typography>
                 )}
               </div>
+              <PackParts id={id} meta={pack.meta} files={files} />
               {pack.meta.licence.notes && <Fact label="Notes">{pack.meta.licence.notes}</Fact>}
             </div>
           </div>

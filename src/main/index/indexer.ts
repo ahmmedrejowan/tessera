@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto';
 import { readdir, stat } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
-import { baseName, classify, extOf, kindOf, pathWords, preference, variantKey } from '@shared/assets';
+import { assetPath, baseName, classify, extOf, kindOf, pathWords, preference, variantKey } from '@shared/assets';
 import { licenceInfo } from '@shared/licences';
-import type { PackMeta } from '@shared/pack';
+import { licenceForPath, type PackMeta } from '@shared/pack';
 import { sourceInfo } from '@shared/sources';
 import { PACK_DIRS } from '../library/layout';
 import { listPacks, type PackProblem, type PackRecord } from '../library/packs';
@@ -156,6 +156,8 @@ export class LibraryIndex {
     transaction(this.db, () => {
       if (metaChanged || !known) this.writePackMeta(pack, metaSig);
       if (listing) this.writePackFiles(pack.meta.id, filesSig, listing.files, listing.problems);
+      // Each file carries the licence covering it, so a pack whose parts differ can be browsed by licence.
+      this.relicence(pack.meta);
     });
     return true;
   }
@@ -183,6 +185,18 @@ export class LibraryIndex {
     }
     this.st.deletePackFts!.run(m.id);
     this.st.insertPackFts!.run(m.id, packWords(m));
+  }
+
+  /** Write the licence covering each of a pack's files: its own, or the rule for that part of it. */
+  private relicence(meta: PackMeta): void {
+    if (!meta.licences.length) {
+      this.db.prepare('UPDATE assets SET licence = ? WHERE pack_id = ?').run(meta.licence.id ?? null, meta.id);
+      return;
+    }
+    const set = this.db.prepare('UPDATE assets SET licence = ? WHERE id = ?');
+    for (const r of this.db.prepare('SELECT id, ref FROM assets WHERE pack_id = ?').all(meta.id) as { id: number; ref: string }[]) {
+      set.run(licenceForPath(meta, assetPath(r.ref)).id ?? null, r.id);
+    }
   }
 
   private writePackFiles(packId: string, sig: string, files: PackFile[], problems: string[]): void {

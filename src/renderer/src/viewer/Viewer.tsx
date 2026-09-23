@@ -14,7 +14,8 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { TYPE_LABELS } from '@shared/assets';
+import { assetPath, TYPE_LABELS } from '@shared/assets';
+import { licenceForPath } from '@shared/pack';
 import type { AssetRow } from '@shared/query';
 import { call } from '../api';
 import { displayName, formatBytes, formatCount } from '../components/labels';
@@ -128,6 +129,8 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
   const stage = stageFor(file.ext, file.kind);
   const textures = useQuery({ queryKey: ['textures', lib, version, asset.packId], queryFn: () => call('pack:textures', asset.packId), enabled: !!lib && stage === 'model' }).data;
   const url = fileUrl(file.packId, file.ref);
+  // The licence covering this very file: a pack can hold parts with terms of their own.
+  const part = pack ? licenceForPath(pack.meta, assetPath(file.ref)) : null;
 
   // What the last file reported doesn't describe the next one.
   useEffect(() => {
@@ -320,20 +323,25 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
               </>
             )}
             <InfoRow label="Folder">{file.dir || 'Top level'}</InfoRow>
-            {pack && (
+            {pack && part && (
               <>
                 <div style={{ height: 1, background: md('outlineVariant'), margin: '12px 0' }} />
                 <InfoRow label="Pack">{pack.name}</InfoRow>
                 {pack.creator && <InfoRow label="Creator">{pack.creator}</InfoRow>}
                 <InfoRow label="Licence">
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
-                    <LicenceChip id={pack.licence} />
+                    <LicenceChip id={part.id} />
                     <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-                      {licenceSummary(pack.licence)}
+                      {licenceSummary(part.id)}
                     </Typography>
+                    {part !== pack.meta.licence && (
+                      <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+                        From the part of the pack this file is in.
+                      </Typography>
+                    )}
                   </div>
                 </InfoRow>
-                {pack.meta.licence.attribution && <InfoRow label="Credit">{pack.meta.licence.attribution}</InfoRow>}
+                {part.attribution && <InfoRow label="Credit">{part.attribution}</InfoRow>}
               </>
             )}
           </aside>

@@ -47,7 +47,7 @@ const TERM_FACETS = new Set<Facet>(['genre', 'style', 'tag']);
 /** Where a pack-level facet lives on the `packs` table. */
 const PACK_COLUMN: Partial<Record<Facet, string>> = { source: 'p.source', creator: 'p.creator', licence: 'p.licence' };
 /** Where an asset-level facet lives on the `assets` table. */
-const ASSET_COLUMN: Partial<Record<Facet, string>> = { type: 'a.type', format: 'a.ext' };
+const ASSET_COLUMN: Partial<Record<Facet, string>> = { type: 'a.type', format: 'a.ext', licence: 'a.licence' };
 
 const ASSET_SORT: Record<AssetSort, string> = {
   relevance: 'a.name COLLATE NOCASE, a.id',
@@ -66,7 +66,7 @@ const PACK_SORT: Record<PackSort, string> = {
 
 const FACET_LIMIT = 300;
 
-const ASSET_FIELDS = `a.id, a.pack_id AS packId, p.name AS packName, a.ref, a.name, a.dir, a.ext, a.kind, a.type, a.role, a.size, a.formats,
+const ASSET_FIELDS = `a.id, a.pack_id AS packId, p.name AS packName, a.ref, a.name, a.dir, a.ext, a.kind, a.type, a.role, a.size, a.formats, a.licence,
   EXISTS (SELECT 1 FROM collection_items f WHERE f.collection_id = '${FAVOURITES}' AND f.pack_id = a.pack_id AND f.ref = a.ref) AS fav`;
 type RawAsset = Omit<AssetRow, 'formats' | 'fav'> & { formats: string; fav: number };
 const toAsset = (r: RawAsset): AssetRow => ({ ...r, formats: r.formats ? r.formats.split(' ') : [r.ext], fav: !!r.fav });

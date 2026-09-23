@@ -38,6 +38,17 @@ export const PackLicence = z.object({
 });
 export type PackLicence = z.infer<typeof PackLicence>;
 
+/**
+ * A licence for part of a pack. Bundles often ship a folder with terms of its own, so a rule says
+ * "everything under this path is licensed like this" and the most exact rule for a file wins.
+ */
+export const PackLicenceRule = z.object({
+  /** A folder or a single file inside the pack, as it is shown (no `original/`, archives as folders). */
+  path: z.string().trim().min(1).max(400),
+  licence: PackLicence,
+});
+export type PackLicenceRule = z.infer<typeof PackLicenceRule>;
+
 export const PackPurchase = z.object({
   price: z.number().nonnegative().nullable().default(null),
   currency: z.string().trim().max(8).nullable().default(null),
@@ -55,6 +66,8 @@ export const PackMeta = z
     updatedAt: z.string(),
     source: PackSource.default(() => PackSource.parse({})),
     licence: PackLicence.default(() => PackLicence.parse({})),
+    /** Parts of the pack with terms of their own; the pack's own licence covers the rest. */
+    licences: z.array(PackLicenceRule).default([]),
     purchase: PackPurchase.nullable().default(null),
     version: shortText.nullable().default(null),
     description: text.default(''),
@@ -77,6 +90,7 @@ export const PackEdit = PackMeta.pick({
   name: true,
   source: true,
   licence: true,
+  licences: true,
   purchase: true,
   version: true,
   description: true,
@@ -87,6 +101,24 @@ export const PackEdit = PackMeta.pick({
   cover: true,
 }).partial();
 export type PackEdit = z.infer<typeof PackEdit>;
+
+/** Trailing slashes off, lower case: two paths compare the same way everywhere. */
+const tidy = (path: string) => path.replace(/^\/+|\/+$/g, '').toLowerCase();
+
+/**
+ * The licence that covers one file: the most exact rule whose path contains it, or the pack's own
+ * when no rule does. `path` is the file as it is shown (see `assetPath`).
+ */
+export function licenceForPath(meta: Pick<PackMeta, 'licence' | 'licences'>, path: string): PackLicence {
+  const file = tidy(path);
+  let best: PackLicenceRule | undefined;
+  for (const rule of meta.licences ?? []) {
+    const at = tidy(rule.path);
+    if (!at || !(file === at || file.startsWith(`${at}/`))) continue;
+    if (!best || tidy(rule.path).length > tidy(best.path).length) best = rule;
+  }
+  return best?.licence ?? meta.licence;
+}
 
 /** What still stands between a pack and the library: empty when it may leave the Inbox. */
 export function missingForLibrary(meta: Pick<PackMeta, 'licence' | 'source'>): ('licence' | 'source')[] {

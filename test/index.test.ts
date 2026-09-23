@@ -7,7 +7,7 @@ import { displayPath, listPackFiles, parseRef, readPackFile } from '../src/main/
 import { LibraryIndex } from '../src/main/index/indexer';
 import { LibraryQueries, searchTerms } from '../src/main/index/query';
 import { createLibrary } from '../src/main/library/layout';
-import { createPack, editPack, readPack } from '../src/main/library/packs';
+import { createPack, editPack, listPacks, readPack } from '../src/main/library/packs';
 import { tempDir } from './helpers';
 import { writeZip } from './zipfixture';
 
@@ -170,6 +170,21 @@ describe('index and queries', () => {
     // Every pack's size, whatever a query picked out, comes from the packs themselves.
     const packs = q.packs(base, 'name', 0, 10).rows;
     expect(q.sum('packs', packs.map((p) => p.id))).toBe(packs.reduce((n, p) => n + p.size, 0));
+  });
+
+  it('gives a file the licence of the part of the pack it is in', async () => {
+    expect(new Set(q.assets(base, 'name', 0, 100).rows.map((r) => r.licence))).toEqual(new Set(['CC0-1.0', null]));
+    // The bundle's Models folder came under different terms.
+    const city = (await listPacks(root)).packs.find((p) => p.meta.name === 'City Kit')!;
+    // Paths are as the app shows them: an archive is a folder, so the rule names it too.
+    const meta = await editPack(city, { licences: [{ path: 'kenney_city-kit.zip/Models', licence: { id: 'CC-BY-4.0', attribution: 'By Kenney', proof: [], notes: '' } }] });
+    await index.syncPack(meta, index.known(city.meta.id));
+    const byName = new Map(q.assets(base, 'name', 0, 100).rows.map((r) => [r.name, r.licence]));
+    expect(byName.get('car_sedan.fbx')).toBe('CC-BY-4.0');
+    expect(byName.get('car_crash.ogg')).toBe(null);
+    // And it can be browsed by that licence, a pack included.
+    expect(q.assets({ ...base, filters: { licence: ['CC-BY-4.0'] } }, 'name', 0, 100).rows.map((r) => r.name)).toEqual(['car_sedan.fbx', 'car_taxi.fbx']);
+    expect(q.packs({ ...base, filters: { licence: ['CC-BY-4.0'] } }, 'name', 0, 10).rows.map((p) => p.name)).toEqual(['City Kit']);
   });
 
   it('scopes to the library or the inbox', () => {

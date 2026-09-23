@@ -2,7 +2,8 @@ import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readdir, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
 import { licenceInfo } from '@shared/licences';
-import type { PackMeta } from '@shared/pack';
+import { licenceForPath, type PackMeta } from '@shared/pack';
+import { assetPath } from '@shared/assets';
 import type { CopyPlan, Manifest, ManifestEntry, Project } from '@shared/project';
 import type { AssetRow } from '@shared/query';
 import { sourceInfo } from '@shared/sources';
@@ -112,10 +113,13 @@ export async function planCopy(
     const sizes = new Map(variants.map((v) => [v.ref, v.size]));
     const files: FileJob[] = [...placed].map(([ref, dest]) => ({ packId: item.packId, ref, dest, size: sizes.get(ref) ?? 0 }));
     const m = pack.meta;
-    const info = licenceInfo(m.licence.id);
-    if (!m.licence.id) warnings.add(`“${m.name}” has no licence recorded.`);
-    else if (info && !info.commercial) warnings.add(`“${m.name}” is ${info.short}: not allowed in commercial games.`);
-    if (info?.attribution && !m.licence.attribution) warnings.add(`“${m.name}” needs a credit line and has none yet; the credits file will use its name and creator.`);
+    // The licence covering this very file: a bundle can hold parts with terms of their own.
+    const licence = licenceForPath(m, assetPath(item.ref));
+    const part = licence !== m.licence ? ` (the part of it this asset is in)` : '';
+    const info = licenceInfo(licence.id);
+    if (!licence.id) warnings.add(`“${m.name}”${part} has no licence recorded.`);
+    else if (info && !info.commercial) warnings.add(`“${m.name}”${part} is ${info.short}: not allowed in commercial games.`);
+    if (info?.attribution && !licence.attribution) warnings.add(`“${m.name}”${part} needs a credit line and has none yet; the credits file will use its name and creator.`);
     if (m.status === 'inbox') warnings.add(`“${m.name}” is still in the Inbox.`);
     jobs.push({
       entry: {
@@ -125,8 +129,8 @@ export async function planCopy(
         packName: m.name,
         ref: item.ref,
         copiedRef: chosen.ref,
-        licence: m.licence.id,
-        attribution: m.licence.attribution,
+        licence: licence.id,
+        attribution: licence.attribution,
         creator: m.source.creator,
         sourceUrl: m.source.url ?? sourceInfo(m.source.site)?.url ?? null,
       },

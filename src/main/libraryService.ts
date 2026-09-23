@@ -13,7 +13,7 @@ import { runImport } from './import/run';
 import { LibraryQueries } from './index/query';
 import type { Jobs } from './jobs';
 import { createCollection, deleteCollection, favourites, listCollections, updateCollection, withItems, withoutItems } from './library/collections';
-import { detectPack, packTexts } from './library/detect';
+import { detectPack, partLicences, packTexts } from './library/detect';
 import { suggestDetails } from './import/suggest';
 import { createLibrary, DIRS, inspectFolder, MARKER, PACK_DIRS, readLibraryInfo } from './library/layout';
 import { safeFolderName, uniqueName } from './library/names';
@@ -189,6 +189,13 @@ export class LibraryService {
     const pack = await this.packRecord(id);
     const { files } = await listPackFiles(pack.dir);
     return detectPack(pack.dir, files, { rules: this.d.siteRules(), url: pack.meta.source.url });
+  }
+
+  /** Licence files inside a pack: parts of it that may come under terms of their own. */
+  async partLicences(id: string): Promise<{ path: string; licence: string; from: string }[]> {
+    const pack = await this.packRecord(id);
+    const { files } = await listPackFiles(pack.dir);
+    return partLicences(pack.dir, files);
   }
 
   /**

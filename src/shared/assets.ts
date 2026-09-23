@@ -63,6 +63,9 @@ export const extOf = (name: string): string => {
 
 export const baseName = (path: string): string => path.slice(path.lastIndexOf('/') + 1);
 
+/** The path a file is shown at: the ref without `original/`, with archives shown as folders. */
+export const assetPath = (ref: string): string => ref.replace(/^original\//, '').replace(/!/g, '/');
+
 export function isIgnored(path: string): boolean {
   return IGNORED_DIR.test(path) || IGNORED_NAME.test(baseName(path)) || IGNORED_EXT.has(extOf(path));
 }

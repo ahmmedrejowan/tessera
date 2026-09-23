@@ -1,6 +1,6 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { baseName, kindOf, pathWords } from '@shared/assets';
+import { assetPath, baseName, kindOf, pathWords } from '@shared/assets';
 import type { Detected, SiteRule } from '@shared/types';
 import { detectLicence } from '@shared/licences';
 import { ruleFor } from '@shared/siteRules';
@@ -36,6 +36,32 @@ export async function packTexts(packDir: string, files: PackFile[]): Promise<{ f
     }
   }
   return texts;
+}
+
+/**
+ * Licence files that sit inside the pack rather than at its top: a bundle often holds folders that
+ * came under different terms. Each one becomes a suggested rule for the folder holding it.
+ */
+export async function partLicences(packDir: string, files: PackFile[]): Promise<{ path: string; licence: string; from: string }[]> {
+  const out: { path: string; licence: string; from: string }[] = [];
+  const candidates = files
+    .filter((f) => f.size <= TEXT_MAX && isText(f.ref) && /licen[cs]e|copying|eula|terms/i.test(baseName(f.ref.replace(/!/g, '/'))))
+    .slice(0, 40);
+  for (const f of candidates) {
+    const shown = assetPath(f.ref);
+    const slash = shown.lastIndexOf('/');
+    // A licence at the top of the pack is the pack's own; only the ones inside say something new.
+    if (slash < 0) continue;
+    const path = shown.slice(0, slash);
+    if (out.some((o) => o.path === path)) continue;
+    try {
+      const licence = detectLicence((await readPackFile(packDir, f.ref, TEXT_MAX)).toString('utf8'));
+      if (licence) out.push({ path, licence, from: shown });
+    } catch {
+      // unreadable: skip
+    }
+  }
+  return out;
 }
 
 /** What is known about a pack before its files are read. */

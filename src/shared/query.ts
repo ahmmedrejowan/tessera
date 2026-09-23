@@ -62,6 +62,8 @@ export interface AssetRow {
   formats: string[];
   /** Starred by its owner. */
   fav: boolean;
+  /** The licence covering this file: the pack's own, or the rule for the part of the pack it is in. */
+  licence: string | null;
 }
 
 export interface PackRow {
