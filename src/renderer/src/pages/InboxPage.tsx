@@ -8,15 +8,18 @@ import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded';
 import RateReviewOutlined from '@mui/icons-material/RateReviewOutlined';
 import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { LICENCES, OWN_WORK } from '@shared/licences';
+import { LICENCES, licenceInfo, OWN_WORK } from '@shared/licences';
 import type { PackRow } from '@shared/query';
 import { sourceFromUrl } from '@shared/sources';
 import { call } from '../api';
@@ -27,7 +30,7 @@ import { I_DONT_KNOW, I_MADE_IT, useAdding } from '../state/adding';
 import { useImport } from '../state/importer';
 import { useIndexVersion, useLibraryId } from '../state/library';
 import { useNav } from '../state/nav';
-import { md, SHAPE } from '../theme';
+import { md, mdAlpha, SHAPE } from '../theme';
 import { coverHeight, PackCard } from './browse/PackCard';
 import { PAGE, Page } from './Placeholder';
 
@@ -39,11 +42,42 @@ const ago = (iso: string) => {
 /** The dashed outline that says a field still wants filling in. */
 const needSx = (need: boolean): SxProps<Theme> => (need ? { '& .MuiOutlinedInput-notchedOutline': { borderColor: md('tertiary'), borderStyle: 'dashed' } } : {});
 
+/** The licences worth one click; the rest are in the list. */
+const QUICK = ['CC0-1.0', 'CC-BY-4.0', 'royalty-free'];
+
+interface Edit {
+  licence?: string | null;
+  url?: string;
+  name?: string | null;
+}
+
+/**
+ * Fill in one waiting pack and, once it has both a licence and a source, move it into the
+ * library. Used by a card and by filling several in at once.
+ */
+async function apply(id: string, edit: Edit): Promise<boolean> {
+  const pack = await call('pack:get', id);
+  if (!pack) return false;
+  const meta = pack.meta;
+  const url = edit.url !== undefined ? edit.url.trim() || null : meta.source.url;
+  const found = url ? sourceFromUrl(url) : null;
+  const site = edit.url !== undefined ? (found?.id ?? meta.source.site) : meta.source.site;
+  const name = edit.name !== undefined ? edit.name : meta.source.name;
+  const licence = edit.licence !== undefined ? edit.licence : meta.licence.id;
+  await call('pack:edit', id, {
+    licence: { ...meta.licence, id: licence },
+    source: { ...meta.source, url, site, name, ...(found?.creator && !meta.source.creator ? { creator: found.creator } : {}) },
+  });
+  const done = !!licence && !!(url || site || name);
+  if (done) await call('pack:status', id, 'library');
+  return done;
+}
+
 /**
  * One pack waiting for its details, with room to fill them in: the two fields that matter, the
  * shortcuts for work of your own or a download you cannot place, and what is still missing.
  */
-function ReviewCard({ pack }: { pack: PackRow }) {
+function ReviewCard({ pack, selected, onSelect }: { pack: PackRow; selected: boolean; onSelect: (id: string, on: boolean) => void }) {
   const go = useNav((s) => s.go);
   const meta = useQuery({ queryKey: ['review-pack', pack.id, pack.licence, pack.source], queryFn: () => call('pack:get', pack.id) }).data?.meta;
   const [url, setUrl] = useState('');
@@ -54,23 +88,10 @@ function ReviewCard({ pack }: { pack: PackRow }) {
   const hasSource = !!(meta?.source.site || meta?.source.url || named);
   const mine = named === I_MADE_IT;
 
-  /** Save, and move it into the library once it has both. */
-  const save = async (edit: { licence?: string | null; url?: string; name?: string | null }) => {
+  const save = async (edit: Edit) => {
     if (!meta) return;
     try {
-      const nextUrl = edit.url !== undefined ? edit.url.trim() || null : meta.source.url;
-      const found = nextUrl ? sourceFromUrl(nextUrl) : null;
-      const site = edit.url !== undefined ? (found?.id ?? meta.source.site) : meta.source.site;
-      const name = edit.name !== undefined ? edit.name : meta.source.name;
-      const nextLicence = edit.licence !== undefined ? edit.licence : meta.licence.id;
-      await call('pack:edit', pack.id, {
-        licence: { ...meta.licence, id: nextLicence },
-        source: { ...meta.source, url: nextUrl, site, name, ...(found?.creator && !meta.source.creator ? { creator: found.creator } : {}) },
-      });
-      if (nextLicence && (nextUrl || site || name)) {
-        await call('pack:status', pack.id, 'library');
-        notify.success(`“${meta.name}” is in the library.`);
-      }
+      if (await apply(pack.id, edit)) notify.success(`“${meta.name}” is in the library.`);
     } catch (e) {
       failed(e);
     }
@@ -89,11 +110,12 @@ function ReviewCard({ pack }: { pack: PackRow }) {
     });
   };
 
-  const missing = [!meta?.licence.id && 'a licence', !hasSource && 'where it came from'].filter(Boolean) as string[];
+  const missing = [!meta?.licence.id && 'a licence', !hasSource && 'a source'].filter(Boolean) as string[];
 
   return (
-    <section style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 20, borderRadius: SHAPE.lg, background: md('surfaceContainerLow') }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 20, borderRadius: SHAPE.lg, background: selected ? md('secondaryContainer') : md('surfaceContainerLow') }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <Checkbox checked={selected} onChange={(_, on) => onSelect(pack.id, on)} sx={{ mt: -0.5, ml: -1 }} slotProps={{ input: { 'aria-label': `Pick ${pack.name}` } }} />
         <div style={{ width: 96, height: coverHeight(96) + 8, overflow: 'hidden', pointerEvents: 'none', flexShrink: 0 }}>
           <PackCard pack={pack} width={96} selected={false} onClick={() => undefined} onOpen={() => undefined} />
         </div>
@@ -126,11 +148,18 @@ function ReviewCard({ pack }: { pack: PackRow }) {
           isOptionEqualToValue={(a, b) => a.id === b.id}
           renderInput={(p) => <TextField {...p} placeholder="Choose a licence" sx={needSx(!licence)} />}
         />
+        {!licence && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+            {QUICK.map((id) => (
+              <Chip key={id} size="small" label={licenceInfo(id)!.short} variant="outlined" onClick={() => void save({ licence: id })} />
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <Typography variant="labelMedium" sx={{ color: md('onSurfaceVariant') }}>
-          Where it came from
+          Source
         </Typography>
         <TextField
           size="small"
@@ -151,7 +180,7 @@ function ReviewCard({ pack }: { pack: PackRow }) {
 
       <Typography variant="bodySmall" component="div" sx={{ color: missing.length ? md('onSurfaceVariant') : md('primary'), display: 'flex', alignItems: 'center', gap: 0.5 }}>
         {missing.length ? (
-          `Still needs ${missing.join(' and ')}.`
+          `Needs ${missing.join(' and ')}.`
         ) : (
           <>
             <CheckCircleRounded sx={{ fontSize: 15 }} /> Ready for the library.
@@ -159,6 +188,69 @@ function ReviewCard({ pack }: { pack: PackRow }) {
         )}
       </Typography>
     </section>
+  );
+}
+
+
+/** Filling in several packs at once: the same licence, or the same answer about where they came from. */
+function FillMany({ ids, onDone }: { ids: string[]; onDone: () => void }) {
+  const [menu, setMenu] = useState<HTMLElement | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const run = async (edit: Edit) => {
+    setBusy(true);
+    let moved = 0;
+    try {
+      for (const id of ids) if (await apply(id, edit)) moved++;
+      notify.success(moved ? `${moved} of ${ids.length} went into the library.` : `${ids.length} updated.`);
+      onDone();
+    } catch (e) {
+      failed(e);
+    } finally {
+      setBusy(false);
+      setMenu(null);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: '50%',
+        bottom: 28,
+        transform: 'translateX(-50%)',
+        zIndex: 6,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 12px 10px 20px',
+        borderRadius: SHAPE.full,
+        background: md('inverseSurface'),
+        color: md('inverseOnSurface'),
+        boxShadow: `0 6px 20px ${mdAlpha('shadow', 0.3)}`,
+      }}
+    >
+      <Typography variant="labelLarge">{ids.length} picked</Typography>
+      <Button disabled={busy} onClick={(e) => setMenu(e.currentTarget)} sx={{ color: md('inversePrimary') }}>
+        Licence
+      </Button>
+      <Menu anchorEl={menu} open={!!menu} onClose={() => setMenu(null)} slotProps={{ paper: { sx: { maxHeight: 420 } } }}>
+        {LICENCES.map((l) => (
+          <MenuItem key={l.id} onClick={() => void run({ licence: l.id })}>
+            {l.name}
+          </MenuItem>
+        ))}
+      </Menu>
+      <Button startIcon={<PersonOutlineRounded />} disabled={busy} onClick={() => void run({ name: I_MADE_IT, url: '', licence: OWN_WORK })} sx={{ color: md('inversePrimary') }}>
+        I made them
+      </Button>
+      <Button startIcon={<HelpOutlineRounded />} disabled={busy} onClick={() => void run({ name: I_DONT_KNOW, url: '' })} sx={{ color: md('inversePrimary') }}>
+        I don’t know
+      </Button>
+      <Button disabled={busy} onClick={onDone} sx={{ color: md('inverseOnSurface') }}>
+        Clear
+      </Button>
+    </div>
   );
 }
 
@@ -176,9 +268,22 @@ export function InboxPage() {
   const query = { scope: 'inbox' as const, text: '', filters: {} };
   const packs = useQuery({ queryKey: ['inbox', lib, version], queryFn: () => call('browse:packs', query, 'added', 0, 1000), enabled: !!lib, placeholderData: (p) => p }).data;
   const rows = (packs?.rows ?? []).filter((p) => !adding.has(p.id));
+  const [picked, setPicked] = useState<string[]>([]);
+  const here = new Set(rows.map((r) => r.id));
+  const chosen = picked.filter((id) => here.has(id));
+  const select = (id: string, on: boolean) => setPicked((was) => (on ? [...was, id] : was.filter((x) => x !== id)));
 
   return (
-    <Page title="Review" subtitle={rows.length ? `${rows.length} pack${rows.length === 1 ? '' : 's'} waiting for a licence and a source` : 'Packs waiting for a licence and a source'} flush>
+    <Page
+      title="Review"
+      subtitle={rows.length ? `${rows.length} pack${rows.length === 1 ? '' : 's'} waiting for a licence and a source` : 'Packs waiting for a licence and a source'}
+      flush
+      actions={
+        rows.length > 1 ? (
+          <Button onClick={() => setPicked(chosen.length === rows.length ? [] : rows.map((r) => r.id))}>{chosen.length === rows.length ? 'Pick none' : 'Pick all'}</Button>
+        ) : undefined
+      }
+    >
       {packs && !rows.length ? (
         <EmptyState
           icon={RateReviewOutlined}
@@ -197,11 +302,12 @@ export function InboxPage() {
         />
       ) : (
         <div style={{ padding: PAGE.body }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))', gap: 16, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16, alignItems: 'start' }}>
             {rows.map((p) => (
-              <ReviewCard key={p.id} pack={p} />
+              <ReviewCard key={p.id} pack={p} selected={chosen.includes(p.id)} onSelect={select} />
             ))}
           </div>
+          {chosen.length > 0 && <FillMany ids={chosen} onDone={() => setPicked([])} />}
         </div>
       )}
     </Page>
