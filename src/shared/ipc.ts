@@ -117,6 +117,8 @@ export interface Invokes {
   /** Create a collection (manual with items, or smart with a query); returns its id. */
   'collections:create': (name: string, init: { description?: string; items?: CollectionItem[]; packs?: string[]; query?: SmartQuery | null; rules?: CollectionRules; projectId?: string | null }) => string;
   'collections:change': (id: string, change: CollectionChange) => CollectionResult;
+  /** The collections holding this pack, or this one file: what a thing belongs to. */
+  'collections:holding': (packId: string, ref?: string) => { id: string; name: string }[];
   /** Star assets, or take the star off: they go in and out of the built-in Favourites collection. */
   'favourites:assets': (items: CollectionItem[], on: boolean) => void;
   /** Star a pack, in its own record, so the star travels with it. */

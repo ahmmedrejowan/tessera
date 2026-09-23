@@ -36,6 +36,20 @@ import { useIndexVersion, useLibraryId } from '../../state/library';
 import { useNav } from '../../state/nav';
 import { md, SHAPE } from '../../theme';
 import { AssetTile, TILE_LABEL_HEIGHT } from '../browse/AssetTile';
+import ButtonBase from '@mui/material/ButtonBase';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
+import DriveFileMoveOutlined from '@mui/icons-material/DriveFileMoveOutlined';
+import { HEADER_SIZE, ItemHeader } from '../../components/ItemHeader';
+import { Scrolling } from '../../components/Scrolling';
+import { CollectionMenu } from '../collections/CollectionMenu';
+import { ProjectMenu } from '../projects/ProjectMenu';
+import { useActiveProject } from '../../state/projects';
+import { Cover } from '../browse/PackCard';
+import { starPack, StarButton } from '../browse/StarButton';
 import { archivePack } from '../browse/archiving';
 import { removePacks } from '../browse/deleting';
 import { PackParts } from './PackParts';
@@ -74,6 +88,25 @@ function Yes({ ok, children }: { ok: boolean; children: ReactNode }) {
   );
 }
 
+/** A line in one of the header's lists: what it is, and what can be done about it. */
+function Row({ label, note, children }: { label: string; note?: string; children: ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 4px', borderBottom: `1px solid ${md('outlineVariant')}` }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="bodyMedium" noWrap sx={{ color: md('onSurface') }}>
+          {label}
+        </Typography>
+        {note && (
+          <Typography variant="bodySmall" noWrap sx={{ color: md('onSurfaceVariant') }}>
+            {note}
+          </Typography>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 /** One pack: its assets, all its files, its licence and what's known about it. */
 export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   const lib = useLibraryId();
@@ -101,6 +134,12 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   }, [files]);
 
   const [menu, setMenu] = useState<{ anchor: HTMLElement; asset: AssetRow; index: number } | null>(null);
+  const [showing, setShowing] = useState<'games' | 'collections' | 'types' | null>(null);
+  const [copying, setCopying] = useState<HTMLElement | null>(null);
+  const [collecting, setCollecting] = useState<HTMLElement | null>(null);
+  const active = useActiveProject();
+  const usage = useQuery({ queryKey: ['usage', lib, version, id], queryFn: () => call('projects:usage', [id]), enabled: !!lib }).data ?? [];
+  const holding = useQuery({ queryKey: ['holding', lib, version, id], queryFn: () => call('collections:holding', id), enabled: !!lib }).data ?? [];
 
   const render = useCallback(
     (i: number, width: number) => {
@@ -121,6 +160,10 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   );
 
   if (!pack) return null;
+  const kinds = Object.entries(pack.types).sort((a, b) => b[1] - a[1]);
+  const copyLabel = active ? `Copy to ${active.name}` : 'Copy to a game';
+  // The creator and the site are often the same name; say it once.
+  const where = [...new Set([pack.creator, sourceName(pack.source), pack.meta.version].filter(Boolean))].join(' · ') || 'No creator recorded';
   const missing = missingForLibrary(pack.meta);
   const info = licenceInfo(pack.licence);
   const site = sourceInfo(pack.meta.source.site);
@@ -138,57 +181,67 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <header style={{ display: 'flex', gap: 24, padding: '20px 32px 12px', alignItems: 'flex-start' }}>
-        {back.length > 0 && (
-          <Tooltip title="Back">
-            <IconButton onClick={goBack} aria-label="Back" sx={{ mt: -0.5, ml: -1.5 }}>
-              <ArrowBack />
-            </IconButton>
-          </Tooltip>
-        )}
-        <div aria-hidden style={{ width: 200, flexShrink: 0, height: coverHeight(200) + 12, overflow: 'hidden', pointerEvents: 'none' }}>
-          <PackCard pack={pack} width={200} selected={false} onClick={() => undefined} onOpen={() => undefined} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Typography variant="headlineSmall" component="h1" sx={{ color: md('onSurface') }}>
-            {pack.name}
+      <ItemHeader
+        {...(back.length > 0 ? { onBack: goBack } : {})}
+        preview={
+          <div aria-hidden style={{ width: HEADER_SIZE, height: HEADER_SIZE, borderRadius: SHAPE.md, overflow: 'hidden', background: md('surfaceContainerHigh') }}>
+            <Cover pack={pack} width={HEADER_SIZE + 12} height={HEADER_SIZE} />
+          </div>
+        }
+        star={<StarButton on={pack.fav} name={pack.name} selected onToggle={(on) => starPack(id, on)} />}
+        name={pack.name}
+        facts={
+          <Typography variant="bodyMedium" component="span" sx={{ color: md('onSurfaceVariant') }}>
+            <ButtonBase onClick={() => setTab('files')} sx={{ borderRadius: `${SHAPE.sm}px`, px: 0.25 }}>
+              <Typography variant="bodyMedium" sx={{ color: md('primary') }}>
+                {formatCount(pack.fileCount)} files
+              </Typography>
+            </ButtonBase>
+            {' · '}
+            {typeSummary(pack.types, 3)}
+            {kinds.length > 3 && (
+              <ButtonBase onClick={() => setShowing('types')} sx={{ borderRadius: `${SHAPE.sm}px`, px: 0.25 }}>
+                <Typography variant="bodyMedium" sx={{ color: md('primary') }}>
+                  +{kinds.length - 3}
+                </Typography>
+              </ButtonBase>
+            )}
+            {' · '}
+            {formatBytes(pack.size)}
           </Typography>
-          <Typography variant="bodyLarge" sx={{ color: md('onSurfaceVariant') }}>
-            {typeSummary(pack.types, 4)} · {formatCount(pack.fileCount)} files · {formatBytes(pack.size)}
-          </Typography>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        }
+        licence={
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
             <LicenceChip id={pack.licence} />
-            {sourceName(pack.source) && <Chip size="small" variant="outlined" label={sourceName(pack.source)} />}
-            {pack.creator && pack.creator !== sourceName(pack.source) && <Chip size="small" variant="outlined" label={pack.creator} />}
-            {pack.status === 'inbox' && <Chip size="small" icon={<InboxOutlined />} label="In the Inbox" sx={{ backgroundColor: md('tertiaryContainer'), color: md('onTertiaryContainer') }} />}
+            {pack.meta.licences.length > 0 && (
+              <Chip size="small" variant="outlined" label={`${pack.meta.licences.length} part${pack.meta.licences.length === 1 ? '' : 's'} differ`} onClick={() => setTab('licence')} />
+            )}
+            {pack.status === 'inbox' && <Chip size="small" icon={<InboxOutlined />} label="In Review" sx={{ backgroundColor: md('tertiaryContainer'), color: md('onTertiaryContainer') }} />}
             {pack.meta.archived && <Chip size="small" icon={<ArchiveOutlined />} label="Archived" sx={{ backgroundColor: md('surfaceContainerHighest'), color: md('onSurfaceVariant') }} />}
+            <Scrolling title={where} style={{ flexShrink: 1, minWidth: 0 }}>
+              <Typography variant="bodySmall" component="span" sx={{ color: md('onSurfaceVariant') }}>
+                {where}
+              </Typography>
+            </Scrolling>
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-            <Button variant="contained" startIcon={<EditOutlined />} onClick={() => setEditing(true)}>
-              Edit details
-            </Button>
-            <Button variant="outlined" startIcon={<FolderOpenOutlined />} onClick={() => void call('pack:reveal', id)}>
-              Show folder
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={pack.meta.archived ? <UnarchiveOutlined /> : <ArchiveOutlined />}
-              onClick={() => void archivePack(id, !pack.meta.archived)}
-            >
-              {pack.meta.archived ? 'Bring it back' : 'Archive'}
-            </Button>
-            <Button
-              color="error"
-              startIcon={<DeleteOutlined />}
-              onClick={async () => {
-                if (await removePacks([id], pack.name)) go({ to: 'browse' });
-              }}
-            >
-              Delete
-            </Button>
-          </div>
-        </div>
-      </header>
+        }
+        games={{ names: usage.map((u) => u.name), total: usage.length, onOpen: () => setShowing('games') }}
+        collections={{ names: holding.map((c) => c.name), total: holding.length, onOpen: () => setShowing('collections') }}
+        actions={[
+          { label: copyLabel, icon: DriveFileMoveOutlined, primary: true, onClick: (anchor) => setCopying(anchor) },
+          { label: 'Add to collection', icon: BookmarkAddOutlined, onClick: (anchor) => setCollecting(anchor) },
+          { label: 'Edit details', icon: EditOutlined, onClick: () => setEditing(true) },
+          { label: pack.meta.archived ? 'Bring it back' : 'Archive', icon: pack.meta.archived ? UnarchiveOutlined : ArchiveOutlined, onClick: () => void archivePack(id, !pack.meta.archived) },
+          {
+            label: 'Delete',
+            icon: DeleteOutlined,
+            danger: true,
+            onClick: async () => {
+              if (await removePacks([id], pack.name)) go({ to: 'browse' });
+            },
+          },
+        ]}
+      />
 
       {pack.status === 'inbox' && (
         <Alert
@@ -368,6 +421,58 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
         )}
       </div>
 
+      <ProjectMenu anchor={copying} onClose={() => setCopying(null)} items={async () => (await call('pack:files', id)).map((f) => ({ packId: f.packId, ref: f.ref }))} />
+      <CollectionMenu anchor={collecting} onClose={() => setCollecting(null)} packs={() => Promise.resolve([id])} />
+
+      <Dialog open={showing !== null} onClose={() => setShowing(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>
+          {showing === 'games' ? 'Games using this pack' : showing === 'collections' ? 'Collections holding this pack' : "What's in this pack"}
+        </DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          {showing === 'games' &&
+            (usage.length ? (
+              usage.map((u) => (
+                <Row key={u.projectId} label={u.name} note={`${formatCount(u.files)} file${u.files === 1 ? '' : 's'} copied`}>
+                  <Button size="small" onClick={() => (setShowing(null), go({ to: 'project', id: u.projectId }))}>
+                    Open
+                  </Button>
+                </Row>
+              ))
+            ) : (
+              <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
+                None of your games use it yet.
+              </Typography>
+            ))}
+          {showing === 'collections' &&
+            (holding.length ? (
+              holding.map((c) => (
+                <Row key={c.id} label={c.name}>
+                  <Button size="small" onClick={() => (setShowing(null), go({ to: 'collection', id: c.id }))}>
+                    Open
+                  </Button>
+                  <Button size="small" color="error" onClick={() => void call('collections:change', c.id, { removePacks: [id] })}>
+                    Take it out
+                  </Button>
+                </Row>
+              ))
+            ) : (
+              <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
+                It is in no collection yet.
+              </Typography>
+            ))}
+          {showing === 'types' &&
+            kinds.map(([type, n]) => (
+              <Row key={type} label={TYPE_LABELS[type as AssetType]} note={`${formatCount(n)} file${n === 1 ? '' : 's'}`}>
+                <Button size="small" onClick={() => (setShowing(null), setType(type as AssetType), setTab('assets'))}>
+                  Show
+                </Button>
+              </Row>
+            ))}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowing(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
       <PackEditor packId={id} meta={pack.meta} open={editing} onClose={() => setEditing(false)} />
       {menu && (
         <AssetMenu

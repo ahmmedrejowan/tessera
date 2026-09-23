@@ -313,6 +313,20 @@ export class LibraryService {
     return out;
   }
 
+  /**
+   * The collections a pack, or one of its files, belongs to. Saved searches are left out: they
+   * hold whatever matches them at the time, so there is nothing to take a thing out of.
+   */
+  async collectionsHolding(packId: string, ref?: string): Promise<{ id: string; name: string }[]> {
+    const out: { id: string; name: string }[] = [];
+    for (const c of await listCollections(this.require().root)) {
+      if (c.kind === 'smart') continue;
+      const holds = ref ? c.items.some((i) => i.packId === packId && i.ref === ref) : c.packs.includes(packId);
+      if (holds) out.push({ id: c.id, name: c.name });
+    }
+    return out;
+  }
+
   async createCollection(name: string, init: { description?: string; items?: CollectionItem[]; packs?: string[]; query?: SmartQuery | null; rules?: CollectionRules; projectId?: string | null }): Promise<string> {
     const c = await createCollection(this.require().root, name.trim() || 'Untitled', init);
     await this.collectionsChanged();

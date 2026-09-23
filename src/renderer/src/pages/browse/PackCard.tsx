@@ -15,9 +15,10 @@ export const PACK_LABEL_HEIGHT = 76;
 /** Covers are 4:3. */
 export const coverHeight = (width: number) => Math.round((width - 12) * 0.75);
 
-function Cover({ pack, width }: { pack: PackRow; width: number }) {
+/** A pack's picture: what it ships as a preview, or a mosaic of what is inside it. */
+export function Cover({ pack, width, height }: { pack: PackRow; width: number; height?: number }) {
   const [failed, setFailed] = useState(false);
-  const h = coverHeight(width);
+  const h = height ?? coverHeight(width);
   if (pack.coverRef && !failed) {
     return (
       <div style={{ height: h, borderRadius: SHAPE.sm, overflow: 'hidden', ...checker(6) }}>
