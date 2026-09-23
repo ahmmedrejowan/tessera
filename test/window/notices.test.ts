@@ -11,7 +11,7 @@ vi.stubGlobal('localStorage', {
 
 const load = async () => {
   vi.resetModules();
-  return import('../src/renderer/src/notices/store');
+  return import('../../src/renderer/src/notices/store');
 };
 
 describe('what Tessera has told you', () => {

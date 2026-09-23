@@ -17,5 +17,8 @@
     "test/**/*",
     "electron.vite.config.ts",
     "vitest.config.ts"
+  ],
+  "exclude": [
+    "test/window/**/*"
   ]
 }
