@@ -68,6 +68,8 @@ export function shortcutGroups(platform: Platform): { title: string; items: Shor
         { label: 'Open a tile', keys: [['click']] },
         { label: 'Pick a tile out (or right-click)', keys: [['hold']] },
         { label: 'Pick more · a range', keys: [c('click', 'mod'), c('click', 'shift')] },
+        { label: 'Star what is picked, or under the cursor', keys: [['S']] },
+        { label: 'Pick everything the search matches', keys: [c('A', 'mod')] },
         { label: 'Put everything back', keys: [['Esc']] },
       ],
     },

@@ -23,6 +23,8 @@ import type { ActivityKind } from '@shared/types';
 import { call, on } from '../api';
 import { formatBytes, formatCount, TYPE_ICONS } from '../components/labels';
 import { LicenceChip } from '../components/LicenceChip';
+import { FAVOURITES } from '@shared/collection';
+import { AssetTile } from './browse/AssetTile';
 import { useBrowse } from '../state/browse';
 import { useCollections } from '../state/collections';
 import { useImport } from '../state/importer';
@@ -114,6 +116,11 @@ function SeeAll({ onClick }: { onClick: () => void }) {
       See all
     </Button>
   );
+}
+
+/** Open a starred asset where it lives: its pack's page. */
+function openStarred(asset: { packId: string }) {
+  useNav.getState().go({ to: 'pack', id: asset.packId });
 }
 
 /** Browse with one type filter on. */
@@ -222,6 +229,17 @@ export function HomePage() {
     queryFn: () => call('browse:packs', { scope: 'library', text: '', filters: {} }, 'added', 0, 6),
     enabled: !!lib,
   }).data?.rows;
+  // What was starred, first thing: the whole point of a star is that it comes to hand.
+  const starredPacks = useQuery({
+    queryKey: ['starred-packs', lib, version],
+    queryFn: () => call('browse:packs', { scope: 'library', text: '', filters: {}, favourites: true }, 'name', 0, 6),
+    enabled: !!lib,
+  }).data?.rows ?? [];
+  const starredAssets = useQuery({
+    queryKey: ['starred-assets', lib, version],
+    queryFn: () => call('browse:assets', { scope: 'library', text: '', filters: {}, favourites: true }, 'name', 0, 12),
+    enabled: !!lib,
+  }).data;
   const projects = useProjects().data ?? [];
   const collections = useCollections().data ?? [];
   const name = state?.status === 'ready' ? state.library.name : '';
@@ -304,6 +322,33 @@ export function HomePage() {
               <Typography variant="bodyMedium">Every pack has its licence and source on record.</Typography>
             </div>
           )
+        )}
+
+        {(starredPacks.length > 0 || (starredAssets?.total ?? 0) > 0) && (
+          <Section
+            title="Starred"
+            action={<SeeAll onClick={() => go({ to: 'collection', id: FAVOURITES })} />}
+          >
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+              {starredPacks.map((p) => (
+                <div key={p.id} style={{ width: 200 }}>
+                  <PackCard pack={p} width={200} selected={false} onClick={() => go({ to: 'pack', id: p.id })} onOpen={() => go({ to: 'pack', id: p.id })} />
+                </div>
+              ))}
+              {(starredAssets?.rows ?? []).slice(0, 8).map((a) => (
+                <div key={a.id} style={{ width: 120 }}>
+                  <AssetTile
+                    asset={a}
+                    width={120}
+                    selected={false}
+                    onClick={() => openStarred(a)}
+                    onOpen={() => openStarred(a)}
+                    dragItems={(x) => [{ packId: x.packId, ref: x.ref }]}
+                  />
+                </div>
+              ))}
+            </div>
+          </Section>
         )}
 
         {recent && recent.length > 0 && (

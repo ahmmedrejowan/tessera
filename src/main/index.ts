@@ -526,8 +526,14 @@ function registerHandlers(): void {
     await library.setStatus(id, status);
     if (status === 'library' && name) activity.add('reviewed', `“${name}” passed Review and is in the library`);
   });
-  handle('pack:remove', (id) => library.removePack(id));
-  handle('assets:remove', (items) => library.removeFiles(items));
+  handle('pack:remove', async (id) => {
+    await projects.keepLicences(libraryId(), [id], copySource()).catch((e: unknown) => log.warn('projects', 'could not write a licence into a game', e));
+    return library.removePack(id);
+  });
+  handle('assets:remove', async (items) => {
+    await projects.keepLicences(libraryId(), [...new Set(items.map((i) => i.packId))], copySource()).catch((e: unknown) => log.warn('projects', 'could not write a licence into a game', e));
+    return library.removeFiles(items);
+  });
   handle('bin:list', () => library.bin());
   handle('bin:restore', (id) => library.restoreFromBin(id));
   handle('bin:empty', (ids) => library.emptyBin(ids));
@@ -578,7 +584,10 @@ function registerHandlers(): void {
   handle('collections:change', (id, change) => library.changeCollection(id, change));
   handle('favourites:assets', (items, on) => library.favouriteAssets(items, on));
   handle('favourites:pack', (id, on) => library.favouritePack(id, on));
-  handle('pack:archive', (id, on) => library.archivePack(id, on));
+  handle('pack:archive', async (id, on) => {
+    if (on) await projects.keepLicences(libraryId(), [id], copySource()).catch((e: unknown) => log.warn('projects', 'could not write a licence into a game', e));
+    return library.archivePack(id, on);
+  });
 
   handle('projects:list', () => projects.list(libraryId(), libraryNameOf));
   handle('projects:choose', async () => {
@@ -604,6 +613,7 @@ function registerHandlers(): void {
     projectsChanged();
   });
   handle('projects:entries', (id) => projects.entries(id, libraryId(), libraryNameOf));
+  handle('projects:usage', (packIds, refs) => projects.usage(libraryId(), packIds, refs));
   handle('projects:plan', (id, items) => projects.plan(id, items, copySource()));
   handle('projects:copy', async (id, items) => {
     const n = await projects.copy(id, items, copySource());

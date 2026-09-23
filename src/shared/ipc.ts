@@ -5,7 +5,7 @@
  * are typed from these two maps, so a channel can't be misspelled or called with the wrong shape.
  */
 import type { PackEdit, PackMeta, PackStatus } from './pack';
-import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } from './project';
+import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary, ProjectUse } from './project';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { Provider, StorageTarget } from './storage';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
@@ -134,6 +134,8 @@ export interface Invokes {
   /** Forget a project; its files stay. */
   'projects:unlink': (id: string) => void;
   'projects:entries': (id: string) => ManifestEntry[];
+  /** Which games use these packs (or these files), so deleting or archiving can say so. */
+  'projects:usage': (packIds: string[], refs?: { packId: string; ref: string }[]) => ProjectUse[];
   'projects:plan': (id: string, items: { packId: string; ref: string }[]) => CopyPlan;
   'projects:copy': (id: string, items: { packId: string; ref: string }[]) => number;
   'projects:remove': (id: string, items: { packId: string; ref: string; libraryId?: string }[]) => number;

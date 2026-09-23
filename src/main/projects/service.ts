@@ -2,11 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
-import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } from '@shared/project';
+import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary, ProjectUse } from '@shared/project';
 import { UserError } from '../errors';
 import { readJson, writeJson } from '../fsx';
 import type { Jobs } from '../jobs';
-import { entryLibrary, MANIFEST, planCopy, readManifest, removeFromProject, runCopy, type CopySource } from './copy';
+import { entryLibrary, MANIFEST, planCopy, readManifest, removeFromProject, runCopy, writePackLicence, type CopySource } from './copy';
 import { writeCredits } from './credits';
 import { probeProject } from './engines';
 
@@ -165,6 +165,40 @@ export class ProjectService {
       await writeJson(join(project.path, MANIFEST), manifest);
       if (project.creditsFile) await writeCredits(join(project.path, ...project.creditsFile.split('/')), manifest.entries);
     }
+  }
+
+  /**
+   * Which games use these packs, and how many files of each. Asked before a pack is deleted or
+   * archived, so the window can say so plainly rather than blocking it.
+   */
+  async usage(libraryId: string, packIds: string[], refs?: { packId: string; ref: string }[]): Promise<ProjectUse[]> {
+    const out: ProjectUse[] = [];
+    for (const project of await this.load()) {
+      if (!existsSync(project.path)) continue;
+      const manifest = await readManifest(project.path, libraryId);
+      const mine = manifest.entries.filter(
+        (e) => entryLibrary(e, manifest) === libraryId && (packIds.includes(e.packId) || (refs ?? []).some((r) => r.packId === e.packId && r.ref === e.ref)),
+      );
+      if (mine.length) out.push({ projectId: project.id, name: project.name, files: mine.length });
+    }
+    return out;
+  }
+
+  /**
+   * Make sure every game using these packs has their licence and proof beside the copied files, so
+   * deleting or archiving a pack in the library can never cost a project its record.
+   */
+  async keepLicences(libraryId: string, packIds: string[], src: CopySource): Promise<number> {
+    let done = 0;
+    for (const project of await this.load()) {
+      if (!existsSync(project.path)) continue;
+      const manifest = await readManifest(project.path, libraryId);
+      for (const packId of new Set(packIds)) {
+        if (!manifest.entries.some((e) => e.packId === packId && entryLibrary(e, manifest) === libraryId)) continue;
+        if (await writePackLicence(project, packId, src).catch(() => false)) done++;
+      }
+    }
+    return done;
   }
 
   /** Write the credits file again (after a pack's licence or credit line changed). */

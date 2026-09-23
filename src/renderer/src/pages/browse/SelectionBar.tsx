@@ -1,4 +1,5 @@
 import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
+import StarOutlineRounded from '@mui/icons-material/StarOutlineRounded';
 import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
 import Close from '@mui/icons-material/Close';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
@@ -16,6 +17,7 @@ import { md, mdAlpha, SHAPE } from '../../theme';
 import { CollectionMenu } from '../collections/CollectionMenu';
 import { archivePack } from './archiving';
 import { removeAssets, removePacks } from './deleting';
+import { starAssets, starPack } from './StarButton';
 
 /** What the picked things come to, read again whenever the pile changes. */
 function useSize(mode: 'assets' | 'packs', selection: Set<number | string>): number | null {
@@ -59,6 +61,12 @@ export function SelectionBar({ packs, total, all }: { packs?: boolean; total?: n
     return out;
   };
 
+  /** Star everything picked, assets or packs alike. */
+  const star = async () => {
+    if (packs) for (const id of [...selection].map(String)) starPack(id, true);
+    else starAssets(await refs(), true);
+  };
+
   /** Put the picked packs away: kept in full, out of the way of browsing. */
   const putAway = async () => {
     const ids = [...selection].map(String);
@@ -98,6 +106,9 @@ export function SelectionBar({ packs, total, all }: { packs?: boolean; total?: n
           Pick all {formatCount(total)}
         </Button>
       )}
+      <Button startIcon={<StarOutlineRounded />} onClick={() => void star()} sx={action}>
+        Star them
+      </Button>
       <Button startIcon={<BookmarkAddOutlined />} onClick={(e) => setAnchor(e.currentTarget)} sx={action}>
         Add to a collection
       </Button>

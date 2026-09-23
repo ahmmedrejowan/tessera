@@ -127,6 +127,8 @@ describe('copying into a project', () => {
 
     // Removing takes the files, the empty folders and the credit away.
     writeFileSync(join(base, 'Car Kit', 'FBX format', 'van.fbx.meta'), 'unity');
+    // The pack's licence papers were copied in beside its files.
+    expect(existsSync(join(base, 'Car Kit', 'licence'))).toBe(true);
     await removeFromProject(project, 'lib-1', items.slice(0, 1));
     expect(existsSync(join(base, 'Car Kit'))).toBe(false);
     expect(existsSync(join(base, 'Icons', 'sword.png'))).toBe(true);

@@ -69,6 +69,13 @@ export interface Manifest {
   entries: ManifestEntry[];
 }
 
+/** A game that uses assets from a pack: named when the pack is about to be deleted or archived. */
+export interface ProjectUse {
+  projectId: string;
+  name: string;
+  files: number;
+}
+
 /** Checked before copying: what will be written and anything worth a second look. */
 export interface CopyPlan {
   assets: number;

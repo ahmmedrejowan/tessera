@@ -7,6 +7,8 @@ import LanguageRounded from '@mui/icons-material/LanguageRounded';
 import LaunchRounded from '@mui/icons-material/LaunchRounded';
 import UnarchiveOutlined from '@mui/icons-material/UnarchiveOutlined';
 import OpenInFullRounded from '@mui/icons-material/OpenInFullRounded';
+import StarOutlineRounded from '@mui/icons-material/StarOutlineRounded';
+import StarRounded from '@mui/icons-material/StarRounded';
 import Divider from '@mui/material/Divider';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
@@ -24,6 +26,7 @@ import { CollectionMenu } from '../collections/CollectionMenu';
 import { ProjectMenu } from '../projects/ProjectMenu';
 import { archivePack } from './archiving';
 import { removeAssets, removePacks } from './deleting';
+import { starAsset, starPack } from './StarButton';
 
 /** A pack in full, from the cache where a page has already read it. */
 function usePackDetails(packId: string | null) {
@@ -95,6 +98,11 @@ export function AssetMenu({
         <Item icon={<OpenInFullRounded fontSize="small" />} primary="Open" onClick={run(onOpen)} />
         <Item icon={<LaunchRounded fontSize="small" />} primary="Open in another app" onClick={run(() => void openOutside(asset.packId, asset.ref))} />
         <Divider />
+        <Item
+          icon={asset.fav ? <StarRounded fontSize="small" /> : <StarOutlineRounded fontSize="small" />}
+          primary={asset.fav ? 'Take the star off' : 'Star it'}
+          onClick={run(() => starAsset(asset.packId, asset.ref, !asset.fav))}
+        />
         <Item icon={<BookmarkAddOutlined fontSize="small" />} primary="Add to a collection" onClick={(e) => setCollections(e.currentTarget)} />
         <Item icon={<DriveFileMoveOutlined fontSize="small" />} primary="Copy to a project" onClick={(e) => setProjects(e.currentTarget)} />
         {extra && <Item icon={extra.icon} primary={extra.primary} onClick={run(extra.run)} />}
@@ -144,6 +152,11 @@ export function PackMenu({
         <Item icon={<OpenInFullRounded fontSize="small" />} primary="Open the pack" onClick={run(onOpen)} />
         <Item icon={<FolderOpenOutlined fontSize="small" />} primary="Show its folder" onClick={run(() => void call('pack:reveal', pack.id).catch(failed))} />
         <Divider />
+        <Item
+          icon={pack.fav ? <StarRounded fontSize="small" /> : <StarOutlineRounded fontSize="small" />}
+          primary={pack.fav ? 'Take the star off' : 'Star it'}
+          onClick={run(() => starPack(pack.id, !pack.fav))}
+        />
         <Item icon={<BookmarkAddOutlined fontSize="small" />} primary="Add to a collection" onClick={(e) => setCollections(e.currentTarget)} />
         <Item icon={<DriveFileMoveOutlined fontSize="small" />} primary="Copy its assets to a project" onClick={(e) => setProjects(e.currentTarget)} />
         {extra && <Item icon={extra.icon} primary={extra.primary} onClick={run(extra.run)} />}

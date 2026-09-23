@@ -1,14 +1,15 @@
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, readdir, rmdir, unlink, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, rm, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
 import { licenceInfo } from '@shared/licences';
 import { licenceForPath, type PackMeta } from '@shared/pack';
-import { assetPath } from '@shared/assets';
+import { assetPath, baseName } from '@shared/assets';
 import type { CopyPlan, Manifest, ManifestEntry, Project } from '@shared/project';
 import type { AssetRow } from '@shared/query';
 import { sourceInfo } from '@shared/sources';
 import { readJson, writeFileAtomic, writeJson } from '../fsx';
 import { displayPath, parseRef, readPackFile } from '../index/files';
+import { PACK_DIRS } from '../library/layout';
 import { safeFolderName } from '../library/names';
 import { writeCredits } from './credits';
 import { dependencies } from './deps';
@@ -151,7 +152,7 @@ export async function planCopy(
 }
 
 /** A pack's licence, written beside its files in the project. */
-function licenceText(meta: PackMeta): string {
+function licenceText(meta: PackMeta, proof: string[]): string {
   const info = licenceInfo(meta.licence.id);
   const lines = [
     `${meta.name}`,
@@ -160,10 +161,69 @@ function licenceText(meta: PackMeta): string {
     meta.source.creator ? `Creator: ${meta.source.creator}` : null,
     meta.source.url ? `Source: ${meta.source.url}` : null,
     meta.licence.attribution ? `Credit: ${meta.licence.attribution}` : null,
-    '',
-    'Copied from a Tessera library. The original licence files are kept with the pack in the library.',
   ];
+  // Parts of the pack that came under their own terms are spelled out, not summarised away.
+  for (const rule of meta.licences ?? []) {
+    const part = licenceInfo(rule.licence.id);
+    lines.push('', `${rule.path}: ${part?.name ?? rule.licence.id ?? 'not recorded'}${part?.url ? `: ${part.url}` : ''}`, rule.licence.attribution ? `Credit: ${rule.licence.attribution}` : null);
+  }
+  lines.push(
+    '',
+    proof.length ? `The pack's own licence files are in licence/ beside this one: ${proof.join(', ')}.` : 'The pack shipped no licence file of its own.',
+    'Copied from a Tessera library. This folder holds everything needed to show what these files are licensed under,',
+    'so it stands on its own if the pack ever leaves the library.',
+  );
   return `${lines.filter((l) => l !== null).join('\n')}\n`;
+}
+
+/** A licence, readme or terms file, wherever it sits in the pack. */
+const LICENCE_FILE = /^(licen[cs]e|copying|eula|terms|notice)/i;
+const PROOF_MAX = 512 * 1024;
+
+/**
+ * The pack's licence papers, copied into the game beside the assets: what Tessera keeps as proof
+ * (receipts, screenshots, licence texts) and the pack's own licence files, archives included. A
+ * game that holds these does not depend on the library still having the pack.
+ */
+async function copyProof(packDir: string, refs: string[], destDir: string): Promise<string[]> {
+  const kept: string[] = [];
+  const name = (wanted: string) => {
+    let out = wanted;
+    for (let i = 2; kept.includes(out); i++) out = wanted.replace(/(\.[^.]*)?$/, ` (${i})$1`);
+    return out;
+  };
+  const from = join(packDir, PACK_DIRS.licence);
+  for (const e of (await readdir(from, { withFileTypes: true }).catch(() => [])).filter((x) => x.isFile() && !x.name.startsWith('.'))) {
+    const to = name(e.name);
+    await mkdir(destDir, { recursive: true });
+    await copyFile(join(from, e.name), join(destDir, to));
+    kept.push(to);
+  }
+  for (const ref of refs.filter((r) => LICENCE_FILE.test(baseName(assetPath(r)))).slice(0, 20)) {
+    try {
+      const data = await readPackFile(packDir, ref, PROOF_MAX);
+      const to = name(baseName(assetPath(ref)));
+      await mkdir(destDir, { recursive: true });
+      await writeFile(join(destDir, to), data);
+      kept.push(to);
+    } catch {
+      // unreadable: the summary beside it still records the licence
+    }
+  }
+  return kept;
+}
+
+/**
+ * Write a pack's licence, its own licence files included, into the game that uses it. Returns
+ * false when the library no longer has the pack to read from.
+ */
+export async function writePackLicence(project: Project, packId: string, src: CopySource): Promise<boolean> {
+  const pack = src.pack(packId);
+  if (!pack) return false;
+  const packRoot = join(project.path, ...posix.join(project.target, safeFolderName(pack.folder)).split('/'));
+  const proof = await copyProof(src.packDir(packId), src.packRefs(packId), join(packRoot, 'licence'));
+  await writeFileAtomic(join(packRoot, 'LICENCE.txt'), licenceText(pack.meta, proof));
+  return true;
 }
 
 export async function runCopy(project: Project, jobs: EntryJob[], src: CopySource, onProgress: (done: number, total: number) => void): Promise<ManifestEntry[]> {
@@ -186,7 +246,8 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
     const packRoot = pack ? posix.join(project.target, safeFolderName(pack.folder)) : '';
     if (pack && !licencesWritten.has(packRoot)) {
       licencesWritten.add(packRoot);
-      await writeFileAtomic(join(project.path, ...packRoot.split('/'), 'LICENCE.txt'), licenceText(pack.meta));
+      const proof = await copyProof(packDir, src.packRefs(job.entry.packId), join(project.path, ...packRoot.split('/'), 'licence'));
+      await writeFileAtomic(join(project.path, ...packRoot.split('/'), 'LICENCE.txt'), licenceText(pack.meta, proof));
     }
     const entry: ManifestEntry = { ...job.entry, files: job.files.map((f) => f.dest), copiedAt: new Date().toISOString() };
     manifest.entries = manifest.entries.filter((e) => !same(e, manifest, src.libraryId, entry.packId, entry.ref));
@@ -219,17 +280,19 @@ export async function removeFromProject(project: Project, libraryId: string, ite
   }
   manifest.entries = keep;
   await writeJson(join(project.path, MANIFEST), manifest);
-  // Remove folders left empty (apart from a licence note nobody else needs), deepest first.
+  // Remove folders left empty, deepest first. A pack's licence papers go with its last asset:
+  // they are the proof for files that are no longer there.
   const targetRoot = join(project.path, ...project.target.split('/'));
+  const notes = (n: string) => n === 'LICENCE.txt' || n === 'LICENCE.txt.meta' || n === 'licence' || n === 'licence.meta' || n === '.DS_Store';
   for (const d of [...dirs].sort((a, b) => b.length - a.length)) {
     let dir = d;
     while (dir.startsWith(targetRoot) && dir !== targetRoot) {
       const left = await readdir(dir).catch(() => null);
       if (!left) break;
-      const onlyNotes = left.every((n) => n === 'LICENCE.txt' || n === 'LICENCE.txt.meta' || n === '.DS_Store');
+      const onlyNotes = left.every(notes);
       const packStillUsed = keep.some((e) => e.files.some((f) => join(project.path, ...f.split('/')).startsWith(dir + (dir.endsWith('/') ? '' : '/'))));
       if (left.length && !(onlyNotes && !packStillUsed)) break;
-      for (const n of left) await unlink(join(dir, n)).catch(() => undefined);
+      for (const n of left) await rm(join(dir, n), { recursive: true, force: true }).catch(() => undefined);
       await rmdir(dir).catch(() => undefined);
       await unlink(`${dir}.meta`).catch(() => undefined);
       dir = dirname(dir);

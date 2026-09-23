@@ -7,8 +7,11 @@ import { call } from '../../api';
 import { failed } from '../../notices/store';
 import { md, mdAlpha } from '../../theme';
 
-/** Star an asset, or take the star off. */
-export const starAsset = (packId: string, ref: string, on: boolean) => void call('favourites:assets', [{ packId, ref }], on).catch(failed);
+/** Star assets, or take the star off. */
+export const starAssets = (items: { packId: string; ref: string }[], on: boolean) => void call('favourites:assets', items, on).catch(failed);
+
+/** Star one asset, by where it lives. */
+export const starAsset = (packId: string, ref: string, on: boolean) => starAssets([{ packId, ref }], on);
 
 /** Star a whole pack, or take the star off. */
 export const starPack = (id: string, on: boolean) => void call('favourites:pack', id, on).catch(failed);

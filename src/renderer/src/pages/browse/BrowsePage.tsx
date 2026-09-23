@@ -24,6 +24,7 @@ import { AssetTile, TILE_LABEL_HEIGHT } from './AssetTile';
 import { BrowseControls, BrowseFilters } from './BrowseToolbar';
 import { DetailsSheet } from './DetailsSheet';
 import { SelectionBar } from './SelectionBar';
+import { starAssets, starPack } from './StarButton';
 import { AssetMenu, PackMenu } from './TileMenu';
 import { FilterPane, FilterRail } from './FilterPane';
 import { coverHeight, PACK_LABEL_HEIGHT, PackCard } from './PackCard';
@@ -319,6 +320,21 @@ export function BrowsePage() {
         else {
           const p = packs.get(at);
           if (p) go({ to: 'pack', id: p.id });
+        }
+      } else if (e.key === 's' || e.key === 'S') {
+        // S stars: a pile all at once, or the one under the cursor, which it also un-stars.
+        e.preventDefault();
+        if (s.mode === 'packs') {
+          if (s.selection.size) for (const id of [...s.selection].map(String)) starPack(id, true);
+          else {
+            const p = packs.get(at);
+            if (p) starPack(p.id, !p.fav);
+          }
+        } else if (s.selection.size) {
+          void call('assets:refs', [...s.selection].map(Number)).then((items) => starAssets(items, true));
+        } else {
+          const a = assets.get(at);
+          if (a) starAssets([{ packId: a.packId, ref: a.ref }], !a.fav);
         }
       } else if (e.key === 'Escape') {
         s.select([], null);

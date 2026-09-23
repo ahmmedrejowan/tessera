@@ -7,6 +7,8 @@ import FitScreenOutlined from '@mui/icons-material/FitScreenOutlined';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
 import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import OpenInNew from '@mui/icons-material/OpenInNew';
+import StarOutlineRounded from '@mui/icons-material/StarOutlineRounded';
+import StarRounded from '@mui/icons-material/StarRounded';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
@@ -20,6 +22,7 @@ import type { AssetRow } from '@shared/query';
 import { call } from '../api';
 import { displayName, formatBytes, formatCount } from '../components/labels';
 import { LicenceChip, licenceSummary } from '../components/LicenceChip';
+import { starAsset } from '../pages/browse/StarButton';
 import { fileUrl, useIndexVersion, useLibraryId } from '../state/library';
 import { useNav } from '../state/nav';
 import { useThumb } from '../state/thumbs';
@@ -152,6 +155,10 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
       } else if (e.key === 'ArrowRight' && onNext) {
         e.preventDefault();
         onNext();
+      } else if (e.key.toLowerCase() === 's') {
+        // Star what you are looking at: this is where you decide you like it.
+        e.preventDefault();
+        starAsset(asset.packId, asset.ref, !asset.fav);
       } else if (e.key.toLowerCase() === 'i') {
         setInfoOpen((v) => !v);
       } else if (e.key.toLowerCase() === 'f') {
@@ -162,7 +169,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [onClose, onPrev, onNext]);
+  }, [onClose, onPrev, onNext, asset]);
 
   useEffect(() => {
     try {
@@ -257,6 +264,11 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
           </Tooltip>
         )}
         <CopyButton items={() => [{ packId: asset.packId, ref: asset.ref }]} sx={{ mr: 1 }} />
+        <Tooltip title={asset.fav ? 'Take the star off (S)' : 'Star it (S)'}>
+          <IconButton onClick={() => starAsset(asset.packId, asset.ref, !asset.fav)} aria-label={asset.fav ? 'Take the star off' : 'Star it'} sx={asset.fav ? { color: md('tertiary') } : {}}>
+            {asset.fav ? <StarRounded /> : <StarOutlineRounded />}
+          </IconButton>
+        </Tooltip>
         <Tooltip title="Add to collection">
           <IconButton onClick={(e) => setCollectAnchor(e.currentTarget)} aria-label="Add to collection">
             <BookmarkAddOutlined />
