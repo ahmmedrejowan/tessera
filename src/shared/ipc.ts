@@ -8,8 +8,8 @@ import type { PackEdit, PackMeta, PackStatus } from './pack';
 import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary, ProjectUse } from './project';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { Provider, StorageTarget } from './storage';
-import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
-import type { BinEntry, PackSuggestions, LibrarySummary, AppInfo, ActivityEntry, DownloadItem, UpdateStatus, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { CollectionItem, CollectionRules, CollectionSummary, SmartQuery } from './collection';
+import type { BinEntry, CollectionResult, PackSuggestions, LibrarySummary, AppInfo, ActivityEntry, DownloadItem, UpdateStatus, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -115,8 +115,8 @@ export interface Invokes {
 
   'collections:list': () => CollectionSummary[];
   /** Create a collection (manual with items, or smart with a query); returns its id. */
-  'collections:create': (name: string, init: { description?: string; items?: CollectionItem[]; packs?: string[]; query?: SmartQuery | null }) => string;
-  'collections:change': (id: string, change: CollectionChange) => void;
+  'collections:create': (name: string, init: { description?: string; items?: CollectionItem[]; packs?: string[]; query?: SmartQuery | null; rules?: CollectionRules; projectId?: string | null }) => string;
+  'collections:change': (id: string, change: CollectionChange) => CollectionResult;
   /** Star assets, or take the star off: they go in and out of the built-in Favourites collection. */
   'favourites:assets': (items: CollectionItem[], on: boolean) => void;
   /** Star a pack, in its own record, so the star travels with it. */

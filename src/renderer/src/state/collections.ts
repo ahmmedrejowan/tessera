@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { CollectionItem, SmartQuery } from '@shared/collection';
+import type { CollectionItem, CollectionRules, SmartQuery } from '@shared/collection';
 import { call } from '../api';
 import { notify } from '../notices/store';
 import { useIndexVersion, useLibraryId } from './library';
@@ -17,11 +17,20 @@ const count = (items: number, packs: number) =>
 
 /** Put assets, whole packs, or both into a collection. A pack joins as itself, not as its files. */
 export async function addToCollection(id: string, name: string, items: CollectionItem[], packs: string[] = []): Promise<void> {
-  await call('collections:change', id, { ...(items.length ? { add: items } : {}), ...(packs.length ? { addPacks: packs } : {}) });
-  notify.success(`Added ${count(items.length, packs.length)} to ${name}.`, { action: { label: 'Open', run: () => useNav.getState().go({ to: 'collection', id }) } });
+  const result = await call('collections:change', id, { ...(items.length ? { add: items } : {}), ...(packs.length ? { addPacks: packs } : {}) });
+  const open = { action: { label: 'Open', run: () => useNav.getState().go({ to: 'collection', id }) } };
+  if (result.added || result.addedPacks) notify.success(`Added ${count(result.added, result.addedPacks)} to ${name}.`, open);
+  if (result.refused.length) {
+    // The collection's rules turned something away: say what and why, rather than losing it quietly.
+    const first = result.refused[0]!;
+    notify.warning(
+      result.refused.length === 1 ? `${name} doesn’t take ${first.name}: ${first.why} doesn’t fit its rules.` : `${name} turned away ${result.refused.length} things, starting with ${first.name}: ${first.why} doesn’t fit its rules.`,
+      { details: result.refused.map((r) => `${r.name}: ${r.why}`).join('\n') },
+    );
+  }
 }
 
-export async function newCollection(name: string, init: { items?: CollectionItem[]; packs?: string[]; query?: SmartQuery; description?: string }): Promise<string> {
+export async function newCollection(name: string, init: { items?: CollectionItem[]; packs?: string[]; query?: SmartQuery; description?: string; rules?: CollectionRules; projectId?: string | null }): Promise<string> {
   const id = await call('collections:create', name, init);
   const made = count(init.items?.length ?? 0, init.packs?.length ?? 0);
   notify.success(init.query ? `Saved “${name}”.` : `Created “${name}”${made === 'nothing' ? '' : ` with ${made}`}.`, { action: { label: 'Open', run: () => useNav.getState().go({ to: 'collection', id }) } });

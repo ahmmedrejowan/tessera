@@ -2,9 +2,9 @@ import { watch, type FSWatcher } from 'node:fs';
 import { copyFile, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { missingForLibrary, type PackEdit, type PackStatus } from '@shared/pack';
-import { FAVOURITES, type CollectionItem, type CollectionSummary, type SmartQuery } from '@shared/collection';
-import type { BrowseQuery, Filters } from '@shared/query';
-import type { BinEntry, CollectionChange, Detected, FolderKind, ImportItem, ImportResult, LibraryState, PackSuggestions, SiteRule } from '@shared/types';
+import { FAVOURITES, refuses, type CollectionItem, type CollectionRules, type CollectionSummary, type SmartQuery } from '@shared/collection';
+import type { BrowseQuery, Filters, PackRow } from '@shared/query';
+import type { BinEntry, CollectionChange, CollectionResult, Detected, FolderKind, ImportItem, ImportResult, LibraryState, PackSuggestions, SiteRule } from '@shared/types';
 import { UserError } from './errors';
 import { listPackFiles, parseRef } from './index/files';
 import { LibraryIndex } from './index/indexer';
@@ -301,6 +301,10 @@ export class LibraryService {
         kind: c.kind,
         count: page.total,
         packCount: c.query ? 0 : c.packs.length,
+        // What it really holds: the loose assets plus everything inside its packs.
+        assets: page.total + (c.query ? 0 : lib.queries.packs({ scope: 'all', text: '', filters: {}, collectionId: c.id }, 'name', 0, 500).rows.reduce((n, p) => n + p.assetCount, 0)),
+        rules: c.rules,
+        projectId: c.projectId,
         samples,
         updatedAt: c.updatedAt,
         query: c.query,
@@ -309,27 +313,84 @@ export class LibraryService {
     return out;
   }
 
-  async createCollection(name: string, init: { description?: string; items?: CollectionItem[]; packs?: string[]; query?: SmartQuery | null }): Promise<string> {
+  async createCollection(name: string, init: { description?: string; items?: CollectionItem[]; packs?: string[]; query?: SmartQuery | null; rules?: CollectionRules; projectId?: string | null }): Promise<string> {
     const c = await createCollection(this.require().root, name.trim() || 'Untitled', init);
     await this.collectionsChanged();
     return c.id;
   }
 
-  async changeCollection(id: string, change: CollectionChange): Promise<void> {
+  async changeCollection(id: string, change: CollectionChange): Promise<CollectionResult> {
     const root = this.require().root;
+    const result: CollectionResult = { added: 0, addedPacks: 0, refused: [] };
     if (change.delete) await deleteCollection(root, id);
     else
       await updateCollection(root, id, (c) => {
         let next = { ...c };
         if (change.name !== undefined) next.name = change.name.trim() || c.name;
         if (change.description !== undefined) next.description = change.description;
-        if (change.add) next = withItems(next, change.add);
+        if (change.rules) next.rules = change.rules;
+        if (change.projectId !== undefined) next.projectId = change.projectId;
+        // The rules the collection will have after this change are the ones that judge what joins.
+        const sift = this.sifter(next.rules);
+        if (change.add) {
+          const { taken, refused } = sift.assets(change.add);
+          result.added = taken.length;
+          result.refused.push(...refused);
+          next = withItems(next, taken);
+        }
         if (change.remove) next = withoutItems(next, change.remove);
-        if (change.addPacks) next = withPacks(next, change.addPacks);
+        if (change.addPacks) {
+          const { taken, refused } = sift.packs(change.addPacks);
+          result.addedPacks = taken.length;
+          result.refused.push(...refused);
+          next = withPacks(next, taken);
+        }
         if (change.removePacks) next = withoutPacks(next, change.removePacks);
         return next;
       });
     await this.collectionsChanged();
+    return result;
+  }
+
+  /** Judges what a collection's rules will take, packs and assets alike. */
+  private sifter(rules: CollectionRules) {
+    const lib = this.require();
+    const packOf = new Map<string, PackRow | null>();
+    const pack = (id: string) => {
+      if (!packOf.has(id)) packOf.set(id, lib.queries.pack(id));
+      return packOf.get(id) ?? null;
+    };
+    return {
+      packs: (ids: string[]) => {
+        const taken: string[] = [];
+        const refused: { name: string; why: string }[] = [];
+        for (const id of ids) {
+          const p = pack(id);
+          if (!p) continue;
+          const why = refuses(rules, { name: p.name, licence: p.licence, creator: p.creator, styles: p.styles, tags: p.tags, types: Object.keys(p.types) });
+          if (why) refused.push({ name: p.name, why });
+          else taken.push(id);
+        }
+        return { taken, refused };
+      },
+      assets: (items: CollectionItem[]) => {
+        const taken: CollectionItem[] = [];
+        const refused: { name: string; why: string }[] = [];
+        for (const item of items) {
+          const p = pack(item.packId);
+          const a = lib.queries.assetByRef(item.packId, item.ref);
+          if (!p || !a) {
+            taken.push(item);
+            continue;
+          }
+          // An asset carries the licence of the part of the pack it is in, which may not be the pack's.
+          const why = refuses(rules, { name: a.name, licence: a.licence, creator: p.creator, styles: p.styles, tags: p.tags, types: [a.type] });
+          if (why) refused.push({ name: a.name, why });
+          else taken.push(item);
+        }
+        return { taken, refused };
+      },
+    };
   }
 
   /** Star assets, or take the star off: they go in and out of the built-in Favourites collection. */

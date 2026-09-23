@@ -1,5 +1,6 @@
 /** Types shared by the main process and the window. */
 
+import type { CollectionRules } from './collection';
 import type { StorageTarget } from './storage';
 
 /** process.platform values the app is built for; others behave like linux. */
@@ -415,6 +416,14 @@ export interface ImportResult {
 }
 
 /** A change to a collection: rename, describe, add or remove items, or delete it. */
+/** What a change to a collection did, and what it would not take. */
+export interface CollectionResult {
+  added: number;
+  addedPacks: number;
+  /** Things the collection's rules turned away, with the reason. */
+  refused: { name: string; why: string }[];
+}
+
 export interface CollectionChange {
   name?: string;
   description?: string;
@@ -423,6 +432,10 @@ export interface CollectionChange {
   /** Whole packs joining or leaving. */
   addPacks?: string[];
   removePacks?: string[];
+  /** What the collection will take from now on. */
+  rules?: CollectionRules;
+  /** The game it is for, or null for none. */
+  projectId?: string | null;
   delete?: boolean;
 }
 

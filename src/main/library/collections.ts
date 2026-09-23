@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Collection, FAVOURITES, FAVOURITES_NAME, type CollectionItem, type SmartQuery } from '@shared/collection';
+import { Collection, CollectionRules, FAVOURITES, FAVOURITES_NAME, type CollectionItem, type SmartQuery } from '@shared/collection';
 import { readJson, writeJson } from '../fsx';
 import { DIRS } from './layout';
 
@@ -30,7 +30,7 @@ async function save(root: string, c: Collection): Promise<Collection> {
   return next;
 }
 
-export async function createCollection(root: string, name: string, init: { description?: string; items?: CollectionItem[]; packs?: string[]; query?: SmartQuery | null }): Promise<Collection> {
+export async function createCollection(root: string, name: string, init: { description?: string; items?: CollectionItem[]; packs?: string[]; query?: SmartQuery | null; rules?: CollectionRules; projectId?: string | null }): Promise<Collection> {
   const now = new Date().toISOString();
   return save(
     root,
@@ -41,6 +41,8 @@ export async function createCollection(root: string, name: string, init: { descr
       kind: init.query ? 'smart' : 'manual',
       items: init.items ?? [],
       packs: init.packs ?? [],
+      rules: init.rules ?? CollectionRules.parse({}),
+      projectId: init.projectId ?? null,
       query: init.query ?? null,
       createdAt: now,
       updatedAt: now,

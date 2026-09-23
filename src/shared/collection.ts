@@ -26,6 +26,47 @@ export const SmartQuery = z.object({
 });
 export type SmartQuery = z.infer<typeof SmartQuery>;
 
+/**
+ * What a collection will take. A rule says "only these": anything that doesn't fit is refused when
+ * it is added, so a collection meant for one game's licence can't quietly gain something it may
+ * not ship. An empty list means that side is not fussy.
+ */
+export const CollectionRules = z.object({
+  licences: z.array(z.string()).default([]),
+  creators: z.array(z.string()).default([]),
+  styles: z.array(z.string()).default([]),
+  tags: z.array(z.string()).default([]),
+  types: z.array(z.string()).default([]),
+});
+export type CollectionRules = z.infer<typeof CollectionRules>;
+
+export const NO_RULES: CollectionRules = { licences: [], creators: [], styles: [], tags: [], types: [] };
+
+/** Does a rule ask for anything at all? */
+export const hasRules = (r: CollectionRules | undefined): boolean => !!r && Object.values(r).some((v) => v.length > 0);
+
+/** What a thing is, as far as a collection's rules are concerned. */
+export interface Fits {
+  name: string;
+  licence: string | null;
+  creator: string | null;
+  styles: string[];
+  tags: string[];
+  types: string[];
+}
+
+/** Why a thing may not go in, or null when it may. */
+export function refuses(rules: CollectionRules | undefined, thing: Fits): string | null {
+  if (!rules) return null;
+  const has = (list: string[], values: (string | null)[]) => list.some((want) => values.some((v) => v?.toLowerCase() === want.toLowerCase()));
+  if (rules.licences.length && !has(rules.licences, [thing.licence])) return 'its licence';
+  if (rules.creators.length && !has(rules.creators, [thing.creator])) return 'its creator';
+  if (rules.styles.length && !has(rules.styles, thing.styles)) return 'its style';
+  if (rules.tags.length && !has(rules.tags, thing.tags)) return 'its tags';
+  if (rules.types.length && !has(rules.types, thing.types)) return 'what kind of asset it is';
+  return null;
+}
+
 export const Collection = z
   .object({
     format: z.literal(COLLECTION_FORMAT).default(COLLECTION_FORMAT),
@@ -37,6 +78,10 @@ export const Collection = z
     /** Whole packs in the collection. Their assets come with them; they are not listed one by one. */
     packs: z.array(z.string()).default([]),
     query: SmartQuery.nullable().default(null),
+    /** Only things that fit these go in. */
+    rules: CollectionRules.default(() => CollectionRules.parse({})),
+    /** The game this collection is for, if it is for one. */
+    projectId: z.string().nullable().default(null),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
@@ -53,6 +98,10 @@ export interface CollectionSummary {
   count: number;
   /** Whole packs in it. */
   packCount: number;
+  /** Every asset it holds: the loose ones and everything inside its packs. */
+  assets: number;
+  rules: CollectionRules;
+  projectId: string | null;
   /** A few items for the cover mosaic. */
   samples: { packId: string; ref: string; ext: string; kind: string; type: string }[];
   updatedAt: string;

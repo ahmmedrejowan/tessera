@@ -2,6 +2,8 @@ import ArrowBack from '@mui/icons-material/ArrowBack';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import DoneAllRounded from '@mui/icons-material/DoneAllRounded';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
+import SportsEsportsOutlined from '@mui/icons-material/SportsEsportsOutlined';
+import Chip from '@mui/material/Chip';
 import Close from '@mui/icons-material/Close';
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import EditOutlined from '@mui/icons-material/EditOutlined';
@@ -17,7 +19,8 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { FAVOURITES } from '@shared/collection';
+import { FAVOURITES, hasRules } from '@shared/collection';
+import { licenceInfo } from '@shared/licences';
 import type { AssetRow, BrowseQuery, Filters, PackRow } from '@shared/query';
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
@@ -35,7 +38,8 @@ import { removeAssets } from '../browse/deleting';
 import { PackCard } from '../browse/PackCard';
 import { AssetMenu, PackMenu } from '../browse/TileMenu';
 import { CopyButton } from '../projects/CopyButton';
-import { NameDialog } from './CollectionMenu';
+import { useProjects } from '../../state/projects';
+import { CollectionDialog } from './CollectionDialog';
 
 const Viewer = lazy(() => import('../../viewer/Viewer').then((m) => ({ default: m.Viewer })));
 
@@ -62,6 +66,7 @@ export function CollectionPage({ id }: { id: string }) {
       return next;
     });
   }, []);
+  const projects = useProjects().data ?? [];
   const [size, setSize] = useState<number | null>(null);
   const [viewing, setViewing] = useState<number | null>(null);
   const [menu, setMenu] = useState<{ anchor: HTMLElement; asset: AssetRow; index: number } | null>(null);
@@ -132,6 +137,21 @@ export function CollectionPage({ id }: { id: string }) {
   );
 
   if (!collection) return null;
+  // What it holds in all: the loose assets and everything inside its packs.
+  const held = rows.total + inPacks.reduce((n, p) => n + p.assetCount, 0);
+  const forProject = projects.find((p) => p.id === collection.projectId) ?? null;
+  const ruleChips = [
+    ...collection.rules.licences.map((l) => licenceInfo(l)?.short ?? l),
+    ...collection.rules.creators,
+    ...collection.rules.styles,
+    ...collection.rules.tags,
+  ];
+  /** Everything in the collection as files: the loose assets and every file of its packs. */
+  const everything = async () => {
+    const out = await call('assets:refs', (await call('browse:assets', query, 'relevance', 0, 5000)).rows.map((r) => r.id));
+    for (const p of inPacks) for (const f of await call('pack:files', p.id)) out.push({ packId: f.packId, ref: f.ref });
+    return out;
+  };
   const smart = collection.kind === 'smart';
   // The library's own collection: starred things. It keeps its name and stays.
   const own = collection.id === FAVOURITES;
@@ -184,15 +204,27 @@ export function CollectionPage({ id }: { id: string }) {
             {collection.name}
           </Typography>
           <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), mt: 0.5 }}>
-            {[inPacks.length ? `${inPacks.length} pack${inPacks.length === 1 ? '' : 's'}` : '', `${rows.total} asset${rows.total === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
+            {[inPacks.length ? `${inPacks.length} pack${inPacks.length === 1 ? '' : 's'}` : '', `${formatCount(held)} asset${held === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
+            {inPacks.length > 0 && rows.total > 0 ? ` (${rows.total} added on their own)` : ''}
             {smart && ` · a saved search${collection.query?.text ? ` for “${collection.query.text}”` : ''}; it updates as your library changes`}
           </Typography>
+          {(forProject || hasRules(collection.rules)) && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+              {forProject && <Chip size="small" icon={<SportsEsportsOutlined />} label={`For ${forProject.name}`} onClick={() => go({ to: 'project', id: forProject.id })} />}
+              {ruleChips.map((r) => (
+                <Chip key={r} size="small" variant="outlined" icon={<AutoAwesomeOutlined />} label={r} />
+              ))}
+            </div>
+          )}
           {collection.description && (
             <Typography variant="bodyMedium" sx={{ color: md('onSurface'), mt: 1, maxWidth: 760 }}>
               {collection.description}
             </Typography>
           )}
         </div>
+        {forProject && (
+          <CopyButton items={everything} to={forProject} variant="contained" size="medium" sx={{ mr: 1 }} />
+        )}
         {smart && (
           <Button variant="outlined" startIcon={<SearchOutlined />} onClick={openInBrowse}>
             Open in Browse
@@ -313,15 +345,15 @@ export function CollectionPage({ id }: { id: string }) {
           {...(smart ? {} : { extra: { icon: <RemoveCircleOutlineOutlined fontSize="small" />, primary: 'Take it out of this collection', run: () => void remove([menu.asset.id]) } })}
         />
       )}
-      <NameDialog
+      <CollectionDialog
         open={renaming}
-        title="Rename collection"
-        initial={collection.name}
-        action="Rename"
+        title="Edit this collection"
+        action="Save"
+        initial={{ name: collection.name, description: collection.description, rules: collection.rules, projectId: collection.projectId }}
         onClose={() => setRenaming(false)}
-        onDone={async (name, description) => {
+        onDone={async (draft) => {
           setRenaming(false);
-          await call('collections:change', id, { name, ...(description ? { description } : {}) });
+          await call('collections:change', id, { name: draft.name, description: draft.description, rules: draft.rules, projectId: draft.projectId });
         }}
       />
       <Dialog open={deleting} onClose={() => setDeleting(false)}>

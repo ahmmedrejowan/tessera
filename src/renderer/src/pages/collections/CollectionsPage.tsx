@@ -7,12 +7,13 @@ import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { FAVOURITES, type CollectionSummary } from '@shared/collection';
 import { AssetThumb } from '../../components/AssetThumb';
+import { formatCount } from '../../components/labels';
 import { EmptyState } from '../../components/EmptyState';
 import { newCollection, useCollections } from '../../state/collections';
 import { useNav } from '../../state/nav';
 import { md, SHAPE } from '../../theme';
 import { Page } from '../Placeholder';
-import { NameDialog } from './CollectionMenu';
+import { CollectionDialog, type CollectionDraft } from './CollectionDialog';
 
 function CollectionCard({ c }: { c: CollectionSummary }) {
   const go = useNav((s) => s.go);
@@ -40,7 +41,7 @@ function CollectionCard({ c }: { c: CollectionSummary }) {
           {c.name}
         </Typography>
         <Typography variant="bodySmall" noWrap sx={{ color: md('onSurfaceVariant') }}>
-          {[c.packCount ? `${c.packCount} pack${c.packCount === 1 ? '' : 's'}` : '', `${c.count} asset${c.count === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
+          {[c.packCount ? `${c.packCount} pack${c.packCount === 1 ? '' : 's'}` : '', `${formatCount(c.assets)} asset${c.assets === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
           {c.kind === 'smart' ? ' · updates itself' : ''}
         </Typography>
       </div>
@@ -53,9 +54,9 @@ export function CollectionsPage() {
   const collections = useCollections().data;
   const go = useNav((s) => s.go);
   const [naming, setNaming] = useState(false);
-  const create = async (name: string, description: string) => {
+  const create = async (draft: CollectionDraft) => {
     setNaming(false);
-    const id = await newCollection(name, { description });
+    const id = await newCollection(draft.name, { description: draft.description, rules: draft.rules, projectId: draft.projectId });
     go({ to: 'collection', id });
   };
   return (
@@ -89,7 +90,7 @@ export function CollectionsPage() {
             .map((c) => <CollectionCard key={c.id} c={c} />)}
         </div>
       )}
-      <NameDialog open={naming} title="New collection" action="Create" onClose={() => setNaming(false)} onDone={(n, d) => void create(n, d)} />
+      <CollectionDialog open={naming} title="New collection" action="Create" onClose={() => setNaming(false)} onDone={(draft) => void create(draft)} />
     </Page>
   );
 }

@@ -22,14 +22,16 @@ type Items = { packId: string; ref: string }[];
  * "Copy to Bunny Dash ▾": copies to the project last copied to; the arrow copies to another one
  * (which it then remembers) or links a new one. Projects are shared by every library.
  */
-export function CopyButton({ items, variant = 'contained', size = 'small', color, sx }: { items: () => Promise<Items> | Items; variant?: 'contained' | 'text'; size?: 'small' | 'medium'; color?: string; sx?: object }) {
+export function CopyButton({ items, variant = 'contained', size = 'small', color, sx, to }: { items: () => Promise<Items> | Items; variant?: 'contained' | 'text'; size?: 'small' | 'medium'; color?: string; sx?: object; to?: { id: string; name: string } | null }) {
   const projects = useProjects().data ?? [];
-  const active = useActiveProject();
+  // A collection made for one game copies there, whatever was last copied to.
+  const active = useActiveProject() ?? null;
   const update = useUpdateSettings();
   const go = useNav((s) => s.go);
   const link = useLinkProject();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const tone = color ? { color, borderColor: `${color} !important` } : {};
+  const target = to ?? active;
   const copyTo = async (p: { id: string; name: string }) => {
     setAnchor(null);
     if (active?.id !== p.id) update.mutate({ activeProjectId: p.id });
@@ -38,8 +40,8 @@ export function CopyButton({ items, variant = 'contained', size = 'small', color
   return (
     <>
       <ButtonGroup variant={variant} size={size} disableElevation sx={sx} aria-label="Copy to a project">
-        <Button startIcon={<DriveFileMoveOutlined />} sx={{ ...tone, maxWidth: 260 }} onClick={async (e) => (active ? void copyTo(active) : setAnchor(e.currentTarget.parentElement))}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{active ? `Copy to ${active.name}` : 'Copy to project…'}</span>
+        <Button startIcon={<DriveFileMoveOutlined />} sx={{ ...tone, maxWidth: 260 }} onClick={async (e) => (target ? void copyTo(target) : setAnchor(e.currentTarget.parentElement))}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{target ? `Copy to ${target.name}` : 'Copy to project…'}</span>
         </Button>
         <Button aria-label="Choose the project" onClick={(e) => setAnchor(e.currentTarget.parentElement)} sx={{ ...tone, px: 0, minWidth: 32 }}>
           <ArrowDropDown />
@@ -48,7 +50,7 @@ export function CopyButton({ items, variant = 'contained', size = 'small', color
       <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)} slotProps={{ paper: { sx: { minWidth: 280 } } }}>
         {projects.map((p) => (
           <MenuItem key={p.id} disabled={!p.exists} onClick={() => void copyTo(p)}>
-            <ListItemIcon>{active?.id === p.id ? <Check /> : null}</ListItemIcon>
+            <ListItemIcon>{target?.id === p.id ? <Check /> : null}</ListItemIcon>
             <ListItemText primary={`Copy to ${p.name}`} secondary={p.exists ? ENGINE_LABELS[p.engine] : 'Can’t find its folder'} />
           </MenuItem>
         ))}

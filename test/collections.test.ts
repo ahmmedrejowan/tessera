@@ -3,12 +3,25 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { LibraryIndex } from '../src/main/index/indexer';
 import { LibraryQueries } from '../src/main/index/query';
+import { hasRules, NO_RULES, refuses } from '@shared/collection';
 import { createCollection, deleteCollection, listCollections, readCollection, updateCollection, withItems, withoutItems, withPacks, withoutPacks } from '../src/main/library/collections';
 import { createLibrary } from '../src/main/library/layout';
 import { createPack } from '../src/main/library/packs';
 import { tempDir } from './helpers';
 
 describe('collections', () => {
+  it('turns away what does not fit its rules', () => {
+    const rules = { ...NO_RULES, licences: ['CC0-1.0'], styles: ['pixel'] };
+    const fits = { name: 'tile.png', licence: 'CC0-1.0', creator: 'Kenney', styles: ['Pixel'], tags: [], types: ['sprite'] };
+    expect(refuses(rules, fits)).toBeNull();
+    expect(refuses(rules, { ...fits, licence: 'CC-BY-4.0' })).toBe('its licence');
+    expect(refuses(rules, { ...fits, styles: ['low poly'] })).toBe('its style');
+    // Nothing asked for means nothing refused.
+    expect(refuses(NO_RULES, { ...fits, licence: null })).toBeNull();
+    expect(hasRules(NO_RULES)).toBe(false);
+    expect(hasRules(rules)).toBe(true);
+  });
+
   it('holds whole packs as well as single assets', async () => {
     const root = tempDir();
     await createLibrary(root, 'lib');

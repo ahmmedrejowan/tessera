@@ -14,6 +14,7 @@ import TextField from '@mui/material/TextField';
 import { useState } from 'react';
 import type { CollectionItem, SmartQuery } from '@shared/collection';
 import { addToCollection, newCollection, useCollections } from '../../state/collections';
+import { useNewCollection } from './CollectionDialog';
 
 /** A dialog asking for a collection's name. */
 export function NameDialog({ open, title, initial = '', action, onClose, onDone }: { open: boolean; title: string; initial?: string; action: string; onClose: () => void; onDone: (name: string, description: string) => void }) {
@@ -54,14 +55,15 @@ export function CollectionMenu({
   packs?: () => Promise<string[]>;
 }) {
   const collections = (useCollections().data ?? []).filter((c) => c.kind === 'manual').sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const [naming, setNaming] = useState(false);
   return (
     <>
       <Menu anchorEl={anchor} open={!!anchor} onClose={onClose} slotProps={{ paper: { sx: { minWidth: 260, maxHeight: 420 } } }}>
         <MenuItem
-          onClick={() => {
+          onClick={async () => {
+            // The things being added are read before the menu goes, since it takes its callbacks with it.
+            const [chosen, chosenPacks] = [(await items?.()) ?? [], (await packs?.()) ?? []];
             onClose();
-            setNaming(true);
+            useNewCollection.getState().start(chosen, chosenPacks);
           }}
         >
           <ListItemIcon>
@@ -81,20 +83,11 @@ export function CollectionMenu({
             <ListItemIcon>
               <CollectionsBookmarkOutlined />
             </ListItemIcon>
-            <ListItemText primary={c.name} secondary={[c.packCount ? `${c.packCount} pack${c.packCount === 1 ? '' : 's'}` : '', `${c.count} asset${c.count === 1 ? '' : 's'}`].filter(Boolean).join(' · ')} />
+            <ListItemText primary={c.name} secondary={[c.packCount ? `${c.packCount} pack${c.packCount === 1 ? '' : 's'}` : '', `${c.assets} asset${c.assets === 1 ? '' : 's'}`].filter(Boolean).join(' · ')} />
           </MenuItem>
         ))}
       </Menu>
-      <NameDialog
-        open={naming}
-        title="New collection"
-        action="Create"
-        onClose={() => setNaming(false)}
-        onDone={async (name, description) => {
-          setNaming(false);
-          await newCollection(name, { items: (await items?.()) ?? [], packs: (await packs?.()) ?? [], description });
-        }}
-      />
+
     </>
   );
 }

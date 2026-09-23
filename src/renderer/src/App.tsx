@@ -2,6 +2,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DialogHost } from './notices/DialogHost';
+import { NewCollectionHost } from './pages/collections/CollectionDialog';
 import { NoticeHost } from './notices/NoticeHost';
 import { ReportsHost } from './reports/ReportsHost';
 import { LibraryDialog } from './pages/library/LibraryDialog';
@@ -92,6 +93,7 @@ export function App() {
       <Screen />
       <NoticeHost />
       <DialogHost />
+      <NewCollectionHost />
       <ReportsHost />
       <LibraryDialog />
       <Guides />
