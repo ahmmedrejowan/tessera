@@ -24,6 +24,9 @@ import ButtonBase from '@mui/material/ButtonBase';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { ComponentType } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { call } from '../api';
+import { useIndexVersion, useLibraryId, useStats } from '../state/library';
 import { railOf, useNav, type Destination } from '../state/nav';
 import { md, mdAlpha, SHAPE, STATE } from '../theme';
 
@@ -41,7 +44,7 @@ const MAIN: Item[] = [
   { to: 'projects', label: 'Projects', icon: SportsEsportsOutlined, activeIcon: SportsEsports },
   { to: 'inbox', label: 'Review', icon: RateReviewOutlined, activeIcon: RateReview },
   { to: 'downloads', label: 'Downloads', icon: DownloadOutlined, activeIcon: Download },
-  { to: 'archive', label: 'Put away', icon: ArchiveOutlined, activeIcon: Archive },
+  { to: 'archive', label: 'Archive', icon: ArchiveOutlined, activeIcon: Archive },
   { to: 'bin', label: 'Bin', icon: DeleteOutlined, activeIcon: Delete },
 ];
 const BOTTOM: Item[] = [
@@ -51,10 +54,16 @@ const BOTTOM: Item[] = [
 
 export const RAIL_WIDTH = 88;
 
-function RailItem({ item, badge }: { item: Item; badge?: number }) {
+/**
+ * One place on the rail. A count marks something waiting: red for what is asking to be dealt with
+ * (Review, Downloads), quiet for what is merely holding things (the archive, the bin), which also
+ * fills its icon in so a glance says whether there is anything in there.
+ */
+function RailItem({ item, badge, quiet }: { item: Item; badge?: number; quiet?: boolean }) {
   const active = useNav((s) => railOf(s.route) === item.to);
   const go = useNav((s) => s.go);
-  const Icon = active ? item.activeIcon : item.icon;
+  const holding = quiet && !!badge;
+  const Icon = active || holding ? item.activeIcon : item.icon;
   return (
     <ButtonBase
       disableRipple
@@ -84,7 +93,7 @@ function RailItem({ item, badge }: { item: Item; badge?: number }) {
       }}
     >
       <span className="indicator">
-        <Badge badgeContent={badge} color="error" max={99} invisible={!badge}>
+        <Badge badgeContent={badge} color={quiet ? 'secondary' : 'error'} max={999} invisible={!badge}>
           <Icon />
         </Badge>
       </span>
@@ -96,6 +105,16 @@ function RailItem({ item, badge }: { item: Item; badge?: number }) {
 }
 
 export function NavigationRail({ inboxCount, downloadCount, onAdd }: { inboxCount?: number; downloadCount?: number; onAdd: (anchor: HTMLElement) => void }) {
+  const lib = useLibraryId();
+  const version = useIndexVersion();
+  const archived = useStats().data?.archived ?? 0;
+  const inBin = useQuery({ queryKey: ['bin', lib, version], queryFn: () => call('bin:list'), enabled: !!lib }).data?.length ?? 0;
+  const badges: Partial<Record<Destination, { badge: number; quiet?: boolean }>> = {
+    ...(inboxCount ? { inbox: { badge: inboxCount } } : {}),
+    ...(downloadCount ? { downloads: { badge: downloadCount } } : {}),
+    ...(archived ? { archive: { badge: archived, quiet: true } } : {}),
+    ...(inBin ? { bin: { badge: inBin, quiet: true } } : {}),
+  };
   return (
     <nav
       aria-label="Main"
@@ -121,7 +140,7 @@ export function NavigationRail({ inboxCount, downloadCount, onAdd }: { inboxCoun
         </ButtonBase>
       </Tooltip>
       {MAIN.map((item) => (
-        <RailItem key={item.to} item={item} {...(item.to === 'inbox' && inboxCount ? { badge: inboxCount } : item.to === 'downloads' && downloadCount ? { badge: downloadCount } : {})} />
+        <RailItem key={item.to} item={item} {...(badges[item.to] ?? {})} />
       ))}
       <div style={{ flex: 1 }} />
       {BOTTOM.map((item) => (

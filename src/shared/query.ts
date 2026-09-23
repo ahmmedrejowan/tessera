@@ -110,6 +110,8 @@ export interface Page<T> {
 export interface LibraryStats {
   packs: number;
   inbox: number;
+  /** Packs in the archive: kept in full, out of the way of browsing. */
+  archived: number;
   assets: number;
   size: number;
   byType: Partial<Record<AssetType, number>>;

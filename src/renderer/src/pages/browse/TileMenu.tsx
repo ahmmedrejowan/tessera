@@ -137,8 +137,8 @@ export function PackMenu({ anchor, pack, onClose, onOpen }: { anchor: HTMLElemen
         <Divider />
         <Item
           icon={pack.archived ? <UnarchiveOutlined fontSize="small" /> : <ArchiveOutlined fontSize="small" />}
-          primary={pack.archived ? 'Bring it back' : 'Put it away'}
-          {...(pack.archived ? {} : { secondary: 'Kept in full, out of the way' })}
+          primary={pack.archived ? 'Bring it back' : 'Archive it'}
+          {...(pack.archived ? {} : { secondary: 'Kept in full, out of the way of browsing' })}
           onClick={run(() => void archivePack(pack.id, !pack.archived))}
         />
         <Item danger icon={<DeleteOutlineRounded fontSize="small" />} primary="Delete" onClick={run(() => void removePacks([pack.id], pack.name))} />

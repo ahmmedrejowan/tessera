@@ -8,7 +8,7 @@ import { md, SHAPE } from '../theme';
  */
 export function EmptyState({ icon: Icon, title, body, actions, details }: { icon: ComponentType<{ sx?: object }>; title: string; body: ReactNode; actions?: ReactNode; details?: string }) {
   return (
-    <div style={{ width: '100%', height: '100%', minHeight: 420, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 32px 64px', boxSizing: 'border-box' }}>
+    <div style={{ width: '100%', height: '100%', flex: 1, minHeight: 420, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 32px 64px', boxSizing: 'border-box' }}>
       <div style={{ maxWidth: 460, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
         <div style={{ width: 64, height: 64, borderRadius: SHAPE.lg, display: 'grid', placeItems: 'center', background: md('secondaryContainer'), color: md('onSecondaryContainer'), marginBottom: 6 }}>
           <Icon sx={{ fontSize: 30 }} />

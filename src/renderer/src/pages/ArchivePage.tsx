@@ -48,7 +48,7 @@ export function ArchivePage() {
 
   return (
     <Page
-      title="Put away"
+      title="Archive"
       subtitle="Packs kept in full, out of the way of browsing"
       flush
       actions={
@@ -68,8 +68,8 @@ export function ArchivePage() {
         {!packs.loading && packs.total === 0 ? (
           <EmptyState
             icon={ArchiveOutlined}
-            title="Nothing is put away"
-            body="Putting a pack away keeps it in full and takes it out of browsing, for the ones you want to keep but rarely reach for. A pack card’s menu has the way to do it."
+            title="The archive is empty"
+            body="Archiving a pack keeps it in full and takes it out of browsing, for the ones you want to keep but rarely reach for. A pack card’s menu has the way to do it."
             actions={
               <Button variant="contained" onClick={() => go({ to: 'browse' })}>
                 Browse the library
@@ -78,7 +78,7 @@ export function ArchivePage() {
           />
         ) : (
           <VirtualGrid
-            label="Packs put away"
+            label="Archived packs"
             count={packs.total}
             minItemWidth={Math.max(200, tileSize * 1.4)}
             itemHeight={(w) => coverHeight(w) + PACK_LABEL_HEIGHT + 12}

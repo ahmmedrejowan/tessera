@@ -161,7 +161,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
             {sourceName(pack.source) && <Chip size="small" variant="outlined" label={sourceName(pack.source)} />}
             {pack.creator && pack.creator !== sourceName(pack.source) && <Chip size="small" variant="outlined" label={pack.creator} />}
             {pack.status === 'inbox' && <Chip size="small" icon={<InboxOutlined />} label="In the Inbox" sx={{ backgroundColor: md('tertiaryContainer'), color: md('onTertiaryContainer') }} />}
-            {pack.meta.archived && <Chip size="small" icon={<ArchiveOutlined />} label="Put away" sx={{ backgroundColor: md('surfaceContainerHighest'), color: md('onSurfaceVariant') }} />}
+            {pack.meta.archived && <Chip size="small" icon={<ArchiveOutlined />} label="Archived" sx={{ backgroundColor: md('surfaceContainerHighest'), color: md('onSurfaceVariant') }} />}
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
             <Button variant="contained" startIcon={<EditOutlined />} onClick={() => setEditing(true)}>
@@ -175,7 +175,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
               startIcon={pack.meta.archived ? <UnarchiveOutlined /> : <ArchiveOutlined />}
               onClick={() => void archivePack(id, !pack.meta.archived)}
             >
-              {pack.meta.archived ? 'Bring it back' : 'Put it away'}
+              {pack.meta.archived ? 'Bring it back' : 'Archive it'}
             </Button>
             <Button
               color="error"

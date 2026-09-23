@@ -104,7 +104,7 @@ export function SelectionBar({ packs, total, all }: { packs?: boolean; total?: n
       <CopyButton items={refs} variant="text" size="medium" color={md('inversePrimary')} />
       {packs && (
         <Button startIcon={<ArchiveOutlined />} onClick={() => void putAway()} sx={action}>
-          Put away
+          Archive
         </Button>
       )}
       <Button startIcon={<DeleteOutlineRounded />} onClick={() => void remove()} sx={action}>

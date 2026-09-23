@@ -232,7 +232,11 @@ export function HomePage() {
   const attention = (stats?.inbox ?? 0) + (health?.noCreditLine.length ?? 0) + (health?.restricted.length ?? 0);
 
   return (
-    <Page title={name} subtitle={stats ? `${formatCount(stats.packs)} packs · ${formatCount(stats.assets)} assets · ${formatBytes(stats.size)}` : undefined} width={1240}>
+    <Page title={name} subtitle={
+        stats
+          ? `${formatCount(stats.packs)} pack${stats.packs === 1 ? '' : 's'} · ${formatCount(stats.assets)} asset${stats.assets === 1 ? '' : 's'} · ${formatBytes(stats.size)}${stats.archived ? ` · ${formatCount(stats.archived)} archived` : ''}`
+          : undefined
+      } width={1240}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 36, paddingTop: 8 }}>
 
         {types.length > 0 && (

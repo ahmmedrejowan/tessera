@@ -64,7 +64,7 @@ export function Page({ title, subtitle, actions, aside, onBack, width, flush, ch
         {actions && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>{actions}</div>}
       </header>
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto', scrollbarGutter: 'stable' }}>
-        {flush ? children : <div style={{ padding: PAGE.body, ...column }}>{children}</div>}
+        {flush ? children : <div style={{ padding: PAGE.body, ...column, minHeight: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>{children}</div>}
       </div>
     </div>
   );

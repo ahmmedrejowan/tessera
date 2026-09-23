@@ -10,8 +10,8 @@ export async function archivePack(id: string, on: boolean): Promise<void> {
   try {
     await call('pack:archive', id, on);
     if (on) {
-      notify.success('Put away. It keeps everything; it just isn’t browsed.', {
-        action: { label: 'Show what’s put away', run: () => useNav.getState().go({ to: 'archive' }) },
+      notify.success('Archived. It keeps everything; it just isn’t browsed.', {
+        action: { label: 'Show the archive', run: () => useNav.getState().go({ to: 'archive' }) },
       });
     } else {
       notify.success('Back in the library.');

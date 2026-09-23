@@ -348,13 +348,14 @@ export class LibraryQueries {
   }
 
   stats(): LibraryStats {
-    const packs = this.get<{ packs: number; inbox: number; size: number }>(
-      `SELECT count(*) FILTER (WHERE status = 'library') AS packs, count(*) FILTER (WHERE status = 'inbox') AS inbox, coalesce(sum(size), 0) AS size FROM packs`,
+    const packs = this.get<{ packs: number; inbox: number; archived: number; size: number }>(
+      `SELECT count(*) FILTER (WHERE status = 'library' AND archived = 0) AS packs, count(*) FILTER (WHERE status = 'inbox') AS inbox,
+         count(*) FILTER (WHERE status = 'library' AND archived = 1) AS archived, coalesce(sum(size), 0) AS size FROM packs`,
     )!;
     const byType: Partial<Record<AssetType, number>> = {};
     let assets = 0;
     for (const r of this.all<{ type: AssetType; n: number }>(
-      `SELECT a.type, count(*) AS n FROM assets a JOIN packs p ON p.id = a.pack_id WHERE a.role = 'main' AND p.status = 'library' GROUP BY a.type`,
+      `SELECT a.type, count(*) AS n FROM assets a JOIN packs p ON p.id = a.pack_id WHERE a.role = 'main' AND p.status = 'library' AND p.archived = 0 GROUP BY a.type`,
     )) {
       byType[r.type] = r.n;
       assets += r.n;
