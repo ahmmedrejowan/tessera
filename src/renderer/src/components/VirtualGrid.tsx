@@ -18,6 +18,8 @@ interface Props {
   /** Bring this item into view when it changes. */
   scrollToIndex?: number | null;
   footer?: ReactNode;
+  /** What the tiles are, for a screen reader. Given one, the grid becomes a list you can pick from. */
+  label?: string;
 }
 
 function useWidth(ref: RefObject<HTMLElement | null>): number {
@@ -34,7 +36,7 @@ function useWidth(ref: RefObject<HTMLElement | null>): number {
 }
 
 /** A grid that only renders the rows in view, so a hundred thousand tiles scroll as smoothly as ten. */
-export function VirtualGrid({ count, minItemWidth, itemHeight, gap = 12, padding = 24, render, onRangeChange, onColumns, scrollRef, scrollToIndex, footer }: Props) {
+export function VirtualGrid({ count, minItemWidth, itemHeight, gap = 12, padding = 24, render, onRangeChange, onColumns, scrollRef, scrollToIndex, footer, label }: Props) {
   const ownRef = useRef<HTMLDivElement>(null);
   const ref = scrollRef ?? ownRef;
   const width = useWidth(ref);
@@ -65,17 +67,21 @@ export function VirtualGrid({ count, minItemWidth, itemHeight, gap = 12, padding
 
   return (
     <div ref={ref} style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}>
-      <div style={{ height: v.getTotalSize(), position: 'relative' }}>
+      <div
+        style={{ height: v.getTotalSize(), position: 'relative' }}
+        {...(label ? { role: 'listbox', 'aria-label': label, 'aria-multiselectable': true } : {})}
+      >
         {width > 0 &&
           items.map((row) => (
             <div
               key={row.key}
+              role="presentation"
               style={{ position: 'absolute', top: 0, left: padding, right: padding, height: rowHeight - gap, transform: `translateY(${row.start}px)`, display: 'flex', gap }}
             >
               {Array.from({ length: columns }, (_, c) => {
                 const i = row.index * columns + c;
                 return i < count ? (
-                  <div key={i} style={{ width: itemWidth, flexShrink: 0 }}>
+                  <div key={i} role="presentation" style={{ width: itemWidth, flexShrink: 0 }}>
                     {render(i, itemWidth)}
                   </div>
                 ) : null;

@@ -22,7 +22,14 @@ import Tabs from '@mui/material/Tabs';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
+import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
+import OpenInFullRounded from '@mui/icons-material/OpenInFullRounded';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import { lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from 'react';
+import { CollectionMenu } from '../collections/CollectionMenu';
 import { TYPE_LABELS, type AssetType } from '@shared/assets';
 import { licenceInfo } from '@shared/licences';
 import { missingForLibrary } from '@shared/pack';
@@ -99,6 +106,9 @@ export function PackPage({ id }: { id: string }) {
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [files]);
 
+  const [menu, setMenu] = useState<{ anchor: HTMLElement; asset: AssetRow; index: number } | null>(null);
+  const [collecting, setCollecting] = useState<HTMLElement | null>(null);
+
   const render = useCallback(
     (i: number, width: number) => {
       const a = assets[i];
@@ -109,11 +119,12 @@ export function PackPage({ id }: { id: string }) {
           selected={false}
           onClick={() => a && setViewing({ list: assets, index: i })}
           onOpen={() => a && setViewing({ list: assets, index: i })}
+          onMenu={(anchor, x) => setMenu({ anchor, asset: x, index: i })}
           dragItems={(x) => [{ packId: x.packId, ref: x.ref }]}
         />
       );
     },
-    [assets],
+    [assets, setMenu],
   );
 
   if (!pack) return null;
@@ -142,7 +153,7 @@ export function PackPage({ id }: { id: string }) {
             </IconButton>
           </Tooltip>
         )}
-        <div style={{ width: 200, flexShrink: 0, height: coverHeight(200) + 12, overflow: 'hidden', pointerEvents: 'none' }}>
+        <div aria-hidden style={{ width: 200, flexShrink: 0, height: coverHeight(200) + 12, overflow: 'hidden', pointerEvents: 'none' }}>
           <PackCard pack={pack} width={200} selected={false} onClick={() => undefined} onOpen={() => undefined} />
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -215,7 +226,7 @@ export function PackPage({ id }: { id: string }) {
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               {assets.length ? (
-                <VirtualGrid count={assets.length} minItemWidth={tileSize} itemHeight={(w) => w + TILE_LABEL_HEIGHT} gap={8} render={render} />
+                <VirtualGrid label="Assets in this pack" count={assets.length} minItemWidth={tileSize} itemHeight={(w) => w + TILE_LABEL_HEIGHT} gap={8} render={render} />
               ) : (
                 <EmptyState
                   icon={SearchOutlined}
@@ -377,6 +388,35 @@ export function PackPage({ id }: { id: string }) {
         </DialogActions>
       </Dialog>
       <PackEditor packId={id} meta={pack.meta} open={editing} onClose={() => setEditing(false)} />
+      {menu && (
+        <Menu anchorEl={menu.anchor} open={!collecting} onClose={() => setMenu(null)} slotProps={{ paper: { sx: { minWidth: 200 } } }}>
+          <MenuItem
+            onClick={() => {
+              setViewing({ list: assets, index: menu.index });
+              setMenu(null);
+            }}
+          >
+            <ListItemIcon>
+              <OpenInFullRounded fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Open" />
+          </MenuItem>
+          <MenuItem onClick={(e) => setCollecting(e.currentTarget)}>
+            <ListItemIcon>
+              <BookmarkAddOutlined fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Add to a collection" />
+          </MenuItem>
+        </Menu>
+      )}
+      <CollectionMenu
+        anchor={collecting}
+        onClose={() => {
+          setCollecting(null);
+          setMenu(null);
+        }}
+        items={() => Promise.resolve(menu ? [{ packId: menu.asset.packId, ref: menu.asset.ref }] : [])}
+      />
       {viewing && viewed && (
         <Suspense fallback={null}>
           <Viewer
