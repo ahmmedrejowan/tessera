@@ -56,7 +56,7 @@ export function shortcutGroups(platform: Platform): { title: string; items: Shor
       title: 'Search box',
       items: [
         { label: 'Move through the suggestions', keys: [['↑'], ['↓']] },
-        { label: 'Run the suggestion (or stay in Browse)', keys: [['Enter']] },
+        { label: 'Run the suggestion, or search everything', keys: [['Enter']] },
         { label: 'Close the suggestions', keys: [['Esc']] },
       ],
     },

@@ -5,6 +5,7 @@ import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { platform } from '../api';
 import { Logo } from '../components/Logo';
+import { useNav } from '../state/nav';
 import { md, mdAlpha, SHAPE } from '../theme';
 import { useCommands } from './commands';
 import { comboText } from './keys';
@@ -44,9 +45,12 @@ export function SearchField({ value, onChange, placeholder }: { value: string; o
       setActive((a) => Math.max(-1, a - 1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      // Enter on a suggestion runs it; otherwise the search stays in Browse.
+      // Enter on a suggestion runs it; otherwise it opens the search page, which covers everything.
       if (active >= 0) commands[active]?.run();
-      else setShown(false);
+      else {
+        setShown(false);
+        if (q) useNav.getState().go({ to: 'search', text: q });
+      }
     } else if (e.key === 'Escape') {
       if (open) setShown(false);
       else input.current?.blur();
@@ -136,7 +140,7 @@ export function SearchField({ value, onChange, placeholder }: { value: string; o
           })}
           {q && (
             <Typography variant="bodySmall" component="div" sx={{ px: 1.5, pt: 1, color: md('onSurfaceVariant') }}>
-              Matching assets are in Browse. Enter to stay there, ↓ to pick one of these.
+              Enter searches everything, ↓ picks one of these.
             </Typography>
           )}
         </div>

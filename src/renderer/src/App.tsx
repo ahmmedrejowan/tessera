@@ -27,6 +27,7 @@ import { CopyConfirm } from './pages/projects/CopyConfirm';
 import { ProjectPage } from './pages/projects/ProjectPage';
 import { ProjectsPage } from './pages/projects/ProjectsPage';
 import { ArchivePage } from './pages/ArchivePage';
+import { SearchPage } from './pages/SearchPage';
 import { BinPage } from './pages/BinPage';
 import { PackPage } from './pages/pack/PackPage';
 import { Welcome } from './pages/Welcome';
@@ -50,6 +51,8 @@ function Current() {
       return <InboxPage />;
     case 'downloads':
       return <DownloadsPage />;
+    case 'search':
+      return <SearchPage key={route.text} text={route.text} />;
     case 'archive':
       return <ArchivePage />;
     case 'bin':

@@ -10,11 +10,12 @@ export type Route =
   | { to: 'pack'; id: string; edit?: boolean }
   | { to: 'collection'; id: string }
   | { to: 'project'; id: string }
+  | { to: 'search'; text: string }
   | { to: 'helpTopic'; id: string; question?: string };
 
 /** The rail destination a route belongs under (a pack page sits under Browse). */
 export const railOf = (r: Route): Destination =>
-  r.to === 'adding' ? 'inbox' : r.to === 'pack' ? 'browse' : r.to === 'collection' ? 'collections' : r.to === 'project' ? 'projects' : r.to === 'helpTopic' ? 'help' : r.to;
+  r.to === 'adding' ? 'inbox' : r.to === 'pack' || r.to === 'search' ? 'browse' : r.to === 'collection' ? 'collections' : r.to === 'project' ? 'projects' : r.to === 'helpTopic' ? 'help' : r.to;
 
 interface NavState {
   route: Route;

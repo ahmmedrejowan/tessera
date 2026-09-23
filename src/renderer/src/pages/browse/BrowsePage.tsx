@@ -352,7 +352,9 @@ export function BrowsePage() {
   const filtering = !!text || activeFilterCount(s.filters) > 0;
   // Nothing in the library yet: no filters to show, just a way to add packs.
   const stats = useStats().data;
-  const nothingYet = stats?.assets === 0 && !filtering;
+  // The filter pane goes only when there is nothing in the library at all: a star filter is a
+  // narrowing like any other, and the facets should follow it.
+  const nothingYet = stats?.assets === 0 && !filtering && !s.favourites;
 
   return (
     <Page title="Browse" flush actions={<BrowseControls total={current.total} stale={current.stale} />}>
