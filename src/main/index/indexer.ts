@@ -272,6 +272,15 @@ export class LibraryIndex {
     });
   }
 
+  /** Which files are in the bin but couldn't be moved out of their archive, so they are hidden. */
+  setHidden(files: { packId: string; ref: string }[]): void {
+    transaction(this.db, () => {
+      this.db.exec('DELETE FROM hidden');
+      const insert = this.db.prepare('INSERT OR IGNORE INTO hidden (pack_id, ref) VALUES (?, ?)');
+      for (const f of files) insert.run(f.packId, f.ref);
+    });
+  }
+
   /** Mirror the manual collections' items into the index. */
   setCollections(collections: { id: string; items: { packId: string; ref: string }[] }[]): void {
     transaction(this.db, () => {

@@ -22,7 +22,7 @@ import { UserError } from '../errors';
 
 export const MARKER = 'tessera-library.json';
 export const LIBRARY_FORMAT = 1;
-export const DIRS = { packs: 'packs', collections: 'collections' } as const;
+export const DIRS = { packs: 'packs', collections: 'collections', bin: 'bin' } as const;
 export const PACK_FILE = 'pack.json';
 export const PACK_DIRS = { original: 'original', licence: 'licence' } as const;
 

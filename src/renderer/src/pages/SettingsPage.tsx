@@ -19,6 +19,7 @@ import { md, mdAlpha, SHAPE } from '../theme';
 import { schemeFromSeed } from '../theme/m3';
 import { PAGE, Page } from './Placeholder';
 import { BackupSettings } from './settings/BackupSettings';
+import { BinSettings } from './settings/BinSettings';
 import { PairedComputers, SyncSettings } from './settings/SyncSettings';
 import { Helpers } from './settings/Helpers';
 import { SiteRules } from './settings/SiteRules';
@@ -37,6 +38,7 @@ const SECTIONS: Section[] = [
   { id: 'general', title: 'General', part: 'library', group: 'library' },
   { id: 'backups', title: 'Backups', part: 'library', group: 'library' },
   { id: 'sync', title: 'Sync', part: 'library', group: 'library' },
+  { id: 'bin', title: 'Bin', part: 'library', group: 'library' },
   { id: 'storage', title: 'Previews and index', part: 'library', group: 'library' },
   { id: 'appearance', title: 'Appearance', part: 'app', group: 'app' },
   { id: 'sites', title: 'Sites', part: 'app', group: 'app' },
@@ -168,6 +170,12 @@ export function SettingsPage({ section }: { section?: string } = {}) {
             <div {...at('sync')}>
               <Group title="Sync" note="Keep this library the same on your other computers, over your own network.">
                 <SyncSettings />
+              </Group>
+            </div>
+
+            <div {...at('bin')}>
+              <Group title="Bin" note="What you deleted from this library, waiting to be put back. It lives inside the library, so it travels with it.">
+                <BinSettings />
               </Group>
             </div>
 

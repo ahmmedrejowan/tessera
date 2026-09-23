@@ -4,7 +4,7 @@ import { basename, extname, join } from 'node:path';
 import { missingForLibrary, type PackEdit, type PackStatus } from '@shared/pack';
 import { FAVOURITES, type CollectionItem, type CollectionSummary, type SmartQuery } from '@shared/collection';
 import type { BrowseQuery, Filters } from '@shared/query';
-import type { CollectionChange, Detected, FolderKind, ImportItem, ImportResult, LibraryState, PackSuggestions, SiteRule } from '@shared/types';
+import type { BinEntry, CollectionChange, Detected, FolderKind, ImportItem, ImportResult, LibraryState, PackSuggestions, SiteRule } from '@shared/types';
 import { UserError } from './errors';
 import { listPackFiles, parseRef } from './index/files';
 import { LibraryIndex } from './index/indexer';
@@ -17,6 +17,7 @@ import { detectPack, partLicences, packTexts } from './library/detect';
 import { suggestDetails } from './import/suggest';
 import { createLibrary, DIRS, inspectFolder, MARKER, PACK_DIRS, readLibraryInfo } from './library/layout';
 import { safeFolderName, uniqueName } from './library/names';
+import { binFiles, binPack, emptyBin, readBin, restoreFromBin, sweepBin } from './library/bin';
 import { editPack, readPack, writePack, type PackRecord } from './library/packs';
 import { writeJson } from './fsx';
 import { log } from './log';
@@ -29,6 +30,8 @@ interface Deps {
   onIndexChanged: () => void;
   /** The user's own rules for sites, read whenever a pack's licence is worked out. */
   siteRules: () => SiteRule[];
+  /** How long deleted things wait in the library's bin before they go for good; 0 keeps them. */
+  binKeepDays: () => number;
 }
 
 interface Open {
@@ -138,6 +141,10 @@ export class LibraryService {
         if (this.current !== lib) return;
         // Collections may have changed on disk too (edited on another computer and synced).
         const collectionsChanged = await this.reloadCollections();
+        // Anything sitting in the bin longer than the user allows goes for good, and what is left
+        // decides which files are hidden.
+        await sweepBin(lib.root, this.d.binKeepDays()).catch(() => 0);
+        lib.index.setHidden((await readBin(lib.root)).filter((e) => e.kind === 'file' && e.hiddenOnly).map((e) => ({ packId: e.packId, ref: e.ref })));
         job.done(result.changed || result.removed ? `${result.changed} changed, ${result.removed} removed` : 'Up to date');
         if (this.state.status === 'ready') this.setState({ ...this.state, problems: result.problems });
         if (result.changed || result.removed || collectionsChanged) this.d.onIndexChanged();
@@ -435,18 +442,19 @@ export class LibraryService {
     return join(pack.dir, PACK_DIRS.licence, name);
   }
 
-  /** Take a pack out of the library by moving its folder to the system trash (so it can be put back). */
-  async removePack(id: string, trash: (path: string) => Promise<void>): Promise<string> {
+  /** Take a pack out of the library, into the library's own bin, where it waits to be put back. */
+  async removePack(id: string): Promise<string> {
     const lib = this.require();
     const pack = await this.packRecord(id);
+    const row = lib.queries.pack(id);
     this.busyWriting++;
     try {
-      await trash(pack.dir);
+      await binPack(lib.root, id, pack.meta.name, basename(pack.dir), pack.dir, row?.size ?? 0);
       lib.index.removePack(id);
     } finally {
       this.busyWriting--;
     }
-    this.d.onIndexChanged();
+    await this.binChanged();
     return pack.meta.name;
   }
 
@@ -455,41 +463,83 @@ export class LibraryService {
    * file that lives inside a pack's archive can't be taken out on its own and is left alone; the
    * count of those comes back so the window can say so.
    */
-  async removeFiles(items: { packId: string; ref: string }[], trash: (path: string) => Promise<void>): Promise<{ removed: number; inArchive: number; failed: number }> {
+  async removeFiles(items: { packId: string; ref: string }[]): Promise<{ removed: number; inArchive: number; failed: number }> {
     const lib = this.require();
-    const byPack = new Map<string, Set<string>>();
+    const byPack = new Map<string, { ref: string; size: number; inArchive: boolean }[]>();
     let inArchive = 0;
     for (const { packId, ref } of items) {
-      const { file, inside } = parseRef(ref);
-      if (inside.length) {
-        inArchive++;
-        continue;
-      }
-      const files = byPack.get(packId) ?? new Set<string>();
-      files.add(file);
-      byPack.set(packId, files);
+      const inside = parseRef(ref).inside.length > 0;
+      if (inside) inArchive++;
+      const list = byPack.get(packId) ?? [];
+      // A file inside an archive is recorded by its own ref; a loose one by the file on disk.
+      list.push({ ref: inside ? ref : parseRef(ref).file, size: lib.queries.assetByRef(packId, ref)?.size ?? 0, inArchive: inside });
+      byPack.set(packId, list);
     }
     let removed = 0;
     let failed = 0;
     this.busyWriting++;
     try {
-      for (const [packId, files] of byPack) {
+      for (const [packId, refs] of byPack) {
         const pack = await this.packRecord(packId);
-        for (const file of files) {
+        const done: typeof refs = [];
+        for (const r of refs) {
           try {
-            await trash(join(pack.dir, ...file.split('/')));
-            removed++;
+            // Moving happens one at a time so one unreadable file doesn't stop the rest.
+            await binFiles(lib.root, pack.dir, packId, pack.meta.name, [r]);
+            done.push(r);
+            if (!r.inArchive) removed++;
           } catch {
             failed++;
           }
         }
-        await lib.index.syncPack(pack, lib.index.known(packId));
+        if (done.some((r) => !r.inArchive)) await lib.index.syncPack(pack, lib.index.known(packId));
       }
     } finally {
       this.busyWriting--;
     }
-    if (removed) this.d.onIndexChanged();
-    return { removed, inArchive, failed };
+    await this.binChanged();
+    return { removed: removed + inArchive - failed, inArchive, failed };
+  }
+
+  /** What is waiting in the library's bin, newest first. */
+  bin(): Promise<BinEntry[]> {
+    return readBin(this.require().root);
+  }
+
+  /** Put something back where it came from. */
+  async restoreFromBin(id: string): Promise<BinEntry | null> {
+    const lib = this.require();
+    this.busyWriting++;
+    let entry: BinEntry | null = null;
+    try {
+      entry = await restoreFromBin(lib.root, id, (packId) => join(lib.root, DIRS.packs, this.folderOf(packId)), join(lib.root, DIRS.packs));
+    } finally {
+      this.busyWriting--;
+    }
+    if (entry) {
+      await this.sync();
+      await this.binChanged();
+    }
+    return entry;
+  }
+
+  /** Throw away what is in the bin, for good. */
+  async emptyBin(ids?: string[]): Promise<number> {
+    const n = await emptyBin(this.require().root, ids);
+    if (n) await this.binChanged();
+    return n;
+  }
+
+  /** The folder of a pack that may no longer be in the index (it is in the bin). */
+  private folderOf(packId: string): string {
+    return this.require().queries.pack(packId)?.folder ?? packId;
+  }
+
+  /** Tell the index what is hidden (files in the bin that couldn't be moved) and the window to reload. */
+  private async binChanged(): Promise<void> {
+    const lib = this.require();
+    lib.index.setHidden((await readBin(lib.root)).filter((e) => e.kind === 'file' && e.hiddenOnly).map((e) => ({ packId: e.packId, ref: e.ref })));
+    this.d.onIndexChanged();
   }
 
   async editPack(id: string, edit: PackEdit): Promise<void> {

@@ -9,7 +9,7 @@ import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } f
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { Provider, StorageTarget } from './storage';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
-import type { PackSuggestions, LibrarySummary, AppInfo, ActivityEntry, DownloadItem, UpdateStatus, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { BinEntry, PackSuggestions, LibrarySummary, AppInfo, ActivityEntry, DownloadItem, UpdateStatus, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -103,6 +103,13 @@ export interface Invokes {
    * can't be opened, so the archive holding it is shown instead and `inArchive` comes back.
    */
   'pack:open': (id: string, ref: string) => 'opened' | 'inArchive';
+
+  /** What is waiting in the library's own wastebasket, newest first. */
+  'bin:list': () => BinEntry[];
+  /** Put one thing back where it came from. */
+  'bin:restore': (id: string) => BinEntry | null;
+  /** Throw away what is in the bin, for good; with no ids, everything. */
+  'bin:empty': (ids?: string[]) => number;
 
   'jobs:list': () => Job[];
 

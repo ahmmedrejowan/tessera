@@ -135,6 +135,7 @@ const library = new LibraryService({
   dataDir,
   jobs,
   siteRules: () => settings.get().siteRules,
+  binKeepDays: () => settings.get().binKeepDays,
   onState: (state) => {
     broadcast(windows, 'library:changed', state);
     if (state.status === 'ready') {
@@ -525,8 +526,11 @@ function registerHandlers(): void {
     await library.setStatus(id, status);
     if (status === 'library' && name) activity.add('reviewed', `“${name}” passed Review and is in the library`);
   });
-  handle('pack:remove', (id) => library.removePack(id, (path) => shell.trashItem(path)));
-  handle('assets:remove', (items) => library.removeFiles(items, (path) => shell.trashItem(path)));
+  handle('pack:remove', (id) => library.removePack(id));
+  handle('assets:remove', (items) => library.removeFiles(items));
+  handle('bin:list', () => library.bin());
+  handle('bin:restore', (id) => library.restoreFromBin(id));
+  handle('bin:empty', (ids) => library.emptyBin(ids));
   handle('pack:proof', async (id) => (await library.proofFiles(id)).map((f) => ({ ...f, url: packFileUrl(id, `licence/${f.name}`) })));
   handle('pack:addProof', async (id) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];

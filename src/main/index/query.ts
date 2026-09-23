@@ -107,6 +107,8 @@ export class LibraryQueries {
       // Variants are always shown through the asset they belong to.
       out.push({ sql: q.includeSupport ? "a.role != 'variant'" : "a.role = 'main'", params: [] });
     }
+    // Files waiting in the bin that couldn't be moved out of their archive are not in the library.
+    if (mode === 'assets') out.push({ sql: 'NOT EXISTS (SELECT 1 FROM hidden h WHERE h.pack_id = a.pack_id AND h.ref = a.ref)', params: [] });
 
     for (const facet of FACETS) {
       const values = q.filters[facet];
@@ -207,12 +209,20 @@ export class LibraryQueries {
     return { ...this.toPackRows([raw])[0]!, meta: JSON.parse(raw.meta_json) as PackMeta };
   }
 
-  /** Every file of one pack, for its contents view. */
+  /** Every file of one pack, for its contents view. Files waiting in the bin are left out. */
   packFiles(id: string): AssetRow[] {
     return this.all<RawAsset>(
-      `SELECT ${ASSET_FIELDS} FROM assets a JOIN packs p ON p.id = a.pack_id WHERE a.pack_id = ? ORDER BY a.dir COLLATE NOCASE, a.name COLLATE NOCASE`,
+      `SELECT ${ASSET_FIELDS} FROM assets a JOIN packs p ON p.id = a.pack_id
+       WHERE a.pack_id = ? AND NOT EXISTS (SELECT 1 FROM hidden h WHERE h.pack_id = a.pack_id AND h.ref = a.ref)
+       ORDER BY a.dir COLLATE NOCASE, a.name COLLATE NOCASE`,
       [id],
     ).map(toAsset);
+  }
+
+  /** One file of a pack by its ref, for what it weighs before it goes to the bin. */
+  assetByRef(packId: string, ref: string): AssetRow | null {
+    const r = this.get<RawAsset>(`SELECT ${ASSET_FIELDS} FROM assets a JOIN packs p ON p.id = a.pack_id WHERE a.pack_id = ? AND a.ref = ?`, [packId, ref]);
+    return r ? toAsset(r) : null;
   }
 
   asset(id: number): AssetRow | null {

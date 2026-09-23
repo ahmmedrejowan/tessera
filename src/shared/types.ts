@@ -15,6 +15,22 @@ export interface AppInfo {
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
+/** One thing waiting in the library's own wastebasket. */
+export interface BinEntry {
+  id: string;
+  kind: 'pack' | 'file';
+  deletedAt: string;
+  packId: string;
+  packName: string;
+  /** A pack's folder name, or the file's ref inside its pack. */
+  ref: string;
+  /** The path shown to people. */
+  shown: string;
+  size: number;
+  /** Inside a pack's archive: hidden rather than moved, so it comes back by itself. */
+  hiddenOnly: boolean;
+}
+
 export interface Settings {
   theme: ThemeMode;
   /** Seed for the Material 3 colour scheme, as #rrggbb. */
@@ -39,6 +55,8 @@ export interface Settings {
    * Downloads for the user.
    */
   afterDownload: AfterDownload;
+  /** How long deleted things wait in the library's bin before they go for good; 0 keeps them. */
+  binKeepDays: number;
   /** Look for a newer Tessera on start and once a day. */
   updateCheck: boolean;
   /** Fetch a newer version's installer as soon as one is found (it still waits to be opened). */
