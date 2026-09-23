@@ -5,7 +5,7 @@ import { sourceFromName, sourceFromText, sourceFromUrl } from '@shared/sources';
 describe('licence detection', () => {
   it.each([
     ['License: (Creative Commons Zero, CC0) http://creativecommons.org/publicdomain/zero/1.0/', 'CC0-1.0'],
-    ['Licensed under CC BY 3.0 — credit Lorc', 'CC-BY-3.0'],
+    ['Licensed under CC BY 3.0: credit Lorc', 'CC-BY-3.0'],
     ['This work is licensed under a Creative Commons Attribution 4.0 International License.', 'CC-BY-4.0'],
     ['https://creativecommons.org/licenses/by-sa/3.0/', 'CC-BY-SA-3.0'],
     ['Attribution-NonCommercial-ShareAlike 4.0 International', 'CC-BY-NC-SA-4.0'],

@@ -38,7 +38,7 @@ interface Open {
 }
 
 /**
- * The library that is open: its folder, its index, and keeping the two in step — on opening,
+ * The library that is open: its folder, its index, and keeping the two in step: on opening,
  * whenever files in the folder change, and after the app itself changes something.
  */
 export class LibraryService {

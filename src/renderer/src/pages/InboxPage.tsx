@@ -106,7 +106,7 @@ function ReviewRow({ pack }: { pack: PackRow }) {
 }
 
 /**
- * Review: packs added with "finish later", waiting for a licence and a source — the check that
+ * Review: packs added with "finish later", waiting for a licence and a source, the check that
  * keeps assets with unknown terms out of your games. Filled in here, they move into the library.
  */
 export function InboxPage() {

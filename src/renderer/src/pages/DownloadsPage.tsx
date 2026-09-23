@@ -251,7 +251,7 @@ function Row({ d, autoAdd }: { d: DownloadItem; autoAdd: boolean }) {
 }
 
 /**
- * Downloads: links the user brings — typed, pasted a line at a time, or dropped as a list — are
+ * Downloads: links the user brings, typed, pasted a line at a time, or dropped as a list, are
  * fetched here and then added to the library like any other pack, with their link on record.
  */
 export function DownloadsPage() {
@@ -335,7 +335,7 @@ export function DownloadsPage() {
             maxRows={8}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Paste a link, or many — one per line"
+            placeholder="Paste a link, or several, one per line"
             slotProps={{ input: { sx: { fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 13 } } }}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12 }}>
@@ -393,7 +393,7 @@ export function DownloadsPage() {
             <EmptyState
               icon={DownloadOutlined}
               title="Bring links, get packs"
-              body="Paste the link to a pack you want — or a whole list of them — and Tessera fetches it, then adds it to your library with the link on record."
+              body="Paste the link to a pack you want, or a whole list of them, and Tessera fetches it, then adds it to your library with the link on record."
             />
           </div>
         )}

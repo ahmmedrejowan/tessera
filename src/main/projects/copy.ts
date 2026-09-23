@@ -152,7 +152,7 @@ function licenceText(meta: PackMeta): string {
   const lines = [
     `${meta.name}`,
     '',
-    `Licence: ${info?.name ?? meta.licence.id ?? 'not recorded'}${info?.url ? ` — ${info.url}` : ''}`,
+    `Licence: ${info?.name ?? meta.licence.id ?? 'not recorded'}${info?.url ? `: ${info.url}` : ''}`,
     meta.source.creator ? `Creator: ${meta.source.creator}` : null,
     meta.source.url ? `Source: ${meta.source.url}` : null,
     meta.licence.attribution ? `Credit: ${meta.licence.attribution}` : null,

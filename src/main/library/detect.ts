@@ -110,7 +110,7 @@ export async function detectPack(packDir: string, files: PackFile[], clues: Clue
     out.licenceFrom = `your rule for ${rule.host}`;
     out.licenceSure = true;
   }
-  // A known site's usual licence, when the files didn't say — free sites only, never a paid store.
+  // A known site's usual licence, when the files didn't say: free sites only, never a paid store.
   if (!out.licence && info?.licence) {
     out.licence = info.licence;
     out.licenceFrom = `${info.name} (usual licence)`;

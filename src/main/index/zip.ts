@@ -1,7 +1,7 @@
 import yauzl, { type Entry, type ZipFile } from 'yauzl';
 
 /**
- * Reading zip archives in place — packs are kept exactly as downloaded, so their contents are
+ * Reading zip archives in place: packs are kept exactly as downloaded, so their contents are
  * listed and read straight from the archive, never extracted into the library.
  */
 

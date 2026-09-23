@@ -1,5 +1,5 @@
 /**
- * Links the user brought: typed, pasted one per line, or inside a file they dropped — a text or
+ * Links the user brought: typed, pasted one per line, or inside a file they dropped, a text or
  * CSV list, a JSON file, a browser's bookmarks export, or a .url shortcut. Only web links count.
  */
 

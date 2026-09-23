@@ -8,7 +8,7 @@ own computer, and nothing about them is collected by anyone.
 - Your library folder, exactly where you put it, as ordinary files.
 - Tessera's own data folder: the index, previews, downloads waiting to be added, logs, and the
   list of libraries with their settings.
-- Backup passwords, in the system keychain — or, if you chose that, in a file only you can read.
+- Backup passwords, in the system keychain, or, if you chose that, in a file only you can read.
 
 ## What leaves this computer, and only when you ask
 

@@ -1,5 +1,5 @@
 /**
- * Looking for a newer Tessera. The check is a plain read of the project's published releases —
+ * Looking for a newer Tessera. The check is a plain read of the project's published releases: 
  * nothing is downloaded, nothing is installed behind the user's back, and nothing about this
  * computer is sent: it asks for a list and compares version numbers.
  */

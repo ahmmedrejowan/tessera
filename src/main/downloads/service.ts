@@ -1,6 +1,6 @@
 /**
  * Downloads: links the user brings, fetched into Tessera's own folder and then added to the
- * library like any other pack. A few at a time, each one resumable, and nothing is ever run —
+ * library like any other pack. A few at a time, each one resumable, and nothing is ever run: 
  * a download is a file on disk until the user (or the library's own rule) adds it.
  */
 import { createWriteStream } from 'node:fs';

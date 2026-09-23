@@ -6,7 +6,7 @@ import { tempDir } from './helpers';
 describe('the changelog', () => {
   it('reads one entry per version, with what followed the heading', () => {
     const releases = parseChangelog(
-      ['# What’s new', '', '## 0.2.0 — 12 October 2026', '', '- Downloads', '  from any link you bring', '- Site rules', '', '## 0.1.0 — in development', '', '- The first working version'].join('\n'),
+      ['# What’s new', '', '## 0.2.0: 12 October 2026', '', '- Downloads', '  from any link you bring', '- Site rules', '', '## 0.1.0: in development', '', '- The first working version'].join('\n'),
     );
     expect(releases.map((r) => [r.version, r.when])).toEqual([
       ['0.2.0', '12 October 2026'],

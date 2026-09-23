@@ -1,7 +1,7 @@
 /**
  * What has been happening in a library: packs added, downloads, reviews finished, backups, copies
  * to a project. Kept as a short list next to the library's index, so Home can show it after a
- * restart. It is a record for the user, not a log for debugging — one line each, in their words.
+ * restart. It is a record for the user, not a log for debugging, one line each, in their words.
  */
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';

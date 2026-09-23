@@ -48,7 +48,7 @@ function PackSection({ packId }: { packId: string }) {
   const site = sourceInfo(pack.meta.source.site);
   return (
     <>
-      <Row label="Source">{sourceName(pack.source) ?? '—'}</Row>
+      <Row label="Source">{sourceName(pack.source) ?? 'Not recorded'}</Row>
       {pack.creator && <Row label="Creator">{pack.creator}</Row>}
       <Row label="Licence">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
@@ -91,7 +91,7 @@ function Variants({ id }: { id: number }) {
             {f.ext.toUpperCase()}
           </Typography>
           <Typography variant="bodySmall" noWrap title={f.dir} sx={{ flex: 1, minWidth: 0, color: md('onSurfaceVariant') }}>
-            {f.dir.split('/').slice(-2).join('/') || '—'}
+            {f.dir.split('/').slice(-2).join('/') || 'Top level'}
           </Typography>
           <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
             {formatBytes(f.size)}

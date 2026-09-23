@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 /**
- * A pack's record, stored as `pack.json` in its folder. This file is the truth about the pack —
- * the index only mirrors it — so it is written for people too: readable keys, nothing derived.
+ * A pack's record, stored as `pack.json` in its folder. This file is the truth about the pack: 
+ * the index only mirrors it, so it is written for people too: readable keys, nothing derived.
  *
  * Unknown keys are kept on write (`passthrough`) so a newer Tessera's fields survive an older one.
  */

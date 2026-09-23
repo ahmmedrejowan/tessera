@@ -1,7 +1,7 @@
 /**
  * Sending reports to a Sentry-compatible service (Sentry itself, or a self-hosted GlitchTip),
  * without its SDK: an event is a small JSON document posted as an "envelope". Doing it by hand
- * keeps the app small and makes it plain what is sent — only what `toEvent` builds, from text
+ * keeps the app small and makes it plain what is sent: only what `toEvent` builds, from text
  * that has already been cleaned.
  */
 import { randomBytes } from 'node:crypto';

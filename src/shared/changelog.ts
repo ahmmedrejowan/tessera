@@ -3,13 +3,13 @@
 export interface Release {
   /** "0.1.0" */
   version: string;
-  /** What followed the version on its heading — a date, or "in development". */
+  /** What followed the version on its heading, a date, or "in development". */
   when: string;
   /** The lines under it, as written (list items keep their "- "). */
   lines: string[];
 }
 
-const HEADING = /^##\s+v?(\d+[\w.]*)\s*(?:[—–-]\s*(.*))?$/;
+const HEADING = /^##\s+v?(\d+[\w.]*)\s*(?:[:–-]\s*(.*))?$/;
 
 /** Every version in a changelog, in the order they appear (newest first by convention). */
 export function parseChangelog(text: string): Release[] {

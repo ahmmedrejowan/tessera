@@ -220,7 +220,7 @@ export function PackPage({ id }: { id: string }) {
                 <EmptyState
                   icon={SearchOutlined}
                   title={find ? 'Nothing matches' : 'No assets Tessera can show'}
-                  body={find ? `Nothing in this pack matches “${find}”.` : 'Its files are all there — they’re just not of a kind Tessera previews.'}
+                  body={find ? `Nothing in this pack matches “${find}”.` : 'Its files are all there: they’re just not of a kind Tessera previews.'}
                   actions={
                     find ? (
                       <Button variant="contained" onClick={() => setFind('')}>
@@ -315,7 +315,7 @@ export function PackPage({ id }: { id: string }) {
                   {pack.meta.description}
                 </Typography>
               )}
-              <Fact label="Source">{sourceName(pack.source) ?? '—'}</Fact>
+              <Fact label="Source">{sourceName(pack.source) ?? 'Not recorded'}</Fact>
               {link && (
                 <Fact label="Link">
                   <a href={link} target="_blank" rel="noreferrer" style={{ color: md('primary') }}>
@@ -329,13 +329,13 @@ export function PackPage({ id }: { id: string }) {
                     {pack.creator ?? pack.meta.source.creatorUrl}
                   </a>
                 ) : (
-                  (pack.creator ?? '—')
+                  (pack.creator ?? 'Not recorded')
                 )}
               </Fact>
               {pack.meta.version && <Fact label="Version">{pack.meta.version}</Fact>}
-              <Fact label="Genre">{pack.genres.join(', ') || '—'}</Fact>
-              <Fact label="Style">{pack.styles.join(', ') || '—'}</Fact>
-              <Fact label="Tags">{pack.tags.join(', ') || '—'}</Fact>
+              <Fact label="Genre">{pack.genres.join(', ') || 'None'}</Fact>
+              <Fact label="Style">{pack.styles.join(', ') || 'None'}</Fact>
+              <Fact label="Tags">{pack.tags.join(', ') || 'None'}</Fact>
               <Fact label="Added">{new Date(pack.addedAt).toLocaleString()}</Fact>
               <Fact label="Folder">{pack.folder}</Fact>
               {pack.meta.notes && <Fact label="Notes">{pack.meta.notes}</Fact>}

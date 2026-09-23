@@ -34,7 +34,7 @@ function useHistoryKeys() {
 
 /**
  * The window: app bar across the top, navigation rail down the left, and the current page on a
- * raised surface with a rounded corner — the chrome sits in the container colour, content above it.
+ * raised surface with a rounded corner, the chrome sits in the container colour, content above it.
  */
 /** The search box searches the library: typing takes you to Browse. */
 function GlobalSearch() {

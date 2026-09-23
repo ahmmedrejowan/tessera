@@ -25,7 +25,7 @@ export function safeFolderName(name: string): string {
   return s;
 }
 
-/** `name`, or `name 2`, `name 3`… — the first that `taken` says is free. */
+/** `name`, or `name 2`, `name 3`…, the first that `taken` says is free. */
 export function uniqueName(name: string, taken: (candidate: string) => boolean): string {
   if (!taken(name)) return name;
   for (let i = 2; ; i++) {

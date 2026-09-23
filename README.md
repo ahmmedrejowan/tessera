@@ -1,7 +1,7 @@
 # Tessera
 
-A desktop library for game assets. Keep every pack you collect — models, textures, sprites, UI,
-audio, music, fonts, HDRIs — in one place, with its licence and source on record, find the piece
+A desktop library for game assets. Keep every pack you collect: models, textures, sprites, UI,
+audio, music, fonts, HDRIs: in one place, with its licence and source on record, find the piece
 you need in seconds, and copy it into your game with its credits written for you.
 
 - **Keeps downloads as they are**, zips included, and reads inside them.
@@ -10,7 +10,7 @@ you need in seconds, and copy it into your game with its credits written for you
   search across every file; formats of one asset grouped together.
 - **Shows it properly**: 3D models, images, HDRIs, sounds and fonts, previewed in the app.
 - **Collections** across packs, and saved searches.
-- **Game projects**: Unity, Godot, Unreal or any folder — the right format, textures included, a
+- **Game projects**: Unity, Godot, Unreal or any folder, the right format, textures included, a
   licence file per pack and an up-to-date CREDITS.md.
 - **Optional** encrypted backups (Kopia) and sync between computers (Syncthing).
 
@@ -31,7 +31,7 @@ See `AGENTS.md` for how the code fits together.
 
 ## Licence
 
-Tessera is free software under the **GNU General Public License, version 3 or later** — use it
+Tessera is free software under the **GNU General Public License, version 3 or later**: use it
 for anything, read how it works, change it, and pass it on, as long as what you pass on stays
 free in the same way. The full text is in `LICENSE`, and the app shows it under About.
 

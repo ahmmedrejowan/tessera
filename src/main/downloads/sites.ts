@@ -3,7 +3,7 @@
  * people actually copy; only a handful of sites are known here, each by the way that site
  * publishes its downloads, and anything else is left alone for the queue to fetch as it is.
  *
- * When a site is known but its page has changed, that is said plainly — better than fetching a
+ * When a site is known but its page has changed, that is said plainly: better than fetching a
  * page and calling it a pack.
  */
 
@@ -156,7 +156,7 @@ export const siteFor = (url: string): string | null => {
 
 /**
  * The file behind a page, for the sites Tessera knows. Returns null when the link is already a
- * file, or belongs to no site it knows — the queue then fetches it as it is.
+ * file, or belongs to no site it knows, the queue then fetches it as it is.
  */
 export async function resolveLink(url: string, fetch: Fetch): Promise<Resolved | null> {
   let u: URL;

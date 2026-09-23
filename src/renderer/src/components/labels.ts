@@ -62,7 +62,7 @@ export function formatBytes(n: number): string {
 
 export const formatCount = (n: number) => n.toLocaleString();
 
-/** "1 model", "140 models" — singular type names for summaries. */
+/** "1 model", "140 models": singular type names for summaries. */
 const SINGULAR: Record<AssetType, [string, string]> = {
   model: ['model', 'models'],
   texture: ['texture', 'textures'],

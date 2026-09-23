@@ -22,7 +22,7 @@ export function useHealth() {
     backup,
     sync,
     sinceBackup: since,
-    /** How many things want attention — the dot on the top bar's question mark. */
+    /** How many things want attention, the dot on the top bar's question mark. */
     worries: (review ? 1 : 0) + (needCredit || restricted ? 1 : 0) + (backupWorry ? 1 : 0),
   };
 }

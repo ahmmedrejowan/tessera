@@ -4,12 +4,21 @@ export const LINKS = {
   repo: 'https://github.com/ahmmedrejowan/tessera',
   issues: 'https://github.com/ahmmedrejowan/tessera/issues',
   email: 'hello@rejowan.com',
-  /** Who makes Tessera. */
-  creator: {
-    name: 'K M Rejowan Ahmmed',
-    what: 'Android and desktop developer, and the one person behind Tessera.',
-    github: 'https://github.com/ahmmedrejowan',
-  },
+};
+
+/** The person behind Tessera, as the About page shows them. */
+export const CREATOR = {
+  name: 'K M Rejowan Ahmmed',
+  title: 'Senior Android Developer',
+  /** Why Tessera exists, in their own words. */
+  about:
+    'Tessera came out of my own mess of downloaded asset packs: zips in a folder, no idea which ones I was allowed to ship, and credits written from memory at the end. It keeps every pack with its licence and source on record, so the answer is there when the game is.',
+  links: [
+    { label: 'Website', value: 'rejowan.com', url: 'https://rejowan.com', icon: 'site' },
+    { label: 'Email', value: LINKS.email, url: `mailto:${LINKS.email}`, icon: 'mail' },
+    { label: 'GitHub', value: 'github.com/ahmmedrejowan', url: 'https://github.com/ahmmedrejowan', icon: 'code' },
+    { label: 'LinkedIn', value: 'linkedin.com/in/ahmmedrejowan', url: 'https://linkedin.com/in/ahmmedrejowan', icon: 'work' },
+  ] as { label: string; value: string; url: string; icon: 'site' | 'mail' | 'code' | 'work' }[],
 };
 
 /** Tessera's own terms. */
@@ -17,7 +26,7 @@ export const LICENCE = {
   id: 'GPL-3.0-or-later',
   name: 'GNU General Public License, version 3 or later',
   /** The freedoms the licence gives, in a line. */
-  summary: 'Free software: use it for anything, read how it works, change it, and pass it on — as long as what you pass on stays free in the same way.',
+  summary: 'Free software: use it for anything, read how it works, change it, and pass it on, as long as what you pass on stays free in the same way.',
 };
 
 /** The separate programs Tessera can fetch and drive; each stays its own project. */

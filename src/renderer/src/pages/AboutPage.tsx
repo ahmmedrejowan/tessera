@@ -1,16 +1,22 @@
+import ChevronRightRounded from '@mui/icons-material/ChevronRightRounded';
+import CodeRounded from '@mui/icons-material/CodeRounded';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
+import LanguageRounded from '@mui/icons-material/LanguageRounded';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
 import MailOutlineRounded from '@mui/icons-material/MailOutlineRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
+import WorkOutlineRounded from '@mui/icons-material/WorkOutlineRounded';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import ButtonBase from '@mui/material/ButtonBase';
 import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { BUILT_WITH, HELPERS, LICENCE, LINKS } from '@shared/about';
+import { BUILT_WITH, CREATOR, HELPERS, LICENCE, LINKS } from '@shared/about';
 import { parseChangelog, plainLine, releaseFor, type Release } from '@shared/changelog';
 import { call, on } from '../api';
 import { Logo } from '../components/Logo';
@@ -131,13 +137,63 @@ function Updates({ version }: { version: string }) {
           Check now
         </Button>
       </Row>
-      <Row title="Check on start, and once a day" body={status?.canCheck ? 'A read of the published release list. Nothing about you or your library is sent.' : 'This build has nowhere to check yet — no releases are published.'}>
+      <Row title="Check on start, and once a day" body={status?.canCheck ? 'A read of the published release list. Nothing about you or your library is sent.' : 'This build has nowhere to check yet: no releases are published.'}>
         <Switch checked={settings?.updateCheck ?? true} onChange={(_, v) => update.mutate({ updateCheck: v })} slotProps={{ input: { 'aria-label': 'Check for updates' } }} />
       </Row>
-      <Row title="Fetch the installer as soon as one is found" body="It waits in Tessera’s folder until you open it — installing is always your move.">
+      <Row title="Fetch the installer as soon as one is found" body="It waits in Tessera’s folder until you open it: installing is always your move.">
         <Switch checked={settings?.autoInstallUpdates ?? false} onChange={(_, v) => update.mutate({ autoInstallUpdates: v })} slotProps={{ input: { 'aria-label': 'Fetch updates by themselves' } }} />
       </Row>
     </Group>
+  );
+}
+
+/** Who makes Tessera, and where to find them. */
+function Creator({ onClose }: { onClose: () => void }) {
+  const icons = { site: LanguageRounded, mail: MailOutlineRounded, code: CodeRounded, work: WorkOutlineRounded };
+  return (
+    <Dialog open onClose={onClose} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { borderRadius: `${SHAPE.lg}px`, backgroundColor: md('surfaceContainerHigh'), backgroundImage: 'none' } } }}>
+      <div style={{ padding: '28px 28px 8px', textAlign: 'center' }}>
+        <Typography variant="headlineSmall" sx={{ color: md('primary') }}>
+          {CREATOR.name}
+        </Typography>
+        <Typography variant="titleSmall" component="div" sx={{ color: md('onSurface'), mt: 0.5 }}>
+          {CREATOR.title}
+        </Typography>
+        <Typography variant="bodyMedium" component="p" sx={{ color: md('onSurfaceVariant'), mt: 2.5, mb: 0, textAlign: 'left' }}>
+          {CREATOR.about}
+        </Typography>
+      </div>
+      <div style={{ padding: '16px 24px 8px' }}>
+        <Box sx={{ borderRadius: `${SHAPE.lg}px`, backgroundColor: md('surfaceContainerLowest'), px: 2, '& > *:last-child': { borderBottom: 'none' } }}>
+          {CREATOR.links.map((l) => {
+            const Icon = icons[l.icon];
+            return (
+              <ButtonBase
+                key={l.label}
+                onClick={() => open(l.url)}
+                sx={{ width: '100%', display: 'flex', alignItems: 'center', gap: 2, py: 1.5, textAlign: 'left', borderBottom: `1px solid ${md('outlineVariant')}` }}
+              >
+                <span style={{ width: 36, height: 36, borderRadius: 10, display: 'grid', placeItems: 'center', background: md('secondaryContainer'), color: md('onSecondaryContainer'), flexShrink: 0 }}>
+                  <Icon sx={{ fontSize: 20 }} />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
+                    {l.label}
+                  </Typography>
+                  <Typography variant="bodyMedium" component="div" noWrap sx={{ color: md('onSurface') }}>
+                    {l.value}
+                  </Typography>
+                </span>
+                <ChevronRightRounded sx={{ color: md('onSurfaceVariant') }} />
+              </ButtonBase>
+            );
+          })}
+        </Box>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 16 }}>
+        <Button onClick={onClose}>Close</Button>
+      </div>
+    </Dialog>
   );
 }
 
@@ -175,7 +231,7 @@ function Releases({ releases, title, onClose }: { releases: Release[]; title: st
   );
 }
 
-/** What is in this version, and what came before it — both behind a button. */
+/** What is in this version, and what came before it: both behind a button. */
 function Versions({ version }: { version: string }) {
   const releases = useReleases();
   const [show, setShow] = useState<'this' | 'all' | null>(null);
@@ -189,7 +245,7 @@ function Versions({ version }: { version: string }) {
           What’s new
         </Button>
       </Row>
-      <Row title="Version history" body={earlier.length ? `${releases.length} versions, with what changed in each` : 'Nothing earlier — this is the first.'}>
+      <Row title="Version history" body={earlier.length ? `${releases.length} versions, with what changed in each` : 'Nothing earlier: this is the first.'}>
         <Button disabled={!releases.length} onClick={() => setShow('all')}>
           Open
         </Button>
@@ -206,6 +262,7 @@ function Versions({ version }: { version: string }) {
 export function AboutPage() {
   const info = useAppInfo().data;
   const [document, setDocument] = useState<'licence' | 'privacy' | null>(null);
+  const [creator, setCreator] = useState(false);
   const version = info?.version ?? '';
 
   return (
@@ -232,7 +289,7 @@ export function AboutPage() {
       <Updates version={version} />
       <Versions version={version} />
 
-      <Group title="Licence and privacy" note="Tessera’s own terms — not the ones your packs carry.">
+      <Group title="Licence and privacy" note="Tessera’s own terms, not the ones your packs carry.">
         <Row title={LICENCE.name} body={LICENCE.summary}>
           <Button onClick={() => setDocument('licence')}>Read it</Button>
         </Row>
@@ -274,9 +331,9 @@ export function AboutPage() {
       </Group>
 
       <Group title="Who makes it" note="One person, and the ways to reach them.">
-        <Row title={LINKS.creator.name} body={LINKS.creator.what}>
-          <Button startIcon={<OpenInNewRounded />} onClick={() => open(LINKS.creator.github)}>
-            GitHub
+        <Row title={CREATOR.name} body={`${CREATOR.title}, and the one person behind Tessera`}>
+          <Button variant="contained" onClick={() => setCreator(true)}>
+            About me
           </Button>
         </Row>
         <Row title="Email" body={LINKS.email}>
@@ -291,7 +348,7 @@ export function AboutPage() {
         </Row>
       </Group>
 
-      <Group title="This computer" note="Where Tessera keeps its own things — never your library.">
+      <Group title="This computer" note="Where Tessera keeps its own things: never your library.">
         <Row title="Log files" body="What Tessera did, kept on this computer only.">
           <Button startIcon={<FolderOpenOutlined />} onClick={() => void call('app:showLogs')}>
             Show
@@ -299,6 +356,7 @@ export function AboutPage() {
         </Row>
       </Group>
 
+      {creator && <Creator onClose={() => setCreator(false)} />}
       {document && <Document name={document} title={document === 'licence' ? LICENCE.name : 'Privacy'} onClose={() => setDocument(null)} />}
     </Page>
   );

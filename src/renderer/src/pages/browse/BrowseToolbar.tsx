@@ -40,7 +40,7 @@ const PACK_SORTS: { value: PackSort; label: string }[] = [
 const chipsLabels = (filters: Partial<Record<Facet, string[]>>) =>
   (Object.entries(filters) as [Facet, string[]][]).flatMap(([f, vs]) => (vs ?? []).map((v) => facetLabel(f, v)));
 
-/** The tabs, filter, sort and view options — they live in the page's title row. */
+/** The tabs, filter, sort and view options, they live in the page's title row. */
 export function BrowseControls({ total, stale }: { total: number; stale: boolean }) {
   const s = useBrowse();
   const [sortEl, setSortEl] = useState<HTMLElement | null>(null);

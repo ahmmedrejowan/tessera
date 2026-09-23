@@ -58,7 +58,7 @@ function Status() {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: md('primary'), padding: '4px 2px' }}>
         <CheckCircleRounded sx={{ fontSize: 20 }} />
-        <Typography variant="bodyMedium">Your library is in good order — nothing waiting, every licence on record, backups up to date.</Typography>
+        <Typography variant="bodyMedium">Your library is in good order: nothing waiting, every licence on record, backups up to date.</Typography>
       </div>
     );
   }
@@ -139,7 +139,7 @@ export function HelpPage() {
         fullWidth
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Search help — licences, downloads, backups…"
+        placeholder="Search help: licences, downloads, backups…"
         slotProps={{
           input: {
             sx: { borderRadius: `${SHAPE.full}px`, backgroundColor: md('surfaceContainerLowest') },

@@ -48,7 +48,7 @@ async function askToSend(): Promise<void> {
   });
   await call('reports:respond', answer ?? 'not-now');
   if (answer === 'never') notify.info('Error reports won’t be sent.', { body: 'You can change this in Settings › Privacy.' });
-  if (answer === 'once' || answer === 'always') notify.success('Thanks — the report was sent.');
+  if (answer === 'once' || answer === 'always') notify.success('Thanks, the report was sent.');
 }
 
 async function askAboutCrashes(count: number): Promise<void> {

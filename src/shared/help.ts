@@ -39,7 +39,7 @@ export const HELP: HelpTopic[] = [
         id: 'what-is-a-pack',
         q: 'What is a pack?',
         a: [
-          'One download: a zip, a folder, or a few files you got together. Tessera copies it in as it is — archives stay archives — and reads inside to list what it holds.',
+          'One download: a zip, a folder, or a few files you got together. Tessera copies it in as it is (archives stay archives) and reads inside to list what it holds.',
           'A pack carries its own record: name, licence, where it came from, creator, version, style, tags, and any licence files it shipped with.',
         ],
       },
@@ -47,7 +47,7 @@ export const HELP: HelpTopic[] = [
         id: 'first-steps',
         q: 'I have just made a library. What now?',
         a: [
-          'Add a pack or two — drag them onto the window, choose files from the + button, or paste a link into Downloads. Home offers three CC0 sample packs if you would rather look around first.',
+          'Add a pack or two: drag them onto the window, choose files from the + button, or paste a link into Downloads. Home offers three CC0 sample packs if you would rather look around first.',
           'Then set up backups (Settings → Backups). A library is your own work; one copy is no copy.',
         ],
       },
@@ -71,7 +71,7 @@ export const HELP: HelpTopic[] = [
         id: 'why-licence',
         q: 'Why does every pack need a licence and a link?',
         a: [
-          'Because a year from now, when your game ships, you need to know what you were allowed to do with each asset — and be able to show it. A pack without both waits in Review rather than joining the library.',
+          'Because a year from now, when your game ships, you need to know what you were allowed to do with each asset, and be able to show it. A pack without both waits in Review rather than joining the library.',
           'It is the one rule Tessera insists on. Everything else can be filled in later.',
         ],
       },
@@ -79,7 +79,7 @@ export const HELP: HelpTopic[] = [
         id: 'credit-line',
         q: 'What is a credit line?',
         a: [
-          'Some licences ask you to name the author. The credit line is the wording to use — “Kenney (kenney.nl), CC0” — and Tessera copies it into a project’s CREDITS.md whenever an asset from that pack is used.',
+          'Some licences ask you to name the author. The credit line is the wording to use, such as “Kenney (kenney.nl), CC0”, and Tessera copies it into a project’s CREDITS.md whenever an asset from that pack is used.',
           'Help shows how many packs still need one, and the pack page is where you fill it in.',
         ],
       },
@@ -87,7 +87,7 @@ export const HELP: HelpTopic[] = [
         id: 'restricted',
         q: 'What counts as restricted terms?',
         a: [
-          'Licences that rule out selling the result (non-commercial), or ones Tessera cannot judge — custom wording, “personal use only”, or nothing at all.',
+          'Licences that rule out selling the result (non-commercial), or ones Tessera cannot judge: custom wording, “personal use only”, or nothing at all.',
           'Such packs are kept and shown, but marked, so you can decide before they reach a game you sell.',
         ],
       },
@@ -95,7 +95,7 @@ export const HELP: HelpTopic[] = [
         id: 'proof',
         q: 'What proof does Tessera keep?',
         a: [
-          'The licence files the pack shipped with, and — when a pack has a page link — a PDF snapshot of that page as it was when you downloaded it, plus a copy on archive.org if you leave that switch on.',
+          'The licence files the pack shipped with, and, when a pack has a page link, a PDF snapshot of that page as it was when you downloaded it, plus a copy on archive.org if you leave that switch on.',
           'Both sit in the pack’s own folder, so they travel with it.',
         ],
       },
@@ -127,7 +127,7 @@ export const HELP: HelpTopic[] = [
         id: 'add-page',
         q: 'What is the page that opens when I add something?',
         a: [
-          'The add page: everything Tessera could work out is already filled in — name, licence, source, creator, description, style and tags — with a note under each saying where it came from.',
+          'The add page: everything Tessera could work out is already filled in (name, licence, source, creator, description, style and tags), with a note under each saying where it came from.',
           'Add to library when it is right; Finish later to park it in Review; Cancel to drop the copy altogether.',
         ],
       },
@@ -166,7 +166,7 @@ export const HELP: HelpTopic[] = [
         id: 'paste-many',
         q: 'Can I paste a list?',
         a: [
-          'Yes — one link per line, or drop a text, CSV or JSON file, a bookmarks export, or a .url shortcut on the page. Tessera takes the web links out of whatever you give it.',
+          'Yes, one link per line, or drop a text, CSV or JSON file, a bookmarks export, or a .url shortcut on the page. Tessera takes the web links out of whatever you give it.',
           'The sites are named before anything is fetched.',
         ],
       },
@@ -182,7 +182,7 @@ export const HELP: HelpTopic[] = [
         id: 'pause-resume',
         q: 'Can I pause, or carry on after closing Tessera?',
         a: [
-          'Yes. Each download can be paused and carried on, and the list survives a restart — anything that was running comes back paused. A dropped connection is tried again by itself three times.',
+          'Yes. Each download can be paused and carried on, and the list survives a restart: anything that was running comes back paused. A dropped connection is tried again by itself three times.',
         ],
       },
       {
@@ -205,7 +205,7 @@ export const HELP: HelpTopic[] = [
         q: 'How does search work?',
         a: [
           'The box at the top searches packs, assets and tags at once, and takes you to Browse. Filters down the left narrow by type, format, source, creator, licence, genre, style and tags.',
-          'Browse shows assets or packs — the tabs sit in the title row — and remembers how you left it.',
+          'Browse shows assets or packs (the tabs sit in the title row) and remembers how you left it.',
         ],
       },
       {
@@ -220,7 +220,7 @@ export const HELP: HelpTopic[] = [
         id: 'formats',
         q: 'One model came in four formats. Will I see it four times?',
         a: [
-          'No. Formats of the same asset are grouped, and the viewer shows the one it can draw. Supporting files — textures of a model, material files, pack previews — are kept out of the way unless you ask for them in the view options.',
+          'No. Formats of the same asset are grouped, and the viewer shows the one it can draw. Supporting files (textures of a model, material files, pack previews) are kept out of the way unless you ask for them in the view options.',
         ],
       },
     ],
@@ -242,7 +242,7 @@ export const HELP: HelpTopic[] = [
         id: 'copy',
         q: 'What happens when I copy an asset to a project?',
         a: [
-          'The asset arrives in the project’s assets folder with the files it needs — a model brings its textures — plus a licence file for the pack it came from, and a CREDITS.md that is kept up to date.',
+          'The asset arrives in the project’s assets folder with the files it needs (a model brings its textures), plus a licence file for the pack it came from, and a CREDITS.md that is kept up to date.',
           'The project page lists everything copied, and which library each came from.',
         ],
       },
@@ -258,7 +258,7 @@ export const HELP: HelpTopic[] = [
         id: 'backups',
         q: 'How do backups work?',
         a: [
-          'Kopia makes encrypted copies of a library somewhere else — a drive, a cloud drive, cloud storage or a server — and sends only what changed.',
+          'Kopia makes encrypted copies of a library somewhere else (a drive, a cloud drive, cloud storage or a server) and sends only what changed.',
           'Each library is backed up on its own, and the password is yours: without it nothing can be read, and nobody can give it back to you.',
         ],
       },
@@ -266,7 +266,7 @@ export const HELP: HelpTopic[] = [
         id: 'restore',
         q: 'How do I get a library back?',
         a: [
-          'Settings → Backups → Restore, or the welcome screen if you have no library open. Pick the store, the library and the snapshot; a restore never writes over what is already there — it makes a copy beside it.',
+          'Settings → Backups → Restore, or the welcome screen if you have no library open. Pick the store, the library and the snapshot; a restore never writes over what is already there; it makes a copy beside it.',
         ],
       },
       {
@@ -304,7 +304,7 @@ export const HELP: HelpTopic[] = [
         q: 'A pack shows no pictures.',
         a: [
           'Previews are drawn in the background and cached; a big pack takes a while. Settings → Previews and index shows how far it has got and can start again.',
-          'Some files have nothing to draw — a .blend, say. Their entries still search and copy correctly.',
+          'Some files have nothing to draw: a .blend, say. Their entries still search and copy correctly.',
         ],
       },
       {
@@ -319,7 +319,7 @@ export const HELP: HelpTopic[] = [
   },
 ];
 
-/** Every question, with the topic it belongs to — for the search box. */
+/** Every question, with the topic it belongs to, for the search box. */
 export const ALL_QUESTIONS = HELP.flatMap((topic) => topic.questions.map((question) => ({ topic, question })));
 
 /** Questions matching what was typed: words in the question, its answer, or its topic. */

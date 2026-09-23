@@ -30,7 +30,7 @@ export const cssVar = (role: Role) => `--md-${role.replace(/[A-Z]/g, (c) => `-${
 /** `var(--md-…)` reference for use in styles. */
 export const md = (role: Role) => `var(${cssVar(role)})`;
 
-/** `rgb(from var(--md-…) r g b / a)` — a role at a given opacity, for M3 state layers and tints. */
+/** `rgb(from var(--md-…) r g b / a)`, a role at a given opacity, for M3 state layers and tints. */
 export const mdAlpha = (role: Role, alpha: number) => `rgb(from ${md(role)} r g b / ${alpha})`;
 
 /** Material 3 state-layer opacities. */

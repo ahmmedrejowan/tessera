@@ -107,7 +107,7 @@ export function ProjectsPage() {
         <EmptyState
           icon={SportsEsportsOutlined}
           title="No projects linked"
-          body="Link a Unity, Godot or Unreal project — or any folder — and “Copy to project” puts assets straight into it, with their textures, licences and credits."
+          body="Link a Unity, Godot or Unreal project, or any folder, and “Copy to project” puts assets straight into it, with their textures, licences and credits."
           actions={
             <Button variant="contained" startIcon={<AddLinkOutlined />} onClick={() => void link.start()}>
               Link a project

@@ -53,7 +53,7 @@ function RecentCard({ name, path, missing, onOpen, onForget }: { name: string; p
             {name}
           </Typography>
           <Typography variant="bodySmall" component="div" noWrap sx={{ color: md('onSurfaceVariant') }}>
-            {missing ? 'Not found — moved, or on a drive that isn’t connected' : tidyPath(path)}
+            {missing ? 'Not found: moved, or on a drive that isn’t connected' : tidyPath(path)}
           </Typography>
         </span>
       </ButtonBase>

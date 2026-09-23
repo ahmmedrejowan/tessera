@@ -57,7 +57,7 @@ export function ReportProblemDialog() {
   });
   const send = () => act(async () => {
     await call('reports:sendProblem', note);
-    notify.success('Thanks — the report was sent.');
+    notify.success('Thanks, the report was sent.');
     hide();
   });
 

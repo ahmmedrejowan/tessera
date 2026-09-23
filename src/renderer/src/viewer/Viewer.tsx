@@ -319,7 +319,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
                 {stats.animations.length > 0 && <InfoRow label="Animations">{stats.animations.length}</InfoRow>}
               </>
             )}
-            <InfoRow label="Folder">{file.dir || '—'}</InfoRow>
+            <InfoRow label="Folder">{file.dir || 'Top level'}</InfoRow>
             {pack && (
               <>
                 <div style={{ height: 1, background: md('outlineVariant'), margin: '12px 0' }} />

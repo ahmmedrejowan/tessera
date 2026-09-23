@@ -138,7 +138,7 @@ export function CollectionPage({ id }: { id: string }) {
           <EmptyState
             icon={SearchOutlined}
             title={smart ? 'Nothing matches this search yet' : 'Nothing in this collection yet'}
-            body={smart ? 'It fills itself in as packs that match are added.' : 'Pick assets in Browse and add them here — from any pack.'}
+            body={smart ? 'It fills itself in as packs that match are added.' : 'Pick assets in Browse and add them here: from any pack.'}
             actions={
               <Button variant="contained" onClick={() => go({ to: 'browse' })}>
                 {smart ? 'Browse the library' : 'Pick assets'}

@@ -6,7 +6,7 @@ import { useSettings } from './queries';
 
 /**
  * The index version increases whenever the library's contents change. Library queries include it
- * in their keys, so everything showing library data refetches after a change — no manual invalidation.
+ * in their keys, so everything showing library data refetches after a change: no manual invalidation.
  */
 let indexVersion = 0;
 const versionListeners = new Set<() => void>();

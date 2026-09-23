@@ -29,7 +29,7 @@ export function creditsMarkdown(entries: ManifestEntry[]): string {
     const info = licenceInfo(p.licence);
     const credit = p.attribution ?? `“${p.name}”${p.creator ? ` by ${p.creator}` : ''}`;
     const licence = info ? (info.url ? `[${info.short}](${info.url})` : info.short) : 'licence not recorded';
-    return `- ${credit}${p.attribution ? '' : ` — ${licence}`}${p.url && !p.attribution?.includes(p.url) ? ` — ${p.url}` : ''}`;
+    return `- ${credit}${p.attribution ? '' : ` (${licence})`}${p.url && !p.attribution?.includes(p.url) ? ` ${p.url}` : ''}`;
   };
   const out = ['# Credits', '', 'Assets used in this game.', ''];
   if (needs.length) out.push('## Credit required', '', ...needs.map(line), '');

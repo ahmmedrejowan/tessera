@@ -13,7 +13,7 @@ const open = (url: string) => void call('app:openExternal', url);
 
 /**
  * The same ending on every help page: the ways to reach a person, in the order they're usually
- * wanted — a report with the logs, the tracker where things are decided, an email, the source.
+ * wanted, a report with the logs, the tracker where things are decided, an email, the source.
  */
 export function HelpFooter() {
   const report = useReportProblem();

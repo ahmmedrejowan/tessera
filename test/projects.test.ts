@@ -120,7 +120,7 @@ describe('copying into a project', () => {
     expect(manifest.entries.map((e) => e.copiedRef.split('/').pop())).toEqual(['van.fbx', 'sword.png']);
     const credits = readFileSync(join(game, 'CREDITS.md'), 'utf8');
     expect(credits).toMatch(/## Credit required\n\n- Icons by Lorc, CC BY 3.0/);
-    expect(credits).toMatch(/## Also used\n\n- “Car Kit” by Kenney — \[CC0\]/);
+    expect(credits).toMatch(/## Also used\n\n- “Car Kit” by Kenney \(\[CC0\]/);
 
     // Copying again updates rather than duplicates.
     expect((await planCopy(project, items.slice(0, 1), src, false)).plan.updating).toBe(1);

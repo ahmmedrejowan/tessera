@@ -19,11 +19,11 @@ export function initLog(dir: string): void {
 
 function detail(extra: unknown): string {
   if (extra === undefined) return '';
-  if (extra instanceof Error) return ` — ${extra.stack ?? extra.message}`;
+  if (extra instanceof Error) return `: ${extra.stack ?? extra.message}`;
   try {
-    return ` — ${JSON.stringify(extra)}`;
+    return `: ${JSON.stringify(extra)}`;
   } catch {
-    return ` — ${String(extra)}`;
+    return `: ${String(extra)}`;
   }
 }
 

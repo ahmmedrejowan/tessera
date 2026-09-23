@@ -130,7 +130,7 @@ export function FontView({ url, onInfo }: { url: string; onInfo?: (i: FontInfo |
           ))}
         </div>
         <div style={{ ...style, fontSize: 16, lineHeight: 1.6, maxWidth: 680 }}>
-          Every pack you collect, in one place, with its licence and source on record — so when the game ships, the credits are already written.
+          Every pack you collect, in one place, with its licence and source on record, so when the game ships, the credits are already written.
         </div>
       </div>
     </div>
