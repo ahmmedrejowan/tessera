@@ -257,8 +257,13 @@ export class LibraryQueries {
   }
 
   refs(ids: number[]): { packId: string; ref: string }[] {
-    if (!ids.length) return [];
-    return this.all(`SELECT pack_id AS packId, ref FROM assets WHERE id IN (${ids.map(() => '?').join(', ')})`, ids);
+    const out: { packId: string; ref: string }[] = [];
+    // SQLite takes only so many values in one statement, and a whole library can be picked out.
+    for (let i = 0; i < ids.length; i += 500) {
+      const batch = ids.slice(i, i + 500);
+      out.push(...this.all<{ packId: string; ref: string }>(`SELECT pack_id AS packId, ref FROM assets WHERE id IN (${batch.map(() => '?').join(', ')})`, batch));
+    }
+    return out;
   }
 
   /** Every file of an asset: the one that stands for it first, then its other formats and sizes. */

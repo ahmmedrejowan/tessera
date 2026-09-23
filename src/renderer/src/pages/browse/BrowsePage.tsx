@@ -369,12 +369,10 @@ export function BrowsePage() {
             setCursor(menu.index);
             setViewing(menu.index);
           }}
-          onPick={() => s.select([menu.asset.id], menu.index)}
-          onOpenPack={() => go({ to: 'pack', id: menu.asset.packId })}
         />
       )}
       {menu?.kind === 'pack' && (
-        <PackMenu anchor={menu.anchor} pack={menu.pack} onClose={() => setMenu(null)} onOpen={() => go({ to: 'pack', id: menu.pack.id })} onPick={() => s.select([menu.pack.id], menu.index)} />
+        <PackMenu anchor={menu.anchor} pack={menu.pack} onClose={() => setMenu(null)} onOpen={() => go({ to: 'pack', id: menu.pack.id })} />
       )}
       {s.selection.size > 0 && viewing === null && (
         <SelectionBar

@@ -87,6 +87,11 @@ export interface Invokes {
   'asset:variants': (id: number) => AssetRow[];
   /** Pack and path of assets by id, for adding a selection to a collection. */
   'assets:refs': (ids: number[]) => { packId: string; ref: string }[];
+  /**
+   * Move single files to the system wastebasket, taking them out of their packs. Files inside a
+   * pack's archive can't go on their own and stay put; the answer says how many.
+   */
+  'assets:remove': (items: { packId: string; ref: string }[]) => { removed: number; inArchive: number; failed: number };
   /** A pack's images by lower-case file name → URL, for finding a model's textures. */
   'pack:textures': (id: string) => Record<string, string>;
   /** Show a pack's folder, or the file on disk that holds one of its files, in Finder / Explorer. */

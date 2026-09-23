@@ -525,6 +525,7 @@ function registerHandlers(): void {
     if (status === 'library' && name) activity.add('reviewed', `“${name}” passed Review and is in the library`);
   });
   handle('pack:remove', (id) => library.removePack(id, (path) => shell.trashItem(path)));
+  handle('assets:remove', (items) => library.removeFiles(items, (path) => shell.trashItem(path)));
   handle('pack:proof', async (id) => (await library.proofFiles(id)).map((f) => ({ ...f, url: packFileUrl(id, `licence/${f.name}`) })));
   handle('pack:addProof', async (id) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];

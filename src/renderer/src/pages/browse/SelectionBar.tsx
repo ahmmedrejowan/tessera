@@ -8,12 +8,12 @@ import Typography from '@mui/material/Typography';
 import { useEffect, useState } from 'react';
 import { formatBytes, formatCount } from '../../components/labels';
 import { call } from '../../api';
-import { ask } from '../../notices/dialogs';
-import { failed, notify, useNotices } from '../../notices/store';
+import { useNotices } from '../../notices/store';
 import { useBrowse } from '../../state/browse';
 import { CopyButton } from '../projects/CopyButton';
 import { md, mdAlpha, SHAPE } from '../../theme';
 import { CollectionMenu } from '../collections/CollectionMenu';
+import { removeAssets, removePacks } from './deleting';
 
 /** What the picked things come to, read again whenever the pile changes. */
 function useSize(mode: 'assets' | 'packs', selection: Set<number | string>): number | null {
@@ -57,30 +57,10 @@ export function SelectionBar({ packs, total, all }: { packs?: boolean; total?: n
     return out;
   };
 
-  /** Move the picked packs to the wastebasket, once. */
+  /** Delete what is picked: whole packs, or the files themselves. */
   const remove = async () => {
-    const ids = [...selection].map(String);
-    const yes = await ask<boolean>({
-      tone: 'warning',
-      title: ids.length === 1 ? 'Remove this pack?' : `Remove ${ids.length} packs?`,
-      body: 'Their folders go to the wastebasket. Anything already copied into a game stays where it is.',
-      actions: [
-        { label: 'Keep them', value: false, kind: 'text' },
-        { label: 'Remove', value: true, kind: 'danger' },
-      ],
-    });
-    if (!yes) return;
-    let gone = 0;
-    for (const id of ids) {
-      try {
-        await call('pack:remove', id);
-        gone++;
-      } catch (e) {
-        failed(e);
-      }
-    }
-    select([], null);
-    if (gone) notify.success(gone === 1 ? 'The pack is in the wastebasket.' : `${gone} packs are in the wastebasket.`);
+    const ok = packs ? await removePacks([...selection].map(String)) : await removeAssets(refs, selection.size);
+    if (ok) select([], null);
   };
 
   return (
@@ -113,11 +93,9 @@ export function SelectionBar({ packs, total, all }: { packs?: boolean; total?: n
         {packs ? 'Collect their assets' : 'Add to collection'}
       </Button>
       <CopyButton items={refs} variant="text" size="medium" color={md('inversePrimary')} />
-      {packs && (
-        <Button startIcon={<DeleteOutlineRounded />} onClick={() => void remove()} sx={action}>
-          Remove
-        </Button>
-      )}
+      <Button startIcon={<DeleteOutlineRounded />} onClick={() => void remove()} sx={action}>
+        Delete
+      </Button>
       <IconButton aria-label="Clear selection" onClick={() => select([], null)} sx={{ color: md('inverseOnSurface') }}>
         <Close fontSize="small" />
       </IconButton>

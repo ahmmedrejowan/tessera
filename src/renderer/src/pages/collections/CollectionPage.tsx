@@ -1,4 +1,5 @@
 import ArrowBack from '@mui/icons-material/ArrowBack';
+import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import DoneAllRounded from '@mui/icons-material/DoneAllRounded';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import Close from '@mui/icons-material/Close';
@@ -28,11 +29,15 @@ import { useNav } from '../../state/nav';
 import { usePagedRows } from '../../state/paged';
 import { md, mdAlpha, SHAPE } from '../../theme';
 import { AssetTile, TILE_LABEL_HEIGHT } from '../browse/AssetTile';
+import { removeAssets } from '../browse/deleting';
 import { AssetMenu } from '../browse/TileMenu';
 import { CopyButton } from '../projects/CopyButton';
 import { NameDialog } from './CollectionMenu';
 
 const Viewer = lazy(() => import('../../viewer/Viewer').then((m) => ({ default: m.Viewer })));
+
+/** Buttons in the bar keep to one line, however many of them there are. */
+const action = { color: md('inversePrimary'), whiteSpace: 'nowrap', flexShrink: 0 };
 
 /** One collection: its assets, with ways to rename, prune or delete it. */
 export function CollectionPage({ id }: { id: string }) {
@@ -190,16 +195,25 @@ export function CollectionPage({ id }: { id: string }) {
               {formatCount(selected.size)} picked{size !== null ? ` · ${formatBytes(size)}` : ''}
             </Typography>
             {rows.total > selected.size && (
-              <Button startIcon={<DoneAllRounded />} onClick={async () => setSelected(new Set((await call('browse:allIds', query, 'assets')).map(Number)))} sx={{ color: md('inversePrimary'), whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <Button startIcon={<DoneAllRounded />} onClick={async () => setSelected(new Set((await call('browse:allIds', query, 'assets')).map(Number)))} sx={action}>
                 Pick all {formatCount(rows.total)}
               </Button>
             )}
             <CopyButton items={() => call('assets:refs', [...selected])} variant="text" size="medium" color={md('inversePrimary')} />
             {!smart && (
-              <Button startIcon={<RemoveCircleOutlineOutlined />} onClick={() => void remove([...selected])} sx={{ color: md('inversePrimary'), whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <Button startIcon={<RemoveCircleOutlineOutlined />} onClick={() => void remove([...selected])} sx={action}>
                 Take them out
               </Button>
             )}
+            <Button
+              startIcon={<DeleteOutlineRounded />}
+              onClick={async () => {
+                if (await removeAssets(() => call('assets:refs', [...selected]), selected.size)) setSelected(new Set());
+              }}
+              sx={action}
+            >
+              Delete
+            </Button>
             <IconButton aria-label="Clear selection" onClick={() => setSelected(new Set())} sx={{ color: md('inverseOnSurface') }}>
               <Close fontSize="small" />
             </IconButton>
@@ -212,8 +226,6 @@ export function CollectionPage({ id }: { id: string }) {
           asset={menu.asset}
           onClose={() => setMenu(null)}
           onOpen={() => setViewing(menu.index)}
-          onPick={() => pick(menu.asset.id)}
-          onOpenPack={() => go({ to: 'pack', id: menu.asset.packId })}
           {...(smart ? {} : { extra: { icon: <RemoveCircleOutlineOutlined fontSize="small" />, primary: 'Take it out of this collection', run: () => void remove([menu.asset.id]) } })}
         />
       )}

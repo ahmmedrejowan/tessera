@@ -6,7 +6,7 @@ import type { CollectionItem, CollectionSummary, SmartQuery } from '@shared/coll
 import type { BrowseQuery, Filters } from '@shared/query';
 import type { CollectionChange, Detected, FolderKind, ImportItem, ImportResult, LibraryState, PackSuggestions, SiteRule } from '@shared/types';
 import { UserError } from './errors';
-import { listPackFiles } from './index/files';
+import { listPackFiles, parseRef } from './index/files';
 import { LibraryIndex } from './index/indexer';
 import { planImport } from './import/plan';
 import { runImport } from './import/run';
@@ -413,6 +413,48 @@ export class LibraryService {
     }
     this.d.onIndexChanged();
     return pack.meta.name;
+  }
+
+  /**
+   * Take single files out of their packs, to the system wastebasket so they can be put back. A
+   * file that lives inside a pack's archive can't be taken out on its own and is left alone; the
+   * count of those comes back so the window can say so.
+   */
+  async removeFiles(items: { packId: string; ref: string }[], trash: (path: string) => Promise<void>): Promise<{ removed: number; inArchive: number; failed: number }> {
+    const lib = this.require();
+    const byPack = new Map<string, Set<string>>();
+    let inArchive = 0;
+    for (const { packId, ref } of items) {
+      const { file, inside } = parseRef(ref);
+      if (inside.length) {
+        inArchive++;
+        continue;
+      }
+      const files = byPack.get(packId) ?? new Set<string>();
+      files.add(file);
+      byPack.set(packId, files);
+    }
+    let removed = 0;
+    let failed = 0;
+    this.busyWriting++;
+    try {
+      for (const [packId, files] of byPack) {
+        const pack = await this.packRecord(packId);
+        for (const file of files) {
+          try {
+            await trash(join(pack.dir, ...file.split('/')));
+            removed++;
+          } catch {
+            failed++;
+          }
+        }
+        await lib.index.syncPack(pack, lib.index.known(packId));
+      }
+    } finally {
+      this.busyWriting--;
+    }
+    if (removed) this.d.onIndexChanged();
+    return { removed, inArchive, failed };
   }
 
   async editPack(id: string, edit: PackEdit): Promise<void> {
