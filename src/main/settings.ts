@@ -10,13 +10,20 @@ const HEX = /^#[0-9a-f]{6}$/i;
 
 const target = z.object({ provider: z.enum(PROVIDERS.map((p) => p.id) as [Provider, ...Provider[]]), values: z.record(z.string(), z.string()) });
 
-const libraryRecord = z.object({
+/** Libraries noted before downloads had three answers kept a yes/no; a no meant "leave it to me". */
+const libraryRecord = z.preprocess((raw) => {
+  if (raw && typeof raw === 'object' && !('afterDownload' in raw) && 'autoAddDownloads' in raw) {
+    const { autoAddDownloads, ...rest } = raw as { autoAddDownloads: unknown };
+    return { ...rest, afterDownload: autoAddDownloads === false ? 'ask' : 'add' };
+  }
+  return raw;
+}, z.object({
   id: z.string(),
   name: z.string(),
   path: z.string(),
   lastOpenedAt: z.string(),
   skipInboxWhenSure: z.boolean().catch(true),
-  autoAddDownloads: z.boolean().catch(true),
+  afterDownload: z.enum(['add', 'review', 'ask']).catch('add'),
   sync: z.object({ enabled: z.boolean(), mode: z.enum(['push', 'pull', 'full']), whileClosed: z.boolean() }).catch({ enabled: false, mode: 'full', whileClosed: true }),
   backup: z
     .object({
@@ -28,7 +35,7 @@ const libraryRecord = z.object({
     })
     .nullable()
     .catch(null),
-});
+}));
 
 /** A site the user set the licence for, so its packs fill themselves in. */
 const siteRule = z.object({

@@ -40,7 +40,8 @@ const PACK_SORTS: { value: PackSort; label: string }[] = [
 const chipsLabels = (filters: Partial<Record<Facet, string[]>>) =>
   (Object.entries(filters) as [Facet, string[]][]).flatMap(([f, vs]) => (vs ?? []).map((v) => facetLabel(f, v)));
 
-export function BrowseToolbar({ total, stale }: { total: number; stale: boolean }) {
+/** The tabs, filter, sort and view options — they live in the page's title row. */
+export function BrowseControls({ total, stale }: { total: number; stale: boolean }) {
   const s = useBrowse();
   const [sortEl, setSortEl] = useState<HTMLElement | null>(null);
   const [viewEl, setViewEl] = useState<HTMLElement | null>(null);
@@ -55,88 +56,104 @@ export function BrowseToolbar({ total, stale }: { total: number; stale: boolean 
   const chips = (Object.entries(s.filters) as [Facet, string[]][]).flatMap(([facet, values]) => (values ?? []).map((value) => ({ facet, value })));
 
   return (
-    <div style={{ padding: '0 32px 8px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <Tooltip title={s.filtersOpen ? 'Hide filters' : 'Show filters'}>
-          <IconButton onClick={() => s.setFiltersOpen(!s.filtersOpen)} aria-label="Filters" aria-pressed={s.filtersOpen} disabled={nothingYet} sx={{ visibility: nothingYet ? 'hidden' : 'visible' }}>
-            <Badge badgeContent={filterCount} color="primary" invisible={s.filtersOpen || !filterCount}>
-              <FilterListOutlined />
-            </Badge>
-          </IconButton>
-        </Tooltip>
-        <SegmentedButton
-          label="Show"
-          value={s.mode}
-          onChange={s.setMode}
-          options={[
-            { value: 'assets', label: 'Assets' },
-            { value: 'packs', label: 'Packs' },
-          ]}
-        />
-        <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), opacity: stale ? 0.5 : 1, transition: 'opacity 150ms' }}>
-          {formatCount(total)} {s.mode === 'assets' ? (total === 1 ? 'asset' : 'assets') : total === 1 ? 'pack' : 'packs'}
-        </Typography>
-        <div style={{ flex: 1 }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+      <Tooltip title={s.filtersOpen ? 'Hide filters' : 'Show filters'}>
+        <IconButton onClick={() => s.setFiltersOpen(!s.filtersOpen)} aria-label="Filters" aria-pressed={s.filtersOpen} disabled={nothingYet} sx={{ visibility: nothingYet ? 'hidden' : 'visible' }}>
+          <Badge badgeContent={filterCount} color="primary" invisible={s.filtersOpen || !filterCount}>
+            <FilterListOutlined />
+          </Badge>
+        </IconButton>
+      </Tooltip>
+      <SegmentedButton
+        label="Show"
+        value={s.mode}
+        onChange={s.setMode}
+        options={[
+          { value: 'assets', label: 'Assets' },
+          { value: 'packs', label: 'Packs' },
+        ]}
+      />
+      <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), opacity: stale ? 0.5 : 1, transition: 'opacity 150ms' }}>
+        {formatCount(total)} {s.mode === 'assets' ? (total === 1 ? 'asset' : 'assets') : total === 1 ? 'pack' : 'packs'}
+      </Typography>
         <Button startIcon={<SortOutlined />} onClick={(e) => setSortEl(e.currentTarget)} sx={{ color: md('onSurfaceVariant'), px: 1.5 }}>
-          {sorts.find((o) => o.value === sort)?.label}
-        </Button>
-        <Menu anchorEl={sortEl} open={!!sortEl} onClose={() => setSortEl(null)}>
-          {sorts.map((o) => (
-            <MenuItem
-              key={o.value}
-              selected={o.value === sort}
-              onClick={() => {
-                if (s.mode === 'assets') s.setAssetSort(o.value as AssetSort);
-                else s.setPackSort(o.value as PackSort);
-                setSortEl(null);
-              }}
-            >
-              {o.label}
-            </MenuItem>
-          ))}
-        </Menu>
-        <Tooltip title="View options">
-          <IconButton onClick={(e) => setViewEl(e.currentTarget)} aria-label="View options">
-            <ViewModuleOutlined />
-          </IconButton>
-        </Tooltip>
-        <Menu anchorEl={viewEl} open={!!viewEl} onClose={() => setViewEl(null)} slotProps={{ paper: { sx: { width: 340, p: 1 } } }}>
-          <div style={{ padding: '8px 12px' }}>
-            <Typography variant="labelLarge" sx={{ color: md('onSurface') }}>
-              Tile size
-            </Typography>
-            <Slider min={TILE_MIN} max={TILE_MAX} value={s.tileSize} onChange={(_, v) => s.setTileSize(v as number)} aria-label="Tile size" />
-          </div>
-          <div style={{ padding: '4px 12px 12px' }}>
-            <Typography variant="labelLarge" sx={{ color: md('onSurface'), display: 'block', mb: 1 }}>
-              Behind transparent images
-            </Typography>
-            <SegmentedButton
-              label="Background"
-              value={s.tileBackground}
-              onChange={s.setTileBackground}
-              options={[
-                { value: 'checker', label: 'Checker' },
-                { value: 'dark', label: 'Dark' },
-                { value: 'light', label: 'Light' },
-              ]}
-            />
-          </div>
-          {s.mode === 'assets' && (
-            <MenuItem onClick={() => s.setIncludeSupport(!s.includeSupport)} sx={{ alignItems: 'flex-start', gap: 1, whiteSpace: 'normal' }}>
-              <div style={{ flex: 1 }}>
-                <Typography variant="labelLarge" sx={{ color: md('onSurface') }}>
-                  Supporting files
-                </Typography>
-                <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-                  Textures of models, material files, pack previews and other files that serve the assets.
-                </Typography>
-              </div>
-              <Switch size="small" checked={s.includeSupport} tabIndex={-1} />
-            </MenuItem>
-          )}
-        </Menu>
-      </div>
+        {sorts.find((o) => o.value === sort)?.label}
+      </Button>
+      <Menu anchorEl={sortEl} open={!!sortEl} onClose={() => setSortEl(null)}>
+        {sorts.map((o) => (
+          <MenuItem
+            key={o.value}
+            selected={o.value === sort}
+            onClick={() => {
+              if (s.mode === 'assets') s.setAssetSort(o.value as AssetSort);
+              else s.setPackSort(o.value as PackSort);
+              setSortEl(null);
+            }}
+          >
+            {o.label}
+          </MenuItem>
+        ))}
+      </Menu>
+      <Tooltip title="View options">
+        <IconButton onClick={(e) => setViewEl(e.currentTarget)} aria-label="View options">
+          <ViewModuleOutlined />
+        </IconButton>
+      </Tooltip>
+      <Menu anchorEl={viewEl} open={!!viewEl} onClose={() => setViewEl(null)} slotProps={{ paper: { sx: { width: 340, p: 1 } } }}>
+        <div style={{ padding: '8px 12px' }}>
+          <Typography variant="labelLarge" sx={{ color: md('onSurface') }}>
+            Tile size
+          </Typography>
+          <Slider min={TILE_MIN} max={TILE_MAX} value={s.tileSize} onChange={(_, v) => s.setTileSize(v as number)} aria-label="Tile size" />
+        </div>
+        <div style={{ padding: '4px 12px 12px' }}>
+          <Typography variant="labelLarge" sx={{ color: md('onSurface'), display: 'block', mb: 1 }}>
+            Behind transparent images
+          </Typography>
+          <SegmentedButton
+            label="Background"
+            value={s.tileBackground}
+            onChange={s.setTileBackground}
+            options={[
+              { value: 'checker', label: 'Checker' },
+              { value: 'dark', label: 'Dark' },
+              { value: 'light', label: 'Light' },
+            ]}
+          />
+        </div>
+        {s.mode === 'assets' && (
+          <MenuItem onClick={() => s.setIncludeSupport(!s.includeSupport)} sx={{ alignItems: 'flex-start', gap: 1, whiteSpace: 'normal' }}>
+            <div style={{ flex: 1 }}>
+              <Typography variant="labelLarge" sx={{ color: md('onSurface') }}>
+                Supporting files
+              </Typography>
+              <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+                Textures of models, material files, pack previews and other files that serve the assets.
+              </Typography>
+            </div>
+            <Switch size="small" checked={s.includeSupport} tabIndex={-1} />
+          </MenuItem>
+        )}
+      </Menu>
+    </div>
+  );
+}
+
+/**
+ * What the search and filters are set to, under the title row: the filters in force, and a way
+ * to keep this search as a collection that looks after itself.
+ */
+export function BrowseFilters() {
+  const s = useBrowse();
+  const [saving, setSaving] = useState(false);
+  const q = browseQuery(s);
+  const suggested = [q.text, ...chipsLabels(s.filters)].filter(Boolean).join(' · ') || 'Saved search';
+  const filterCount = activeFilterCount(s.filters);
+  const chips = (Object.entries(s.filters) as [Facet, string[]][]).flatMap(([facet, values]) => (values ?? []).map((value) => ({ facet, value })));
+  if (!chips.length && !(q.text && s.mode === 'assets')) return null;
+
+  return (
+    <div style={{ padding: '0 32px 10px', display: 'flex', flexDirection: 'column', gap: 10 }}>
       {chips.length > 0 && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {chips.map(({ facet, value }) => (

@@ -11,6 +11,7 @@ import PauseRounded from '@mui/icons-material/PauseRounded';
 import PlayArrowRounded from '@mui/icons-material/PlayArrowRounded';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import ScheduleRounded from '@mui/icons-material/ScheduleRounded';
+import TuneRounded from '@mui/icons-material/TuneRounded';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -28,11 +29,10 @@ import type { DownloadItem } from '@shared/types';
 import { call } from '../api';
 import { EmptyState } from '../components/EmptyState';
 import { formatBytes } from '../components/labels';
-import { SegmentedButton } from '../components/SegmentedButton';
 import { failed, notify } from '../notices/store';
 import { addDownloads, isGoing, queueLinks, useDownloads } from '../state/downloads';
 import { useLibraryRecord } from '../state/library';
-import { useSettings, useUpdateSettings } from '../state/queries';
+import { useNav } from '../state/nav';
 import { md, mdAlpha, SHAPE } from '../theme';
 import { PAGE, Page } from './Placeholder';
 
@@ -256,14 +256,14 @@ function Row({ d, autoAdd }: { d: DownloadItem; autoAdd: boolean }) {
  */
 export function DownloadsPage() {
   const record = useLibraryRecord();
-  const settings = useSettings().data;
-  const update = useUpdateSettings();
+  const go = useNav((n) => n.go);
   const rows = useDownloads().data ?? [];
   const [text, setText] = useState('');
   const [over, setOver] = useState(false);
   const found = linksIn(text);
   const hosts = [...new Set(found.map((u) => hostLabel(u)))];
-  const autoAdd = record?.autoAddDownloads ?? true;
+  // Rows wait for an Add button only when the library leaves finished downloads to the user.
+  const autoAdd = (record?.afterDownload ?? 'add') !== 'ask';
 
   const going = rows.filter(isGoing);
   const finished = rows.filter((d) => !isGoing(d));
@@ -304,11 +304,18 @@ export function DownloadsPage() {
       title="Downloads"
       subtitle="Links you bring, fetched and added like any other pack"
       actions={
-        going.length ? (
-          <Button startIcon={allPaused ? <PlayArrowRounded /> : <PauseRounded />} onClick={() => void call(allPaused ? 'downloads:resumeAll' : 'downloads:pauseAll').catch(failed)}>
-            {allPaused ? 'Carry on with all' : 'Pause all'}
-          </Button>
-        ) : undefined
+        <>
+          {going.length > 0 && (
+            <Button startIcon={allPaused ? <PlayArrowRounded /> : <PauseRounded />} onClick={() => void call(allPaused ? 'downloads:resumeAll' : 'downloads:pauseAll').catch(failed)}>
+              {allPaused ? 'Carry on with all' : 'Pause all'}
+            </Button>
+          )}
+          <Tooltip title="Download settings">
+            <IconButton onClick={() => go({ to: 'settings', section: 'downloads' })} aria-label="Download settings">
+              <TuneRounded />
+            </IconButton>
+          </Tooltip>
+        </>
       }
     >
       <div
@@ -318,7 +325,7 @@ export function DownloadsPage() {
         }}
         onDragLeave={() => setOver(false)}
         onDrop={(e) => void drop(e)}
-        style={{ padding: PAGE.body, display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1060, minHeight: '100%' }}
+        style={{ padding: PAGE.body, display: 'flex', flexDirection: 'column', gap: 24, minHeight: '100%' }}
       >
         <div style={{ padding: 20, borderRadius: SHAPE.lg, background: over ? md('primaryContainer') : md('surfaceContainerLowest'), border: `1px ${over ? 'dashed' : 'solid'} ${over ? md('primary') : md('outlineVariant')}` }}>
           <TextField
@@ -342,31 +349,6 @@ export function DownloadsPage() {
           <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 1.5 }}>
             Asset pages from {KNOWN_SITES} lead to their file. Other links should point straight at one.
           </Typography>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '4px 16px', borderRadius: SHAPE.lg, background: md('surfaceContainerLowest') }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, cursor: 'pointer', padding: '10px 0' }}>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="bodyMedium" component="div" sx={{ color: md('onSurface') }}>
-                Add finished downloads by themselves
-              </Typography>
-              <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
-                Ones with a clear licence go into the library; the rest wait in Review. Off: they wait here for you.
-              </Typography>
-            </span>
-            <Switch checked={autoAdd} onChange={(_, v) => void call('library:setPrefs', { autoAddDownloads: v }).catch(failed)} slotProps={{ input: { 'aria-label': 'Add finished downloads by themselves' } }} />
-          </label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-              At once
-            </Typography>
-            <SegmentedButton<string>
-              label="How many downloads at once"
-              value={String(settings?.downloadsAtOnce ?? 3)}
-              onChange={(n) => update.mutate({ downloadsAtOnce: Number(n) })}
-              options={['1', '2', '3', '4', '5'].map((n) => ({ value: n, label: n }))}
-            />
-          </div>
         </div>
 
         {going.length > 0 && (

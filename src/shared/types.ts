@@ -164,11 +164,17 @@ export interface LibraryRecord {
    * into the library; the rest wait in the Inbox. Off: every import waits in the Inbox.
    */
   skipInboxWhenSure: boolean;
-  /** Finished downloads are added to this library by themselves, instead of waiting to be added. */
-  autoAddDownloads: boolean;
+  /**
+   * What happens when a download finishes: add it (a clear licence goes into the library, the
+   * rest wait in Review), send every one to Review, or leave it in Downloads for the user.
+   */
+  afterDownload: AfterDownload;
   sync: LibrarySync;
   backup: LibraryBackup | null;
 }
+
+/** What to do with a finished download. */
+export type AfterDownload = 'add' | 'review' | 'ask';
 
 /** A known library as the switcher and the welcome screen show it. */
 export interface LibrarySummary {

@@ -198,7 +198,8 @@ const libraryNameOf = (id: string) => recordOf(settings, id)?.name ?? null;
  */
 async function addDownloaded(item: DownloadItem): Promise<void> {
   const record = openRecord();
-  if (!record?.autoAddDownloads || !item.file) return;
+  // "Leave it to me": the row waits in Downloads with an Add button.
+  if (!record || record.afterDownload === 'ask' || !item.file) return;
   try {
     const planned = await library.planImport([item.file], 'auto');
     const already = planned.find((i) => i.duplicateOf);
@@ -206,7 +207,8 @@ async function addDownloaded(item: DownloadItem): Promise<void> {
       downloads.done(item.id, already.duplicateOf);
       return;
     }
-    const result = await library.import(planned.map((i) => ({ ...i, url: item.url })), record.skipInboxWhenSure, false);
+    const straightIn = record.afterDownload === 'add' && record.skipInboxWhenSure;
+    const result = await library.import(planned.map((i) => ({ ...i, url: item.url })), straightIn, false);
     const made = result.added[0];
     downloads.done(item.id, made?.name ?? null);
     if (made) activity.add('downloaded', `Downloaded “${made.name}” from ${item.host}`, made.status === 'inbox' ? 'Waiting in Review for a licence' : undefined);

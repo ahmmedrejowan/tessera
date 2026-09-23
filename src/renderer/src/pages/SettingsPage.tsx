@@ -7,7 +7,7 @@ import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { ReportConsent, ThemeMode } from '@shared/types';
+import type { AfterDownload, ReportConsent, ThemeMode } from '@shared/types';
 import { call } from '../api';
 import { formatBytes } from '../components/labels';
 import { SegmentedButton } from '../components/SegmentedButton';
@@ -40,6 +40,7 @@ const SECTIONS: Section[] = [
   { id: 'general', title: 'General', part: 'library' },
   { id: 'backups', title: 'Backups', part: 'library' },
   { id: 'sync', title: 'Sync', part: 'library' },
+  { id: 'downloads', title: 'Downloads', part: 'library' },
   { id: 'storage', title: 'Previews and index', part: 'library' },
   { id: 'appearance', title: 'Appearance', part: 'app' },
   { id: 'sites', title: 'Sites', part: 'app' },
@@ -210,6 +211,34 @@ export function SettingsPage({ section }: { section?: string } = {}) {
             <div {...at('sync')}>
               <Group title="Sync" note="Keep this library the same on your other computers, over your own network.">
                 <SyncSettings />
+              </Group>
+            </div>
+
+            <div {...at('downloads')}>
+              <Group title="Downloads" note="What happens to a link once Tessera has fetched it.">
+                <Row title="When a download finishes" body={record?.afterDownload === 'ask' ? 'They wait in Downloads with an Add button.' : record?.afterDownload === 'review' ? 'Every one goes to Review, whatever its licence says.' : 'A clear licence goes into the library; anything unclear waits in Review.'}>
+                  <SegmentedButton<AfterDownload>
+                    label="When a download finishes"
+                    value={record?.afterDownload ?? 'add'}
+                    onChange={(afterDownload) => void call('library:setPrefs', { afterDownload }).catch(failed)}
+                    options={[
+                      { value: 'add', label: 'Add them' },
+                      { value: 'review', label: 'Send to Review' },
+                      { value: 'ask', label: 'Leave to me' },
+                    ]}
+                  />
+                </Row>
+                <Row title="Packs Tessera is sure about" body="A licence read in the pack itself, or set by your rule for its site, skips Review. Off: everything waits there.">
+                  <Switch checked={record?.skipInboxWhenSure ?? true} onChange={(_, v) => void call('library:setPrefs', { skipInboxWhenSure: v }).catch(failed)} slotProps={{ input: { 'aria-label': 'Add sure packs straight to the library' } }} />
+                </Row>
+                <Row title="How many at once" body="The same for every library on this computer.">
+                  <SegmentedButton<string>
+                    label="How many downloads at once"
+                    value={String(settings.downloadsAtOnce)}
+                    onChange={(n) => update.mutate({ downloadsAtOnce: Number(n) })}
+                    options={['1', '2', '3', '4', '5'].map((n) => ({ value: n, label: n }))}
+                  />
+                </Row>
               </Group>
             </div>
 

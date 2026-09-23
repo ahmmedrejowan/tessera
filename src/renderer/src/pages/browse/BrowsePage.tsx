@@ -20,7 +20,7 @@ import { Page } from '../Placeholder';
 // The viewer brings three.js; it loads the first time something is opened.
 const Viewer = lazy(() => import('../../viewer/Viewer').then((m) => ({ default: m.Viewer })));
 import { AssetTile, TILE_LABEL_HEIGHT } from './AssetTile';
-import { BrowseToolbar } from './BrowseToolbar';
+import { BrowseControls, BrowseFilters } from './BrowseToolbar';
 import { DetailsSheet } from './DetailsSheet';
 import { SelectionBar } from './SelectionBar';
 import { FilterPane } from './FilterPane';
@@ -286,11 +286,11 @@ export function BrowsePage() {
   const nothingYet = stats?.assets === 0 && !filtering;
 
   return (
-    <Page title="Browse" subtitle="Everything in the library, by asset or by pack" flush>
+    <Page title="Browse" flush actions={<BrowseControls total={current.total} stale={current.stale} />}>
       <div style={{ height: '100%', display: 'flex', minHeight: 0 }}>
         {s.filtersOpen && !nothingYet && <FilterPane facets={facets.data} />}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <BrowseToolbar total={current.total} stale={current.stale} />
+        <BrowseFilters />
         <div style={{ height: 2 }}>{current.stale && <LinearProgress sx={{ height: 2, borderRadius: 0 }} />}</div>
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }} role="listbox" aria-multiselectable aria-label={s.mode === 'assets' ? 'Assets' : 'Packs'}>
           {empty ? (
