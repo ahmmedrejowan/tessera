@@ -8,17 +8,20 @@ import ErrorOutlineRounded from '@mui/icons-material/ErrorOutlineRounded';
 import GavelOutlined from '@mui/icons-material/GavelOutlined';
 import RateReviewOutlined from '@mui/icons-material/RateReviewOutlined';
 import RocketLaunchOutlined from '@mui/icons-material/RocketLaunchOutlined';
+import SearchOffRounded from '@mui/icons-material/SearchOffRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import ShieldOutlined from '@mui/icons-material/ShieldOutlined';
 import SportsEsportsOutlined from '@mui/icons-material/SportsEsportsOutlined';
 import TravelExploreOutlined from '@mui/icons-material/TravelExploreOutlined';
 import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
+import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
 import InputAdornment from '@mui/material/InputAdornment';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useState, type ComponentType } from 'react';
 import { HELP, searchHelp, type HelpTopic } from '@shared/help';
+import { EmptyState } from '../../components/EmptyState';
 import { useHealth } from '../../state/health';
 import { useNav } from '../../state/nav';
 import { md, SHAPE, STATE } from '../../theme';
@@ -155,9 +158,16 @@ export function HelpPage() {
       {text.trim() ? (
         <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {found.length === 0 && (
-            <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-              Nothing matches “{text.trim()}”. The footer below reaches a person.
-            </Typography>
+            <EmptyState
+              icon={SearchOffRounded}
+              title="Nothing matches"
+              body={`No answer here mentions “${text.trim()}”. The topics below cover the whole app, and the footer reaches a person.`}
+              actions={
+                <Button variant="contained" onClick={() => setText('')}>
+                  Show the topics
+                </Button>
+              }
+            />
           )}
           {found.map(({ topic, question }) => (
             <ButtonBase

@@ -84,7 +84,7 @@ export function SiteRules() {
           </div>
         ))}
         {!rules.length && (
-          <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), fontStyle: 'italic' }}>
+          <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
             No sites yet. When you fill in a pack’s licence, Tessera offers to remember the site it came from.
           </Typography>
         )}
