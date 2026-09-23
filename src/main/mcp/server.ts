@@ -94,12 +94,22 @@ export class McpService {
         log.info('mcp', `answering agents on http://127.0.0.1:${port}/mcp`);
         resolve();
       });
+      // Nothing should close it but us. If something does, say so and open it again, rather than
+      // leaving a window that says it is answering when nothing is.
+      http.on('close', () => {
+        if (this.http !== http) return;
+        this.http = null;
+        log.warn('mcp', 'the door closed by itself; opening it again');
+        this.o.onChange();
+        if (this.o.settings().enabled) setTimeout(() => void this.apply(), 500);
+      });
     });
   }
 
   async stop(): Promise<void> {
     const http = this.http;
     this.http = null;
+    if (http?.listening) log.info('mcp', 'no longer answering agents');
     if (http?.listening) await new Promise<void>((resolve) => http.close(() => resolve()));
   }
 
