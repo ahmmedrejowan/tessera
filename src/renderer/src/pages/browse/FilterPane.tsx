@@ -44,16 +44,16 @@ function FacetSection({ facet, values, collapsed, onToggle }: { facet: Facet; va
   const visible = all || needle ? matching : matching.slice(0, SHOWN);
 
   return (
-    <section style={{ paddingBlock: 4 }}>
+    <section style={{ padding: '10px 0 12px', borderTop: `1px solid ${md('outlineVariant')}` }}>
       <ButtonBase
         onClick={onToggle}
         aria-expanded={!collapsed}
-        sx={{ width: '100%', justifyContent: 'space-between', px: 1.5, py: 1, borderRadius: `${SHAPE.sm}px`, '&:hover': { backgroundColor: md('surfaceContainerHigh') } }}
+        sx={{ width: '100%', justifyContent: 'space-between', px: 1, py: 0.5, borderRadius: `${SHAPE.sm}px`, '&:hover': { backgroundColor: md('surfaceContainerHigh') } }}
       >
-        <Typography variant="titleSmall" sx={{ color: md('onSurface') }}>
+        <Typography variant="labelLarge" sx={{ color: selected.length ? md('primary') : md('onSurfaceVariant'), textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: 11 }}>
           {FACET_LABELS[facet]}
           {selected.length > 0 && (
-            <Typography component="span" variant="labelMedium" sx={{ ml: 1, px: 0.75, py: '1px', borderRadius: `${SHAPE.full}px`, background: md('primary'), color: md('onPrimary') }}>
+            <Typography component="span" variant="labelSmall" sx={{ ml: 0.75, px: 0.75, py: '1px', borderRadius: `${SHAPE.full}px`, background: md('primary'), color: md('onPrimary') }}>
               {selected.length}
             </Typography>
           )}
@@ -93,14 +93,23 @@ function FacetSection({ facet, values, collapsed, onToggle }: { facet: Facet; va
                 onClick={() => toggle(facet, value)}
                 role="checkbox"
                 aria-checked={on}
-                sx={{ justifyContent: 'flex-start', gap: 1, pl: 0.5, pr: 1.5, minHeight: 34, borderRadius: `${SHAPE.sm}px`, '&:hover': { backgroundColor: md('surfaceContainerHigh') } }}
+                sx={{
+                  justifyContent: 'flex-start',
+                  gap: 1,
+                  pl: 0.5,
+                  pr: 1.5,
+                  minHeight: 34,
+                  borderRadius: `${SHAPE.sm}px`,
+                  backgroundColor: on ? md('secondaryContainer') : 'transparent',
+                  '&:hover': { backgroundColor: on ? md('secondaryContainer') : md('surfaceContainerHigh') },
+                }}
               >
                 <Checkbox checked={on} size="small" tabIndex={-1} disableRipple sx={{ p: 0.5 }} />
-                {Icon && <Icon sx={{ fontSize: 18, color: md('onSurfaceVariant') }} />}
-                <Typography variant="bodyMedium" noWrap sx={{ flex: 1, textAlign: 'left', color: count || on ? md('onSurface') : md('onSurfaceVariant') }}>
+                {Icon && <Icon sx={{ fontSize: 18, color: on ? md('onSecondaryContainer') : md('onSurfaceVariant') }} />}
+                <Typography variant="bodyMedium" noWrap sx={{ flex: 1, textAlign: 'left', color: on ? md('onSecondaryContainer') : count ? md('onSurface') : md('onSurfaceVariant') }}>
                   {facetLabel(facet, value)}
                 </Typography>
-                <Typography variant="labelSmall" sx={{ color: md('onSurfaceVariant') }}>
+                <Typography variant="labelSmall" sx={{ color: on ? md('onSecondaryContainer') : md('onSurfaceVariant'), fontVariantNumeric: 'tabular-nums' }}>
                   {formatCount(count)}
                 </Typography>
               </ButtonBase>
@@ -154,9 +163,14 @@ export function FilterPane({ facets }: { facets: FacetCounts | undefined }) {
   };
   return (
     <aside aria-label="Filters" style={{ width: 272, flexShrink: 0, overflowY: 'auto', padding: '4px 8px 24px 16px', borderRight: `1px solid ${md('outlineVariant')}` }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 0 8px 8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 0 10px 8px' }}>
         <Typography variant="titleSmall" sx={{ flex: 1, color: md('onSurface') }}>
           Filters
+          {count > 0 && (
+            <Typography component="span" variant="labelSmall" sx={{ ml: 1, px: 0.75, py: '2px', borderRadius: `${SHAPE.full}px`, background: md('primary'), color: md('onPrimary') }}>
+              {count}
+            </Typography>
+          )}
         </Typography>
         {count > 0 && (
           <Button size="small" onClick={clearFilters}>
