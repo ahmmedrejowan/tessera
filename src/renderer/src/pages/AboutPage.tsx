@@ -15,7 +15,7 @@ import Dialog from '@mui/material/Dialog';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BUILT_WITH, CREATOR, HELPERS, LICENCE, LINKS } from '@shared/about';
 import { parseChangelog, plainLine, releaseFor, type Release } from '@shared/changelog';
 import { call, on } from '../api';
@@ -25,6 +25,7 @@ import { useAppInfo, useSettings, useUpdateSettings } from '../state/queries';
 import { md, SHAPE } from '../theme';
 import { PAGE, Page } from './Placeholder';
 import { Group, Row } from './settings/parts';
+import { SideSections, sectionAnchor, useSectionSpy, type SideSection } from './settings/SideSections';
 
 const open = (url: string) => void call('app:openExternal', url);
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'never');
@@ -259,14 +260,31 @@ function Versions({ version }: { version: string }) {
  * About: what this build is, whether a newer one exists, what changed, the terms Tessera comes
  * under, what it is made of, who makes it and how to reach them.
  */
+const SECTIONS: SideSection[] = [
+  { id: 'updates', title: 'Updates' },
+  { id: 'version', title: 'Version' },
+  { id: 'licence', title: 'Licence and privacy' },
+  { id: 'credits', title: 'Credits' },
+  { id: 'creator', title: 'Who makes it' },
+  { id: 'computer', title: 'This computer' },
+];
+
+const at = (id: string) => sectionAnchor('about', id);
+
 export function AboutPage() {
   const info = useAppInfo().data;
   const [document, setDocument] = useState<'licence' | 'privacy' | null>(null);
   const [creator, setCreator] = useState(false);
   const version = info?.version ?? '';
+  const scroller = useRef<HTMLDivElement>(null);
+  const current = useSectionSpy(scroller, 'about', SECTIONS, !!info);
 
   return (
-    <Page title="About" subtitle="What this build is, and what it’s made of" width={PAGE.column}>
+    <Page title="About" subtitle="What this build is, and what it’s made of" flush>
+      <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', height: '100%' }}>
+        <SideSections prefix="about" sections={SECTIONS} current={current} />
+        <div ref={scroller} style={{ overflowY: 'auto', minHeight: 0 }}>
+          <div style={{ maxWidth: PAGE.column, padding: '0 32px 64px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '4px 0 28px' }}>
         <span style={{ width: 72, height: 72, borderRadius: 22, display: 'grid', placeItems: 'center', background: md('surfaceContainerLow') }}>
           <Logo size={44} />
@@ -286,9 +304,14 @@ export function AboutPage() {
         </div>
       </div>
 
+      <div {...at('updates')}>
       <Updates version={version} />
+      </div>
+      <div {...at('version')}>
       <Versions version={version} />
+      </div>
 
+      <div {...at('licence')}>
       <Group title="Licence and privacy" note="Tessera’s own terms, not the ones your packs carry.">
         <Row title={LICENCE.name} body={LICENCE.summary}>
           <Button onClick={() => setDocument('licence')}>Read it</Button>
@@ -307,7 +330,9 @@ export function AboutPage() {
           </Button>
         </Row>
       </Group>
+      </div>
 
+      <div {...at('credits')}>
       <Group title="Credits" note="Tessera stands on other people’s work.">
         {HELPERS.map((h) => (
           <Row key={h.name} title={<Link href={h.url}>{h.name}</Link>} body={`${h.what} · ${h.licence} · a separate program Tessera can fetch and drive`} />
@@ -334,7 +359,9 @@ export function AboutPage() {
           }
         />
       </Group>
+      </div>
 
+      <div {...at('creator')}>
       <Group title="Who makes it" note="One person, and the ways to reach them.">
         <Row title={CREATOR.name} body={`${CREATOR.title}, and the one person behind Tessera`}>
           <Button variant="contained" onClick={() => setCreator(true)}>
@@ -352,7 +379,9 @@ export function AboutPage() {
           </Button>
         </Row>
       </Group>
+      </div>
 
+      <div {...at('computer')}>
       <Group title="This computer" note="Where Tessera keeps its own things: never your library.">
         <Row title="Log files" body="What Tessera did, kept on this computer only.">
           <Button startIcon={<FolderOpenOutlined />} onClick={() => void call('app:showLogs')}>
@@ -360,6 +389,10 @@ export function AboutPage() {
           </Button>
         </Row>
       </Group>
+      </div>
+          </div>
+        </div>
+      </div>
 
       {creator && <Creator onClose={() => setCreator(false)} />}
       {document && <Document name={document} title={document === 'licence' ? LICENCE.name : 'Privacy'} onClose={() => setDocument(null)} />}

@@ -25,28 +25,25 @@ import { SiteRules } from './settings/SiteRules';
 import { RenameLibrary } from './library/RenameLibrary';
 import { tidyPath } from './library/Location';
 import { Group, Row } from './settings/parts';
+import { SideSections, sectionAnchor, useSectionSpy, type SideSection } from './settings/SideSections';
 
 
 /** Seeds for the colour scheme; each gives a full Material 3 palette in light and dark. */
 const SEEDS = ['#3f6f8f', '#4758a9', '#6750a4', '#a4506b', '#a0522d', '#8a6d1f', '#3b7a4a', '#2f7a78'];
 
-interface Section {
-  id: string;
-  title: string;
-  part: 'library' | 'app';
-}
+type Section = SideSection & { part: 'library' | 'app' };
 
 const SECTIONS: Section[] = [
-  { id: 'general', title: 'General', part: 'library' },
-  { id: 'backups', title: 'Backups', part: 'library' },
-  { id: 'sync', title: 'Sync', part: 'library' },
-  { id: 'storage', title: 'Previews and index', part: 'library' },
-  { id: 'appearance', title: 'Appearance', part: 'app' },
-  { id: 'sites', title: 'Sites', part: 'app' },
-  { id: 'downloads', title: 'Downloads', part: 'app' },
-  { id: 'computers', title: 'Paired computers', part: 'app' },
-  { id: 'helpers', title: 'Helpers', part: 'app' },
-  { id: 'privacy', title: 'Privacy and problems', part: 'app' },
+  { id: 'general', title: 'General', part: 'library', group: 'library' },
+  { id: 'backups', title: 'Backups', part: 'library', group: 'library' },
+  { id: 'sync', title: 'Sync', part: 'library', group: 'library' },
+  { id: 'storage', title: 'Previews and index', part: 'library', group: 'library' },
+  { id: 'appearance', title: 'Appearance', part: 'app', group: 'app' },
+  { id: 'sites', title: 'Sites', part: 'app', group: 'app' },
+  { id: 'downloads', title: 'Downloads', part: 'app', group: 'app' },
+  { id: 'computers', title: 'Paired computers', part: 'app', group: 'app' },
+  { id: 'helpers', title: 'Helpers', part: 'app', group: 'app' },
+  { id: 'privacy', title: 'Privacy and problems', part: 'app', group: 'app' },
 ];
 
 /**
@@ -101,26 +98,8 @@ export function SettingsPage({ section }: { section?: string } = {}) {
   const reports = useQuery({ queryKey: ['reports-status'], queryFn: () => call('reports:status'), staleTime: 0 }).data;
   const [busy, setBusy] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
-  const [current, setCurrent] = useState(SECTIONS[0]!.id);
   const scroller = useRef<HTMLDivElement>(null);
-
-  // The side list follows the scrolling: the last section whose top has reached the top.
-  useEffect(() => {
-    const el = scroller.current;
-    if (!el) return;
-    const onScroll = () => {
-      const limit = el.getBoundingClientRect().top + 108;
-      let at = SECTIONS[0]!.id;
-      for (const s of SECTIONS) {
-        const top = document.getElementById(`settings-${s.id}`)?.getBoundingClientRect().top;
-        if (top !== undefined && top <= limit) at = s.id;
-      }
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4) at = SECTIONS.at(-1)!.id;
-      setCurrent(at);
-    };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
-  }, [settings]);
+  const current = useSectionSpy(scroller, 'settings', SECTIONS, !!settings);
 
   // Opened for one section (from Home's first steps, say): go straight to it.
   useEffect(() => {
@@ -143,45 +122,20 @@ export function SettingsPage({ section }: { section?: string } = {}) {
       setBusy(null);
     }
   };
-  const jump = (id: string) => document.getElementById(`settings-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  const at = (id: string) => ({ id: `settings-${id}`, style: { scrollMarginTop: 84 } });
-
-  const NavGroup = ({ icon, label, name }: { icon: ReactNode; label: string; name?: string }) => (
-    <div style={{ padding: '18px 12px 6px' }}>
-      <Typography variant="labelLarge" noWrap sx={{ color: md('onSurface'), display: 'flex', alignItems: 'center', gap: 0.75 }}>
-        {icon}
-        {label}
-      </Typography>
-      {name && (
-        <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant'), pl: 2.5 }}>
-          {name}
-        </Typography>
-      )}
-    </div>
-  );
-
-  const navItem = (s: Section) => (
-    <ButtonBase
-      key={s.id}
-      onClick={() => jump(s.id)}
-      aria-current={current === s.id ? 'true' : undefined}
-      sx={{ justifyContent: 'flex-start', height: 40, px: 1.5, borderRadius: `${SHAPE.full}px`, color: current === s.id ? md('onSecondaryContainer') : md('onSurfaceVariant'), backgroundColor: current === s.id ? md('secondaryContainer') : 'transparent', '&:hover': { backgroundColor: current === s.id ? md('secondaryContainer') : md('surfaceContainerHigh') } }}
-    >
-      <Typography variant="labelLarge" noWrap sx={{ fontWeight: current === s.id ? 600 : 500 }}>
-        {s.title}
-      </Typography>
-    </ButtonBase>
-  );
+  const at = (id: string) => sectionAnchor('settings', id);
 
   return (
     <Page title="Settings" flush>
       <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', height: '100%' }}>
-        <nav aria-label="Settings sections" style={{ padding: '0 16px 32px 32px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
-          <NavGroup icon={<AutoStoriesOutlined sx={{ fontSize: 15 }} />} label="This library" name={lib?.name} />
-          {SECTIONS.filter((s) => s.part === 'library').map(navItem)}
-          <NavGroup icon={<TuneRounded sx={{ fontSize: 15 }} />} label="Tessera" name="Every library" />
-          {SECTIONS.filter((s) => s.part === 'app').map(navItem)}
-        </nav>
+        <SideSections
+          prefix="settings"
+          sections={SECTIONS}
+          current={current}
+          groups={[
+            { id: 'library', label: 'This library', sub: lib?.name ?? 'None open', icon: <AutoStoriesOutlined sx={{ fontSize: 15 }} /> },
+            { id: 'app', label: 'Tessera', sub: 'Every library', icon: <TuneRounded sx={{ fontSize: 15 }} /> },
+          ]}
+        />
 
         <div ref={scroller} style={{ overflowY: 'auto', minHeight: 0 }}>
           <div style={{ maxWidth: PAGE.column, padding: '0 32px 64px' }}>

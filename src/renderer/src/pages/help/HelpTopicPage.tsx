@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { HELP, topicById } from '@shared/help';
 import { useNav } from '../../state/nav';
 import { md, SHAPE } from '../../theme';
-import { PAGE, Page } from '../Placeholder';
+import { Page } from '../Placeholder';
 import { HelpFooter } from './HelpFooter';
 import { TOPIC_ICONS } from './HelpPage';
 
@@ -29,7 +29,7 @@ export function HelpTopicPage({ id, question }: { id: string; question?: string 
 
   if (!topic) {
     return (
-      <Page title="Help" width={PAGE.column} {...(back.length ? { onBack: goBack } : {})}>
+      <Page title="Help" {...(back.length ? { onBack: goBack } : {})}>
         <Typography variant="bodyLarge" sx={{ color: md('onSurfaceVariant') }}>
           That topic has gone. Help lists them all.
         </Typography>
@@ -43,7 +43,6 @@ export function HelpTopicPage({ id, question }: { id: string; question?: string 
     <Page
       title={topic.title}
       subtitle={topic.summary}
-      width={PAGE.column}
       onBack={() => (back.length ? goBack() : go({ to: 'help' }))}
       aside={
         <span style={{ width: 44, height: 44, borderRadius: 14, display: 'grid', placeItems: 'center', background: md('secondaryContainer'), color: md('onSecondaryContainer') }}>
@@ -51,7 +50,7 @@ export function HelpTopicPage({ id, question }: { id: string; question?: string 
         </span>
       }
     >
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px', gap: 40, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 280px', gap: 48, alignItems: 'start' }}>
         <div>
           {topic.questions.map((q) => (
             <section key={q.id} id={`q-${q.id}`} style={{ scrollMarginTop: 16, paddingBottom: 28, marginBottom: 28, borderBottom: `1px solid ${md('outlineVariant')}` }}>
@@ -59,7 +58,7 @@ export function HelpTopicPage({ id, question }: { id: string; question?: string 
                 {q.q}
               </Typography>
               {q.a.map((para) => (
-                <Typography key={para.slice(0, 24)} variant="bodyLarge" component="p" sx={{ color: md('onSurfaceVariant'), mt: 1.5, mb: 0, maxWidth: 680 }}>
+                <Typography key={para.slice(0, 24)} variant="bodyLarge" component="p" sx={{ color: md('onSurfaceVariant'), mt: 1.5, mb: 0, maxWidth: 760 }}>
                   {para}
                 </Typography>
               ))}
