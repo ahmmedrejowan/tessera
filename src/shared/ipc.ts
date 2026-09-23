@@ -115,7 +115,7 @@ export interface Invokes {
 
   'collections:list': () => CollectionSummary[];
   /** Create a collection (manual with items, or smart with a query); returns its id. */
-  'collections:create': (name: string, init: { description?: string; items?: CollectionItem[]; query?: SmartQuery | null }) => string;
+  'collections:create': (name: string, init: { description?: string; items?: CollectionItem[]; packs?: string[]; query?: SmartQuery | null }) => string;
   'collections:change': (id: string, change: CollectionChange) => void;
   /** Star assets, or take the star off: they go in and out of the built-in Favourites collection. */
   'favourites:assets': (items: CollectionItem[], on: boolean) => void;

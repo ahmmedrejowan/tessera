@@ -12,7 +12,7 @@ import { planImport } from './import/plan';
 import { runImport } from './import/run';
 import { LibraryQueries } from './index/query';
 import type { Jobs } from './jobs';
-import { createCollection, deleteCollection, favourites, listCollections, updateCollection, withItems, withoutItems } from './library/collections';
+import { createCollection, deleteCollection, favourites, listCollections, updateCollection, withItems, withoutItems, withPacks, withoutPacks } from './library/collections';
 import { detectPack, partLicences, packTexts } from './library/detect';
 import { suggestDetails } from './import/suggest';
 import { createLibrary, DIRS, inspectFolder, MARKER, PACK_DIRS, readLibraryInfo } from './library/layout';
@@ -286,13 +286,22 @@ export class LibraryService {
         ? { scope: 'library', text: c.query.text, filters: c.query.filters as Filters, includeSupport: c.query.includeSupport, favourites: c.query.favourites }
         : { scope: 'all', text: '', filters: {}, collectionId: c.id };
       const page = lib.queries.assets(q, 'relevance', 0, 4);
+      const samples = page.rows.map((r) => ({ packId: r.packId, ref: r.ref, ext: r.ext, kind: r.kind, type: r.type }));
+      // A collection of whole packs shows their covers, so its card isn't blank.
+      if (samples.length < 4 && c.packs.length) {
+        for (const pack of lib.queries.packs({ scope: 'all', text: '', filters: {}, collectionId: c.id }, 'name', 0, 4 - samples.length).rows) {
+          const cover = pack.samples[0];
+          if (cover) samples.push({ packId: pack.id, ref: pack.coverRef ?? cover.ref, ext: cover.ext, kind: cover.kind, type: cover.type });
+        }
+      }
       out.push({
         id: c.id,
         name: c.name,
         description: c.description,
         kind: c.kind,
         count: page.total,
-        samples: page.rows.map((r) => ({ packId: r.packId, ref: r.ref, ext: r.ext, kind: r.kind, type: r.type })),
+        packCount: c.query ? 0 : c.packs.length,
+        samples,
         updatedAt: c.updatedAt,
         query: c.query,
       });
@@ -300,7 +309,7 @@ export class LibraryService {
     return out;
   }
 
-  async createCollection(name: string, init: { description?: string; items?: CollectionItem[]; query?: SmartQuery | null }): Promise<string> {
+  async createCollection(name: string, init: { description?: string; items?: CollectionItem[]; packs?: string[]; query?: SmartQuery | null }): Promise<string> {
     const c = await createCollection(this.require().root, name.trim() || 'Untitled', init);
     await this.collectionsChanged();
     return c.id;
@@ -316,6 +325,8 @@ export class LibraryService {
         if (change.description !== undefined) next.description = change.description;
         if (change.add) next = withItems(next, change.add);
         if (change.remove) next = withoutItems(next, change.remove);
+        if (change.addPacks) next = withPacks(next, change.addPacks);
+        if (change.removePacks) next = withoutPacks(next, change.removePacks);
         return next;
       });
     await this.collectionsChanged();
@@ -329,14 +340,12 @@ export class LibraryService {
     await this.collectionsChanged();
   }
 
-  /** Star a pack, in its own record, so the star travels with the pack. */
+  /** Star a pack: it joins the built-in Favourites collection, as a starred asset does. */
   async favouritePack(id: string, on: boolean): Promise<void> {
-    const lib = this.require();
-    const pack = await this.packRecord(id);
-    if (pack.meta.favourite === on) return;
-    const meta = await writePack(pack.dir, { ...pack.meta, favourite: on });
-    await lib.index.syncPack({ ...pack, meta }, lib.index.known(id));
-    this.d.onIndexChanged();
+    const root = this.require().root;
+    await favourites(root);
+    await updateCollection(root, FAVOURITES, (c) => (on ? withPacks(c, [id]) : withoutPacks(c, [id])));
+    await this.collectionsChanged();
   }
 
   /** Put a pack away, or bring it back: kept in full either way, just out of the way of browsing. */

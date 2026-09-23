@@ -96,13 +96,18 @@ export class LibraryQueries {
       out.push(
         mode === 'assets'
           ? { sql: `EXISTS (SELECT 1 FROM collection_items f WHERE f.collection_id = ? AND f.pack_id = a.pack_id AND f.ref = a.ref)`, params: [FAVOURITES] }
-          : { sql: 'p.fav = 1', params: [] },
+          : { sql: 'EXISTS (SELECT 1 FROM collection_packs f WHERE f.collection_id = ? AND f.pack_id = p.id)', params: [FAVOURITES] },
       );
     }
     if (q.collectionId) {
-      // A collection shows exactly what was put in it, supporting files included.
+      // A collection shows exactly what was put in it: the assets added one by one (supporting
+      // files included), and the packs added whole, as packs.
       const inCollection = 'SELECT 1 FROM collection_items ci WHERE ci.collection_id = ? AND ci.pack_id = a.pack_id AND ci.ref = a.ref';
-      out.push(mode === 'assets' ? { sql: `EXISTS (${inCollection})`, params: [q.collectionId] } : { sql: `p.id IN (SELECT pack_id FROM collection_items WHERE collection_id = ?)`, params: [q.collectionId] });
+      out.push(
+        mode === 'assets'
+          ? { sql: `EXISTS (${inCollection})`, params: [q.collectionId] }
+          : { sql: `p.id IN (SELECT pack_id FROM collection_packs WHERE collection_id = ?)`, params: [q.collectionId] },
+      );
     } else if (mode === 'assets') {
       // Variants are always shown through the asset they belong to.
       out.push({ sql: q.includeSupport ? "a.role != 'variant'" : "a.role = 'main'", params: [] });
@@ -448,4 +453,5 @@ interface RawPack {
 }
 
 const PACK_FIELDS = `p.id, p.name, p.folder, p.status, p.source, p.creator, p.licence, p.added_at AS addedAt,
-  p.file_count AS fileCount, p.asset_count AS assetCount, p.size, p.cover_ref AS coverRef, p.problems, p.fav, p.archived`;
+  p.file_count AS fileCount, p.asset_count AS assetCount, p.size, p.cover_ref AS coverRef, p.problems, p.archived,
+  EXISTS (SELECT 1 FROM collection_packs f WHERE f.collection_id = '${FAVOURITES}' AND f.pack_id = p.id) AS fav`;

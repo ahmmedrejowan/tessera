@@ -11,15 +11,19 @@ export function useCollections() {
   return useQuery({ queryKey: ['collections', lib, v], queryFn: () => call('collections:list'), enabled: !!lib, placeholderData: (p) => p });
 }
 
-const count = (n: number) => `${n} asset${n === 1 ? '' : 's'}`;
+/** What was added, in words: packs are packs, assets are assets. */
+const count = (items: number, packs: number) =>
+  [packs ? `${packs} pack${packs === 1 ? '' : 's'}` : '', items ? `${items} asset${items === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ') || 'nothing';
 
-export async function addToCollection(id: string, name: string, items: CollectionItem[]): Promise<void> {
-  await call('collections:change', id, { add: items });
-  notify.success(`Added ${count(items.length)} to ${name}.`, { action: { label: 'Open', run: () => useNav.getState().go({ to: 'collection', id }) } });
+/** Put assets, whole packs, or both into a collection. A pack joins as itself, not as its files. */
+export async function addToCollection(id: string, name: string, items: CollectionItem[], packs: string[] = []): Promise<void> {
+  await call('collections:change', id, { ...(items.length ? { add: items } : {}), ...(packs.length ? { addPacks: packs } : {}) });
+  notify.success(`Added ${count(items.length, packs.length)} to ${name}.`, { action: { label: 'Open', run: () => useNav.getState().go({ to: 'collection', id }) } });
 }
 
-export async function newCollection(name: string, init: { items?: CollectionItem[]; query?: SmartQuery; description?: string }): Promise<string> {
+export async function newCollection(name: string, init: { items?: CollectionItem[]; packs?: string[]; query?: SmartQuery; description?: string }): Promise<string> {
   const id = await call('collections:create', name, init);
-  notify.success(init.query ? `Saved “${name}”.` : `Created “${name}”${init.items?.length ? ` with ${count(init.items.length)}` : ''}.`, { action: { label: 'Open', run: () => useNav.getState().go({ to: 'collection', id }) } });
+  const made = count(init.items?.length ?? 0, init.packs?.length ?? 0);
+  notify.success(init.query ? `Saved “${name}”.` : `Created “${name}”${made === 'nothing' ? '' : ` with ${made}`}.`, { action: { label: 'Open', run: () => useNav.getState().go({ to: 'collection', id }) } });
   return id;
 }

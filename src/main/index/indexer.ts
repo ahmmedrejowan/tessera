@@ -83,11 +83,11 @@ export class LibraryIndex {
     const p = (sql: string) => this.db.prepare(sql);
     this.st = {
       known: p('SELECT id, folder, meta_sig AS metaSig, files_sig AS filesSig FROM packs'),
-      upsertPack: p(`INSERT INTO packs (id, folder, name, status, source, creator, licence, added_at, updated_at, meta_json, meta_sig, fav, archived)
-        VALUES ($id, $folder, $name, $status, $source, $creator, $licence, $addedAt, $updatedAt, $metaJson, $metaSig, $fav, $archived)
+      upsertPack: p(`INSERT INTO packs (id, folder, name, status, source, creator, licence, added_at, updated_at, meta_json, meta_sig, archived)
+        VALUES ($id, $folder, $name, $status, $source, $creator, $licence, $addedAt, $updatedAt, $metaJson, $metaSig, $archived)
         ON CONFLICT(id) DO UPDATE SET folder = excluded.folder, name = excluded.name, status = excluded.status, source = excluded.source,
           creator = excluded.creator, licence = excluded.licence, added_at = excluded.added_at, updated_at = excluded.updated_at,
-          meta_json = excluded.meta_json, meta_sig = excluded.meta_sig, fav = excluded.fav, archived = excluded.archived`),
+          meta_json = excluded.meta_json, meta_sig = excluded.meta_sig, archived = excluded.archived`),
       deleteTerms: p('DELETE FROM pack_terms WHERE pack_id = ?'),
       insertTerm: p('INSERT OR IGNORE INTO pack_terms (pack_id, facet, value) VALUES (?, ?, ?)'),
       deletePackFts: p('DELETE FROM packs_fts WHERE pack_id = ?'),
@@ -176,7 +176,6 @@ export class LibraryIndex {
       $updatedAt: m.updatedAt,
       $metaJson: JSON.stringify(m),
       $metaSig: metaSig,
-      $fav: m.favourite ? 1 : 0,
       $archived: m.archived ? 1 : 0,
     });
     this.st.deleteTerms!.run(m.id);
@@ -282,11 +281,16 @@ export class LibraryIndex {
   }
 
   /** Mirror the manual collections' items into the index. */
-  setCollections(collections: { id: string; items: { packId: string; ref: string }[] }[]): void {
+  setCollections(collections: { id: string; items: { packId: string; ref: string }[]; packs: string[] }[]): void {
     transaction(this.db, () => {
       this.db.exec('DELETE FROM collection_items');
+      this.db.exec('DELETE FROM collection_packs');
       const insert = this.db.prepare('INSERT OR IGNORE INTO collection_items (collection_id, pack_id, ref, position) VALUES (?, ?, ?, ?)');
-      for (const c of collections) c.items.forEach((item, i) => insert.run(c.id, item.packId, item.ref, i));
+      const insertPack = this.db.prepare('INSERT OR IGNORE INTO collection_packs (collection_id, pack_id, position) VALUES (?, ?, ?)');
+      for (const c of collections) {
+        c.items.forEach((item, i) => insert.run(c.id, item.packId, item.ref, i));
+        c.packs.forEach((id, i) => insertPack.run(c.id, id, i));
+      }
     });
   }
 

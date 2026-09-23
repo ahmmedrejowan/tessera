@@ -3,12 +3,24 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { LibraryIndex } from '../src/main/index/indexer';
 import { LibraryQueries } from '../src/main/index/query';
-import { createCollection, deleteCollection, listCollections, readCollection, updateCollection, withItems, withoutItems } from '../src/main/library/collections';
+import { createCollection, deleteCollection, listCollections, readCollection, updateCollection, withItems, withoutItems, withPacks, withoutPacks } from '../src/main/library/collections';
 import { createLibrary } from '../src/main/library/layout';
 import { createPack } from '../src/main/library/packs';
 import { tempDir } from './helpers';
 
 describe('collections', () => {
+  it('holds whole packs as well as single assets', async () => {
+    const root = tempDir();
+    await createLibrary(root, 'lib');
+    const c = await createCollection(root, 'For the platformer', { items: [{ packId: 'p1', ref: 'original/a.glb' }], packs: ['p2'] });
+    expect(c.packs).toEqual(['p2']);
+    const withBoth = await updateCollection(root, c.id, (x) => withPacks(x, ['p3', 'p2']));
+    expect(withBoth.packs).toEqual(['p2', 'p3']);
+    expect(withBoth.items).toHaveLength(1);
+    const fewer = await updateCollection(root, c.id, (x) => withoutPacks(x, ['p2']));
+    expect(fewer.packs).toEqual(['p3']);
+  });
+
   it('stores manual and smart collections in the library', async () => {
     const root = tempDir();
     await createLibrary(root, 'lib');

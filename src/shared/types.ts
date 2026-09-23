@@ -420,6 +420,9 @@ export interface CollectionChange {
   description?: string;
   add?: { packId: string; ref: string }[];
   remove?: { packId: string; ref: string }[];
+  /** Whole packs joining or leaving. */
+  addPacks?: string[];
+  removePacks?: string[];
   delete?: boolean;
 }
 

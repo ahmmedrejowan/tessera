@@ -30,7 +30,7 @@ async function save(root: string, c: Collection): Promise<Collection> {
   return next;
 }
 
-export async function createCollection(root: string, name: string, init: { description?: string; items?: CollectionItem[]; query?: SmartQuery | null }): Promise<Collection> {
+export async function createCollection(root: string, name: string, init: { description?: string; items?: CollectionItem[]; packs?: string[]; query?: SmartQuery | null }): Promise<Collection> {
   const now = new Date().toISOString();
   return save(
     root,
@@ -40,6 +40,7 @@ export async function createCollection(root: string, name: string, init: { descr
       description: init.description ?? '',
       kind: init.query ? 'smart' : 'manual',
       items: init.items ?? [],
+      packs: init.packs ?? [],
       query: init.query ?? null,
       createdAt: now,
       updatedAt: now,
@@ -66,6 +67,10 @@ const same = (a: CollectionItem, b: CollectionItem) => a.packId === b.packId && 
 /** Add items, keeping the order they were added in and skipping ones already there. */
 export const withItems = (c: Collection, items: CollectionItem[]): Collection => ({ ...c, items: [...c.items, ...items.filter((i, n) => !c.items.some((x) => same(x, i)) && items.findIndex((y) => same(y, i)) === n)] });
 export const withoutItems = (c: Collection, items: CollectionItem[]): Collection => ({ ...c, items: c.items.filter((x) => !items.some((i) => same(x, i))) });
+
+/** Add whole packs, keeping the order they were added in. */
+export const withPacks = (c: Collection, ids: string[]): Collection => ({ ...c, packs: [...c.packs, ...ids.filter((id, n) => !c.packs.includes(id) && ids.indexOf(id) === n)] });
+export const withoutPacks = (c: Collection, ids: string[]): Collection => ({ ...c, packs: c.packs.filter((id) => !ids.includes(id)) });
 
 export async function deleteCollection(root: string, id: string): Promise<void> {
   await rm(fileOf(root, id), { force: true });

@@ -34,6 +34,8 @@ export const Collection = z
     description: z.string().max(2000).default(''),
     kind: z.enum(['manual', 'smart']),
     items: z.array(CollectionItem).default([]),
+    /** Whole packs in the collection. Their assets come with them; they are not listed one by one. */
+    packs: z.array(z.string()).default([]),
     query: SmartQuery.nullable().default(null),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -47,7 +49,10 @@ export interface CollectionSummary {
   name: string;
   description: string;
   kind: 'manual' | 'smart';
+  /** Assets put in one by one. */
   count: number;
+  /** Whole packs in it. */
+  packCount: number;
   /** A few items for the cover mosaic. */
   samples: { packId: string; ref: string; ext: string; kind: string; type: string }[];
   updatedAt: string;

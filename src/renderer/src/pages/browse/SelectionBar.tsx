@@ -99,7 +99,7 @@ export function SelectionBar({ packs, total, all }: { packs?: boolean; total?: n
         </Button>
       )}
       <Button startIcon={<BookmarkAddOutlined />} onClick={(e) => setAnchor(e.currentTarget)} sx={action}>
-        {packs ? 'Add their assets to a collection' : 'Add to a collection'}
+        Add to a collection
       </Button>
       <CopyButton items={refs} variant="text" size="medium" color={md('inversePrimary')} />
       {packs && (
@@ -113,7 +113,11 @@ export function SelectionBar({ packs, total, all }: { packs?: boolean; total?: n
       <IconButton aria-label="Clear selection" onClick={() => select([], null)} sx={{ color: md('inverseOnSurface') }}>
         <Close fontSize="small" />
       </IconButton>
-      <CollectionMenu anchor={anchor} onClose={() => setAnchor(null)} items={refs} />
+      {packs ? (
+        <CollectionMenu anchor={anchor} onClose={() => setAnchor(null)} packs={() => Promise.resolve([...selection].map(String))} />
+      ) : (
+        <CollectionMenu anchor={anchor} onClose={() => setAnchor(null)} items={refs} />
+      )}
     </div>
   );
 }

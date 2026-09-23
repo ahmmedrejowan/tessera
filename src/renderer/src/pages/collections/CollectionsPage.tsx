@@ -40,7 +40,7 @@ function CollectionCard({ c }: { c: CollectionSummary }) {
           {c.name}
         </Typography>
         <Typography variant="bodySmall" noWrap sx={{ color: md('onSurfaceVariant') }}>
-          {c.count} asset{c.count === 1 ? '' : 's'}
+          {[c.packCount ? `${c.packCount} pack${c.packCount === 1 ? '' : 's'}` : '', `${c.count} asset${c.count === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
           {c.kind === 'smart' ? ' · updates itself' : ''}
         </Typography>
       </div>

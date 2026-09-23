@@ -38,10 +38,21 @@ export function NameDialog({ open, title, initial = '', action, onClose, onDone 
 }
 
 /**
- * "Add to collection": the manual collections, newest first, and a new one. `items` is asked for
- * when a choice is made, so a large selection is only resolved if it's needed.
+ * "Add to collection": the manual collections, newest first, and a new one. What is added is asked
+ * for when a choice is made, so a large selection is only resolved if it's needed. A pack joins as
+ * itself (`packs`), not as its files.
  */
-export function CollectionMenu({ anchor, onClose, items }: { anchor: HTMLElement | null; onClose: () => void; items: () => Promise<CollectionItem[]> }) {
+export function CollectionMenu({
+  anchor,
+  onClose,
+  items,
+  packs,
+}: {
+  anchor: HTMLElement | null;
+  onClose: () => void;
+  items?: () => Promise<CollectionItem[]>;
+  packs?: () => Promise<string[]>;
+}) {
   const collections = (useCollections().data ?? []).filter((c) => c.kind === 'manual').sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const [naming, setNaming] = useState(false);
   return (
@@ -64,13 +75,13 @@ export function CollectionMenu({ anchor, onClose, items }: { anchor: HTMLElement
             key={c.id}
             onClick={async () => {
               onClose();
-              await addToCollection(c.id, c.name, await items());
+              await addToCollection(c.id, c.name, (await items?.()) ?? [], (await packs?.()) ?? []);
             }}
           >
             <ListItemIcon>
               <CollectionsBookmarkOutlined />
             </ListItemIcon>
-            <ListItemText primary={c.name} secondary={`${c.count} asset${c.count === 1 ? '' : 's'}`} />
+            <ListItemText primary={c.name} secondary={[c.packCount ? `${c.packCount} pack${c.packCount === 1 ? '' : 's'}` : '', `${c.count} asset${c.count === 1 ? '' : 's'}`].filter(Boolean).join(' · ')} />
           </MenuItem>
         ))}
       </Menu>
@@ -81,7 +92,7 @@ export function CollectionMenu({ anchor, onClose, items }: { anchor: HTMLElement
         onClose={() => setNaming(false)}
         onDone={async (name, description) => {
           setNaming(false);
-          await newCollection(name, { items: await items(), description });
+          await newCollection(name, { items: (await items?.()) ?? [], packs: (await packs?.()) ?? [], description });
         }}
       />
     </>

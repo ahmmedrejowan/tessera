@@ -8,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
  * deleted and rebuilt; a schema change simply rebuilds it.
  */
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 const SCHEMA = `
 CREATE TABLE packs (
@@ -29,7 +29,6 @@ CREATE TABLE packs (
   size        INTEGER NOT NULL DEFAULT 0,
   cover_ref   TEXT,
   problems    TEXT NOT NULL DEFAULT '[]',
-  fav         INTEGER NOT NULL DEFAULT 0,
   archived    INTEGER NOT NULL DEFAULT 0
 );
 
@@ -79,6 +78,15 @@ CREATE TABLE collection_items (
 );
 CREATE INDEX collection_items_asset ON collection_items(pack_id, ref);
 
+-- Whole packs in a collection, mirrored from collections/*.json for queries.
+CREATE TABLE collection_packs (
+  collection_id TEXT NOT NULL,
+  pack_id       TEXT NOT NULL,
+  position      INTEGER NOT NULL,
+  PRIMARY KEY (collection_id, pack_id)
+);
+CREATE INDEX collection_packs_pack ON collection_packs(pack_id);
+
 -- Files in the library's bin that couldn't be moved out of their pack's archive: hidden until restored.
 CREATE TABLE hidden (
   pack_id TEXT NOT NULL,
@@ -90,7 +98,7 @@ CREATE TABLE hidden (
 CREATE VIRTUAL TABLE packs_fts USING fts5(pack_id UNINDEXED, words, tokenize='unicode61 remove_diacritics 2', prefix='2 3');
 `;
 
-const DROP = ['hidden', 'collection_items', 'packs_fts', 'assets_fts', 'assets', 'pack_terms', 'packs'];
+const DROP = ['hidden', 'collection_packs', 'collection_items', 'packs_fts', 'assets_fts', 'assets', 'pack_terms', 'packs'];
 
 export function openIndexDb(path: string): DatabaseSync {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
