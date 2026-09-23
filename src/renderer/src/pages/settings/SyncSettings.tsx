@@ -1,6 +1,7 @@
 import ComputerOutlined from '@mui/icons-material/ComputerOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -192,12 +193,12 @@ export function PairedComputers() {
   return (
     <>
       {status.myId && (
-        <div style={{ padding: '12px 0', borderBottom: `1px solid ${md('outlineVariant')}` }}>
+        <Box sx={{ py: 1.5, borderBottom: `1px solid ${md('outlineVariant')}` }}>
           <Typography variant="bodyMedium" sx={{ color: md('onSurface'), mb: 1 }}>
             This computer’s device ID
           </Typography>
           <DeviceId id={status.myId} />
-        </div>
+        </Box>
       )}
       {status.pendingDevices.map((d) => (
         <Row key={d.id} title={`${d.name || 'A computer'} wants to connect`} body={d.id}>
