@@ -23,6 +23,7 @@ import { BinSettings } from './settings/BinSettings';
 import { PairedComputers, SyncSettings } from './settings/SyncSettings';
 import { Helpers } from './settings/Helpers';
 import { SiteRules } from './settings/SiteRules';
+import { AgentSettings } from './settings/AgentSettings';
 import { RenameLibrary } from './library/RenameLibrary';
 import { tidyPath } from './library/Location';
 import { Group, Row } from './settings/parts';
@@ -43,6 +44,7 @@ const SECTIONS: Section[] = [
   { id: 'appearance', title: 'Appearance', part: 'app', group: 'app' },
   { id: 'sites', title: 'Sites', part: 'app', group: 'app' },
   { id: 'downloads', title: 'Downloads', part: 'app', group: 'app' },
+  { id: 'agents', title: 'AI agents', part: 'app', group: 'app' },
   { id: 'computers', title: 'Paired computers', part: 'app', group: 'app' },
   { id: 'helpers', title: 'Helpers', part: 'app', group: 'app' },
   { id: 'privacy', title: 'Privacy and problems', part: 'app', group: 'app' },
@@ -276,6 +278,12 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                     options={['1', '2', '3', '4', '5'].map((n) => ({ value: n, label: n }))}
                   />
                 </Row>
+              </Group>
+            </div>
+
+            <div {...at('agents')}>
+              <Group title="AI agents" note="Let an agent work in this library while Tessera is open. It answers on this computer only.">
+                <AgentSettings />
               </Group>
             </div>
 

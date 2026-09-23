@@ -9,6 +9,7 @@ import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary, Pr
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { Provider, StorageTarget } from './storage';
 import type { CollectionItem, CollectionRules, CollectionSummary, SmartQuery } from './collection';
+import type { McpStatus, McpToolInfo } from './mcp';
 import type { BinEntry, CollectionResult, PackSuggestions, LibrarySummary, AppInfo, ActivityEntry, DownloadItem, UpdateStatus, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
@@ -110,6 +111,19 @@ export interface Invokes {
   'bin:restore': (id: string) => BinEntry | null;
   /** Throw away what is in the bin, for good; with no ids, everything. */
   'bin:empty': (ids?: string[]) => number;
+
+  /** The local server AI agents talk to: whether it runs, where, and how busy it has been. */
+  'mcp:status': () => McpStatus;
+  /** Every tool, with what it takes and whether it is on. */
+  'mcp:tools': () => McpToolInfo[];
+  /** Switch the server, a group of tools, or one tool. */
+  'mcp:set': (change: { enabled?: boolean; port?: number; group?: { id: string; on: boolean }; tool?: { name: string; on: boolean } }) => McpStatus;
+  /** Is a port free to listen on? Asked before changing it. */
+  'mcp:portFree': (port: number) => boolean;
+  /** The skill file an agent is given, as text. */
+  'mcp:skill': () => string;
+  /** Write the skill where an agent will find it, or wherever the user chooses. */
+  'mcp:installSkill': (where: 'claude' | 'choose') => { path: string } | null;
 
   'jobs:list': () => Job[];
 
@@ -295,6 +309,8 @@ export interface Events {
   'updates:changed': UpdateStatus;
   /** Thumbnails that became ready (or failed) since the last event. */
   'thumbs:ready': Record<string, ThumbState>;
+  /** The agent server started, stopped, or answered a call. */
+  'mcp:changed': number;
   /** Projects or what's copied into them changed. */
   'projects:changed': number;
   /** Backup settings or state changed. */

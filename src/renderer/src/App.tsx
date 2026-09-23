@@ -28,6 +28,8 @@ import { ProjectPage } from './pages/projects/ProjectPage';
 import { ProjectsPage } from './pages/projects/ProjectsPage';
 import { ArchivePage } from './pages/ArchivePage';
 import { ActivityPage } from './pages/ActivityPage';
+import { AgentsPage } from './pages/agents/AgentsPage';
+import { AgentToolsPage } from './pages/agents/AgentToolsPage';
 import { SearchPage } from './pages/SearchPage';
 import { BinPage } from './pages/BinPage';
 import { PackPage } from './pages/pack/PackPage';
@@ -64,6 +66,10 @@ function Current() {
       return <HelpPage />;
     case 'helpTopic':
       return <HelpTopicPage key={route.id} id={route.id} {...(route.question ? { question: route.question } : {})} />;
+    case 'agents':
+      return <AgentsPage />;
+    case 'agentTools':
+      return <AgentToolsPage />;
     case 'about':
       return <AboutPage />;
     case 'notifications':

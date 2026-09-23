@@ -58,6 +58,15 @@ export interface Settings {
   afterDownload: AfterDownload;
   /** How long deleted things wait in the library's bin before they go for good; 0 keeps them. */
   binKeepDays: number;
+  /** The local server AI agents talk to: whether it runs, where, and which tools it offers. */
+  mcp: {
+    enabled: boolean;
+    port: number;
+    /** Tools switched off by name; everything else follows its group's default. */
+    off: string[];
+    /** Groups switched off by name. */
+    groupsOff: string[];
+  };
   /** Look for a newer Tessera on start and once a day. */
   updateCheck: boolean;
   /** Fetch a newer version's installer as soon as one is found (it still waits to be opened). */
@@ -366,7 +375,7 @@ export interface UpdateStatus {
 }
 
 /** What kind of thing happened in a library. */
-export type ActivityKind = 'added' | 'downloaded' | 'reviewed' | 'backup' | 'sync' | 'project' | 'library';
+export type ActivityKind = 'added' | 'downloaded' | 'reviewed' | 'backup' | 'sync' | 'project' | 'library' | 'agent';
 
 /** One thing that happened, as Home shows it. */
 export interface ActivityEntry {

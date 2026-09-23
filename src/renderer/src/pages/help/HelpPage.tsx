@@ -10,6 +10,7 @@ import RateReviewOutlined from '@mui/icons-material/RateReviewOutlined';
 import RocketLaunchOutlined from '@mui/icons-material/RocketLaunchOutlined';
 import SearchOffRounded from '@mui/icons-material/SearchOffRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
+import SmartToyOutlined from '@mui/icons-material/SmartToyOutlined';
 import ShieldOutlined from '@mui/icons-material/ShieldOutlined';
 import SportsEsportsOutlined from '@mui/icons-material/SportsEsportsOutlined';
 import TravelExploreOutlined from '@mui/icons-material/TravelExploreOutlined';
@@ -36,6 +37,7 @@ export const TOPIC_ICONS: Record<HelpTopic['icon'], ComponentType<{ sx?: object 
   download: DownloadOutlined,
   organise: TravelExploreOutlined,
   project: SportsEsportsOutlined,
+  agents: SmartToyOutlined,
   safety: ShieldOutlined,
   trouble: BuildOutlined,
 };

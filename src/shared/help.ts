@@ -16,7 +16,7 @@ export interface HelpTopic {
   /** One line under the title. */
   summary: string;
   /** A Material icon name the window maps to a component. */
-  icon: 'start' | 'licence' | 'add' | 'download' | 'organise' | 'project' | 'safety' | 'trouble';
+  icon: 'start' | 'licence' | 'add' | 'download' | 'organise' | 'project' | 'agents' | 'safety' | 'trouble';
   questions: HelpQuestion[];
 }
 
@@ -282,6 +282,46 @@ export const HELP: HelpTopic[] = [
         q: 'What does Tessera send anywhere?',
         a: [
           'Nothing, unless you ask. Downloads go to the sites whose links you bring. Page snapshots are made on this computer; an archive.org copy is asked for only while that switch is on. The update check reads a list of releases and sends nothing about you. Error reports are never sent without your say-so, and you see exactly what they contain first.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'agents',
+    title: 'AI agents',
+    summary: 'Letting an agent work in the library, and choosing what it may do',
+    icon: 'agents',
+    questions: [
+      {
+        id: 'agents-what',
+        q: 'What does "answer AI agents" mean?',
+        a: [
+          'While Tessera is open it listens on your own computer for AI agents, at an address like http://127.0.0.1:7458/mcp. An agent that connects can do the things this window does: search the library, read a pack, record a licence, gather a collection, link assets into a game, bring new packs in, move something to the bin.',
+          'It is bound to this computer, so nothing on your network or on the internet can reach it. There is no password, because there is no way in from outside.',
+        ],
+      },
+      {
+        id: 'agents-connect',
+        q: 'How do I connect one?',
+        a: [
+          'Home → AI agents → How to connect has the address, the command for Claude Code, and the JSON that config-file agents take. The same page is in Settings → AI agents.',
+          'That page also carries a skill file: a short explanation of the words Tessera uses and the rules that matter. Install it for Claude in one press, save it anywhere, or copy it into a project. An agent that has read it knows not to guess a licence.',
+        ],
+      },
+      {
+        id: 'agents-tools',
+        q: 'How do I decide what an agent may do?',
+        a: [
+          'Agent tools lists everything an agent can call, grouped by what it does: looking, filing, linking to a game, bringing things in, and deleting to the bin. Each group has a switch, and so does each tool inside it.',
+          'A tool that is switched off is not offered, and a call to it is refused with a line saying it is off in Tessera. Changes take effect at once, mid-conversation.',
+        ],
+      },
+      {
+        id: 'agents-safe',
+        q: 'Can an agent delete my files?',
+        a: [
+          'Only to the library’s bin, which keeps everything and puts it back where it came from. Emptying the bin is yours alone: no tool does it, however the request is worded.',
+          'Everything an agent does is written into Activity with the tool it used, and the window updates as it happens, so you can watch it work and undo what you would rather it had not.',
         ],
       },
     ],

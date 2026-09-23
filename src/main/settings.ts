@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { z } from 'zod';
 import { PROVIDERS, type Provider } from '@shared/storage';
+import { DEFAULT_MCP_PORT } from '@shared/mcp';
 import type { Settings } from '@shared/types';
 import { readJson, writeJson } from './fsx';
 import { migrateLegacy } from './libraries';
@@ -51,6 +52,14 @@ const schema = z.object({
   downloadsAtOnce: z.number().int().min(1).max(5).catch(3),
   afterDownload: z.enum(['add', 'review', 'ask']).catch('add'),
   binKeepDays: z.number().int().min(0).max(365).catch(30),
+  mcp: z
+    .object({
+      enabled: z.boolean().catch(true),
+      port: z.number().int().min(1024).max(65535).catch(DEFAULT_MCP_PORT),
+      off: z.array(z.string()).catch([]),
+      groupsOff: z.array(z.string()).catch([]),
+    })
+    .catch({ enabled: true, port: DEFAULT_MCP_PORT, off: [], groupsOff: [] }),
   updateCheck: z.boolean().catch(true),
   autoInstallUpdates: z.boolean().catch(false),
 });

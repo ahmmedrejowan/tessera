@@ -1,5 +1,5 @@
 import { app, BrowserWindow, crashReporter, dialog, nativeTheme, net, session, shell, systemPreferences } from 'electron';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { release, tmpdir } from 'node:os';
 import { readdir, readFile, rm, stat } from 'node:fs/promises';
 import { join, sep } from 'node:path';
@@ -38,6 +38,8 @@ import { SettingsStore } from './settings';
 import { RenderWindow } from './thumbs/renderWindow';
 import { ThumbService } from './thumbs/service';
 import { Activity } from './activity';
+import { McpService, catalogue, portFree } from './mcp/server';
+import { skillMarkdown } from './mcp/skill';
 import { Updates } from './updates';
 import { DownloadService, linksInFiles } from './downloads/service';
 import { linksIn } from '@shared/links';
@@ -170,6 +172,23 @@ const thumbs = new ThumbService({
 });
 
 const projects = new ProjectService(dataDir, jobs);
+const mcp = new McpService({
+  settings: () => settings.get().mcp,
+  context: () => ({
+    library,
+    projects,
+    downloads,
+    copySource,
+    libraryId,
+    note: (text, detail) => activity.add('agent', text, detail),
+    settings: () => settings.get(),
+  }),
+  onChange: () => broadcast(windows, 'mcp:changed', 0),
+  onFirstCall: (tool) => {
+    log.info('mcp', `an agent called ${tool}`);
+    broadcast(windows, 'mcp:changed', 0);
+  },
+});
 /** rclone, for cloud drives: installed on the system or downloaded by Tessera, with Tessera's own config. */
 const findRclone = () => findTool('rclone', [bundledTool(dataDir, 'rclone')]);
 const rcloneConfig = join(dataDir, 'rclone', 'rclone.conf');
@@ -406,6 +425,7 @@ async function start(): Promise<void> {
     log.error('app', `${details.type} process gone`, details);
     reports.record({ source: 'process', kind: 'crash', name: `${details.type}ProcessGone`, message: `The ${details.type} process stopped: ${details.reason} (exit ${details.exitCode})`, ...(details.name ? { context: { process: details.name } } : {}) });
   });
+  await mcp.apply();
   await createWindow();
   app.on('activate', () => {
     if (appWindows.size === 0) void createWindow();
@@ -575,6 +595,38 @@ function registerHandlers(): void {
     const error = await shell.openPath(onDisk);
     if (error) throw new Error(error);
     return 'opened';
+  });
+
+  handle('mcp:status', () => mcp.status());
+  handle('mcp:tools', () => catalogue(settings.get().mcp));
+  handle('mcp:set', async (change) => {
+    const now = settings.get().mcp;
+    const next = { ...now };
+    if (change.enabled !== undefined) next.enabled = change.enabled;
+    if (change.port !== undefined) next.port = change.port;
+    if (change.group) next.groupsOff = change.group.on ? now.groupsOff.filter((g) => g !== change.group!.id) : [...new Set([...now.groupsOff, change.group.id])];
+    if (change.tool) next.off = change.tool.on ? now.off.filter((t) => t !== change.tool!.name) : [...new Set([...now.off, change.tool.name])];
+    await settings.update({ mcp: next });
+    await mcp.apply();
+    return mcp.status();
+  });
+  handle('mcp:portFree', (port) => portFree(port));
+  handle('mcp:skill', () => skillMarkdown(mcp.status().url));
+  handle('mcp:installSkill', async (where) => {
+    const text = skillMarkdown(mcp.status().url);
+    if (where === 'claude') {
+      const dir = join(app.getPath('home'), '.claude', 'skills', 'tessera-library');
+      await mkdir(dir, { recursive: true });
+      const file = join(dir, 'SKILL.md');
+      await writeFile(file, text, 'utf8');
+      return { path: file };
+    }
+    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
+    const options = { title: 'Save the skill', defaultPath: join(app.getPath('documents'), 'SKILL.md'), filters: [{ name: 'Markdown', extensions: ['md'] }] };
+    const picked = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+    if (picked.canceled || !picked.filePath) return null;
+    await writeFile(picked.filePath, text, 'utf8');
+    return { path: picked.filePath };
   });
 
   handle('jobs:list', () => jobs.list());

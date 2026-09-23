@@ -1,5 +1,6 @@
 import AddRounded from '@mui/icons-material/AddRounded';
 import ArrowForward from '@mui/icons-material/ArrowForward';
+import SmartToyOutlined from '@mui/icons-material/SmartToyOutlined';
 import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined';
 import BackupOutlined from '@mui/icons-material/BackupOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
@@ -24,6 +25,7 @@ import { call, on } from '../api';
 import { formatBytes, formatCount, TYPE_ICONS } from '../components/labels';
 import { LicenceChip } from '../components/LicenceChip';
 import { FAVOURITES } from '@shared/collection';
+import { AgentCard } from './agents/AgentCard';
 import { PackMenu } from './browse/TileMenu';
 import { CollectionIcon, ReviewIcon } from '../components/icons';
 import type { PackRow } from '@shared/query';
@@ -49,6 +51,7 @@ export const ACTIVITY_ICONS: Record<ActivityKind, ComponentType<{ sx?: object }>
   sync: SyncOutlined,
   project: SportsEsportsOutlined,
   library: AutoStoriesOutlined,
+  agent: SmartToyOutlined,
 };
 
 /** When something happened, in words. */
@@ -308,6 +311,8 @@ export function HomePage() {
             })}
           </div>
         )}
+
+        <AgentCard />
 
         {watching.length > 0 || (stats?.inbox ?? 0) > 0 ? (
           <Section title="Watcher" {...((stats?.inbox ?? 0) > 0 ? { action: <SeeAll onClick={() => go({ to: 'inbox' })} /> } : {})}>
