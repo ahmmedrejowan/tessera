@@ -18,7 +18,6 @@ export const newRecord = (id: string, name: string, path: string): LibraryRecord
   path,
   lastOpenedAt: new Date().toISOString(),
   skipInboxWhenSure: true,
-  afterDownload: 'add',
   sync: { enabled: false, mode: 'full', whileClosed: true },
   backup: null,
 });

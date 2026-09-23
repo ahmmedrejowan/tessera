@@ -9,7 +9,7 @@ import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary } f
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { Provider, StorageTarget } from './storage';
 import type { CollectionItem, CollectionSummary, SmartQuery } from './collection';
-import type { PackSuggestions, LibrarySummary, AppInfo, ActivityEntry, AfterDownload, DownloadItem, UpdateStatus, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
+import type { PackSuggestions, LibrarySummary, AppInfo, ActivityEntry, DownloadItem, UpdateStatus, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
   'app:info': () => AppInfo;
@@ -36,7 +36,7 @@ export interface Invokes {
   /** Give the open library a new name (its folder keeps its own). */
   'library:rename': (name: string) => LibraryState;
   /** The open library's own preferences. */
-  'library:setPrefs': (prefs: { skipInboxWhenSure?: boolean; afterDownload?: AfterDownload }) => void;
+  'library:setPrefs': (prefs: { skipInboxWhenSure?: boolean }) => void;
   /** Every library this computer knows, most recently opened first. */
   'libraries:list': () => LibrarySummary[];
   /** Take a library off the list (not the open one); its folder is left alone. */

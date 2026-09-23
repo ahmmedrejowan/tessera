@@ -40,10 +40,10 @@ const SECTIONS: Section[] = [
   { id: 'general', title: 'General', part: 'library' },
   { id: 'backups', title: 'Backups', part: 'library' },
   { id: 'sync', title: 'Sync', part: 'library' },
-  { id: 'downloads', title: 'Downloads', part: 'library' },
   { id: 'storage', title: 'Previews and index', part: 'library' },
   { id: 'appearance', title: 'Appearance', part: 'app' },
   { id: 'sites', title: 'Sites', part: 'app' },
+  { id: 'downloads', title: 'Downloads', part: 'app' },
   { id: 'computers', title: 'Paired computers', part: 'app' },
   { id: 'helpers', title: 'Helpers', part: 'app' },
   { id: 'privacy', title: 'Privacy and problems', part: 'app' },
@@ -194,6 +194,9 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                 <Row title="Folder" body={lib ? tidyPath(lib.path) : undefined}>
                   <Button onClick={() => lib && void call('fs:reveal', lib.path)}>{window.tessera.platform === 'darwin' ? 'Show in Finder' : 'Show'}</Button>
                 </Row>
+                <Row title="Packs Tessera is sure about" body="A licence read in the pack itself, or set by your rule for its site, skips Review. Off: everything waits there.">
+                  <Switch checked={record?.skipInboxWhenSure ?? true} onChange={(_, v) => void call('library:setPrefs', { skipInboxWhenSure: v }).catch(failed)} slotProps={{ input: { 'aria-label': 'Add sure packs straight to the library' } }} />
+                </Row>
                 <Row title="Close this library" body="Back to the start, to open or make another. Its backups and sync carry on as set.">
                   <Button variant="outlined" onClick={() => void call('library:close')}>
                     Close
@@ -211,34 +214,6 @@ export function SettingsPage({ section }: { section?: string } = {}) {
             <div {...at('sync')}>
               <Group title="Sync" note="Keep this library the same on your other computers, over your own network.">
                 <SyncSettings />
-              </Group>
-            </div>
-
-            <div {...at('downloads')}>
-              <Group title="Downloads" note="What happens to a link once Tessera has fetched it.">
-                <Row title="When a download finishes" body={record?.afterDownload === 'ask' ? 'They wait in Downloads with an Add button.' : record?.afterDownload === 'review' ? 'Every one goes to Review, whatever its licence says.' : 'A clear licence goes into the library; anything unclear waits in Review.'}>
-                  <SegmentedButton<AfterDownload>
-                    label="When a download finishes"
-                    value={record?.afterDownload ?? 'add'}
-                    onChange={(afterDownload) => void call('library:setPrefs', { afterDownload }).catch(failed)}
-                    options={[
-                      { value: 'add', label: 'Add them' },
-                      { value: 'review', label: 'Send to Review' },
-                      { value: 'ask', label: 'Leave to me' },
-                    ]}
-                  />
-                </Row>
-                <Row title="Packs Tessera is sure about" body="A licence read in the pack itself, or set by your rule for its site, skips Review. Off: everything waits there.">
-                  <Switch checked={record?.skipInboxWhenSure ?? true} onChange={(_, v) => void call('library:setPrefs', { skipInboxWhenSure: v }).catch(failed)} slotProps={{ input: { 'aria-label': 'Add sure packs straight to the library' } }} />
-                </Row>
-                <Row title="How many at once" body="The same for every library on this computer.">
-                  <SegmentedButton<string>
-                    label="How many downloads at once"
-                    value={String(settings.downloadsAtOnce)}
-                    onChange={(n) => update.mutate({ downloadsAtOnce: Number(n) })}
-                    options={['1', '2', '3', '4', '5'].map((n) => ({ value: n, label: n }))}
-                  />
-                </Row>
               </Group>
             </div>
 
@@ -314,6 +289,31 @@ export function SettingsPage({ section }: { section?: string } = {}) {
             <div {...at('sites')}>
               <Group title="Sites" note="Licences Tessera should assume for the sites you download from.">
                 <SiteRules />
+              </Group>
+            </div>
+
+            <div {...at('downloads')}>
+              <Group title="Downloads" note="What Tessera does with the links you bring, whichever library is open.">
+                <Row title="When a download finishes" body={settings.afterDownload === 'ask' ? 'They wait in Downloads with an Add button.' : settings.afterDownload === 'review' ? 'Every one goes to Review, whatever its licence says.' : 'A clear licence goes into the library; anything unclear waits in Review.'}>
+                  <SegmentedButton<AfterDownload>
+                    label="When a download finishes"
+                    value={settings.afterDownload}
+                    onChange={(afterDownload) => update.mutate({ afterDownload })}
+                    options={[
+                      { value: 'add', label: 'Add them' },
+                      { value: 'review', label: 'Send to Review' },
+                      { value: 'ask', label: 'Leave to me' },
+                    ]}
+                  />
+                </Row>
+                <Row title="How many at once" body="Enough to keep a connection busy, few enough to stay polite to a site.">
+                  <SegmentedButton<string>
+                    label="How many downloads at once"
+                    value={String(settings.downloadsAtOnce)}
+                    onChange={(n) => update.mutate({ downloadsAtOnce: Number(n) })}
+                    options={['1', '2', '3', '4', '5'].map((n) => ({ value: n, label: n }))}
+                  />
+                </Row>
               </Group>
             </div>
 

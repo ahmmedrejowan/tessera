@@ -10,20 +10,12 @@ const HEX = /^#[0-9a-f]{6}$/i;
 
 const target = z.object({ provider: z.enum(PROVIDERS.map((p) => p.id) as [Provider, ...Provider[]]), values: z.record(z.string(), z.string()) });
 
-/** Libraries noted before downloads had three answers kept a yes/no; a no meant "leave it to me". */
-const libraryRecord = z.preprocess((raw) => {
-  if (raw && typeof raw === 'object' && !('afterDownload' in raw) && 'autoAddDownloads' in raw) {
-    const { autoAddDownloads, ...rest } = raw as { autoAddDownloads: unknown };
-    return { ...rest, afterDownload: autoAddDownloads === false ? 'ask' : 'add' };
-  }
-  return raw;
-}, z.object({
+const libraryRecord = z.object({
   id: z.string(),
   name: z.string(),
   path: z.string(),
   lastOpenedAt: z.string(),
   skipInboxWhenSure: z.boolean().catch(true),
-  afterDownload: z.enum(['add', 'review', 'ask']).catch('add'),
   sync: z.object({ enabled: z.boolean(), mode: z.enum(['push', 'pull', 'full']), whileClosed: z.boolean() }).catch({ enabled: false, mode: 'full', whileClosed: true }),
   backup: z
     .object({
@@ -35,7 +27,7 @@ const libraryRecord = z.preprocess((raw) => {
     })
     .nullable()
     .catch(null),
-}));
+});
 
 /** A site the user set the licence for, so its packs fill themselves in. */
 const siteRule = z.object({
@@ -57,10 +49,25 @@ const schema = z.object({
   errorReports: z.enum(['ask', 'always', 'never']).catch('ask'),
   siteRules: z.array(siteRule).catch([]),
   downloadsAtOnce: z.number().int().min(1).max(5).catch(3),
+  afterDownload: z.enum(['add', 'review', 'ask']).catch('add'),
   updateCheck: z.boolean().catch(true),
 });
 
 export const DEFAULT_SETTINGS: Settings = schema.parse({});
+
+/**
+ * Downloads used to be answered per library ("add them by themselves", yes or no). The answer is
+ * the app's now: the first library that said something decides, so nobody's choice is lost.
+ */
+function withDownloadAnswer(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object' || 'afterDownload' in raw) return raw;
+  const libraries = (raw as { libraries?: Record<string, { afterDownload?: unknown; autoAddDownloads?: unknown }> }).libraries ?? {};
+  for (const record of Object.values(libraries)) {
+    const said = record.afterDownload ?? (record.autoAddDownloads === false ? 'ask' : record.autoAddDownloads === true ? 'add' : undefined);
+    if (said) return { ...raw, afterDownload: said };
+  }
+  return raw;
+}
 
 /** App settings, kept as JSON in the app's own data folder (never inside a library). */
 export class SettingsStore {
@@ -81,7 +88,7 @@ export class SettingsStore {
       // Unreadable settings are replaced by defaults rather than stopping the app from starting.
       log.warn('settings', 'settings file unreadable, using defaults', e);
     }
-    this.current = schema.parse(raw ?? {});
+    this.current = schema.parse(withDownloadAnswer(raw) ?? {});
     // Settings from before libraries kept their own (see libraries.ts).
     const migrated = raw && typeof raw === 'object' ? await migrateLegacy(raw as Record<string, unknown>, this.dataDir).catch((e: unknown) => (log.error('settings', 'could not move settings to libraries', e), null)) : null;
     if (migrated) await this.update({ libraries: migrated });

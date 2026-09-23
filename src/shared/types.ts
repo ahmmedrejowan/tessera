@@ -33,6 +33,12 @@ export interface Settings {
   siteRules: SiteRule[];
   /** How many downloads may run at once (1-5). */
   downloadsAtOnce: number;
+  /**
+   * What happens when a download finishes, whichever library is open: add it (a clear licence
+   * goes into the library, the rest wait in Review), send every one to Review, or leave it in
+   * Downloads for the user.
+   */
+  afterDownload: AfterDownload;
   /** Look for a newer Tessera on start and once a day. */
   updateCheck: boolean;
 }
@@ -164,11 +170,6 @@ export interface LibraryRecord {
    * into the library; the rest wait in the Inbox. Off: every import waits in the Inbox.
    */
   skipInboxWhenSure: boolean;
-  /**
-   * What happens when a download finishes: add it (a clear licence goes into the library, the
-   * rest wait in Review), send every one to Review, or leave it in Downloads for the user.
-   */
-  afterDownload: AfterDownload;
   sync: LibrarySync;
   backup: LibraryBackup | null;
 }

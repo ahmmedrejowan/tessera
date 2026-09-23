@@ -31,8 +31,8 @@ import { EmptyState } from '../components/EmptyState';
 import { formatBytes } from '../components/labels';
 import { failed, notify } from '../notices/store';
 import { addDownloads, isGoing, queueLinks, useDownloads } from '../state/downloads';
-import { useLibraryRecord } from '../state/library';
 import { useNav } from '../state/nav';
+import { useSettings } from '../state/queries';
 import { md, mdAlpha, SHAPE } from '../theme';
 import { PAGE, Page } from './Placeholder';
 
@@ -255,15 +255,15 @@ function Row({ d, autoAdd }: { d: DownloadItem; autoAdd: boolean }) {
  * fetched here and then added to the library like any other pack, with their link on record.
  */
 export function DownloadsPage() {
-  const record = useLibraryRecord();
   const go = useNav((n) => n.go);
+  const settings = useSettings().data;
   const rows = useDownloads().data ?? [];
   const [text, setText] = useState('');
   const [over, setOver] = useState(false);
   const found = linksIn(text);
   const hosts = [...new Set(found.map((u) => hostLabel(u)))];
-  // Rows wait for an Add button only when the library leaves finished downloads to the user.
-  const autoAdd = (record?.afterDownload ?? 'add') !== 'ask';
+  // Rows wait for an Add button only when finished downloads are left to the user.
+  const autoAdd = (settings?.afterDownload ?? 'add') !== 'ask';
 
   const going = rows.filter(isGoing);
   const finished = rows.filter((d) => !isGoing(d));

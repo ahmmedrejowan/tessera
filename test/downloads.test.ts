@@ -126,14 +126,17 @@ describe('the download queue', () => {
   });
 });
 
-describe('what a library does with a finished download', () => {
-  it('keeps the old yes/no answer when it becomes three', async () => {
+describe('what happens after a download finishes', () => {
+  it('is the app’s answer now, and takes it from whichever library had one', async () => {
     const { SettingsStore } = await import('../src/main/settings');
-    const dir = tempDir('tessera-prefs-');
     const record = { id: 'lib1', name: 'Lib', path: '/tmp/lib', lastOpenedAt: '2026-01-01T00:00:00.000Z', skipInboxWhenSure: true, sync: { enabled: false, mode: 'full', whileClosed: true }, backup: null };
-    writeFileSync(join(dir, 'settings.json'), JSON.stringify({ libraries: { lib1: { ...record, autoAddDownloads: false }, lib2: { ...record, id: 'lib2', autoAddDownloads: true } } }));
-    const settings = await new SettingsStore(dir).load();
-    expect(settings.libraries.lib1!.afterDownload).toBe('ask');
-    expect(settings.libraries.lib2!.afterDownload).toBe('add');
+
+    const kept = tempDir('tessera-prefs-');
+    writeFileSync(join(kept, 'settings.json'), JSON.stringify({ libraries: { lib1: { ...record, autoAddDownloads: false } } }));
+    expect((await new SettingsStore(kept).load()).afterDownload).toBe('ask');
+
+    const fresh = tempDir('tessera-prefs-');
+    writeFileSync(join(fresh, 'settings.json'), JSON.stringify({ libraries: { lib1: record } }));
+    expect((await new SettingsStore(fresh).load()).afterDownload).toBe('add');
   });
 });
