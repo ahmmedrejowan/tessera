@@ -21,7 +21,11 @@ export function parseChangelog(text: string): Release[] {
       continue;
     }
     const current = out.at(-1);
-    if (current && line.trim()) current.lines.push(line.trimEnd());
+    if (!current || !line.trim()) continue;
+    // A wrapped list item is indented under its own dash: it belongs to the line above.
+    const carriesOn = /^\s+\S/.test(line) && !/^\s*[-*]\s/.test(line) && current.lines.length > 0;
+    if (carriesOn) current.lines[current.lines.length - 1] += ` ${line.trim()}`;
+    else current.lines.push(line.trimEnd());
   }
   return out;
 }

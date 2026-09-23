@@ -11,7 +11,7 @@ import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { BUILT_WITH, HELPERS, LICENCE, LINKS } from '@shared/about';
-import { parseChangelog, plainLine, releaseFor } from '@shared/changelog';
+import { parseChangelog, plainLine, releaseFor, type Release } from '@shared/changelog';
 import { call, on } from '../api';
 import { Logo } from '../components/Logo';
 import { failed } from '../notices/store';
@@ -141,28 +141,60 @@ function Updates({ version }: { version: string }) {
   );
 }
 
-/** What is in this version, and what came before it. */
+/** Release notes, as a dialog: this version on its own, or every version there has been. */
+function Releases({ releases, title, onClose }: { releases: Release[]; title: string; onClose: () => void }) {
+  return (
+    <Dialog open onClose={onClose} maxWidth="sm" fullWidth slotProps={{ paper: { sx: { borderRadius: `${SHAPE.lg}px`, backgroundColor: md('surfaceContainerHigh'), backgroundImage: 'none' } } }}>
+      <div style={{ padding: '20px 24px 8px' }}>
+        <Typography variant="titleLarge" sx={{ color: md('onSurface') }}>
+          {title}
+        </Typography>
+      </div>
+      <div style={{ padding: '0 24px', overflow: 'auto', maxHeight: '64vh' }}>
+        {releases.length === 0 && (
+          <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
+            This build ships no notes.
+          </Typography>
+        )}
+        {releases.map((r) => (
+          <section key={r.version} style={{ marginBottom: 24 }}>
+            <Typography variant="titleSmall" sx={{ color: md('onSurface') }}>
+              Tessera {r.version}
+              {r.when ? ` · ${r.when}` : ''}
+            </Typography>
+            <Typography variant="bodyMedium" component="div" sx={{ color: md('onSurfaceVariant'), mt: 1 }}>
+              <Notes lines={r.lines} />
+            </Typography>
+          </section>
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 16 }}>
+        <Button onClick={onClose}>Close</Button>
+      </div>
+    </Dialog>
+  );
+}
+
+/** What is in this version, and what came before it — both behind a button. */
 function Versions({ version }: { version: string }) {
   const releases = useReleases();
-  const [all, setAll] = useState(false);
+  const [show, setShow] = useState<'this' | 'all' | null>(null);
   const current = releaseFor(releases, version);
   const earlier = releases.filter((r) => r.version !== version);
 
   return (
-    <Group title="What’s in this version" note={current?.when ? `${version} · ${current.when}` : version}>
-      <Row
-        title={current ? `Tessera ${current.version}` : `Tessera ${version}`}
-        body={current ? <Notes lines={current.lines} /> : 'This build ships no notes for its own version.'}
-      />
-      {earlier.length > 0 && (
-        <Row title="Version log" body={all ? undefined : `${earlier.length} earlier version${earlier.length === 1 ? '' : 's'}`}>
-          <Button onClick={() => setAll(!all)}>{all ? 'Hide' : 'Show'}</Button>
-        </Row>
-      )}
-      {all &&
-        earlier.map((r) => (
-          <Row key={r.version} title={`${r.version}${r.when ? ` · ${r.when}` : ''}`} body={<Notes lines={r.lines} />} />
-        ))}
+    <Group title="Version" note="What this build brings, and what came before it.">
+      <Row title={`Tessera ${version}${current?.when ? ` · ${current.when}` : ''}`} body={current ? `${current.lines.filter((l) => plainLine(l).bullet).length} things in this version` : 'This build ships no notes for its own version.'}>
+        <Button variant="contained" disabled={!current} onClick={() => setShow('this')}>
+          What’s new
+        </Button>
+      </Row>
+      <Row title="Version history" body={earlier.length ? `${releases.length} versions, with what changed in each` : 'Nothing earlier — this is the first.'}>
+        <Button disabled={!releases.length} onClick={() => setShow('all')}>
+          Open
+        </Button>
+      </Row>
+      {show && <Releases releases={show === 'this' && current ? [current] : releases} title={show === 'this' ? `What’s new in ${version}` : 'Version history'} onClose={() => setShow(null)} />}
     </Group>
   );
 }

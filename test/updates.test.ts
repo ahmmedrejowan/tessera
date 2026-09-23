@@ -5,12 +5,15 @@ import { tempDir } from './helpers';
 
 describe('the changelog', () => {
   it('reads one entry per version, with what followed the heading', () => {
-    const releases = parseChangelog(['# What’s new', '', '## 0.2.0 — 12 October 2026', '', '- Downloads', '- Site rules', '', '## 0.1.0 — in development', '', '- The first working version'].join('\n'));
+    const releases = parseChangelog(
+      ['# What’s new', '', '## 0.2.0 — 12 October 2026', '', '- Downloads', '  from any link you bring', '- Site rules', '', '## 0.1.0 — in development', '', '- The first working version'].join('\n'),
+    );
     expect(releases.map((r) => [r.version, r.when])).toEqual([
       ['0.2.0', '12 October 2026'],
       ['0.1.0', 'in development'],
     ]);
-    expect(releases[0]!.lines).toEqual(['- Downloads', '- Site rules']);
+    // A wrapped line belongs to the item above it, not to a paragraph of its own.
+    expect(releases[0]!.lines).toEqual(['- Downloads from any link you bring', '- Site rules']);
     expect(releaseFor(releases, '0.1.0')?.lines).toEqual(['- The first working version']);
     expect(releaseFor(releases, '9.9.9')).toBeUndefined();
   });
