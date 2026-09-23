@@ -309,8 +309,8 @@ export function HomePage() {
           </div>
         )}
 
-        {watching.length > 0 ? (
-          <Section title="Watcher" action={<SeeAll onClick={() => go({ to: 'inbox' })} />}>
+        {watching.length > 0 || (stats?.inbox ?? 0) > 0 ? (
+          <Section title="Watcher" {...((stats?.inbox ?? 0) > 0 ? { action: <SeeAll onClick={() => go({ to: 'inbox' })} /> } : {})}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(stats?.inbox ?? 0) > 0 && (
                 <ButtonBase onClick={() => go({ to: 'inbox' })} sx={{ justifyContent: 'flex-start', gap: 2, p: 2, borderRadius: `${SHAPE.md}px`, backgroundColor: md('tertiaryContainer'), color: md('onTertiaryContainer') }}>
