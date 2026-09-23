@@ -1,12 +1,9 @@
 import ArrowBack from '@mui/icons-material/ArrowBack';
+import DoneAllRounded from '@mui/icons-material/DoneAllRounded';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
-import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
 import Close from '@mui/icons-material/Close';
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import EditOutlined from '@mui/icons-material/EditOutlined';
-import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
-import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
-import OpenInFullRounded from '@mui/icons-material/OpenInFullRounded';
 import RemoveCircleOutlineOutlined from '@mui/icons-material/RemoveCircleOutlineOutlined';
 import SearchOutlined from '@mui/icons-material/SearchOutlined';
 import Button from '@mui/material/Button';
@@ -15,16 +12,13 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import type { AssetRow, BrowseQuery, Filters } from '@shared/query';
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
+import { formatBytes, formatCount } from '../../components/labels';
 import { failed, notify } from '../../notices/store';
 import { VirtualGrid } from '../../components/VirtualGrid';
 import { useBrowse } from '../../state/browse';
@@ -34,6 +28,7 @@ import { useNav } from '../../state/nav';
 import { usePagedRows } from '../../state/paged';
 import { md, mdAlpha, SHAPE } from '../../theme';
 import { AssetTile, TILE_LABEL_HEIGHT } from '../browse/AssetTile';
+import { AssetMenu } from '../browse/TileMenu';
 import { CopyButton } from '../projects/CopyButton';
 import { NameDialog } from './CollectionMenu';
 
@@ -56,10 +51,23 @@ export function CollectionPage({ id }: { id: string }) {
       return next;
     });
   }, []);
+  const [size, setSize] = useState<number | null>(null);
   const [viewing, setViewing] = useState<number | null>(null);
   const [menu, setMenu] = useState<{ anchor: HTMLElement; asset: AssetRow; index: number } | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    setSize(null);
+    if (!selected.size) return;
+    void call('browse:sum', 'assets', [...selected])
+      .then((n) => live && setSize(n))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [selected]);
 
   const query: BrowseQuery = useMemo(
     () =>
@@ -178,12 +186,17 @@ export function CollectionPage({ id }: { id: string }) {
         )}
         {selected.size > 0 && (
           <div style={{ position: 'absolute', left: '50%', bottom: 24, transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 8, padding: '6px 6px 6px 20px', borderRadius: SHAPE.full, background: md('inverseSurface'), color: md('inverseOnSurface'), boxShadow: `0 4px 16px ${mdAlpha('shadow', 0.25)}` }}>
-            <Typography variant="labelLarge" sx={{ mr: 1 }}>
-              {selected.size} picked
+            <Typography variant="labelLarge" sx={{ mr: 1, whiteSpace: 'nowrap' }}>
+              {formatCount(selected.size)} picked{size !== null ? ` · ${formatBytes(size)}` : ''}
             </Typography>
+            {rows.total > selected.size && (
+              <Button startIcon={<DoneAllRounded />} onClick={async () => setSelected(new Set((await call('browse:allIds', query, 'assets')).map(Number)))} sx={{ color: md('inversePrimary'), whiteSpace: 'nowrap', flexShrink: 0 }}>
+                Pick all {formatCount(rows.total)}
+              </Button>
+            )}
             <CopyButton items={() => call('assets:refs', [...selected])} variant="text" size="medium" color={md('inversePrimary')} />
             {!smart && (
-              <Button startIcon={<RemoveCircleOutlineOutlined />} onClick={() => void remove([...selected])} sx={{ color: md('inversePrimary') }}>
+              <Button startIcon={<RemoveCircleOutlineOutlined />} onClick={() => void remove([...selected])} sx={{ color: md('inversePrimary'), whiteSpace: 'nowrap', flexShrink: 0 }}>
                 Take them out
               </Button>
             )}
@@ -194,68 +207,15 @@ export function CollectionPage({ id }: { id: string }) {
         )}
       </div>
       {menu && (
-        <Menu anchorEl={menu.anchor} open onClose={() => setMenu(null)} slotProps={{ paper: { sx: { minWidth: 220 } } }}>
-          <MenuItem
-            onClick={() => {
-              setViewing(menu.index);
-              setMenu(null);
-            }}
-          >
-            <ListItemIcon>
-              <OpenInFullRounded fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="Open" />
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              pick(menu.asset.id);
-              setMenu(null);
-            }}
-          >
-            <ListItemIcon>
-              <CheckCircleOutlineRounded fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="Pick it out" secondary="To do something with several" />
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              const packId = menu.asset.packId;
-              setMenu(null);
-              go({ to: 'pack', id: packId });
-            }}
-          >
-            <ListItemIcon>
-              <Inventory2Outlined fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="Open its pack" secondary={menu.asset.packName} />
-          </MenuItem>
-          {!smart && (
-            <MenuItem
-              onClick={() => {
-                const asset = menu.asset;
-                setMenu(null);
-                void remove([asset.id]);
-              }}
-            >
-              <ListItemIcon>
-                <RemoveCircleOutlineOutlined fontSize="small" />
-              </ListItemIcon>
-              <ListItemText primary="Take it out of this collection" />
-            </MenuItem>
-          )}
-          <MenuItem
-            onClick={() => {
-              const packId = menu.asset.packId;
-              setMenu(null);
-              void call('pack:reveal', packId).catch(failed);
-            }}
-          >
-            <ListItemIcon>
-              <FolderOpenOutlined fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="Show the folder" />
-          </MenuItem>
-        </Menu>
+        <AssetMenu
+          anchor={menu.anchor}
+          asset={menu.asset}
+          onClose={() => setMenu(null)}
+          onOpen={() => setViewing(menu.index)}
+          onPick={() => pick(menu.asset.id)}
+          onOpenPack={() => go({ to: 'pack', id: menu.asset.packId })}
+          {...(smart ? {} : { extra: { icon: <RemoveCircleOutlineOutlined fontSize="small" />, primary: 'Take it out of this collection', run: () => void remove([menu.asset.id]) } })}
+        />
       )}
       <NameDialog
         open={renaming}

@@ -42,7 +42,7 @@ function Current() {
     case 'browse':
       return <BrowsePage />;
     case 'pack':
-      return <PackPage key={route.id} id={route.id} />;
+      return <PackPage key={route.id} id={route.id} edit={route.edit ?? false} />;
     case 'inbox':
       return <InboxPage />;
     case 'downloads':

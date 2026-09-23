@@ -7,7 +7,7 @@ export type Route =
   | { to: Destination }
   | { to: 'settings'; section: string }
   | { to: 'adding' }
-  | { to: 'pack'; id: string }
+  | { to: 'pack'; id: string; edit?: boolean }
   | { to: 'collection'; id: string }
   | { to: 'project'; id: string }
   | { to: 'helpTopic'; id: string; question?: string };

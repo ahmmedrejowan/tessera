@@ -164,6 +164,29 @@ export class LibraryQueries {
     return { rows: this.toPackRows(raw), total };
   }
 
+  /** Every id a query matches, in no particular order: for picking the lot out at once. */
+  allIds(q: BrowseQuery, mode: 'assets' | 'packs'): (number | string)[] {
+    const w = this.where(this.clauses(q, mode));
+    if (mode === 'packs') return this.all<{ id: string }>(`SELECT p.id AS id FROM packs p ${w.sql}`, w.params).map((r) => r.id);
+    return this.all<{ id: number }>(`SELECT a.id AS id FROM assets a JOIN packs p ON p.id = a.pack_id ${w.sql}`, w.params).map((r) => r.id);
+  }
+
+  /** What a pile of picked assets, or picked packs, comes to in bytes. */
+  sum(mode: 'assets' | 'packs', ids: (number | string)[]): number {
+    let total = 0;
+    // SQLite takes only so many values in one statement, so ask in batches.
+    for (let i = 0; i < ids.length; i += 500) {
+      const batch = ids.slice(i, i + 500);
+      const marks = batch.map(() => '?').join(',');
+      const sql =
+        mode === 'packs'
+          ? `SELECT coalesce(sum(size), 0) AS n FROM packs WHERE id IN (${marks})`
+          : `SELECT coalesce(sum(size), 0) AS n FROM assets WHERE id IN (${marks})`;
+      total += this.get<{ n: number }>(sql, batch as Params)!.n;
+    }
+    return total;
+  }
+
   pack(id: string): (PackRow & { meta: PackMeta }) | null {
     const raw = this.get<RawPack & { meta_json: string }>(`SELECT ${PACK_FIELDS}, p.meta_json FROM packs p WHERE p.id = ?`, [id]);
     if (!raw) return null;

@@ -8,22 +8,12 @@ import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import type { AssetRow, PackRow } from '@shared/query';
 import { call } from '../../api';
-import { failed } from '../../notices/store';
 import { EmptyState } from '../../components/EmptyState';
 import { VirtualGrid } from '../../components/VirtualGrid';
 import { activeFilterCount, browseQuery, useBrowse } from '../../state/browse';
 import { useIndexVersion, useLibraryId, useStats } from '../../state/library';
 import { useImport } from '../../state/importer';
 import AddRounded from '@mui/icons-material/AddRounded';
-import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
-import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
-import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
-import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
-import OpenInFullRounded from '@mui/icons-material/OpenInFullRounded';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
 import { useNav } from '../../state/nav';
 import { usePagedRows } from '../../state/paged';
 import { Page } from '../Placeholder';
@@ -33,7 +23,7 @@ import { AssetTile, TILE_LABEL_HEIGHT } from './AssetTile';
 import { BrowseControls, BrowseFilters } from './BrowseToolbar';
 import { DetailsSheet } from './DetailsSheet';
 import { SelectionBar } from './SelectionBar';
-import { CollectionMenu } from '../collections/CollectionMenu';
+import { AssetMenu, PackMenu } from './TileMenu';
 import { FilterPane, FilterRail } from './FilterPane';
 import { coverHeight, PACK_LABEL_HEIGHT, PackCard } from './PackCard';
 
@@ -80,83 +70,6 @@ function useSelection<T>(ids: (index: number) => T | undefined) {
 
 /** What the three dots on a tile were pressed for. */
 type TileMenu = { anchor: HTMLElement; index: number } & ({ kind: 'asset'; asset: AssetRow } | { kind: 'pack'; pack: PackRow });
-
-/** The quick menu on a tile: the few things worth doing without opening anything. */
-function TileActions({ menu, onClose, onOpen }: { menu: TileMenu; onClose: () => void; onOpen: () => void }) {
-  const go = useNav((n) => n.go);
-  const s = useBrowse();
-  const [collections, setCollections] = useState<HTMLElement | null>(null);
-  const items = () => (menu.kind === 'asset' ? call('assets:refs', [menu.asset.id]) : Promise.resolve([]));
-  const close = () => {
-    setCollections(null);
-    onClose();
-  };
-
-  return (
-    <>
-      <Menu anchorEl={menu.anchor} open={!collections} onClose={close} slotProps={{ paper: { sx: { minWidth: 220 } } }}>
-        <MenuItem
-          onClick={() => {
-            close();
-            onOpen();
-          }}
-        >
-          <ListItemIcon>
-            <OpenInFullRounded fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary={menu.kind === 'asset' ? 'Open' : 'Open the pack'} />
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            const id = menu.kind === 'asset' ? menu.asset.id : menu.pack.id;
-            s.select([id], menu.index);
-            close();
-          }}
-        >
-          <ListItemIcon>
-            <CheckCircleOutlineRounded fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Pick it out" secondary="To do something with several" />
-        </MenuItem>
-        {menu.kind === 'asset' && (
-          <MenuItem onClick={(e) => setCollections(e.currentTarget)}>
-            <ListItemIcon>
-              <BookmarkAddOutlined fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="Add to a collection" />
-          </MenuItem>
-        )}
-        {menu.kind === 'asset' && (
-          <MenuItem
-            onClick={() => {
-              const packId = menu.asset.packId;
-              close();
-              go({ to: 'pack', id: packId });
-            }}
-          >
-            <ListItemIcon>
-              <Inventory2Outlined fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="Open its pack" secondary={menu.asset.packName} />
-          </MenuItem>
-        )}
-        <MenuItem
-          onClick={() => {
-            const packId = menu.kind === 'asset' ? menu.asset.packId : menu.pack.id;
-            close();
-            void call('pack:reveal', packId).catch(failed);
-          }}
-        >
-          <ListItemIcon>
-            <FolderOpenOutlined fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Show the folder" />
-        </MenuItem>
-      </Menu>
-      {menu.kind === 'asset' && <CollectionMenu anchor={collections} onClose={close} items={items} />}
-    </>
-  );
-}
 
 /**
  * Nothing to show, for one of three reasons: the search and filters are too narrow, the packs
@@ -368,7 +281,13 @@ export function BrowsePage() {
   useEffect(() => {
     if (viewing !== null) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        e.preventDefault();
+        void call('browse:allIds', query, s.mode).then((ids) => s.select(ids));
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       const cols = columns.current;
       const at = cursor ?? -1;
       const moves: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols };
@@ -393,7 +312,7 @@ export function BrowsePage() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [s, cursor, viewing, moveTo, packs, go]);
+  }, [s, cursor, viewing, moveTo, packs, go, query]);
 
   const viewed = viewing !== null ? assets.get(viewing) : undefined;
 
@@ -441,20 +360,29 @@ export function BrowsePage() {
         </div>
       </div>
       </div>
-      {menu && (
-        <TileActions
-          menu={menu}
+      {menu?.kind === 'asset' && (
+        <AssetMenu
+          anchor={menu.anchor}
+          asset={menu.asset}
           onClose={() => setMenu(null)}
           onOpen={() => {
-            if (menu.kind === 'pack') go({ to: 'pack', id: menu.pack.id });
-            else {
-              setCursor(menu.index);
-              setViewing(menu.index);
-            }
+            setCursor(menu.index);
+            setViewing(menu.index);
           }}
+          onPick={() => s.select([menu.asset.id], menu.index)}
+          onOpenPack={() => go({ to: 'pack', id: menu.asset.packId })}
         />
       )}
-      {s.selection.size > 0 && viewing === null && <SelectionBar {...(s.mode === 'packs' ? { packs: true } : {})} />}
+      {menu?.kind === 'pack' && (
+        <PackMenu anchor={menu.anchor} pack={menu.pack} onClose={() => setMenu(null)} onOpen={() => go({ to: 'pack', id: menu.pack.id })} onPick={() => s.select([menu.pack.id], menu.index)} />
+      )}
+      {s.selection.size > 0 && viewing === null && (
+        <SelectionBar
+          {...(s.mode === 'packs' ? { packs: true } : {})}
+          total={current.total}
+          all={() => call('browse:allIds', query, s.mode)}
+        />
+      )}
       {s.focused && <DetailsSheet item={s.focused} />}
       {viewed && viewing !== null && (
         <Suspense fallback={null}>

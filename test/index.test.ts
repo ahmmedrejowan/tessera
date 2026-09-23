@@ -160,6 +160,18 @@ describe('index and queries', () => {
     expect(city).toMatchObject({ name: 'City Kit', assetCount: 2, fileCount: 6, coverRef: 'original/kenney_city-kit.zip!Preview.png', types: { model: 2 } });
   });
 
+  it('lists every id a query matches, and what they come to', () => {
+    const ids = q.allIds(base, 'assets');
+    expect(ids).toHaveLength(4);
+    expect(q.allIds({ ...base, scope: 'library' }, 'packs')).toEqual([q.packs({ ...base, scope: 'library' }, 'name', 0, 10).rows[0]!.id]);
+    const rows = q.assets(base, 'name', 0, 100).rows;
+    expect(q.sum('assets', ids)).toBe(rows.reduce((n, r) => n + r.size, 0));
+    expect(q.sum('assets', [])).toBe(0);
+    // Every pack's size, whatever a query picked out, comes from the packs themselves.
+    const packs = q.packs(base, 'name', 0, 10).rows;
+    expect(q.sum('packs', packs.map((p) => p.id))).toBe(packs.reduce((n, p) => n + p.size, 0));
+  });
+
   it('scopes to the library or the inbox', () => {
     expect(q.packs({ ...base, scope: 'library' }, 'name', 0, 10).rows.map((p) => p.name)).toEqual(['City Kit']);
     expect(q.packs({ ...base, scope: 'inbox' }, 'name', 0, 10).rows.map((p) => p.name)).toEqual(['Impact Sounds']);

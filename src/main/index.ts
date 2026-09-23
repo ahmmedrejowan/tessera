@@ -496,6 +496,8 @@ function registerHandlers(): void {
   handle('browse:assets', (q, sort, offset, limit) => library.require().queries.assets(q, sort, offset, Math.min(limit, 1000)));
   handle('browse:packs', (q, sort, offset, limit) => library.require().queries.packs(q, sort, offset, Math.min(limit, 1000)));
   handle('browse:facets', (q, mode) => library.require().queries.facets(q, mode));
+  handle('browse:allIds', (q, mode) => library.require().queries.allIds(q, mode));
+  handle('browse:sum', (mode, ids) => library.require().queries.sum(mode, ids));
 
   handle('pack:get', (id) => library.require().queries.pack(id));
   handle('pack:files', (id) => library.require().queries.packFiles(id));
@@ -547,6 +549,20 @@ function registerHandlers(): void {
     // A file inside an archive can't be shown; the archive holding it can.
     const onDisk = ref ? parseRef(ref).file : null;
     shell.showItemInFolder(onDisk ? join(pack.dir, ...onDisk.split('/')) : join(pack.dir, 'pack.json'));
+  });
+
+  handle('pack:open', async (id, ref) => {
+    const pack = await library.packRecord(id);
+    const { file, inside } = parseRef(ref);
+    const onDisk = join(pack.dir, ...file.split('/'));
+    // A file inside an archive can't be handed to another app; show the archive instead.
+    if (inside.length) {
+      shell.showItemInFolder(onDisk);
+      return 'inArchive';
+    }
+    const error = await shell.openPath(onDisk);
+    if (error) throw new Error(error);
+    return 'opened';
   });
 
   handle('jobs:list', () => jobs.list());

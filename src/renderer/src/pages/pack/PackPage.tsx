@@ -22,14 +22,7 @@ import Tabs from '@mui/material/Tabs';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
-import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
-import OpenInFullRounded from '@mui/icons-material/OpenInFullRounded';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
 import { lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from 'react';
-import { CollectionMenu } from '../collections/CollectionMenu';
 import { TYPE_LABELS, type AssetType } from '@shared/assets';
 import { licenceInfo } from '@shared/licences';
 import { missingForLibrary } from '@shared/pack';
@@ -45,6 +38,7 @@ import { useIndexVersion, useLibraryId } from '../../state/library';
 import { useNav } from '../../state/nav';
 import { md, SHAPE } from '../../theme';
 import { AssetTile, TILE_LABEL_HEIGHT } from '../browse/AssetTile';
+import { AssetMenu } from '../browse/TileMenu';
 import { useBrowse } from '../../state/browse';
 import { coverHeight, PackCard } from '../browse/PackCard';
 import { FileTree } from './FileTree';
@@ -80,13 +74,13 @@ function Yes({ ok, children }: { ok: boolean; children: ReactNode }) {
 }
 
 /** One pack: its assets, all its files, its licence and what's known about it. */
-export function PackPage({ id }: { id: string }) {
+export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   const lib = useLibraryId();
   const version = useIndexVersion();
   const { goBack, back, go } = useNav();
   const tileSize = useBrowse((s) => s.tileSize);
   const [tab, setTab] = useState<TabId>('assets');
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(edit);
   const [type, setType] = useState<AssetType | null>(null);
   const [find, setFind] = useState('');
   const [viewing, setViewing] = useState<{ list: AssetRow[]; index: number } | null>(null);
@@ -107,7 +101,6 @@ export function PackPage({ id }: { id: string }) {
   }, [files]);
 
   const [menu, setMenu] = useState<{ anchor: HTMLElement; asset: AssetRow; index: number } | null>(null);
-  const [collecting, setCollecting] = useState<HTMLElement | null>(null);
 
   const render = useCallback(
     (i: number, width: number) => {
@@ -389,34 +382,13 @@ export function PackPage({ id }: { id: string }) {
       </Dialog>
       <PackEditor packId={id} meta={pack.meta} open={editing} onClose={() => setEditing(false)} />
       {menu && (
-        <Menu anchorEl={menu.anchor} open={!collecting} onClose={() => setMenu(null)} slotProps={{ paper: { sx: { minWidth: 200 } } }}>
-          <MenuItem
-            onClick={() => {
-              setViewing({ list: assets, index: menu.index });
-              setMenu(null);
-            }}
-          >
-            <ListItemIcon>
-              <OpenInFullRounded fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="Open" />
-          </MenuItem>
-          <MenuItem onClick={(e) => setCollecting(e.currentTarget)}>
-            <ListItemIcon>
-              <BookmarkAddOutlined fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="Add to a collection" />
-          </MenuItem>
-        </Menu>
+        <AssetMenu
+          anchor={menu.anchor}
+          asset={menu.asset}
+          onClose={() => setMenu(null)}
+          onOpen={() => setViewing({ list: assets, index: menu.index })}
+        />
       )}
-      <CollectionMenu
-        anchor={collecting}
-        onClose={() => {
-          setCollecting(null);
-          setMenu(null);
-        }}
-        items={() => Promise.resolve(menu ? [{ packId: menu.asset.packId, ref: menu.asset.ref }] : [])}
-      />
       {viewing && viewed && (
         <Suspense fallback={null}>
           <Viewer

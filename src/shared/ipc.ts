@@ -58,6 +58,10 @@ export interface Invokes {
   'browse:assets': (query: BrowseQuery, sort: AssetSort, offset: number, limit: number) => Page<AssetRow>;
   'browse:packs': (query: BrowseQuery, sort: PackSort, offset: number, limit: number) => Page<PackRow>;
   'browse:facets': (query: BrowseQuery, mode: 'assets' | 'packs') => FacetCounts;
+  /** Every id the query matches, for picking the lot out at once. */
+  'browse:allIds': (query: BrowseQuery, mode: 'assets' | 'packs') => (number | string)[];
+  /** What the picked assets, or the picked packs, come to in bytes. */
+  'browse:sum': (mode: 'assets' | 'packs', ids: (number | string)[]) => number;
 
   'pack:get': (id: string) => (PackRow & { meta: PackMeta }) | null;
   'pack:files': (id: string) => AssetRow[];
@@ -87,6 +91,11 @@ export interface Invokes {
   'pack:textures': (id: string) => Record<string, string>;
   /** Show a pack's folder, or the file on disk that holds one of its files, in Finder / Explorer. */
   'pack:reveal': (id: string, ref?: string) => void;
+  /**
+   * Open one of a pack's files in whatever this computer uses for it. A file inside an archive
+   * can't be opened, so the archive holding it is shown instead and `inArchive` comes back.
+   */
+  'pack:open': (id: string, ref: string) => 'opened' | 'inArchive';
 
   'jobs:list': () => Job[];
 
