@@ -18,8 +18,9 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LICENCES, licenceInfo, OWN_WORK } from '@shared/licences';
+import { missingForLibrary } from '@shared/pack';
 import type { PackRow } from '@shared/query';
 import { sourceFromUrl } from '@shared/sources';
 import { call } from '../api';
@@ -178,7 +179,7 @@ function ReviewCard({ pack, selected, onSelect }: { pack: PackRow; selected: boo
         </div>
       </div>
 
-      <Typography variant="bodySmall" component="div" sx={{ color: missing.length ? md('onSurfaceVariant') : md('primary'), display: 'flex', alignItems: 'center', gap: 0.5 }}>
+      <Typography variant="bodySmall" component="div" sx={{ mt: 'auto', pt: 0.5, color: missing.length ? md('onSurfaceVariant') : md('primary'), display: 'flex', alignItems: 'center', gap: 0.5 }}>
         {missing.length ? (
           `Needs ${missing.join(' and ')}.`
         ) : (
@@ -255,6 +256,35 @@ function FillMany({ ids, onDone }: { ids: string[]; onDone: () => void }) {
 }
 
 /**
+ * Anything here that already has both a licence and a source was only parked, not undecided: it
+ * goes into the library as the page opens, rather than sitting in a list of things to do.
+ */
+function useReadyMoveOn(rows: PackRow[]): void {
+  const swept = useRef(new Set<string>());
+  useEffect(() => {
+    // A licence is the cheap hint; the pack's own record settles whether a source is there too.
+    const maybe = rows.filter((r) => r.licence && !swept.current.has(r.id));
+    if (!maybe.length) return;
+    for (const r of maybe) swept.current.add(r.id);
+    void (async () => {
+      const moved: string[] = [];
+      for (const row of maybe) {
+        try {
+          const pack = await call('pack:get', row.id);
+          if (!pack || missingForLibrary(pack.meta).length) continue;
+          await call('pack:status', row.id, 'library');
+          moved.push(pack.meta.name);
+        } catch (e) {
+          failed(e);
+        }
+      }
+      if (moved.length === 1) notify.info(`“${moved[0]}” already had everything, so it went into the library.`);
+      else if (moved.length > 1) notify.info(`${moved.length} packs already had everything, so they went into the library.`);
+    })();
+  }, [rows]);
+}
+
+/**
  * Review: packs whose licence or source was not clear. Each has room to fill in the two fields
  * that matter, and moves into the library by itself once it has both.
  */
@@ -269,6 +299,7 @@ export function InboxPage() {
   const packs = useQuery({ queryKey: ['inbox', lib, version], queryFn: () => call('browse:packs', query, 'added', 0, 1000), enabled: !!lib, placeholderData: (p) => p }).data;
   const rows = (packs?.rows ?? []).filter((p) => !adding.has(p.id));
   const [picked, setPicked] = useState<string[]>([]);
+  useReadyMoveOn(rows);
   const here = new Set(rows.map((r) => r.id));
   const chosen = picked.filter((id) => here.has(id));
   const select = (id: string, on: boolean) => setPicked((was) => (on ? [...was, id] : was.filter((x) => x !== id)));
@@ -302,7 +333,7 @@ export function InboxPage() {
         />
       ) : (
         <div style={{ padding: PAGE.body }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16, alignItems: 'stretch' }}>
             {rows.map((p) => (
               <ReviewCard key={p.id} pack={p} selected={chosen.includes(p.id)} onSelect={select} />
             ))}
