@@ -153,9 +153,14 @@ export class McpService {
         this.o.onFirstCall(tool.name);
       }
       this.o.onChange();
+      const context = this.o.context();
+      const opening = context.library.getState().status === 'opening';
+      if (opening && tool.name !== 'library_status') {
+        return { isError: true, content: [{ type: 'text' as const, text: 'Tessera is still opening its library. Try again in a moment.' }] };
+      }
       try {
         const args = tool.input.parse(request.params.arguments ?? {}) as never;
-        const out = await tool.run(args, this.o.context());
+        const out = await tool.run(args, context);
         return { content: [{ type: 'text' as const, text: JSON.stringify(out ?? { done: true }, null, 2) }] };
       } catch (e) {
         const message = e instanceof z.ZodError ? e.issues.map((i) => `${i.path.join('.') || 'input'}: ${i.message}`).join('; ') : e instanceof Error ? e.message : String(e);
