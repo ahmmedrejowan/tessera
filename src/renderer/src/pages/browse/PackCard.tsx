@@ -5,6 +5,7 @@ import { AssetThumb, checker } from '../../components/AssetThumb';
 import { licenceShort, sourceName, typeSummary } from '../../components/labels';
 import { fileUrl } from '../../state/library';
 import { md, SHAPE } from '../../theme';
+import { useHold } from './useHold';
 
 export const PACK_LABEL_HEIGHT = 76;
 /** Covers are 4:3. */
@@ -61,9 +62,14 @@ interface Props {
   selected: boolean;
   onClick: (e: MouseEvent, pack: PackRow) => void;
   onOpen: (pack: PackRow) => void;
+  /** Press and hold, or right-click: pick it out rather than open it. */
+  onHold?: (pack: PackRow) => void;
+  /** The quick menu behind the card's three dots. */
+  onMenu?: (anchor: HTMLElement, pack: PackRow) => void;
 }
 
-export const PackCard = memo(function PackCard({ pack, width, selected, onClick, onOpen }: Props) {
+export const PackCard = memo(function PackCard({ pack, width, selected, onClick, onOpen, onHold, onMenu }: Props) {
+  const hold = useHold(() => pack && onHold?.(pack));
   const height = coverHeight(width) + PACK_LABEL_HEIGHT + 12;
   if (!pack) return <div style={{ height, borderRadius: SHAPE.md, background: md('surfaceContainerLow') }} />;
   const meta = [sourceName(pack.source), licenceShort(pack.licence)].filter(Boolean).join(' · ');
@@ -73,8 +79,9 @@ export const PackCard = memo(function PackCard({ pack, width, selected, onClick,
       aria-selected={selected}
       tabIndex={-1}
       className="tile"
-      onClick={(e) => onClick(e, pack)}
+      onClick={(e) => !hold.wasHeld() && onClick(e, pack)}
       onDoubleClick={() => onOpen(pack)}
+      {...(onHold ? hold.handlers : {})}
       style={{
         height,
         padding: 6,

@@ -64,9 +64,11 @@ export function shortcutGroups(platform: Platform): { title: string; items: Shor
       title: 'Browse',
       items: [
         { label: 'Move between assets', keys: [['←'], ['→'], ['↑'], ['↓']] },
-        { label: 'Look at an asset', keys: [['Space'], ['Enter']] },
-        { label: 'Select more · a range', keys: [c('click', 'mod'), c('click', 'shift')] },
-        { label: 'Clear the selection', keys: [['Esc']] },
+        { label: 'Open what the cursor is on', keys: [['Space'], ['Enter']] },
+        { label: 'Open a tile', keys: [['click']] },
+        { label: 'Pick a tile out (or right-click)', keys: [['hold']] },
+        { label: 'Pick more · a range', keys: [c('click', 'mod'), c('click', 'shift')] },
+        { label: 'Put everything back', keys: [['Esc']] },
       ],
     },
     {

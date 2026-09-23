@@ -11,8 +11,8 @@ import { CopyButton } from '../projects/CopyButton';
 import { md, mdAlpha, SHAPE } from '../../theme';
 import { CollectionMenu } from '../collections/CollectionMenu';
 
-/** Floating bar for what's selected in the grid: add it to a collection, or clear it. */
-export function SelectionBar() {
+/** Floating bar for what's picked out in the grid: what can be done with it, and a way out. */
+export function SelectionBar({ packs }: { packs?: boolean } = {}) {
   const selection = useBrowse((s) => s.selection);
   const select = useBrowse((s) => s.select);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -41,16 +41,20 @@ export function SelectionBar() {
       }}
     >
       <Typography variant="labelLarge" sx={{ mr: 1 }}>
-        {selection.size} selected
+        {selection.size} picked
       </Typography>
-      <Button startIcon={<BookmarkAddOutlined />} onClick={(e) => setAnchor(e.currentTarget)} sx={{ color: md('inversePrimary') }}>
-        Add to collection
-      </Button>
-      <CopyButton items={refs} variant="text" size="medium" color={md('inversePrimary')} />
+      {!packs && (
+        <>
+          <Button startIcon={<BookmarkAddOutlined />} onClick={(e) => setAnchor(e.currentTarget)} sx={{ color: md('inversePrimary') }}>
+            Add to collection
+          </Button>
+          <CopyButton items={refs} variant="text" size="medium" color={md('inversePrimary')} />
+        </>
+      )}
       <IconButton aria-label="Clear selection" onClick={() => select([], null)} sx={{ color: md('inverseOnSurface') }}>
         <Close fontSize="small" />
       </IconButton>
-      <CollectionMenu anchor={anchor} onClose={() => setAnchor(null)} items={refs} />
+      {!packs && <CollectionMenu anchor={anchor} onClose={() => setAnchor(null)} items={refs} />}
     </div>
   );
 }

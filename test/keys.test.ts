@@ -20,7 +20,7 @@ describe('keyboard shortcuts per system', () => {
       expect(comboText(p, 'F', 'mod')).toBe('Ctrl+F');
       expect(find(p, 'Back · forward')).toEqual([['Alt', '←'], ['Alt', '→']]);
       expect(find(p, 'Full screen')).toEqual([['F11']]);
-      expect(find(p, 'Select more · a range')).toEqual([['Ctrl', 'click'], ['Shift', 'click']]);
+      expect(find(p, 'Pick more · a range')).toEqual([['Ctrl', 'click'], ['Shift', 'click']]);
       // No Apple symbols anywhere.
       const all = shortcutGroups(p).flatMap((g) => g.items.flatMap((s) => s.keys.flat()));
       expect(all.some((k) => /[⌘⇧⌥⌃]/.test(k))).toBe(false);

@@ -8,12 +8,22 @@ import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import type { AssetRow, PackRow } from '@shared/query';
 import { call } from '../../api';
+import { failed } from '../../notices/store';
 import { EmptyState } from '../../components/EmptyState';
 import { VirtualGrid } from '../../components/VirtualGrid';
 import { activeFilterCount, browseQuery, useBrowse } from '../../state/browse';
 import { useIndexVersion, useLibraryId, useStats } from '../../state/library';
 import { useImport } from '../../state/importer';
 import AddRounded from '@mui/icons-material/AddRounded';
+import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
+import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
+import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
+import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
+import OpenInFullRounded from '@mui/icons-material/OpenInFullRounded';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import { useNav } from '../../state/nav';
 import { usePagedRows } from '../../state/paged';
 import { Page } from '../Placeholder';
@@ -23,6 +33,7 @@ import { AssetTile, TILE_LABEL_HEIGHT } from './AssetTile';
 import { BrowseControls, BrowseFilters } from './BrowseToolbar';
 import { DetailsSheet } from './DetailsSheet';
 import { SelectionBar } from './SelectionBar';
+import { CollectionMenu } from '../collections/CollectionMenu';
 import { FilterPane, FilterRail } from './FilterPane';
 import { coverHeight, PACK_LABEL_HEIGHT, PackCard } from './PackCard';
 
@@ -65,6 +76,87 @@ function useSelection<T>(ids: (index: number) => T | undefined) {
   );
 }
 
+
+
+/** What the three dots on a tile were pressed for. */
+type TileMenu = { anchor: HTMLElement; index: number } & ({ kind: 'asset'; asset: AssetRow } | { kind: 'pack'; pack: PackRow });
+
+/** The quick menu on a tile: the few things worth doing without opening anything. */
+function TileActions({ menu, onClose, onOpen }: { menu: TileMenu; onClose: () => void; onOpen: () => void }) {
+  const go = useNav((n) => n.go);
+  const s = useBrowse();
+  const [collections, setCollections] = useState<HTMLElement | null>(null);
+  const items = () => (menu.kind === 'asset' ? call('assets:refs', [menu.asset.id]) : Promise.resolve([]));
+  const close = () => {
+    setCollections(null);
+    onClose();
+  };
+
+  return (
+    <>
+      <Menu anchorEl={menu.anchor} open={!collections} onClose={close} slotProps={{ paper: { sx: { minWidth: 220 } } }}>
+        <MenuItem
+          onClick={() => {
+            close();
+            onOpen();
+          }}
+        >
+          <ListItemIcon>
+            <OpenInFullRounded fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary={menu.kind === 'asset' ? 'Open' : 'Open the pack'} />
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const id = menu.kind === 'asset' ? menu.asset.id : menu.pack.id;
+            s.select([id], menu.index);
+            close();
+          }}
+        >
+          <ListItemIcon>
+            <CheckCircleOutlineRounded fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Pick it out" secondary="To do something with several" />
+        </MenuItem>
+        {menu.kind === 'asset' && (
+          <MenuItem onClick={(e) => setCollections(e.currentTarget)}>
+            <ListItemIcon>
+              <BookmarkAddOutlined fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Add to a collection" />
+          </MenuItem>
+        )}
+        {menu.kind === 'asset' && (
+          <MenuItem
+            onClick={() => {
+              const packId = menu.asset.packId;
+              close();
+              go({ to: 'pack', id: packId });
+            }}
+          >
+            <ListItemIcon>
+              <Inventory2Outlined fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Open its pack" secondary={menu.asset.packName} />
+          </MenuItem>
+        )}
+        <MenuItem
+          onClick={() => {
+            const packId = menu.kind === 'asset' ? menu.asset.packId : menu.pack.id;
+            close();
+            void call('pack:reveal', packId).catch(failed);
+          }}
+        >
+          <ListItemIcon>
+            <FolderOpenOutlined fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Show the folder" />
+        </MenuItem>
+      </Menu>
+      {menu.kind === 'asset' && <CollectionMenu anchor={collections} onClose={close} items={items} />}
+    </>
+  );
+}
 
 /**
  * Nothing to show, for one of three reasons: the search and filters are too narrow, the packs
@@ -163,12 +255,23 @@ export function BrowsePage() {
   });
 
   const [viewing, setViewing] = useState<number | null>(null);
+  const [menu, setMenu] = useState<TileMenu | null>(null);
   const [cursor, setCursor] = useState<number | null>(null);
   const columns = useRef(1);
   const setColumns = useCallback((c: number) => {
     columns.current = c;
   }, []);
 
+  /** Add to, or take out of, what is picked. */
+  const toggle = useCallback(
+    (id: number | string, index: number) => {
+      const next = new Set(s.selection);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      s.select([...next], index);
+    },
+    [s],
+  );
   const clickAsset = useSelection<number>((i) => assets.get(i)?.id);
   const clickPack = useSelection<string>((i) => packs.get(i)?.id);
   const current = s.mode === 'assets' ? assets : packs;
@@ -182,19 +285,27 @@ export function BrowsePage() {
           width={width}
           selected={!!a && s.selection.has(a.id)}
           onClick={(e, x) => {
-            clickAsset(e, x.id, i);
             setCursor(i);
             s.focus({ kind: 'asset', id: x.id });
+            if (e.shiftKey || e.metaKey || e.ctrlKey) clickAsset(e, x.id, i);
+            // While things are picked out, a plain click adds to or removes from the pile.
+            else if (s.selection.size > 0) toggle(x.id, i);
+            else setViewing(i);
           }}
           onOpen={() => {
             setCursor(i);
             setViewing(i);
           }}
+          onHold={(x) => {
+            setCursor(i);
+            if (!s.selection.has(x.id)) s.select([...s.selection, x.id], i);
+          }}
+          onMenu={(anchor, x) => setMenu({ anchor, kind: 'asset', asset: x, index: i })}
           dragItems={(x) => (s.selection.has(x.id) && s.selection.size > 1 ? call('assets:refs', [...s.selection].map(Number)) : [{ packId: x.packId, ref: x.ref }])}
         />
       );
     },
-    [assets, s, clickAsset],
+    [assets, s, clickAsset, toggle],
   );
   const renderPack = useCallback(
     (i: number, width: number) => {
@@ -205,15 +316,22 @@ export function BrowsePage() {
           width={width}
           selected={!!p && s.selection.has(p.id)}
           onClick={(e, x) => {
-            clickPack(e, x.id, i);
             setCursor(i);
             s.focus({ kind: 'pack', id: x.id });
+            if (e.shiftKey || e.metaKey || e.ctrlKey) clickPack(e, x.id, i);
+            else if (s.selection.size > 0) toggle(x.id, i);
+            else go({ to: 'pack', id: x.id });
           }}
           onOpen={(x) => go({ to: 'pack', id: x.id })}
+          onHold={(x) => {
+            setCursor(i);
+            if (!s.selection.has(x.id)) s.select([...s.selection, x.id], i);
+          }}
+          onMenu={(anchor, x) => setMenu({ anchor, kind: 'pack', pack: x, index: i })}
         />
       );
     },
-    [packs, s, clickPack, go],
+    [packs, s, clickPack, toggle, go],
   );
 
   // Results changed: the cursor and any open preview point at other things now.
@@ -323,7 +441,20 @@ export function BrowsePage() {
         </div>
       </div>
       </div>
-      {s.mode === 'assets' && s.selection.size > 0 && viewing === null && <SelectionBar />}
+      {menu && (
+        <TileActions
+          menu={menu}
+          onClose={() => setMenu(null)}
+          onOpen={() => {
+            if (menu.kind === 'pack') go({ to: 'pack', id: menu.pack.id });
+            else {
+              setCursor(menu.index);
+              setViewing(menu.index);
+            }
+          }}
+        />
+      )}
+      {s.selection.size > 0 && viewing === null && <SelectionBar {...(s.mode === 'packs' ? { packs: true } : {})} />}
       {s.focused && <DetailsSheet item={s.focused} />}
       {viewed && viewing !== null && (
         <Suspense fallback={null}>
