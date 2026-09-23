@@ -48,8 +48,9 @@ function Code({ text }: { text: string }) {
 export function AgentsPage() {
   const status = useMcp();
   const go = useNav((s) => s.go);
-  const skill = useQuery({ queryKey: ['mcp-skill'], queryFn: () => call('mcp:skill'), staleTime: 0 }).data ?? '';
   const url = status?.url ?? 'http://127.0.0.1:7458/mcp';
+  // The skill carries the address, so it is read again when the port changes.
+  const skill = useQuery({ queryKey: ['mcp-skill', url], queryFn: () => call('mcp:skill'), staleTime: 0 }).data ?? '';
 
   const install = async (where: 'claude' | 'choose') => {
     try {
