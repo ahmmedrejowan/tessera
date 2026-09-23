@@ -19,6 +19,7 @@ import { DownloadsPage } from './pages/DownloadsPage';
 import { AboutPage } from './pages/AboutPage';
 import { HelpPage } from './pages/help/HelpPage';
 import { HelpTopicPage } from './pages/help/HelpTopicPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { MenuCommands } from './shell/MenuCommands';
 import { CopyConfirm } from './pages/projects/CopyConfirm';
@@ -52,6 +53,8 @@ function Current() {
       return <HelpTopicPage key={route.id} id={route.id} {...(route.question ? { question: route.question } : {})} />;
     case 'about':
       return <AboutPage />;
+    case 'notifications':
+      return <NotificationsPage />;
     case 'collections':
       return <CollectionsPage />;
     case 'collection':

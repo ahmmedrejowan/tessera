@@ -20,12 +20,38 @@ export interface Notice {
   /** How many times the same message arrived while it was showing. */
   count: number;
   at: number;
+  /** Opened, or marked as read: it belongs in the archive. */
+  read?: boolean;
 }
 
 export type NoticeInput = Omit<Notice, 'id' | 'count' | 'at'>;
 
 const MAX_VISIBLE = 3;
-const MAX_HISTORY = 50;
+const MAX_HISTORY = 200;
+/** Where the messages are kept between runs; actions are left out, as they cannot be written down. */
+const KEPT = 'tessera.notices';
+
+const startOfToday = () => new Date(new Date().toDateString()).getTime();
+
+/** A message belongs in the archive once it has been read, or once the day it arrived is over. */
+export const isArchived = (n: Notice): boolean => !!n.read || n.at < startOfToday();
+
+function load(): Notice[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEPT) ?? '[]') as Notice[];
+    return Array.isArray(raw) ? raw.filter((n) => n && typeof n.title === 'string').slice(0, MAX_HISTORY) : [];
+  } catch {
+    return [];
+  }
+}
+
+function keep(history: Notice[]): void {
+  try {
+    localStorage.setItem(KEPT, JSON.stringify(history.map(({ action: _action, ...rest }) => rest).slice(0, MAX_HISTORY)));
+  } catch {
+    // A full or blocked store is not worth a message of its own.
+  }
+}
 
 interface NoticeState {
   visible: Notice[];
@@ -37,16 +63,23 @@ interface NoticeState {
   push(input: NoticeInput, show?: boolean): number;
   dismiss(id: number): void;
   markSeen(): void;
+  /** One message has been opened, or ticked off: it moves to the archive. */
+  markRead(id: number): void;
+  /** Everything showing now moves to the archive. */
+  markAllRead(): void;
   clearHistory(): void;
+  /** Forget what is already archived, keeping what is still recent. */
+  clearArchive(): void;
   setLift(px: number): void;
 }
 
-let nextId = 1;
+const kept = load();
+let nextId = Math.max(0, ...kept.map((n) => n.id)) + 1;
 const same = (a: NoticeInput, b: NoticeInput) => a.level === b.level && a.title === b.title && a.body === b.body;
 
 export const useNotices = create<NoticeState>((set) => ({
   visible: [],
-  history: [],
+  history: kept,
   unseen: 0,
   lift: 0,
   push(input, show = true) {
@@ -61,9 +94,11 @@ export const useNotices = create<NoticeState>((set) => ({
         return { visible: s.visible.map((n) => (n.id === dupe.id ? bumped : n)), history: s.history.map((n) => (n.id === dupe.id ? bumped : n)) };
       }
       const notice: Notice = { ...input, id, count: 1, at: now };
+      const history = [notice, ...s.history].slice(0, MAX_HISTORY);
+      keep(history);
       return {
         visible: show ? [...s.visible, notice].slice(-MAX_VISIBLE) : s.visible,
-        history: [notice, ...s.history].slice(0, MAX_HISTORY),
+        history,
         unseen: s.unseen + 1,
       };
     });
@@ -71,7 +106,31 @@ export const useNotices = create<NoticeState>((set) => ({
   },
   dismiss: (id) => set((s) => ({ visible: s.visible.filter((n) => n.id !== id) })),
   markSeen: () => set({ unseen: 0 }),
-  clearHistory: () => set({ history: [], unseen: 0 }),
+  markRead(id) {
+    set((s) => {
+      const history = s.history.map((n) => (n.id === id ? { ...n, read: true } : n));
+      keep(history);
+      return { history };
+    });
+  },
+  markAllRead() {
+    set((s) => {
+      const history = s.history.map((n) => ({ ...n, read: true }));
+      keep(history);
+      return { history, unseen: 0 };
+    });
+  },
+  clearHistory: () => {
+    keep([]);
+    set({ history: [], unseen: 0 });
+  },
+  clearArchive() {
+    set((s) => {
+      const history = s.history.filter((n) => !isArchived(n));
+      keep(history);
+      return { history };
+    });
+  },
   setLift: (lift) => set({ lift }),
 }));
 

@@ -1,6 +1,7 @@
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
 import ErrorOutlineOutlined from '@mui/icons-material/ErrorOutlineOutlined';
 import NotificationsNoneOutlined from '@mui/icons-material/NotificationsNoneOutlined';
+import OpenInFullRounded from '@mui/icons-material/OpenInFullRounded';
 import Badge from '@mui/material/Badge';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
@@ -12,6 +13,7 @@ import { useState } from 'react';
 import { LEVELS, showDetails } from '../notices/NoticeHost';
 import { useNotices, type Notice } from '../notices/store';
 import { useJobs } from '../state/library';
+import { useNav } from '../state/nav';
 import { md, SHAPE } from '../theme';
 
 const ago = (at: number) => {
@@ -21,12 +23,16 @@ const ago = (at: number) => {
   return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-function HistoryItem({ n }: { n: Notice }) {
+function HistoryItem({ n, onOpen }: { n: Notice; onOpen: () => void }) {
   const { icon: Icon } = LEVELS[n.level];
   const color = n.level === 'error' ? md('error') : n.level === 'warning' ? md('tertiary') : md('primary');
   return (
     <ButtonBase
-      onClick={() => (n.details || n.body ? showDetails(n) : undefined)}
+      onClick={() => {
+        useNotices.getState().markRead(n.id);
+        onOpen();
+        if (n.details || n.body) showDetails(n);
+      }}
       sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, p: 1, mx: -1, borderRadius: `${SHAPE.sm}px`, textAlign: 'left', justifyContent: 'flex-start', '&:hover': { backgroundColor: md('surfaceContainerHigh') } }}
     >
       <Icon sx={{ fontSize: 18, color, mt: '2px' }} />
@@ -126,15 +132,25 @@ export function Activity() {
                 <Typography variant="titleSmall" sx={{ color: md('onSurface') }}>
                   Messages
                 </Typography>
-                <Button size="small" onClick={() => useNotices.getState().clearHistory()}>
-                  Clear
+                <Button size="small" onClick={() => useNotices.getState().markAllRead()}>
+                  Mark all as read
                 </Button>
               </div>
-              {history.map((n) => (
-                <HistoryItem key={n.id} n={n} />
+              {history.slice(0, 6).map((n) => (
+                <HistoryItem key={n.id} n={n} onOpen={() => setAnchor(null)} />
               ))}
             </div>
           )}
+          <Button
+            fullWidth
+            startIcon={<OpenInFullRounded />}
+            onClick={() => {
+              setAnchor(null);
+              useNav.getState().go({ to: 'notifications' });
+            }}
+          >
+            View all notifications
+          </Button>
         </div>
       </Popover>
     </>
