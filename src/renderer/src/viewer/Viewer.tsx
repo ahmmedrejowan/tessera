@@ -15,7 +15,7 @@ import Select from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { assetPath, TYPE_LABELS } from '@shared/assets';
 import { licenceForPath } from '@shared/pack';
 import type { AssetRow } from '@shared/query';
@@ -268,11 +268,15 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
     );
 
   return (
-    <div role="dialog" aria-label={`Preview of ${asset.name}`} style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', flexDirection: 'column', background: md('surfaceContainerLowest'), animation: 'viewer-in 140ms ease-out' }}>
+    <div
+      role="dialog"
+      aria-label={`Preview of ${asset.name}`}
+      style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', flexDirection: 'column', background: md('surfaceContainerLowest'), animation: 'viewer-in 140ms ease-out', WebkitAppRegion: 'no-drag' } as CSSProperties}
+    >
       <style>{'@keyframes viewer-in { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }'}</style>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: `${window.tessera.platform === 'darwin' ? 36 : 10}px 16px 8px`, borderBottom: `1px solid ${md('outlineVariant')}` }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: `${window.tessera.platform === 'darwin' ? 46 : 12}px 16px 8px`, borderBottom: `1px solid ${md('outlineVariant')}` }}>
         <Tooltip title="Close (Esc)">
-          <IconButton onClick={onClose} aria-label="Close">
+          <IconButton onClick={onClose} aria-label="Close" size="large" sx={{ width: 48, height: 48 }}>
             <Close />
           </IconButton>
         </Tooltip>
