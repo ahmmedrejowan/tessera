@@ -2,9 +2,10 @@ import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
 import UnarchiveOutlined from '@mui/icons-material/UnarchiveOutlined';
 import Button from '@mui/material/Button';
 import { useCallback, useState } from 'react';
-import type { PackRow } from '@shared/query';
+import type { PackRow, PackSort } from '@shared/query';
 import { call } from '../api';
 import { EmptyState } from '../components/EmptyState';
+import { SortButton } from '../components/SortButton';
 import { VirtualGrid } from '../components/VirtualGrid';
 import { useBrowse } from '../state/browse';
 import { useIndexVersion, useLibraryId } from '../state/library';
@@ -27,7 +28,8 @@ export function ArchivePage() {
   const [menu, setMenu] = useState<{ anchor: HTMLElement; pack: PackRow } | null>(null);
 
   const query = { scope: 'library' as const, text: '', filters: {}, archived: 'only' as const };
-  const packs = usePagedRows<PackRow>(['archived', lib, version], (offset, limit) => call('browse:packs', query, 'name', offset, limit), !!lib);
+  const [sort, setSort] = useState<PackSort>('name');
+  const packs = usePagedRows<PackRow>(['archived', lib, version, sort], (offset, limit) => call('browse:packs', query, sort, offset, limit), !!lib);
 
   const render = useCallback(
     (i: number, width: number) => {
@@ -51,6 +53,19 @@ export function ArchivePage() {
       title="Archive"
       subtitle="Packs kept in full, out of the way of browsing"
       flush
+      aside={
+        <SortButton
+          value={sort}
+          options={[
+            { value: 'name' as const, label: 'Name' },
+            { value: 'added' as const, label: 'Recently added' },
+            { value: 'count' as const, label: 'Most assets' },
+            { value: 'size' as const, label: 'Largest' },
+          ]}
+          onChange={setSort}
+          width={186}
+        />
+      }
       actions={
         packs.total > 0 ? (
           <Button

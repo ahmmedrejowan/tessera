@@ -8,12 +8,22 @@ import { useState } from 'react';
 import { FAVOURITES, type CollectionSummary } from '@shared/collection';
 import { AssetThumb } from '../../components/AssetThumb';
 import { formatCount } from '../../components/labels';
+import { SortButton } from '../../components/SortButton';
 import { EmptyState } from '../../components/EmptyState';
 import { newCollection, useCollections } from '../../state/collections';
 import { useNav } from '../../state/nav';
 import { md, SHAPE } from '../../theme';
 import { Page } from '../Placeholder';
 import { CollectionDialog, type CollectionDraft } from './CollectionDialog';
+
+type CollectionSort = 'name' | 'updated' | 'size';
+
+/** How the collections are ordered; Favourites is always first, whatever is chosen. */
+const by: Record<CollectionSort, (a: CollectionSummary, b: CollectionSummary) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  updated: (a, b) => b.updatedAt.localeCompare(a.updatedAt),
+  size: (a, b) => b.assets - a.assets,
+};
 
 function CollectionCard({ c }: { c: CollectionSummary }) {
   const go = useNav((s) => s.go);
@@ -54,6 +64,7 @@ export function CollectionsPage() {
   const collections = useCollections().data;
   const go = useNav((s) => s.go);
   const [naming, setNaming] = useState(false);
+  const [sort, setSort] = useState<CollectionSort>('name');
   const create = async (draft: CollectionDraft) => {
     setNaming(false);
     const id = await newCollection(draft.name, { description: draft.description, rules: draft.rules, projectId: draft.projectId });
@@ -64,6 +75,18 @@ export function CollectionsPage() {
       flush
       title="Collections"
       subtitle="Assets gathered for one game, or one job"
+      aside={
+        <SortButton
+          value={sort}
+          options={[
+            { value: 'name' as const, label: 'Name' },
+            { value: 'updated' as const, label: 'Recently changed' },
+            { value: 'size' as const, label: 'Most assets' },
+          ]}
+          onChange={setSort}
+          width={186}
+        />
+      }
       actions={
         <Button variant="contained" startIcon={<AddOutlined />} onClick={() => setNaming(true)}>
           New collection
@@ -84,9 +107,8 @@ export function CollectionsPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, padding: '8px 32px 32px' }}>
           {/* What you starred comes first, then the rest as they are named. */}
-          {collections
-            ?.slice()
-            .sort((a, b) => (a.id === FAVOURITES ? -1 : b.id === FAVOURITES ? 1 : 0))
+          {[...(collections ?? [])]
+            .sort((a, b) => (a.id === FAVOURITES ? -1 : b.id === FAVOURITES ? 1 : by[sort](a, b)))
             .map((c) => <CollectionCard key={c.id} c={c} />)}
         </div>
       )}

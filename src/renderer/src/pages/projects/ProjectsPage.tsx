@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { ENGINE_LABELS, type ProjectProbe, type ProjectSummary } from '@shared/project';
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
+import { SortButton } from '../../components/SortButton';
 import { failed, notify } from '../../notices/store';
 import { useLibraryId } from '../../state/library';
 import { useNav } from '../../state/nav';
@@ -88,18 +89,39 @@ function ProjectCard({ p, active }: { p: ProjectSummary; active: boolean }) {
 }
 
 /** The game projects assets are copied into. */
+type ProjectSort = 'name' | 'used' | 'assets';
+
+const byProject: Record<ProjectSort, (a: ProjectSummary, b: ProjectSummary) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  used: (a, b) => (b.lastCopy ?? '').localeCompare(a.lastCopy ?? ''),
+  assets: (a, b) => b.assets - a.assets,
+};
+
 export function ProjectsPage() {
   const projects = useProjects().data;
   const active = useActiveProject();
   const link = useLinkProject();
+  const [sort, setSort] = useState<ProjectSort>('name');
   return (
     <Page
       flush
       title="Projects"
       subtitle="Games this library links assets into: linking copies the files, with their licences, into the game's own folder"
+      aside={
+        <SortButton
+          value={sort}
+          options={[
+            { value: 'name' as const, label: 'Name' },
+            { value: 'used' as const, label: 'Recently linked to' },
+            { value: 'assets' as const, label: 'Most assets' },
+          ]}
+          onChange={setSort}
+          width={198}
+        />
+      }
       actions={
         <Button variant="contained" startIcon={<AddLinkOutlined />} onClick={() => void link.start()}>
-          Link a project
+          Add a game
         </Button>
       }
     >
@@ -116,7 +138,7 @@ export function ProjectsPage() {
         />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 12, padding: '8px 32px 32px' }}>
-          {projects?.map((p) => <ProjectCard key={p.id} p={p} active={active?.id === p.id} />)}
+          {[...(projects ?? [])].sort(byProject[sort]).map((p) => <ProjectCard key={p.id} p={p} active={active?.id === p.id} />)}
         </div>
       )}
       {link.dialog}

@@ -8,10 +8,12 @@ import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import type { BinEntry } from '@shared/types';
 import { call } from '../api';
 import { EmptyState } from '../components/EmptyState';
 import { formatBytes } from '../components/labels';
+import { SortButton } from '../components/SortButton';
 import { ask } from '../notices/dialogs';
 import { failed, notify } from '../notices/store';
 import { useIndexVersion, useLibraryId } from '../state/library';
@@ -98,7 +100,10 @@ export function BinPage() {
   const settings = useSettings().data;
   const update = useUpdateSettings();
   const bin = useQuery({ queryKey: ['bin', lib, version], queryFn: () => call('bin:list'), enabled: !!lib });
-  const entries = bin.data ?? [];
+  const [sort, setSort] = useState<'when' | 'name' | 'size'>('when');
+  const entries = [...(bin.data ?? [])].sort((a, b) =>
+    sort === 'name' ? a.shown.localeCompare(b.shown) : sort === 'size' ? b.size - a.size : b.deletedAt.localeCompare(a.deletedAt),
+  );
   const reload = () => void client.invalidateQueries({ queryKey: ['bin'] });
 
   const empty = async () => {
@@ -126,6 +131,17 @@ export function BinPage() {
       title="Bin"
       subtitle={entries.length ? `${entries.length} thing${entries.length === 1 ? '' : 's'} waiting · ${formatBytes(entries.reduce((n, e) => n + e.size, 0))}` : 'What you deleted from this library'}
       aside={
+        <>
+        <SortButton
+          value={sort}
+          options={[
+            { value: 'when' as const, label: 'Newest first' },
+            { value: 'name' as const, label: 'Name' },
+            { value: 'size' as const, label: 'Largest' },
+          ]}
+          onChange={setSort}
+          width={160}
+        />
         <Select size="small" value={settings?.binKeepDays ?? 30} onChange={(e) => update.mutate({ binKeepDays: Number(e.target.value) })} sx={{ minWidth: 190 }}>
           {KEEP.map((k) => (
             <MenuItem key={k.value} value={k.value}>
@@ -133,6 +149,7 @@ export function BinPage() {
             </MenuItem>
           ))}
         </Select>
+        </>
       }
       actions={
         <Button color="error" startIcon={<DeleteForeverOutlined />} disabled={!entries.length} onClick={() => void empty()}>

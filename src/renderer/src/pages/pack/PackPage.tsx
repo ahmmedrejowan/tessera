@@ -47,6 +47,7 @@ import { CollectionMenu } from '../collections/CollectionMenu';
 import { ProjectMenu } from '../projects/ProjectMenu';
 import { useActiveProject } from '../../state/projects';
 import { CollectionIcon, LinkToGameIcon } from '../../components/icons';
+import { SortButton } from '../../components/SortButton';
 import { Cover } from '../browse/PackCard';
 import { starPack, StarButton } from '../browse/StarButton';
 import { archivePack } from '../browse/archiving';
@@ -61,6 +62,8 @@ import { PackEditor } from './PackEditor';
 const Viewer = lazy(() => import('../../viewer/Viewer').then((m) => ({ default: m.Viewer })));
 
 type TabId = 'assets' | 'files' | 'licence' | 'about';
+/** How the files inside one pack are ordered. */
+type PackSort = 'name' | 'folder' | 'type' | 'size' | 'format';
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -116,6 +119,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   const [editing, setEditing] = useState(edit);
   const [type, setType] = useState<AssetType | null>(null);
   const [find, setFind] = useState('');
+  const [sort, setSort] = useState<PackSort>('folder');
   const [viewing, setViewing] = useState<{ list: AssetRow[]; index: number } | null>(null);
 
   const pack = useQuery({ queryKey: ['pack', lib, version, id], queryFn: () => call('pack:get', id), enabled: !!lib, placeholderData: (p) => p }).data;
@@ -124,8 +128,17 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
 
   const assets = useMemo(() => {
     const needle = find.trim().toLowerCase();
-    return files.filter((f) => f.role === 'main' && (!type || f.type === type) && (!needle || f.name.toLowerCase().includes(needle) || f.dir.toLowerCase().includes(needle)));
-  }, [files, type, find]);
+    const found = files.filter((f) => f.role === 'main' && (!type || f.type === type) && (!needle || f.name.toLowerCase().includes(needle) || f.dir.toLowerCase().includes(needle)));
+    const by: Record<PackSort, (a: AssetRow, b: AssetRow) => number> = {
+      name: (a, b) => a.name.localeCompare(b.name),
+      folder: (a, b) => a.dir.localeCompare(b.dir) || a.name.localeCompare(b.name),
+      type: (a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name),
+      size: (a, b) => b.size - a.size,
+      format: (a, b) => a.ext.localeCompare(b.ext) || a.name.localeCompare(b.name),
+    };
+    // Starred first, as everywhere else in the app.
+    return [...found].sort((a, b) => Number(b.fav) - Number(a.fav) || by[sort](a, b));
+  }, [files, type, find, sort]);
   const types = useMemo(() => {
     const m = new Map<AssetType, number>();
     for (const f of files) if (f.role === 'main') m.set(f.type, (m.get(f.type) ?? 0) + 1);
@@ -282,6 +295,19 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
                     sx={type === t ? { backgroundColor: md('secondaryContainer'), color: md('onSecondaryContainer') } : {}}
                   />
                 ))}
+              <span style={{ flex: 1 }} />
+              <SortButton
+                value={sort}
+                options={[
+                  { value: 'name' as const, label: 'Name' },
+                  { value: 'folder' as const, label: 'Folder' },
+                  { value: 'type' as const, label: 'Type' },
+                  { value: 'size' as const, label: 'Largest' },
+                  { value: 'format' as const, label: 'Format' },
+                ]}
+                onChange={setSort}
+                width={150}
+              />
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               {assets.length ? (
