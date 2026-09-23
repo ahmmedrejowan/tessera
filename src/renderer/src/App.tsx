@@ -25,6 +25,8 @@ import { MenuCommands } from './shell/MenuCommands';
 import { CopyConfirm } from './pages/projects/CopyConfirm';
 import { ProjectPage } from './pages/projects/ProjectPage';
 import { ProjectsPage } from './pages/projects/ProjectsPage';
+import { ArchivePage } from './pages/ArchivePage';
+import { BinPage } from './pages/BinPage';
 import { PackPage } from './pages/pack/PackPage';
 import { Welcome } from './pages/Welcome';
 import { AppShell } from './shell/AppShell';
@@ -47,6 +49,10 @@ function Current() {
       return <InboxPage />;
     case 'downloads':
       return <DownloadsPage />;
+    case 'archive':
+      return <ArchivePage />;
+    case 'bin':
+      return <BinPage />;
     case 'help':
       return <HelpPage />;
     case 'helpTopic':

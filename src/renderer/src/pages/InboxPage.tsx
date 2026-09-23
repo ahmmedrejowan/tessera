@@ -1,6 +1,7 @@
 import AddOutlined from '@mui/icons-material/AddOutlined';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
+import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import HelpOutlineRounded from '@mui/icons-material/HelpOutlineRounded';
 import LinkRounded from '@mui/icons-material/LinkRounded';
 import OpenInFullRounded from '@mui/icons-material/OpenInFullRounded';
@@ -25,6 +26,7 @@ import type { PackRow } from '@shared/query';
 import { sourceFromUrl } from '@shared/sources';
 import { call } from '../api';
 import { EmptyState } from '../components/EmptyState';
+import { removePacks } from './browse/deleting';
 import { typeSummary } from '../components/labels';
 import { failed, notify } from '../notices/store';
 import { I_DONT_KNOW, I_MADE_IT, useAdding } from '../state/adding';
@@ -247,6 +249,16 @@ function FillMany({ ids, onDone }: { ids: string[]; onDone: () => void }) {
       </Button>
       <Button startIcon={<HelpOutlineRounded />} disabled={busy} onClick={() => void run({ name: I_DONT_KNOW, url: '' })} sx={{ color: md('inversePrimary') }}>
         I don’t know
+      </Button>
+      <Button
+        startIcon={<DeleteOutlineRounded />}
+        disabled={busy}
+        onClick={async () => {
+          if (await removePacks(ids)) onDone();
+        }}
+        sx={{ color: md('inversePrimary') }}
+      >
+        Delete
       </Button>
       <Button disabled={busy} onClick={onDone} sx={{ color: md('inverseOnSurface') }}>
         Clear

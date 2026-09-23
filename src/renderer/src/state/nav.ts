@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 /** The top-level destinations on the navigation rail. */
-export type Destination = 'home' | 'browse' | 'collections' | 'projects' | 'inbox' | 'downloads' | 'help' | 'about' | 'notifications' | 'settings';
+export type Destination = 'home' | 'browse' | 'collections' | 'projects' | 'inbox' | 'downloads' | 'archive' | 'bin' | 'help' | 'about' | 'notifications' | 'settings';
 
 export type Route =
   | { to: Destination }

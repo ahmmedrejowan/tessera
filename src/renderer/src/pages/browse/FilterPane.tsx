@@ -1,6 +1,4 @@
-import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
 import ExpandLess from '@mui/icons-material/ExpandLess';
-import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
 import FilterListOutlined from '@mui/icons-material/FilterListOutlined';
 import KeyboardDoubleArrowLeftRounded from '@mui/icons-material/KeyboardDoubleArrowLeftRounded';
 import ExpandMore from '@mui/icons-material/ExpandMore';
@@ -13,7 +11,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Checkbox from '@mui/material/Checkbox';
 import InputBase from '@mui/material/InputBase';
 import Typography from '@mui/material/Typography';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import type { AssetType } from '@shared/assets';
 import { FACET_LABELS, FACETS, type Facet, type FacetCounts } from '@shared/query';
 import { facetLabel, formatCount, TYPE_ICONS } from '../../components/labels';
@@ -146,40 +144,6 @@ export function FilterRail() {
   );
 }
 
-/** The library, or what was put away. Two rows, like a facet, because that is what it is. */
-function Where() {
-  const archived = useBrowse((s) => s.archived);
-  const setArchived = useBrowse((s) => s.setArchived);
-  const row = (on: boolean, label: string, icon: ReactNode) => (
-    <ButtonBase
-      onClick={() => setArchived(on)}
-      aria-pressed={archived === on}
-      sx={{
-        width: '100%',
-        justifyContent: 'flex-start',
-        gap: 1,
-        px: 1,
-        py: 0.75,
-        borderRadius: `${SHAPE.sm}px`,
-        color: archived === on ? md('onSecondaryContainer') : md('onSurfaceVariant'),
-        backgroundColor: archived === on ? md('secondaryContainer') : 'transparent',
-        '&:hover': { backgroundColor: archived === on ? md('secondaryContainer') : md('surfaceContainerHigh') },
-      }}
-    >
-      {icon}
-      <Typography variant="bodyMedium" noWrap>
-        {label}
-      </Typography>
-    </ButtonBase>
-  );
-  return (
-    <section style={{ padding: '10px 0 12px', borderTop: `1px solid ${md('outlineVariant')}`, display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {row(false, 'The library', <Inventory2Outlined sx={{ fontSize: 18 }} />)}
-      {row(true, 'Put away', <ArchiveOutlined sx={{ fontSize: 18 }} />)}
-    </section>
-  );
-}
-
 export function FilterPane({ facets }: { facets: FacetCounts | undefined }) {
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   const filters = useBrowse((s) => s.filters);
@@ -220,8 +184,6 @@ export function FilterPane({ facets }: { facets: FacetCounts | undefined }) {
           </IconButton>
         </Tooltip>
       </div>
-      {/* What the grid is showing at all: the library, or the packs put away. */}
-      <Where />
       {facets &&
         FACETS.filter((f) => facets[f].length > 0 || (filters[f]?.length ?? 0) > 0).map((f) => (
           <FacetSection key={f} facet={f} values={facets[f]} collapsed={collapsed.has(f)} onToggle={() => toggle(f)} />

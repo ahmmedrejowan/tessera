@@ -1,3 +1,4 @@
+import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
 import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
 import Close from '@mui/icons-material/Close';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
@@ -13,6 +14,7 @@ import { useBrowse } from '../../state/browse';
 import { CopyButton } from '../projects/CopyButton';
 import { md, mdAlpha, SHAPE } from '../../theme';
 import { CollectionMenu } from '../collections/CollectionMenu';
+import { archivePack } from './archiving';
 import { removeAssets, removePacks } from './deleting';
 
 /** What the picked things come to, read again whenever the pile changes. */
@@ -57,6 +59,13 @@ export function SelectionBar({ packs, total, all }: { packs?: boolean; total?: n
     return out;
   };
 
+  /** Put the picked packs away: kept in full, out of the way of browsing. */
+  const putAway = async () => {
+    const ids = [...selection].map(String);
+    for (const id of ids) await archivePack(id, true);
+    select([], null);
+  };
+
   /** Delete what is picked: whole packs, or the files themselves. */
   const remove = async () => {
     const ok = packs ? await removePacks([...selection].map(String)) : await removeAssets(refs, selection.size);
@@ -93,6 +102,11 @@ export function SelectionBar({ packs, total, all }: { packs?: boolean; total?: n
         {packs ? 'Collect their assets' : 'Add to collection'}
       </Button>
       <CopyButton items={refs} variant="text" size="medium" color={md('inversePrimary')} />
+      {packs && (
+        <Button startIcon={<ArchiveOutlined />} onClick={() => void putAway()} sx={action}>
+          Put away
+        </Button>
+      )}
       <Button startIcon={<DeleteOutlineRounded />} onClick={() => void remove()} sx={action}>
         Delete
       </Button>

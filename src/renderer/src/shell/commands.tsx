@@ -5,6 +5,8 @@ import BrightnessMediumOutlined from '@mui/icons-material/BrightnessMediumOutlin
 import CollectionsBookmarkOutlined from '@mui/icons-material/CollectionsBookmarkOutlined';
 import GridViewOutlined from '@mui/icons-material/GridViewOutlined';
 import HomeOutlined from '@mui/icons-material/HomeOutlined';
+import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
+import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import HelpOutlineRounded from '@mui/icons-material/HelpOutlineRounded';
 import InfoOutlined from '@mui/icons-material/InfoOutlined';
@@ -72,6 +74,8 @@ export function useCommands(q: string, active: boolean, done: () => void): { com
       { id: 'projects', group: 'Go to', label: 'Projects', icon: SportsEsportsOutlined, run: then(() => go({ to: 'projects' })) },
       { id: 'inbox', group: 'Go to', label: 'Review', icon: RateReviewOutlined, run: then(() => go({ to: 'inbox' })) },
       { id: 'downloads', group: 'Go to', label: 'Downloads', icon: DownloadOutlined, run: then(() => go({ to: 'downloads' })) },
+      { id: 'archive', group: 'Go to', label: 'Put away', icon: ArchiveOutlined, run: then(() => go({ to: 'archive' })) },
+      { id: 'bin', group: 'Go to', label: 'Bin', icon: DeleteOutlineRounded, run: then(() => go({ to: 'bin' })) },
       { id: 'help', group: 'Go to', label: 'Help', icon: HelpOutlineRounded, run: then(() => go({ to: 'help' })) },
       { id: 'about', group: 'Go to', label: 'About Tessera', icon: InfoOutlined, run: then(() => go({ to: 'about' })) },
       { id: 'settings', group: 'Go to', label: 'Settings', icon: SettingsOutlined, run: then(() => go({ to: 'settings' })) },

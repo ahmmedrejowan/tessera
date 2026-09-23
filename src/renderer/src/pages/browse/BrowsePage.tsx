@@ -1,4 +1,3 @@
-import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import StarOutlineRounded from '@mui/icons-material/StarOutlineRounded';
 import GridViewOutlined from '@mui/icons-material/GridViewOutlined';
@@ -84,21 +83,6 @@ function BrowseEmpty() {
   const filters = activeFilterCount(s.filters);
   const what = s.mode === 'assets' ? 'assets' : 'packs';
 
-  if (s.archived) {
-    return (
-      <EmptyState
-        icon={ArchiveOutlined}
-        title="Nothing is put away"
-        body="A pack you put away is kept in full, out of the way of browsing. Its card's menu has the way to put one away, and to bring it back."
-        actions={
-          <Button variant="contained" onClick={() => s.setArchived(false)}>
-            Back to the library
-          </Button>
-        }
-      />
-    );
-  }
-
   if (s.favourites) {
     return (
       <EmptyState
@@ -178,10 +162,7 @@ export function BrowsePage() {
   const s = useBrowse();
   const go = useNav((n) => n.go);
   const text = useDebounced(s.text, 150);
-  const query = useMemo(
-    () => browseQuery({ text, filters: s.filters, includeSupport: s.includeSupport, favourites: s.favourites, archived: s.archived }),
-    [text, s.filters, s.includeSupport, s.favourites, s.archived],
-  );
+  const query = useMemo(() => browseQuery({ text, filters: s.filters, includeSupport: s.includeSupport, favourites: s.favourites }), [text, s.filters, s.includeSupport, s.favourites]);
   // "Best match" without search words means browsing: assets grouped by pack, then folder.
   const assetSort = !text && s.assetSort === 'relevance' ? 'pack' : s.assetSort;
 

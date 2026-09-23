@@ -1,4 +1,8 @@
 import Add from '@mui/icons-material/Add';
+import Archive from '@mui/icons-material/Archive';
+import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
+import Delete from '@mui/icons-material/Delete';
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import CollectionsBookmark from '@mui/icons-material/CollectionsBookmark';
 import CollectionsBookmarkOutlined from '@mui/icons-material/CollectionsBookmarkOutlined';
 import Download from '@mui/icons-material/Download';
@@ -37,6 +41,8 @@ const MAIN: Item[] = [
   { to: 'projects', label: 'Projects', icon: SportsEsportsOutlined, activeIcon: SportsEsports },
   { to: 'inbox', label: 'Review', icon: RateReviewOutlined, activeIcon: RateReview },
   { to: 'downloads', label: 'Downloads', icon: DownloadOutlined, activeIcon: Download },
+  { to: 'archive', label: 'Put away', icon: ArchiveOutlined, activeIcon: Archive },
+  { to: 'bin', label: 'Bin', icon: DeleteOutlined, activeIcon: Delete },
 ];
 const BOTTOM: Item[] = [
   { to: 'about', label: 'About', icon: InfoOutlined, activeIcon: Info },
