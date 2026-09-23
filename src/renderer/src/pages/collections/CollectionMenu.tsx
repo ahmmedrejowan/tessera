@@ -1,5 +1,4 @@
 import AddOutlined from '@mui/icons-material/AddOutlined';
-import CollectionsBookmarkOutlined from '@mui/icons-material/CollectionsBookmarkOutlined';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -14,6 +13,7 @@ import TextField from '@mui/material/TextField';
 import { useState } from 'react';
 import type { CollectionItem, SmartQuery } from '@shared/collection';
 import { addToCollection, newCollection, useCollections } from '../../state/collections';
+import { CollectionIcon } from '../../components/icons';
 import { useNewCollection } from './CollectionDialog';
 
 /** A dialog asking for a collection's name. */
@@ -81,7 +81,7 @@ export function CollectionMenu({
             }}
           >
             <ListItemIcon>
-              <CollectionsBookmarkOutlined />
+              <CollectionIcon />
             </ListItemIcon>
             <ListItemText primary={c.name} secondary={[c.packCount ? `${c.packCount} pack${c.packCount === 1 ? '' : 's'}` : '', `${c.assets} asset${c.assets === 1 ? '' : 's'}`].filter(Boolean).join(' · ')} />
           </MenuItem>

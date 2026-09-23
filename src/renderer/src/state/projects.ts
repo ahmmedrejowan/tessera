@@ -15,7 +15,7 @@ export function useProjects() {
   return useQuery({ queryKey: ['projects', lib], queryFn: () => call('projects:list'), enabled: !!lib, placeholderData: (p) => p });
 }
 
-/** The project "Copy to project" sends to, if it still exists. */
+/** The game that linking sends assets to, if it still exists. */
 export function useActiveProject() {
   const id = useSettings().data?.activeProjectId ?? null;
   const projects = useProjects().data;
@@ -44,7 +44,7 @@ export const useCopy = create<CopyState>((set, get) => ({
 async function doCopy(projectId: string, projectName: string, items: Items): Promise<void> {
   try {
     const n = await call('projects:copy', projectId, items);
-    notify.success(`Copied ${n} asset${n === 1 ? '' : 's'} to ${projectName}.`, { action: { label: 'Open', run: () => useNav.getState().go({ to: 'project', id: projectId }) } });
+    notify.success(`Linked ${n} asset${n === 1 ? '' : 's'} to ${projectName}: the files are in its folder now.`, { action: { label: 'Open', run: () => useNav.getState().go({ to: 'project', id: projectId }) } });
   } catch (e) {
     failed(e);
   }

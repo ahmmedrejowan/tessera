@@ -96,7 +96,7 @@ export function ProjectsPage() {
     <Page
       flush
       title="Projects"
-      subtitle="Games this library copies assets into"
+      subtitle="Games this library links assets into: linking copies the files, with their licences, into the game's own folder"
       actions={
         <Button variant="contained" startIcon={<AddLinkOutlined />} onClick={() => void link.start()}>
           Link a project
@@ -107,7 +107,7 @@ export function ProjectsPage() {
         <EmptyState
           icon={SportsEsportsOutlined}
           title="No projects linked"
-          body="Link a Unity, Godot or Unreal project, or any folder, and “Copy to project” puts assets straight into it, with their textures, licences and credits."
+          body="Add a Unity, Godot or Unreal project, or any folder. Linking an asset to a game copies its files into that folder, with their textures, licences and credits."
           actions={
             <Button variant="contained" startIcon={<AddLinkOutlined />} onClick={() => void link.start()}>
               Link a project

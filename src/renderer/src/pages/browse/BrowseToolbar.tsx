@@ -2,7 +2,6 @@ import Close from '@mui/icons-material/Close';
 import FilterListOutlined from '@mui/icons-material/FilterListOutlined';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import ViewModuleOutlined from '@mui/icons-material/ViewModuleOutlined';
-import SortOutlined from '@mui/icons-material/SortOutlined';
 import StarOutlineRounded from '@mui/icons-material/StarOutlineRounded';
 import StarRounded from '@mui/icons-material/StarRounded';
 import Badge from '@mui/material/Badge';
@@ -19,6 +18,7 @@ import { useState } from 'react';
 import type { AssetSort, Facet, PackSort } from '@shared/query';
 import { facetLabel, formatCount } from '../../components/labels';
 import { SegmentedButton } from '../../components/SegmentedButton';
+import { SortButton } from '../../components/SortButton';
 import { activeFilterCount, browseQuery, TILE_MAX, TILE_MIN, useBrowse } from '../../state/browse';
 import { SaveSearchDialog } from '../collections/CollectionMenu';
 import { md } from '../../theme';
@@ -44,7 +44,6 @@ const chipsLabels = (filters: Partial<Record<Facet, string[]>>) =>
 /** The tabs, filter, sort and view options, they live in the page's title row. */
 export function BrowseControls({ total, stale }: { total: number; stale: boolean }) {
   const s = useBrowse();
-  const [sortEl, setSortEl] = useState<HTMLElement | null>(null);
   const [viewEl, setViewEl] = useState<HTMLElement | null>(null);
   const [saving, setSaving] = useState(false);
   const q = browseQuery(s);
@@ -76,26 +75,11 @@ export function BrowseControls({ total, stale }: { total: number; stale: boolean
           {s.favourites ? <StarRounded /> : <StarOutlineRounded />}
         </IconButton>
       </Tooltip>
-      <Button startIcon={<SortOutlined />} onClick={(e) => setSortEl(e.currentTarget)} sx={{ color: md('onSurfaceVariant'), px: 1.5, width: 164, justifyContent: 'flex-start' }}>
-        <Typography variant="labelLarge" noWrap>
-          {sorts.find((o) => o.value === sort)?.label}
-        </Typography>
-      </Button>
-      <Menu anchorEl={sortEl} open={!!sortEl} onClose={() => setSortEl(null)}>
-        {sorts.map((o) => (
-          <MenuItem
-            key={o.value}
-            selected={o.value === sort}
-            onClick={() => {
-              if (s.mode === 'assets') s.setAssetSort(o.value as AssetSort);
-              else s.setPackSort(o.value as PackSort);
-              setSortEl(null);
-            }}
-          >
-            {o.label}
-          </MenuItem>
-        ))}
-      </Menu>
+      <SortButton<string>
+        value={sort}
+        options={sorts}
+        onChange={(v) => (s.mode === 'assets' ? s.setAssetSort(v as AssetSort) : s.setPackSort(v as PackSort))}
+      />
       <Tooltip title="View options">
         <IconButton onClick={(e) => setViewEl(e.currentTarget)} aria-label="View options">
           <ViewModuleOutlined />

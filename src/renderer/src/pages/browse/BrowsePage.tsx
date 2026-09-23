@@ -422,6 +422,11 @@ export function BrowsePage() {
           {...(viewing > 0 ? { onPrev: () => (moveTo(viewing - 1), setViewing(viewing - 1)) } : {})}
           {...(viewing < assets.total - 1 ? { onNext: () => (moveTo(viewing + 1), setViewing(viewing + 1)) } : {})}
           onClose={() => setViewing(null)}
+          strip={{
+            items: Array.from({ length: assets.total }, (_, i) => assets.get(i)),
+            onPick: (i) => (moveTo(i), setViewing(i)),
+            onNeed: assets.setVisibleRange,
+          }}
         />
         </Suspense>
       )}

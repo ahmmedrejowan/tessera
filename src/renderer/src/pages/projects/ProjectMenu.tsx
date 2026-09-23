@@ -13,7 +13,7 @@ import { useLinkProject } from './ProjectsPage';
 type Items = { packId: string; ref: string }[];
 
 /**
- * "Copy to a project": the linked projects, the one last copied to ticked, and a way to link
+ * "Link to a game": the games you have added, the one last linked to ticked, and a way to add
  * another. `items` is asked for once a project is chosen, so a big pile is only resolved if
  * it's going somewhere.
  */
@@ -49,7 +49,7 @@ export function ProjectMenu({ anchor, onClose, items }: { anchor: HTMLElement | 
           <ListItemIcon>
             <AddLinkOutlined fontSize="small" />
           </ListItemIcon>
-          <ListItemText primary="Link a project…" />
+          <ListItemText primary="Add a game…" />
         </MenuItem>
       </Menu>
       {link.dialog}

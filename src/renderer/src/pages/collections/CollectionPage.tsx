@@ -387,6 +387,7 @@ export function CollectionPage({ id }: { id: string }) {
             {...(viewing > 0 ? { onPrev: () => setViewing(viewing - 1) } : {})}
             {...(viewing < rows.total - 1 ? { onNext: () => setViewing(viewing + 1) } : {})}
             onClose={() => setViewing(null)}
+            strip={{ items: Array.from({ length: rows.total }, (_, i) => rows.get(i)), onPick: setViewing, onNeed: rows.setVisibleRange }}
           />
         </Suspense>
       )}

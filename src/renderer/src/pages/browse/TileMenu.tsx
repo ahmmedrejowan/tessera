@@ -1,7 +1,5 @@
 import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
-import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
-import DriveFileMoveOutlined from '@mui/icons-material/DriveFileMoveOutlined';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
 import LanguageRounded from '@mui/icons-material/LanguageRounded';
 import LaunchRounded from '@mui/icons-material/LaunchRounded';
@@ -25,6 +23,7 @@ import { useIndexVersion, useLibraryId } from '../../state/library';
 import { CollectionMenu } from '../collections/CollectionMenu';
 import { ProjectMenu } from '../projects/ProjectMenu';
 import { archivePack } from './archiving';
+import { CollectionIcon, LinkToGameIcon } from '../../components/icons';
 import { removeAssets, removePacks } from './deleting';
 import { starAsset, starPack } from './StarButton';
 
@@ -103,8 +102,8 @@ export function AssetMenu({
           primary={asset.fav ? 'Take the star off' : 'Star it'}
           onClick={run(() => starAsset(asset.packId, asset.ref, !asset.fav))}
         />
-        <Item icon={<BookmarkAddOutlined fontSize="small" />} primary="Add to a collection" onClick={(e) => setCollections(e.currentTarget)} />
-        <Item icon={<DriveFileMoveOutlined fontSize="small" />} primary="Copy to a project" onClick={(e) => setProjects(e.currentTarget)} />
+        <Item icon={<CollectionIcon fontSize="small" />} primary="Add to a collection" onClick={(e) => setCollections(e.currentTarget)} />
+        <Item icon={<LinkToGameIcon fontSize="small" />} primary="Link to a game" onClick={(e) => setProjects(e.currentTarget)} />
         {extra && <Item icon={extra.icon} primary={extra.primary} onClick={run(extra.run)} />}
         {page && <Item icon={<LanguageRounded fontSize="small" />} primary="Its page on the web" secondary={hostLabel(page)} onClick={run(() => void call('app:openExternal', page).catch(failed))} />}
         <Divider />
@@ -157,8 +156,8 @@ export function PackMenu({
           primary={pack.fav ? 'Take the star off' : 'Star it'}
           onClick={run(() => starPack(pack.id, !pack.fav))}
         />
-        <Item icon={<BookmarkAddOutlined fontSize="small" />} primary="Add to a collection" onClick={(e) => setCollections(e.currentTarget)} />
-        <Item icon={<DriveFileMoveOutlined fontSize="small" />} primary="Copy its assets to a project" onClick={(e) => setProjects(e.currentTarget)} />
+        <Item icon={<CollectionIcon fontSize="small" />} primary="Add to a collection" onClick={(e) => setCollections(e.currentTarget)} />
+        <Item icon={<LinkToGameIcon fontSize="small" />} primary="Link to a game" onClick={(e) => setProjects(e.currentTarget)} />
         {extra && <Item icon={extra.icon} primary={extra.primary} onClick={run(extra.run)} />}
         {page && <Item icon={<LanguageRounded fontSize="small" />} primary="Its page on the web" secondary={hostLabel(page)} onClick={run(() => void call('app:openExternal', page).catch(failed))} />}
         <Divider />

@@ -1,6 +1,5 @@
 import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
 import StarOutlineRounded from '@mui/icons-material/StarOutlineRounded';
-import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
 import Close from '@mui/icons-material/Close';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import DoneAllRounded from '@mui/icons-material/DoneAllRounded';
@@ -17,6 +16,7 @@ import { md, mdAlpha, SHAPE } from '../../theme';
 import { CollectionMenu } from '../collections/CollectionMenu';
 import { archivePack } from './archiving';
 import { removeAssets, removePacks } from './deleting';
+import { CollectionIcon } from '../../components/icons';
 import { starAssets, starPack } from './StarButton';
 
 /** What the picked things come to, read again whenever the pile changes. */
@@ -109,7 +109,7 @@ export function SelectionBar({ packs, total, all }: { packs?: boolean; total?: n
       <Button startIcon={<StarOutlineRounded />} onClick={() => void star()} sx={action}>
         Star them
       </Button>
-      <Button startIcon={<BookmarkAddOutlined />} onClick={(e) => setAnchor(e.currentTarget)} sx={action}>
+      <Button startIcon={<CollectionIcon />} onClick={(e) => setAnchor(e.currentTarget)} sx={action}>
         Add to a collection
       </Button>
       <CopyButton items={refs} variant="text" size="medium" color={md('inversePrimary')} />

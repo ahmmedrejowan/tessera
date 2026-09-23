@@ -39,11 +39,11 @@ export function CopyButton({ items, variant = 'contained', size = 'small', color
   };
   return (
     <>
-      <ButtonGroup variant={variant} size={size} disableElevation sx={sx} aria-label="Copy to a project">
+      <ButtonGroup variant={variant} size={size} disableElevation sx={sx} aria-label="Link to a game">
         <Button startIcon={<DriveFileMoveOutlined />} sx={{ ...tone, maxWidth: 260 }} onClick={async (e) => (target ? void copyTo(target) : setAnchor(e.currentTarget.parentElement))}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{target ? `Copy to ${target.name}` : 'Copy to project…'}</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{target ? `Link to ${target.name}` : 'Link to a game…'}</span>
         </Button>
-        <Button aria-label="Choose the project" onClick={(e) => setAnchor(e.currentTarget.parentElement)} sx={{ ...tone, px: 0, minWidth: 32 }}>
+        <Button aria-label="Choose the game" onClick={(e) => setAnchor(e.currentTarget.parentElement)} sx={{ ...tone, px: 0, minWidth: 32 }}>
           <ArrowDropDown />
         </Button>
       </ButtonGroup>
@@ -51,7 +51,7 @@ export function CopyButton({ items, variant = 'contained', size = 'small', color
         {projects.map((p) => (
           <MenuItem key={p.id} disabled={!p.exists} onClick={() => void copyTo(p)}>
             <ListItemIcon>{target?.id === p.id ? <Check /> : null}</ListItemIcon>
-            <ListItemText primary={`Copy to ${p.name}`} secondary={p.exists ? ENGINE_LABELS[p.engine] : 'Can’t find its folder'} />
+            <ListItemText primary={`Link to ${p.name}`} secondary={p.exists ? ENGINE_LABELS[p.engine] : 'Can’t find its folder'} />
           </MenuItem>
         ))}
         {projects.length > 0 && <Divider />}
@@ -64,7 +64,7 @@ export function CopyButton({ items, variant = 'contained', size = 'small', color
           <ListItemIcon>
             <AddLinkOutlined />
           </ListItemIcon>
-          <ListItemText primary="Link a project…" />
+          <ListItemText primary="Add a game…" />
         </MenuItem>
         {projects.length > 0 && (
           <MenuItem
@@ -74,7 +74,7 @@ export function CopyButton({ items, variant = 'contained', size = 'small', color
             }}
           >
             <ListItemIcon />
-            <ListItemText primary="Manage projects" />
+            <ListItemText primary="All games" />
           </MenuItem>
         )}
       </Menu>

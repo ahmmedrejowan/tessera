@@ -1,12 +1,11 @@
 import ArrowBack from '@mui/icons-material/ArrowBack';
-import BookmarkOutlined from '@mui/icons-material/BookmarkBorderOutlined';
-import SportsEsportsOutlined from '@mui/icons-material/SportsEsportsOutlined';
 import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { ComponentType, ReactNode } from 'react';
 import { md, SHAPE, STATE } from '../theme';
+import { CollectionIcon, ProjectIcon } from './icons';
 import { Scrolling } from './Scrolling';
 
 /** The height of the whole header: the actions decide it, the preview matches it. */
@@ -113,8 +112,8 @@ export function ItemHeader({
         </Scrolling>
         <Scrolling>{facts}</Scrolling>
         <div style={{ minWidth: 0 }}>{licence}</div>
-        <Belongs icon={SportsEsportsOutlined} names={games.names} total={games.total} word="game" empty="In no game yet" onOpen={games.onOpen} />
-        <Belongs icon={BookmarkOutlined} names={collections.names} total={collections.total} word="collection" empty="In no collection" onOpen={collections.onOpen} />
+        <Belongs icon={ProjectIcon} names={games.names} total={games.total} word="game" empty="In no game yet" onOpen={games.onOpen} />
+        <Belongs icon={CollectionIcon} names={collections.names} total={collections.total} word="collection" empty="In no collection" onOpen={collections.onOpen} />
       </div>
 
       <div style={{ width: 190, flexShrink: 0, borderLeft: `1px solid ${md('outlineVariant')}`, paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>

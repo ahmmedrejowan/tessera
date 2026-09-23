@@ -41,13 +41,12 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
-import DriveFileMoveOutlined from '@mui/icons-material/DriveFileMoveOutlined';
 import { HEADER_SIZE, ItemHeader } from '../../components/ItemHeader';
 import { Scrolling } from '../../components/Scrolling';
 import { CollectionMenu } from '../collections/CollectionMenu';
 import { ProjectMenu } from '../projects/ProjectMenu';
 import { useActiveProject } from '../../state/projects';
+import { CollectionIcon, LinkToGameIcon } from '../../components/icons';
 import { Cover } from '../browse/PackCard';
 import { starPack, StarButton } from '../browse/StarButton';
 import { archivePack } from '../browse/archiving';
@@ -161,7 +160,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
 
   if (!pack) return null;
   const kinds = Object.entries(pack.types).sort((a, b) => b[1] - a[1]);
-  const copyLabel = active ? `Copy to ${active.name}` : 'Copy to a game';
+  const copyLabel = active ? `Link to ${active.name}` : 'Link to a game';
   // The creator and the site are often the same name; say it once.
   const where = [...new Set([pack.creator, sourceName(pack.source), pack.meta.version].filter(Boolean))].join(' · ') || 'No creator recorded';
   const missing = missingForLibrary(pack.meta);
@@ -228,8 +227,8 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
         games={{ names: usage.map((u) => u.name), total: usage.length, onOpen: () => setShowing('games') }}
         collections={{ names: holding.map((c) => c.name), total: holding.length, onOpen: () => setShowing('collections') }}
         actions={[
-          { label: copyLabel, icon: DriveFileMoveOutlined, primary: true, onClick: (anchor) => setCopying(anchor) },
-          { label: 'Add to collection', icon: BookmarkAddOutlined, onClick: (anchor) => setCollecting(anchor) },
+          { label: copyLabel, icon: LinkToGameIcon, primary: true, onClick: (anchor) => setCopying(anchor) },
+          { label: 'Add to collection', icon: CollectionIcon, onClick: (anchor) => setCollecting(anchor) },
           { label: 'Edit details', icon: EditOutlined, onClick: () => setEditing(true) },
           { label: pack.meta.archived ? 'Bring it back' : 'Archive', icon: pack.meta.archived ? UnarchiveOutlined : ArchiveOutlined, onClick: () => void archivePack(id, !pack.meta.archived) },
           {
@@ -490,6 +489,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
             {...(viewing.index > 0 ? { onPrev: () => setViewing({ ...viewing, index: viewing.index - 1 }) } : {})}
             {...(viewing.index < viewing.list.length - 1 ? { onNext: () => setViewing({ ...viewing, index: viewing.index + 1 }) } : {})}
             onClose={() => setViewing(null)}
+            strip={{ items: viewing.list, onPick: (i) => setViewing({ ...viewing, index: i }) }}
           />
         </Suspense>
       )}

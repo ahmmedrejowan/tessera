@@ -1,4 +1,3 @@
-import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
 import Button from '@mui/material/Button';
 import ChevronLeft from '@mui/icons-material/ChevronLeft';
 import ChevronRight from '@mui/icons-material/ChevronRight';
@@ -20,9 +19,19 @@ import { assetPath, TYPE_LABELS } from '@shared/assets';
 import { licenceForPath } from '@shared/pack';
 import type { AssetRow } from '@shared/query';
 import { call } from '../api';
-import { displayName, formatBytes, formatCount } from '../components/labels';
+import { displayName, formatBytes, formatCount, sourceName } from '../components/labels';
 import { LicenceChip, licenceSummary } from '../components/LicenceChip';
+import { CollectionIcon } from '../components/icons';
+import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined';
+import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
+import ImageOutlined from '@mui/icons-material/ImageOutlined';
+import ButtonBase from '@mui/material/ButtonBase';
+import { hostLabel } from '@shared/links';
+import { sourceInfo } from '@shared/sources';
+import { EditIcon } from '../components/icons';
 import { starAsset } from '../pages/browse/StarButton';
+import { FileLicence } from './FileLicence';
+import { FilmStrip } from './FilmStrip';
 import { fileUrl, useIndexVersion, useLibraryId } from '../state/library';
 import { useNav } from '../state/nav';
 import { useThumb } from '../state/thumbs';
@@ -81,6 +90,21 @@ function SvgImage({ url, onInfo, command }: { url: string; onInfo: (i: ImageInfo
   return src ? <ImageView src={src} onInfo={onInfo} {...(command ? { command } : {})} /> : null;
 }
 
+/** A part of the about pane: a heading, something to do about it, and the facts under it. */
+function Group({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section style={{ padding: '12px 20px', borderBottom: `1px solid ${md('outlineVariant')}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 32 }}>
+        <Typography variant="labelLarge" sx={{ flex: 1, color: md('onSurfaceVariant'), textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: 11 }}>
+          {title}
+        </Typography>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '96px 1fr', gap: 12, padding: '5px 0' }}>
@@ -103,13 +127,15 @@ interface Props {
   onPrev?: () => void;
   onNext?: () => void;
   onClose: () => void;
+  /** The other files to move along: what is loaded of them, and a way to open one. */
+  strip?: { items: (AssetRow | undefined)[]; onPick: (index: number) => void; onNeed?: (start: number, end: number) => void };
 }
 
 /**
  * A full-window look at one asset, with the right view for its kind. Arrow keys step through
  * the results; Space or Escape closes, like Quick Look.
  */
-export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
+export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Props) {
   const lib = useLibraryId();
   const version = useIndexVersion();
   const dark = useIsDark();
@@ -134,6 +160,12 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
   const url = fileUrl(file.packId, file.ref);
   // The licence covering this very file: a pack can hold parts with terms of their own.
   const part = pack ? licenceForPath(pack.meta, assetPath(file.ref)) : null;
+  const [editingLicence, setEditingLicence] = useState(false);
+  const proof = useQuery({ queryKey: ['proof', lib, version, asset.packId], queryFn: () => call('pack:proof', asset.packId), enabled: !!lib && infoOpen }).data ?? [];
+  const shots = proof.filter((f) => /\.(png|jpe?g|webp|gif)$/i.test(f.name));
+  const page = pack ? (pack.meta.source.url ?? sourceInfo(pack.meta.source.site)?.url ?? null) : null;
+  // archive.org's copy is written into the licence notes when the page is kept.
+  const archived = pack ? (/https?:\/\/web\.archive\.org\/\S+/.exec(pack.meta.licence.notes)?.[0] ?? null) : null;
 
   // What the last file reported doesn't describe the next one.
   useEffect(() => {
@@ -232,7 +264,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
   return (
     <div role="dialog" aria-label={`Preview of ${asset.name}`} style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', flexDirection: 'column', background: md('surfaceContainerLowest'), animation: 'viewer-in 140ms ease-out' }}>
       <style>{'@keyframes viewer-in { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }'}</style>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: `${window.tessera.platform === 'darwin' ? 28 : 10}px 16px 10px`, borderBottom: `1px solid ${md('outlineVariant')}` }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: `${window.tessera.platform === 'darwin' ? 44 : 12}px 16px 12px`, borderBottom: `1px solid ${md('outlineVariant')}` }}>
         <Tooltip title="Close (Esc)">
           <IconButton onClick={onClose} aria-label="Close">
             <Close />
@@ -271,7 +303,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
         </Tooltip>
         <Tooltip title="Add to collection">
           <IconButton onClick={(e) => setCollectAnchor(e.currentTarget)} aria-label="Add to collection">
-            <BookmarkAddOutlined />
+            <CollectionIcon />
           </IconButton>
         </Tooltip>
         <CollectionMenu anchor={collectAnchor} onClose={() => setCollectAnchor(null)} items={async () => [{ packId: asset.packId, ref: asset.ref }]} />
@@ -304,61 +336,138 @@ export function Viewer({ asset, position, onPrev, onNext, onClose }: Props) {
           {side('right', onNext)}
         </div>
         {infoOpen && (
-          <aside style={{ width: 320, flexShrink: 0, overflowY: 'auto', padding: '16px 20px', borderLeft: `1px solid ${md('outlineVariant')}`, background: md('surfaceContainerLow') }}>
-            <InfoRow label="File">{file.name}</InfoRow>
-            <InfoRow label="Format">
-              {file.ext.toUpperCase()} · {formatBytes(file.size)}
-            </InfoRow>
-            {imageInfo && (
-              <InfoRow label="Pixels">
-                {imageInfo.width} × {imageInfo.height}
+          <aside style={{ width: 340, flexShrink: 0, overflowY: 'auto', padding: '4px 0 24px', borderLeft: `1px solid ${md('outlineVariant')}`, background: md('surfaceContainerLow'), scrollbarGutter: 'stable' }}>
+            <Group title="This file">
+              <InfoRow label="Name">{file.name}</InfoRow>
+              <InfoRow label="Format">
+                {file.ext.toUpperCase()} · {formatBytes(file.size)}
+                {variants.length > 1 ? ` · also ${variants.filter((v) => v.id !== file.id).map((v) => v.ext.toUpperCase()).join(', ')}` : ''}
               </InfoRow>
-            )}
-            {audioInfo && (
-              <>
-                <InfoRow label="Length">{audioInfo.duration.toFixed(2)} s</InfoRow>
-                <InfoRow label="Channels">{audioInfo.channels === 1 ? 'Mono' : audioInfo.channels === 2 ? 'Stereo' : audioInfo.channels}</InfoRow>
-                <InfoRow label="Sample rate">{(audioInfo.sampleRate / 1000).toFixed(1)} kHz</InfoRow>
-              </>
-            )}
-            {fontInfo && fontInfo.axes.length > 0 && <InfoRow label="Variable">{fontInfo.axes.map((a) => a.name).join(', ')}</InfoRow>}
-            {stats && (
-              <>
-                <InfoRow label="Triangles">{formatCount(stats.triangles)}</InfoRow>
-                <InfoRow label="Vertices">{formatCount(stats.vertices)}</InfoRow>
-                <InfoRow label="Meshes">{formatCount(stats.meshes)}</InfoRow>
-                <InfoRow label="Materials">
-                  {stats.materials} · {stats.textures} texture{stats.textures === 1 ? '' : 's'}
+              {imageInfo && (
+                <InfoRow label="Pixels">
+                  {imageInfo.width} × {imageInfo.height}
                 </InfoRow>
-                <InfoRow label="Size">{stats.size.map(dims).join(' × ')} units</InfoRow>
-                {stats.animations.length > 0 && <InfoRow label="Animations">{stats.animations.length}</InfoRow>}
-              </>
-            )}
-            <InfoRow label="Folder">{file.dir || 'Top level'}</InfoRow>
+              )}
+              {audioInfo && (
+                <>
+                  <InfoRow label="Length">{audioInfo.duration.toFixed(2)} s</InfoRow>
+                  <InfoRow label="Channels">{audioInfo.channels === 1 ? 'Mono' : audioInfo.channels === 2 ? 'Stereo' : audioInfo.channels}</InfoRow>
+                  <InfoRow label="Sample rate">{(audioInfo.sampleRate / 1000).toFixed(1)} kHz</InfoRow>
+                </>
+              )}
+              {fontInfo && fontInfo.axes.length > 0 && <InfoRow label="Variable">{fontInfo.axes.map((a) => a.name).join(', ')}</InfoRow>}
+              {stats && (
+                <>
+                  <InfoRow label="Triangles">{formatCount(stats.triangles)}</InfoRow>
+                  <InfoRow label="Vertices">{formatCount(stats.vertices)}</InfoRow>
+                  <InfoRow label="Meshes">{formatCount(stats.meshes)}</InfoRow>
+                  <InfoRow label="Materials">
+                    {stats.materials} · {stats.textures} texture{stats.textures === 1 ? '' : 's'}
+                  </InfoRow>
+                  <InfoRow label="Size">{stats.size.map(dims).join(' × ')} units</InfoRow>
+                  {stats.animations.length > 0 && <InfoRow label="Animations">{stats.animations.length}</InfoRow>}
+                </>
+              )}
+              <InfoRow label="Folder">{file.dir || 'Top level'}</InfoRow>
+            </Group>
+
             {pack && part && (
               <>
-                <div style={{ height: 1, background: md('outlineVariant'), margin: '12px 0' }} />
-                <InfoRow label="Pack">{pack.name}</InfoRow>
-                {pack.creator && <InfoRow label="Creator">{pack.creator}</InfoRow>}
-                <InfoRow label="Licence">
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                <Group
+                  title="Its licence"
+                  action={
+                    <Button size="small" startIcon={<EditIcon fontSize="small" />} onClick={() => setEditingLicence(true)}>
+                      Change
+                    </Button>
+                  }
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 8px' }}>
                     <LicenceChip id={part.id} />
                     <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
                       {licenceSummary(part.id)}
                     </Typography>
-                    {part !== pack.meta.licence && (
-                      <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-                        From the part of the pack this file is in.
-                      </Typography>
-                    )}
                   </div>
-                </InfoRow>
-                {part.attribution && <InfoRow label="Credit">{part.attribution}</InfoRow>}
+                  {part !== pack.meta.licence && (
+                    <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), pb: 1 }}>
+                      This comes from the rule covering the part of the pack this file is in, not from the pack itself.
+                    </Typography>
+                  )}
+                  {part.attribution && (
+                    <InfoRow label="Credit">
+                      <span style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                        <span style={{ flex: 1 }}>{part.attribution}</span>
+                        <Tooltip title="Copy the credit line">
+                          <IconButton size="small" onClick={() => void navigator.clipboard.writeText(part.attribution ?? '')}>
+                            <ContentCopyOutlined fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </span>
+                    </InfoRow>
+                  )}
+                  {pack.meta.licence.notes && <InfoRow label="Notes">{pack.meta.licence.notes}</InfoRow>}
+                </Group>
+
+                <Group title="Its pack" action={<Button size="small" onClick={() => (onClose(), go({ to: 'pack', id: pack.id }))}>Open</Button>}>
+                  <InfoRow label="Pack">{pack.name}</InfoRow>
+                  {pack.creator && <InfoRow label="Creator">{pack.creator}</InfoRow>}
+                  {sourceName(pack.source) && sourceName(pack.source) !== pack.creator && <InfoRow label="Source">{sourceName(pack.source)}</InfoRow>}
+                  {page && (
+                    <InfoRow label="Page">
+                      <a href={page} target="_blank" rel="noreferrer" style={{ color: md('primary') }}>
+                        {hostLabel(page)}
+                      </a>
+                    </InfoRow>
+                  )}
+                  {pack.meta.version && <InfoRow label="Version">{pack.meta.version}</InfoRow>}
+                  {pack.genres.length > 0 && <InfoRow label="Genre">{pack.genres.join(', ')}</InfoRow>}
+                  {pack.styles.length > 0 && <InfoRow label="Style">{pack.styles.join(', ')}</InfoRow>}
+                  {pack.tags.length > 0 && <InfoRow label="Tags">{pack.tags.join(', ')}</InfoRow>}
+                  <InfoRow label="Added">{new Date(pack.addedAt).toLocaleDateString([], { dateStyle: 'medium' })}</InfoRow>
+                  {pack.meta.description && <InfoRow label="About">{pack.meta.description}</InfoRow>}
+                </Group>
+
+                <Group title="What proves it">
+                  {proof.length ? (
+                    proof.map((f) => (
+                      <ButtonBase
+                        key={f.name}
+                        onClick={() => void call('pack:openProof', pack.id, f.name)}
+                        sx={{ width: '100%', justifyContent: 'flex-start', gap: 1.25, px: 1, py: 0.75, borderRadius: `${SHAPE.sm}px`, '&:hover': { backgroundColor: md('surfaceContainerHigh') } }}
+                      >
+                        {/\.(png|jpe?g|webp|gif)$/i.test(f.name) ? <ImageOutlined sx={{ fontSize: 18, color: md('onSurfaceVariant') }} /> : <AttachFileOutlined sx={{ fontSize: 18, color: md('onSurfaceVariant') }} />}
+                        <Typography variant="bodyMedium" noWrap sx={{ flex: 1, textAlign: 'left', color: md('onSurface') }}>
+                          {f.name}
+                        </Typography>
+                        <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+                          {formatBytes(f.size)}
+                        </Typography>
+                      </ButtonBase>
+                    ))
+                  ) : (
+                    <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+                      Nothing kept yet: the licence text, a receipt or a picture of the download page would go here.
+                    </Typography>
+                  )}
+                  {archived && (
+                    <InfoRow label="Archived">
+                      <a href={archived} target="_blank" rel="noreferrer" style={{ color: md('primary') }}>
+                        {hostLabel(archived)}
+                      </a>
+                    </InfoRow>
+                  )}
+                  {shots.map((f) => (
+                    <img key={f.name} src={f.url} alt={f.name} style={{ width: '100%', borderRadius: SHAPE.sm, border: `1px solid ${md('outlineVariant')}`, marginTop: 8 }} />
+                  ))}
+                </Group>
               </>
             )}
           </aside>
         )}
       </div>
+      {pack && <FileLicence open={editingLicence} asset={file} meta={pack.meta} onClose={() => setEditingLicence(false)} />}
+      {strip && position && strip.items.length > 1 && (
+        <FilmStrip items={strip.items} index={position.index} total={position.total} onPick={strip.onPick} {...(strip.onNeed ? { onNeed: strip.onNeed } : {})} />
+      )}
     </div>
   );
 }
