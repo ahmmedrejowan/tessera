@@ -16,6 +16,7 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { FAVOURITES } from '@shared/collection';
 import type { AssetRow, BrowseQuery, Filters } from '@shared/query';
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
@@ -77,7 +78,7 @@ export function CollectionPage({ id }: { id: string }) {
   const query: BrowseQuery = useMemo(
     () =>
       collection?.query
-        ? { scope: 'library', text: collection.query.text, filters: collection.query.filters as Filters, includeSupport: collection.query.includeSupport }
+        ? { scope: 'library', text: collection.query.text, filters: collection.query.filters as Filters, includeSupport: collection.query.includeSupport, favourites: collection.query.favourites }
         : { scope: 'all', text: '', filters: {}, collectionId: id },
     [collection?.query, id],
   );
@@ -111,6 +112,8 @@ export function CollectionPage({ id }: { id: string }) {
 
   if (!collection) return null;
   const smart = collection.kind === 'smart';
+  // The library's own collection: starred things. It keeps its name and stays.
+  const own = collection.id === FAVOURITES;
 
   const remove = async (ids: number[]) => {
     try {
@@ -130,6 +133,7 @@ export function CollectionPage({ id }: { id: string }) {
     for (const [facet, values] of Object.entries(collection.query?.filters ?? {})) s.setFilter(facet as never, values);
     s.setText(collection.query?.text ?? '');
     s.setIncludeSupport(collection.query?.includeSupport ?? false);
+    s.setFavourites(collection.query?.favourites ?? false);
     go({ to: 'browse' });
   };
 
@@ -163,16 +167,20 @@ export function CollectionPage({ id }: { id: string }) {
             Open in Browse
           </Button>
         )}
-        <Tooltip title="Rename">
-          <IconButton onClick={() => setRenaming(true)} aria-label="Rename">
-            <EditOutlined />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Delete collection">
-          <IconButton onClick={() => setDeleting(true)} aria-label="Delete collection">
-            <DeleteOutlined />
-          </IconButton>
-        </Tooltip>
+        {!own && (
+          <>
+            <Tooltip title="Rename">
+              <IconButton onClick={() => setRenaming(true)} aria-label="Rename">
+                <EditOutlined />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete collection">
+              <IconButton onClick={() => setDeleting(true)} aria-label="Delete collection">
+                <DeleteOutlined />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
       </header>
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         {!rows.loading && rows.total === 0 ? (

@@ -35,6 +35,8 @@ export interface BrowseQuery {
   includeSupport?: boolean;
   /** Only the items of this manual collection (any role), in the order they were added. */
   collectionId?: string;
+  /** Only what its owner starred: assets in the Favourites collection, or starred packs. */
+  favourites?: boolean;
 }
 
 export interface AssetRow {
@@ -53,6 +55,8 @@ export interface AssetRow {
   size: number;
   /** Every format this asset comes in (its variants included), e.g. ['fbx', 'glb', 'obj']. */
   formats: string[];
+  /** Starred by its owner. */
+  fav: boolean;
 }
 
 export interface PackRow {
@@ -70,6 +74,8 @@ export interface PackRow {
   assetCount: number;
   size: number;
   coverRef: string | null;
+  /** Starred by its owner. */
+  fav: boolean;
   /** A few of its assets (images first), for a cover mosaic when the pack ships no preview. */
   samples: Pick<AssetRow, 'id' | 'ref' | 'ext' | 'kind' | 'type'>[];
   /** Main assets by type, for the pack card's summary line. */

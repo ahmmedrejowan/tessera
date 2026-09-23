@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Collection, type CollectionItem, type SmartQuery } from '@shared/collection';
+import { Collection, FAVOURITES, FAVOURITES_NAME, type CollectionItem, type SmartQuery } from '@shared/collection';
 import { readJson, writeJson } from '../fsx';
 import { DIRS } from './layout';
 
@@ -45,6 +45,14 @@ export async function createCollection(root: string, name: string, init: { descr
       updatedAt: now,
     }),
   );
+}
+
+/** The library's Favourites collection, made the first time something is starred. */
+export async function favourites(root: string): Promise<Collection> {
+  const existing = await readCollection(root, FAVOURITES);
+  if (existing) return existing;
+  const now = new Date().toISOString();
+  return save(root, Collection.parse({ id: FAVOURITES, name: FAVOURITES_NAME, kind: 'manual', createdAt: now, updatedAt: now }));
 }
 
 export async function updateCollection(root: string, id: string, change: (c: Collection) => Collection): Promise<Collection> {

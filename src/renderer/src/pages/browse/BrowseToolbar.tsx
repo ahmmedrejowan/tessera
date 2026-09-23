@@ -3,6 +3,8 @@ import FilterListOutlined from '@mui/icons-material/FilterListOutlined';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import ViewModuleOutlined from '@mui/icons-material/ViewModuleOutlined';
 import SortOutlined from '@mui/icons-material/SortOutlined';
+import StarOutlineRounded from '@mui/icons-material/StarOutlineRounded';
+import StarRounded from '@mui/icons-material/StarRounded';
 import Badge from '@mui/material/Badge';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -64,6 +66,16 @@ export function BrowseControls({ total, stale }: { total: number; stale: boolean
       <Typography variant="bodyMedium" noWrap sx={{ width: 104, textAlign: 'right', color: md('onSurfaceVariant'), opacity: stale ? 0.5 : 1, transition: 'opacity 150ms' }}>
         {formatCount(total)} {s.mode === 'assets' ? (total === 1 ? 'asset' : 'assets') : total === 1 ? 'pack' : 'packs'}
       </Typography>
+      <Tooltip title={s.favourites ? 'Showing only what you starred' : 'Show only what you starred'}>
+        <IconButton
+          aria-label="Only what you starred"
+          aria-pressed={s.favourites}
+          onClick={() => s.setFavourites(!s.favourites)}
+          sx={{ color: s.favourites ? md('tertiary') : md('onSurfaceVariant'), backgroundColor: s.favourites ? md('tertiaryContainer') : 'transparent' }}
+        >
+          {s.favourites ? <StarRounded /> : <StarOutlineRounded />}
+        </IconButton>
+      </Tooltip>
       <Button startIcon={<SortOutlined />} onClick={(e) => setSortEl(e.currentTarget)} sx={{ color: md('onSurfaceVariant'), px: 1.5, width: 164, justifyContent: 'flex-start' }}>
         <Typography variant="labelLarge" noWrap>
           {sorts.find((o) => o.value === sort)?.label}
@@ -167,7 +179,7 @@ export function BrowseFilters() {
           </Button>
         </div>
       )}
-      <SaveSearchDialog open={saving} onClose={() => setSaving(false)} query={{ text: q.text, filters: q.filters as Record<string, string[]>, includeSupport: !!q.includeSupport }} suggested={suggested} />
+      <SaveSearchDialog open={saving} onClose={() => setSaving(false)} query={{ text: q.text, filters: q.filters as Record<string, string[]>, includeSupport: !!q.includeSupport, favourites: !!q.favourites }} suggested={suggested} />
     </div>
   );
 }

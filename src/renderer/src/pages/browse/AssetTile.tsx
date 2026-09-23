@@ -8,6 +8,7 @@ import { AssetThumb } from '../../components/AssetThumb';
 import { displayName, formatsLabel } from '../../components/labels';
 import { dragOutProps } from '../../state/dragOut';
 import { md, mdAlpha, SHAPE } from '../../theme';
+import { starAsset, StarButton } from './StarButton';
 import { useHold } from './useHold';
 
 export const TILE_LABEL_HEIGHT = 52;
@@ -56,6 +57,7 @@ export const AssetTile = memo(function AssetTile({ asset, width, selected, onCli
       className="tile"
     >
       <AssetThumb asset={asset} size={width - 12} />
+      <StarButton on={asset.fav} name={asset.name} selected={selected} onToggle={(on) => starAsset(asset.packId, asset.ref, on)} />
       {onMenu && (
       <Tooltip title="More">
         <IconButton

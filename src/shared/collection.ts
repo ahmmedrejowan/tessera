@@ -8,6 +8,13 @@ import { z } from 'zod';
 
 export const COLLECTION_FORMAT = 1;
 
+/**
+ * The collection every library has: what its owner starred. It is made the first time something is
+ * starred, and it can't be renamed or deleted, but otherwise it is an ordinary collection.
+ */
+export const FAVOURITES = 'favourites';
+export const FAVOURITES_NAME = 'Favourites';
+
 export const CollectionItem = z.object({ packId: z.string(), ref: z.string() });
 export type CollectionItem = z.infer<typeof CollectionItem>;
 
@@ -15,6 +22,7 @@ export const SmartQuery = z.object({
   text: z.string().default(''),
   filters: z.record(z.string(), z.array(z.string())).default({}),
   includeSupport: z.boolean().default(false),
+  favourites: z.boolean().default(false),
 });
 export type SmartQuery = z.infer<typeof SmartQuery>;
 

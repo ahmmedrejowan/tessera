@@ -1,10 +1,11 @@
 import AddOutlined from '@mui/icons-material/AddOutlined';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import CollectionsBookmarkOutlined from '@mui/icons-material/CollectionsBookmarkOutlined';
+import StarRounded from '@mui/icons-material/StarRounded';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { useState } from 'react';
-import type { CollectionSummary } from '@shared/collection';
+import { FAVOURITES, type CollectionSummary } from '@shared/collection';
 import { AssetThumb } from '../../components/AssetThumb';
 import { EmptyState } from '../../components/EmptyState';
 import { newCollection, useCollections } from '../../state/collections';
@@ -28,12 +29,13 @@ function CollectionCard({ c }: { c: CollectionSummary }) {
           ))
         ) : (
           <div style={{ display: 'grid', placeItems: 'center', color: md('onSurfaceVariant') }}>
-            {c.kind === 'smart' ? <AutoAwesomeOutlined sx={{ fontSize: 40, opacity: 0.6 }} /> : <CollectionsBookmarkOutlined sx={{ fontSize: 40, opacity: 0.6 }} />}
+            {c.id === FAVOURITES ? <StarRounded sx={{ fontSize: 40, opacity: 0.6 }} /> : c.kind === 'smart' ? <AutoAwesomeOutlined sx={{ fontSize: 40, opacity: 0.6 }} /> : <CollectionsBookmarkOutlined sx={{ fontSize: 40, opacity: 0.6 }} />}
           </div>
         )}
       </div>
       <div style={{ padding: '10px 6px 4px' }}>
         <Typography variant="titleSmall" noWrap sx={{ color: md('onSurface'), display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          {c.id === FAVOURITES && <StarRounded sx={{ fontSize: 16, color: md('tertiary') }} />}
           {c.kind === 'smart' && <AutoAwesomeOutlined sx={{ fontSize: 16, color: md('tertiary') }} />}
           {c.name}
         </Typography>
@@ -80,7 +82,11 @@ export function CollectionsPage() {
         />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, padding: '8px 32px 32px' }}>
-          {collections?.map((c) => <CollectionCard key={c.id} c={c} />)}
+          {/* What you starred comes first, then the rest as they are named. */}
+          {collections
+            ?.slice()
+            .sort((a, b) => (a.id === FAVOURITES ? -1 : b.id === FAVOURITES ? 1 : 0))
+            .map((c) => <CollectionCard key={c.id} c={c} />)}
         </div>
       )}
       <NameDialog open={naming} title="New collection" action="Create" onClose={() => setNaming(false)} onDone={(n, d) => void create(n, d)} />

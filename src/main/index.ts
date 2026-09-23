@@ -571,6 +571,8 @@ function registerHandlers(): void {
   handle('collections:list', () => library.collections());
   handle('collections:create', (name, init) => library.createCollection(name, init));
   handle('collections:change', (id, change) => library.changeCollection(id, change));
+  handle('favourites:assets', (items, on) => library.favouriteAssets(items, on));
+  handle('favourites:pack', (id, on) => library.favouritePack(id, on));
 
   handle('projects:list', () => projects.list(libraryId(), libraryNameOf));
   handle('projects:choose', async () => {

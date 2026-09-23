@@ -1,6 +1,7 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
 import type { AssetType } from '@shared/assets';
 import { pathWords } from '@shared/assets';
+import { FAVOURITES } from '@shared/collection';
 import { licenceInfo } from '@shared/licences';
 import type { PackMeta } from '@shared/pack';
 import {
@@ -65,9 +66,10 @@ const PACK_SORT: Record<PackSort, string> = {
 
 const FACET_LIMIT = 300;
 
-const ASSET_FIELDS = `a.id, a.pack_id AS packId, p.name AS packName, a.ref, a.name, a.dir, a.ext, a.kind, a.type, a.role, a.size, a.formats`;
-type RawAsset = Omit<AssetRow, 'formats'> & { formats: string };
-const toAsset = (r: RawAsset): AssetRow => ({ ...r, formats: r.formats ? r.formats.split(' ') : [r.ext] });
+const ASSET_FIELDS = `a.id, a.pack_id AS packId, p.name AS packName, a.ref, a.name, a.dir, a.ext, a.kind, a.type, a.role, a.size, a.formats,
+  EXISTS (SELECT 1 FROM collection_items f WHERE f.collection_id = '${FAVOURITES}' AND f.pack_id = a.pack_id AND f.ref = a.ref) AS fav`;
+type RawAsset = Omit<AssetRow, 'formats' | 'fav'> & { formats: string; fav: number };
+const toAsset = (r: RawAsset): AssetRow => ({ ...r, formats: r.formats ? r.formats.split(' ') : [r.ext], fav: !!r.fav });
 
 export class LibraryQueries {
   constructor(private readonly db: DatabaseSync) {}
@@ -85,6 +87,14 @@ export class LibraryQueries {
     const out: Clause[] = [];
     if (q.scope !== 'all') out.push({ sql: 'p.status = ?', params: [q.scope] });
     if (q.packIds) out.push(inList('p.id', q.packIds.length ? q.packIds : ['']));
+    if (q.favourites) {
+      // A starred asset is one in the Favourites collection; a starred pack says so in its own record.
+      out.push(
+        mode === 'assets'
+          ? { sql: `EXISTS (SELECT 1 FROM collection_items f WHERE f.collection_id = ? AND f.pack_id = a.pack_id AND f.ref = a.ref)`, params: [FAVOURITES] }
+          : { sql: 'p.fav = 1', params: [] },
+      );
+    }
     if (q.collectionId) {
       // A collection shows exactly what was put in it, supporting files included.
       const inCollection = 'SELECT 1 FROM collection_items ci WHERE ci.collection_id = ? AND ci.pack_id = a.pack_id AND ci.ref = a.ref';
@@ -392,6 +402,7 @@ export class LibraryQueries {
       assetCount: r.assetCount,
       size: r.size,
       coverRef: r.coverRef,
+      fav: !!r.fav,
       samples: samples.get(r.id) ?? [],
       types: types.get(r.id) ?? {},
       genres: terms.get(r.id)?.genre ?? [],
@@ -416,7 +427,8 @@ interface RawPack {
   size: number;
   coverRef: string | null;
   problems: string;
+  fav: number;
 }
 
 const PACK_FIELDS = `p.id, p.name, p.folder, p.status, p.source, p.creator, p.licence, p.added_at AS addedAt,
-  p.file_count AS fileCount, p.asset_count AS assetCount, p.size, p.cover_ref AS coverRef, p.problems`;
+  p.file_count AS fileCount, p.asset_count AS assetCount, p.size, p.cover_ref AS coverRef, p.problems, p.fav`;

@@ -64,6 +64,8 @@ export const PackMeta = z
     tags: list.default([]),
     /** Path (inside the pack) of the file shown as the pack's cover; null picks one automatically. */
     cover: z.string().nullable().default(null),
+    /** Starred by its owner, so it comes to hand quickly. */
+    favourite: z.boolean().default(false),
   })
   .passthrough();
 export type PackMeta = z.infer<typeof PackMeta>;

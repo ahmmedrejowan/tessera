@@ -2,7 +2,7 @@ import { watch, type FSWatcher } from 'node:fs';
 import { copyFile, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { missingForLibrary, type PackEdit, type PackStatus } from '@shared/pack';
-import type { CollectionItem, CollectionSummary, SmartQuery } from '@shared/collection';
+import { FAVOURITES, type CollectionItem, type CollectionSummary, type SmartQuery } from '@shared/collection';
 import type { BrowseQuery, Filters } from '@shared/query';
 import type { CollectionChange, Detected, FolderKind, ImportItem, ImportResult, LibraryState, PackSuggestions, SiteRule } from '@shared/types';
 import { UserError } from './errors';
@@ -12,7 +12,7 @@ import { planImport } from './import/plan';
 import { runImport } from './import/run';
 import { LibraryQueries } from './index/query';
 import type { Jobs } from './jobs';
-import { createCollection, deleteCollection, listCollections, updateCollection, withItems, withoutItems } from './library/collections';
+import { createCollection, deleteCollection, favourites, listCollections, updateCollection, withItems, withoutItems } from './library/collections';
 import { detectPack, packTexts } from './library/detect';
 import { suggestDetails } from './import/suggest';
 import { createLibrary, DIRS, inspectFolder, MARKER, PACK_DIRS, readLibraryInfo } from './library/layout';
@@ -269,7 +269,7 @@ export class LibraryService {
     const out: CollectionSummary[] = [];
     for (const c of await listCollections(lib.root)) {
       const q: BrowseQuery = c.query
-        ? { scope: 'library', text: c.query.text, filters: c.query.filters as Filters, includeSupport: c.query.includeSupport }
+        ? { scope: 'library', text: c.query.text, filters: c.query.filters as Filters, includeSupport: c.query.includeSupport, favourites: c.query.favourites }
         : { scope: 'all', text: '', filters: {}, collectionId: c.id };
       const page = lib.queries.assets(q, 'relevance', 0, 4);
       out.push({
@@ -305,6 +305,24 @@ export class LibraryService {
         return next;
       });
     await this.collectionsChanged();
+  }
+
+  /** Star assets, or take the star off: they go in and out of the built-in Favourites collection. */
+  async favouriteAssets(items: CollectionItem[], on: boolean): Promise<void> {
+    const root = this.require().root;
+    await favourites(root);
+    await updateCollection(root, FAVOURITES, (c) => (on ? withItems(c, items) : withoutItems(c, items)));
+    await this.collectionsChanged();
+  }
+
+  /** Star a pack, in its own record, so the star travels with the pack. */
+  async favouritePack(id: string, on: boolean): Promise<void> {
+    const lib = this.require();
+    const pack = await this.packRecord(id);
+    if (pack.meta.favourite === on) return;
+    const meta = await writePack(pack.dir, { ...pack.meta, favourite: on });
+    await lib.index.syncPack({ ...pack, meta }, lib.index.known(id));
+    this.d.onIndexChanged();
   }
 
   private async collectionsChanged(): Promise<void> {

@@ -13,7 +13,7 @@ describe('collections', () => {
     const root = tempDir();
     await createLibrary(root, 'lib');
     const a = await createCollection(root, 'Tower defense', { items: [{ packId: 'p1', ref: 'original/a.glb' }] });
-    const b = await createCollection(root, 'CC0 trees', { query: { text: 'tree', filters: { licence: ['CC0-1.0'] }, includeSupport: false } });
+    const b = await createCollection(root, 'CC0 trees', { query: { text: 'tree', filters: { licence: ['CC0-1.0'] }, includeSupport: false, favourites: false } });
     expect(a.kind).toBe('manual');
     expect(b.kind).toBe('smart');
     expect((await listCollections(root)).map((c) => c.name)).toEqual(['CC0 trees', 'Tower defense']);

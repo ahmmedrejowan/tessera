@@ -146,7 +146,7 @@ export function BrowsePage() {
   const s = useBrowse();
   const go = useNav((n) => n.go);
   const text = useDebounced(s.text, 150);
-  const query = useMemo(() => browseQuery({ text, filters: s.filters, includeSupport: s.includeSupport }), [text, s.filters, s.includeSupport]);
+  const query = useMemo(() => browseQuery({ text, filters: s.filters, includeSupport: s.includeSupport, favourites: s.favourites }), [text, s.filters, s.includeSupport, s.favourites]);
   // "Best match" without search words means browsing: assets grouped by pack, then folder.
   const assetSort = !text && s.assetSort === 'relevance' ? 'pack' : s.assetSort;
 

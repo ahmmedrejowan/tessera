@@ -8,6 +8,7 @@ import { AssetThumb, checker } from '../../components/AssetThumb';
 import { licenceShort, sourceName, typeSummary } from '../../components/labels';
 import { fileUrl } from '../../state/library';
 import { md, mdAlpha, SHAPE } from '../../theme';
+import { starPack, StarButton } from './StarButton';
 import { useHold } from './useHold';
 
 export const PACK_LABEL_HEIGHT = 76;
@@ -122,6 +123,7 @@ export const PackCard = memo(function PackCard({ pack, width, selected, onClick,
         </Tooltip>
       )}
       <Cover pack={pack} width={width} />
+      <StarButton on={pack.fav} name={pack.name} selected={selected} onToggle={(on) => starPack(pack.id, on)} />
       <div style={{ padding: '8px 6px 0', minWidth: 0 }}>
         <Typography variant="titleSmall" noWrap component="div" sx={{ color: selected ? md('onSecondaryContainer') : md('onSurface') }}>
           {pack.name}

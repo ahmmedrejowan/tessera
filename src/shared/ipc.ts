@@ -108,6 +108,10 @@ export interface Invokes {
   /** Create a collection (manual with items, or smart with a query); returns its id. */
   'collections:create': (name: string, init: { description?: string; items?: CollectionItem[]; query?: SmartQuery | null }) => string;
   'collections:change': (id: string, change: CollectionChange) => void;
+  /** Star assets, or take the star off: they go in and out of the built-in Favourites collection. */
+  'favourites:assets': (items: CollectionItem[], on: boolean) => void;
+  /** Star a pack, in its own record, so the star travels with it. */
+  'favourites:pack': (id: string, on: boolean) => void;
 
   'projects:list': () => ProjectSummary[];
   /** Ask for a game project's folder and say what it is; null when cancelled. */
