@@ -1,7 +1,13 @@
 import ExpandLess from '@mui/icons-material/ExpandLess';
+import FilterListOutlined from '@mui/icons-material/FilterListOutlined';
+import KeyboardDoubleArrowLeftRounded from '@mui/icons-material/KeyboardDoubleArrowLeftRounded';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import SearchOutlined from '@mui/icons-material/SearchOutlined';
+import Badge from '@mui/material/Badge';
+import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 import Checkbox from '@mui/material/Checkbox';
 import InputBase from '@mui/material/InputBase';
 import Typography from '@mui/material/Typography';
@@ -9,7 +15,7 @@ import { useState } from 'react';
 import type { AssetType } from '@shared/assets';
 import { FACET_LABELS, FACETS, type Facet, type FacetCounts } from '@shared/query';
 import { facetLabel, formatCount, TYPE_ICONS } from '../../components/labels';
-import { useBrowse } from '../../state/browse';
+import { activeFilterCount, useBrowse } from '../../state/browse';
 import { md, SHAPE } from '../../theme';
 
 const SHOWN = 8;
@@ -112,9 +118,29 @@ function FacetSection({ facet, values, collapsed, onToggle }: { facet: Facet; va
 }
 
 /** Facet filters for the results, each with how many results a value would give. */
+/** The strip left behind when the filters are put away: the way to bring them back. */
+export function FilterRail() {
+  const setOpen = useBrowse((s) => s.setFiltersOpen);
+  const count = activeFilterCount(useBrowse((s) => s.filters));
+  return (
+    <aside style={{ width: 52, flexShrink: 0, paddingTop: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', borderRight: `1px solid ${md('outlineVariant')}` }}>
+      <Tooltip title="Show filters" placement="right">
+        <IconButton onClick={() => setOpen(true)} aria-label="Show filters" aria-expanded={false}>
+          <Badge badgeContent={count} color="primary" invisible={!count}>
+            <FilterListOutlined />
+          </Badge>
+        </IconButton>
+      </Tooltip>
+    </aside>
+  );
+}
+
 export function FilterPane({ facets }: { facets: FacetCounts | undefined }) {
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   const filters = useBrowse((s) => s.filters);
+  const setOpen = useBrowse((s) => s.setFiltersOpen);
+  const clearFilters = useBrowse((s) => s.clearFilters);
+  const count = activeFilterCount(filters);
   const toggle = (f: Facet) => {
     const next = new Set(collapsed);
     if (next.has(f)) next.delete(f);
@@ -127,7 +153,22 @@ export function FilterPane({ facets }: { facets: FacetCounts | undefined }) {
     }
   };
   return (
-    <aside aria-label="Filters" style={{ width: 272, flexShrink: 0, overflowY: 'auto', padding: '8px 8px 24px 16px', borderRight: `1px solid ${md('outlineVariant')}` }}>
+    <aside aria-label="Filters" style={{ width: 272, flexShrink: 0, overflowY: 'auto', padding: '4px 8px 24px 16px', borderRight: `1px solid ${md('outlineVariant')}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 0 8px 8px' }}>
+        <Typography variant="titleSmall" sx={{ flex: 1, color: md('onSurface') }}>
+          Filters
+        </Typography>
+        {count > 0 && (
+          <Button size="small" onClick={clearFilters}>
+            Clear
+          </Button>
+        )}
+        <Tooltip title="Hide filters">
+          <IconButton size="small" onClick={() => setOpen(false)} aria-label="Hide filters" aria-expanded>
+            <KeyboardDoubleArrowLeftRounded />
+          </IconButton>
+        </Tooltip>
+      </div>
       {facets &&
         FACETS.filter((f) => facets[f].length > 0 || (filters[f]?.length ?? 0) > 0).map((f) => (
           <FacetSection key={f} facet={f} values={facets[f]} collapsed={collapsed.has(f)} onToggle={() => toggle(f)} />

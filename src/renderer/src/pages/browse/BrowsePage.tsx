@@ -23,7 +23,7 @@ import { AssetTile, TILE_LABEL_HEIGHT } from './AssetTile';
 import { BrowseControls, BrowseFilters } from './BrowseToolbar';
 import { DetailsSheet } from './DetailsSheet';
 import { SelectionBar } from './SelectionBar';
-import { FilterPane } from './FilterPane';
+import { FilterPane, FilterRail } from './FilterPane';
 import { coverHeight, PACK_LABEL_HEIGHT, PackCard } from './PackCard';
 
 /** The value after it has stopped changing for `ms`. */
@@ -288,7 +288,7 @@ export function BrowsePage() {
   return (
     <Page title="Browse" flush actions={<BrowseControls total={current.total} stale={current.stale} />}>
       <div style={{ height: '100%', display: 'flex', minHeight: 0 }}>
-        {s.filtersOpen && !nothingYet && <FilterPane facets={facets.data} />}
+        {!nothingYet && (s.filtersOpen ? <FilterPane facets={facets.data} /> : <FilterRail />)}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <BrowseFilters />
         <div style={{ height: 2 }}>{current.stale && <LinearProgress sx={{ height: 2, borderRadius: 0 }} />}</div>

@@ -18,7 +18,6 @@ import type { AssetSort, Facet, PackSort } from '@shared/query';
 import { facetLabel, formatCount } from '../../components/labels';
 import { SegmentedButton } from '../../components/SegmentedButton';
 import { activeFilterCount, browseQuery, TILE_MAX, TILE_MIN, useBrowse } from '../../state/browse';
-import { useStats } from '../../state/library';
 import { SaveSearchDialog } from '../collections/CollectionMenu';
 import { md } from '../../theme';
 
@@ -50,34 +49,25 @@ export function BrowseControls({ total, stale }: { total: number; stale: boolean
   const suggested = [q.text, ...chipsLabels(s.filters)].filter(Boolean).join(' · ') || 'Saved search';
   const sorts = s.mode === 'assets' ? ASSET_SORTS : PACK_SORTS;
   const sort = s.mode === 'assets' ? s.assetSort : s.packSort;
-  const filterCount = activeFilterCount(s.filters);
-  // Nothing to filter in an empty library; the button keeps its place.
-  const nothingYet = useStats().data?.assets === 0 && !filterCount;
-  const chips = (Object.entries(s.filters) as [Facet, string[]][]).flatMap(([facet, values]) => (values ?? []).map((value) => ({ facet, value })));
-
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-      <Tooltip title={s.filtersOpen ? 'Hide filters' : 'Show filters'}>
-        <IconButton onClick={() => s.setFiltersOpen(!s.filtersOpen)} aria-label="Filters" aria-pressed={s.filtersOpen} disabled={nothingYet} sx={{ visibility: nothingYet ? 'hidden' : 'visible' }}>
-          <Badge badgeContent={filterCount} color="primary" invisible={s.filtersOpen || !filterCount}>
-            <FilterListOutlined />
-          </Badge>
-        </IconButton>
-      </Tooltip>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end' }}>
       <SegmentedButton
         label="Show"
         value={s.mode}
         onChange={s.setMode}
         options={[
-          { value: 'assets', label: 'Assets' },
           { value: 'packs', label: 'Packs' },
+          { value: 'assets', label: 'Assets' },
         ]}
       />
-      <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), opacity: stale ? 0.5 : 1, transition: 'opacity 150ms' }}>
+      {/* A fixed slot: the count changes as you type, and nothing beside it should move. */}
+      <Typography variant="bodyMedium" noWrap sx={{ width: 104, textAlign: 'right', color: md('onSurfaceVariant'), opacity: stale ? 0.5 : 1, transition: 'opacity 150ms' }}>
         {formatCount(total)} {s.mode === 'assets' ? (total === 1 ? 'asset' : 'assets') : total === 1 ? 'pack' : 'packs'}
       </Typography>
-        <Button startIcon={<SortOutlined />} onClick={(e) => setSortEl(e.currentTarget)} sx={{ color: md('onSurfaceVariant'), px: 1.5 }}>
-        {sorts.find((o) => o.value === sort)?.label}
+      <Button startIcon={<SortOutlined />} onClick={(e) => setSortEl(e.currentTarget)} sx={{ color: md('onSurfaceVariant'), px: 1.5, width: 164, justifyContent: 'flex-start' }}>
+        <Typography variant="labelLarge" noWrap>
+          {sorts.find((o) => o.value === sort)?.label}
+        </Typography>
       </Button>
       <Menu anchorEl={sortEl} open={!!sortEl} onClose={() => setSortEl(null)}>
         {sorts.map((o) => (
