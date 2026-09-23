@@ -325,6 +325,16 @@ export class LibraryService {
     this.d.onIndexChanged();
   }
 
+  /** Put a pack away, or bring it back: kept in full either way, just out of the way of browsing. */
+  async archivePack(id: string, on: boolean): Promise<void> {
+    const lib = this.require();
+    const pack = await this.packRecord(id);
+    if (pack.meta.archived === on) return;
+    const meta = await writePack(pack.dir, { ...pack.meta, archived: on });
+    await lib.index.syncPack({ ...pack, meta }, lib.index.known(id));
+    this.d.onIndexChanged();
+  }
+
   private async collectionsChanged(): Promise<void> {
     await this.reloadCollections();
     this.d.onIndexChanged();

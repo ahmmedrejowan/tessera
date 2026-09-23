@@ -112,6 +112,8 @@ export interface Invokes {
   'favourites:assets': (items: CollectionItem[], on: boolean) => void;
   /** Star a pack, in its own record, so the star travels with it. */
   'favourites:pack': (id: string, on: boolean) => void;
+  /** Put a pack away, or bring it back. An archived pack keeps everything; it just isn't browsed. */
+  'pack:archive': (id: string, on: boolean) => void;
 
   'projects:list': () => ProjectSummary[];
   /** Ask for a game project's folder and say what it is; null when cancelled. */

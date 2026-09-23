@@ -1,4 +1,6 @@
+import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
 import ArrowBack from '@mui/icons-material/ArrowBack';
+import UnarchiveOutlined from '@mui/icons-material/UnarchiveOutlined';
 import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined';
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
@@ -38,6 +40,7 @@ import { useIndexVersion, useLibraryId } from '../../state/library';
 import { useNav } from '../../state/nav';
 import { md, SHAPE } from '../../theme';
 import { AssetTile, TILE_LABEL_HEIGHT } from '../browse/AssetTile';
+import { archivePack } from '../browse/archiving';
 import { AssetMenu } from '../browse/TileMenu';
 import { useBrowse } from '../../state/browse';
 import { coverHeight, PackCard } from '../browse/PackCard';
@@ -161,6 +164,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
             {sourceName(pack.source) && <Chip size="small" variant="outlined" label={sourceName(pack.source)} />}
             {pack.creator && pack.creator !== sourceName(pack.source) && <Chip size="small" variant="outlined" label={pack.creator} />}
             {pack.status === 'inbox' && <Chip size="small" icon={<InboxOutlined />} label="In the Inbox" sx={{ backgroundColor: md('tertiaryContainer'), color: md('onTertiaryContainer') }} />}
+            {pack.meta.archived && <Chip size="small" icon={<ArchiveOutlined />} label="Put away" sx={{ backgroundColor: md('surfaceContainerHighest'), color: md('onSurfaceVariant') }} />}
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
             <Button variant="contained" startIcon={<EditOutlined />} onClick={() => setEditing(true)}>
@@ -168,6 +172,13 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
             </Button>
             <Button variant="outlined" startIcon={<FolderOpenOutlined />} onClick={() => void call('pack:reveal', id)}>
               Show folder
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={pack.meta.archived ? <UnarchiveOutlined /> : <ArchiveOutlined />}
+              onClick={() => void archivePack(id, !pack.meta.archived)}
+            >
+              {pack.meta.archived ? 'Bring it back' : 'Put it away'}
             </Button>
             <Button color="error" startIcon={<DeleteOutlined />} onClick={() => setRemoving(true)}>
               Remove

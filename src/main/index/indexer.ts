@@ -83,11 +83,11 @@ export class LibraryIndex {
     const p = (sql: string) => this.db.prepare(sql);
     this.st = {
       known: p('SELECT id, folder, meta_sig AS metaSig, files_sig AS filesSig FROM packs'),
-      upsertPack: p(`INSERT INTO packs (id, folder, name, status, source, creator, licence, added_at, updated_at, meta_json, meta_sig, fav)
-        VALUES ($id, $folder, $name, $status, $source, $creator, $licence, $addedAt, $updatedAt, $metaJson, $metaSig, $fav)
+      upsertPack: p(`INSERT INTO packs (id, folder, name, status, source, creator, licence, added_at, updated_at, meta_json, meta_sig, fav, archived)
+        VALUES ($id, $folder, $name, $status, $source, $creator, $licence, $addedAt, $updatedAt, $metaJson, $metaSig, $fav, $archived)
         ON CONFLICT(id) DO UPDATE SET folder = excluded.folder, name = excluded.name, status = excluded.status, source = excluded.source,
           creator = excluded.creator, licence = excluded.licence, added_at = excluded.added_at, updated_at = excluded.updated_at,
-          meta_json = excluded.meta_json, meta_sig = excluded.meta_sig, fav = excluded.fav`),
+          meta_json = excluded.meta_json, meta_sig = excluded.meta_sig, fav = excluded.fav, archived = excluded.archived`),
       deleteTerms: p('DELETE FROM pack_terms WHERE pack_id = ?'),
       insertTerm: p('INSERT OR IGNORE INTO pack_terms (pack_id, facet, value) VALUES (?, ?, ?)'),
       deletePackFts: p('DELETE FROM packs_fts WHERE pack_id = ?'),
@@ -175,6 +175,7 @@ export class LibraryIndex {
       $metaJson: JSON.stringify(m),
       $metaSig: metaSig,
       $fav: m.favourite ? 1 : 0,
+      $archived: m.archived ? 1 : 0,
     });
     this.st.deleteTerms!.run(m.id);
     for (const [facet, values] of [['genre', m.genres], ['style', m.styles], ['tag', m.tags]] as const) {

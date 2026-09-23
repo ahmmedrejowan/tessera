@@ -37,6 +37,11 @@ export interface BrowseQuery {
   collectionId?: string;
   /** Only what its owner starred: assets in the Favourites collection, or starred packs. */
   favourites?: boolean;
+  /**
+   * Packs that were put away are left out of browsing; `only` shows those instead. Collections and
+   * a pack's own page still show everything, so nothing goes missing where it was put by hand.
+   */
+  archived?: 'only';
 }
 
 export interface AssetRow {
@@ -76,6 +81,8 @@ export interface PackRow {
   coverRef: string | null;
   /** Starred by its owner. */
   fav: boolean;
+  /** Put away, out of the way of browsing. */
+  archived: boolean;
   /** A few of its assets (images first), for a cover mosaic when the pack ships no preview. */
   samples: Pick<AssetRow, 'id' | 'ref' | 'ext' | 'kind' | 'type'>[];
   /** Main assets by type, for the pack card's summary line. */

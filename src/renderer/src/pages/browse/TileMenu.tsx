@@ -1,9 +1,11 @@
+import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
 import BookmarkAddOutlined from '@mui/icons-material/BookmarkAddOutlined';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import DriveFileMoveOutlined from '@mui/icons-material/DriveFileMoveOutlined';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
 import LanguageRounded from '@mui/icons-material/LanguageRounded';
 import LaunchRounded from '@mui/icons-material/LaunchRounded';
+import UnarchiveOutlined from '@mui/icons-material/UnarchiveOutlined';
 import OpenInFullRounded from '@mui/icons-material/OpenInFullRounded';
 import Divider from '@mui/material/Divider';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -20,6 +22,7 @@ import { failed, notify } from '../../notices/store';
 import { useIndexVersion, useLibraryId } from '../../state/library';
 import { CollectionMenu } from '../collections/CollectionMenu';
 import { ProjectMenu } from '../projects/ProjectMenu';
+import { archivePack } from './archiving';
 import { removeAssets, removePacks } from './deleting';
 
 /** A pack in full, from the cache where a page has already read it. */
@@ -132,6 +135,12 @@ export function PackMenu({ anchor, pack, onClose, onOpen }: { anchor: HTMLElemen
         <Item icon={<DriveFileMoveOutlined fontSize="small" />} primary="Copy its assets to a project" onClick={(e) => setProjects(e.currentTarget)} />
         {page && <Item icon={<LanguageRounded fontSize="small" />} primary="Its page on the web" secondary={hostLabel(page)} onClick={run(() => void call('app:openExternal', page).catch(failed))} />}
         <Divider />
+        <Item
+          icon={pack.archived ? <UnarchiveOutlined fontSize="small" /> : <ArchiveOutlined fontSize="small" />}
+          primary={pack.archived ? 'Bring it back' : 'Put it away'}
+          {...(pack.archived ? {} : { secondary: 'Kept in full, out of the way' })}
+          onClick={run(() => void archivePack(pack.id, !pack.archived))}
+        />
         <Item danger icon={<DeleteOutlineRounded fontSize="small" />} primary="Delete" onClick={run(() => void removePacks([pack.id], pack.name))} />
       </Menu>
       <CollectionMenu anchor={collections} onClose={close} items={items} />

@@ -86,6 +86,10 @@ export class LibraryQueries {
   private clauses(q: BrowseQuery, mode: 'assets' | 'packs', skip?: Facet): Clause[] {
     const out: Clause[] = [];
     if (q.scope !== 'all') out.push({ sql: 'p.status = ?', params: [q.scope] });
+    // Put-away packs are out of the way of browsing, but still in their collections and on their
+    // own pages, so nothing filed by hand goes missing.
+    if (q.archived === 'only') out.push({ sql: 'p.archived = 1', params: [] });
+    else if (q.scope === 'library') out.push({ sql: 'p.archived = 0', params: [] });
     if (q.packIds) out.push(inList('p.id', q.packIds.length ? q.packIds : ['']));
     if (q.favourites) {
       // A starred asset is one in the Favourites collection; a starred pack says so in its own record.
@@ -403,6 +407,7 @@ export class LibraryQueries {
       size: r.size,
       coverRef: r.coverRef,
       fav: !!r.fav,
+      archived: !!r.archived,
       samples: samples.get(r.id) ?? [],
       types: types.get(r.id) ?? {},
       genres: terms.get(r.id)?.genre ?? [],
@@ -428,7 +433,8 @@ interface RawPack {
   coverRef: string | null;
   problems: string;
   fav: number;
+  archived: number;
 }
 
 const PACK_FIELDS = `p.id, p.name, p.folder, p.status, p.source, p.creator, p.licence, p.added_at AS addedAt,
-  p.file_count AS fileCount, p.asset_count AS assetCount, p.size, p.cover_ref AS coverRef, p.problems, p.fav`;
+  p.file_count AS fileCount, p.asset_count AS assetCount, p.size, p.cover_ref AS coverRef, p.problems, p.fav, p.archived`;

@@ -66,6 +66,8 @@ export const PackMeta = z
     cover: z.string().nullable().default(null),
     /** Starred by its owner, so it comes to hand quickly. */
     favourite: z.boolean().default(false),
+    /** Put away: kept in full, but out of the way of browsing until it is brought back. */
+    archived: z.boolean().default(false),
   })
   .passthrough();
 export type PackMeta = z.infer<typeof PackMeta>;
