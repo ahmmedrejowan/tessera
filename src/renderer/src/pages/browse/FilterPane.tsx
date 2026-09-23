@@ -162,7 +162,8 @@ export function FilterPane({ facets }: { facets: FacetCounts | undefined }) {
     }
   };
   return (
-    <aside aria-label="Filters" style={{ width: 272, flexShrink: 0, overflowY: 'auto', padding: '4px 8px 24px 16px', borderRight: `1px solid ${md('outlineVariant')}` }}>
+    // The gutter is kept whether or not a scrollbar is there, so opening a group never shifts the rows.
+    <aside aria-label="Filters" style={{ width: 272, flexShrink: 0, overflowY: 'auto', scrollbarGutter: 'stable', padding: '4px 8px 24px 16px', borderRight: `1px solid ${md('outlineVariant')}` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 0 10px 8px' }}>
         <Typography variant="titleSmall" sx={{ flex: 1, color: md('onSurface') }}>
           Filters

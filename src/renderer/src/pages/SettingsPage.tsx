@@ -137,7 +137,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
           ]}
         />
 
-        <div ref={scroller} style={{ overflowY: 'auto', minHeight: 0 }}>
+        <div ref={scroller} style={{ overflowY: 'auto', scrollbarGutter: 'stable', minHeight: 0 }}>
           <div style={{ maxWidth: PAGE.column, padding: '0 32px 64px' }}>
             <PartBar part={SECTIONS.find((x) => x.id === current)?.part ?? 'library'} libraryName={lib?.name ?? 'This library'} />
             <div {...at('general')}>

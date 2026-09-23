@@ -283,7 +283,7 @@ export function AboutPage() {
     <Page title="About" subtitle="What this build is, and what it’s made of" flush>
       <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', height: '100%' }}>
         <SideSections prefix="about" sections={SECTIONS} current={current} />
-        <div ref={scroller} style={{ overflowY: 'auto', minHeight: 0 }}>
+        <div ref={scroller} style={{ overflowY: 'auto', scrollbarGutter: 'stable', minHeight: 0 }}>
           <div style={{ maxWidth: PAGE.column, padding: '0 32px 64px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '4px 0 28px' }}>
         <span style={{ width: 72, height: 72, borderRadius: 22, display: 'grid', placeItems: 'center', background: md('surfaceContainerLow') }}>

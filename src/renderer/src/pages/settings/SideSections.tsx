@@ -77,7 +77,7 @@ export function SideSections({ prefix, sections, groups, current }: { prefix: st
   );
 
   return (
-    <nav aria-label="Sections" style={{ padding: '0 16px 32px 32px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+    <nav aria-label="Sections" style={{ padding: '0 16px 32px 32px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto', scrollbarGutter: 'stable' }}>
       {groups?.length
         ? groups.map((g) => (
             <div key={g.id} style={{ display: 'contents' }}>
