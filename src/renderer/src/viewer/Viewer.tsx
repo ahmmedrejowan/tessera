@@ -264,7 +264,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
   return (
     <div role="dialog" aria-label={`Preview of ${asset.name}`} style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', flexDirection: 'column', background: md('surfaceContainerLowest'), animation: 'viewer-in 140ms ease-out' }}>
       <style>{'@keyframes viewer-in { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }'}</style>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: `${window.tessera.platform === 'darwin' ? 44 : 12}px 16px 12px`, borderBottom: `1px solid ${md('outlineVariant')}` }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: `${window.tessera.platform === 'darwin' ? 36 : 10}px 16px 8px`, borderBottom: `1px solid ${md('outlineVariant')}` }}>
         <Tooltip title="Close (Esc)">
           <IconButton onClick={onClose} aria-label="Close">
             <Close />

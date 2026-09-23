@@ -41,7 +41,7 @@ export function CopyButton({ items, variant = 'contained', size = 'small', color
     <>
       <ButtonGroup variant={variant} size={size} disableElevation sx={sx} aria-label="Link to a game">
         <Button startIcon={<DriveFileMoveOutlined />} sx={{ ...tone, maxWidth: 260 }} onClick={async (e) => (target ? void copyTo(target) : setAnchor(e.currentTarget.parentElement))}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{target ? `Link to ${target.name}` : 'Link to a game…'}</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{target ? `Link to ${target.name}` : 'Link to a game'}</span>
         </Button>
         <Button aria-label="Choose the game" onClick={(e) => setAnchor(e.currentTarget.parentElement)} sx={{ ...tone, px: 0, minWidth: 32 }}>
           <ArrowDropDown />
@@ -64,7 +64,7 @@ export function CopyButton({ items, variant = 'contained', size = 'small', color
           <ListItemIcon>
             <AddLinkOutlined />
           </ListItemIcon>
-          <ListItemText primary="Add a game…" />
+          <ListItemText primary="Set up a new game…" secondary="Tell Tessera where a game folder is" />
         </MenuItem>
         {projects.length > 0 && (
           <MenuItem

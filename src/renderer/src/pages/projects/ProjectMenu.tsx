@@ -49,7 +49,7 @@ export function ProjectMenu({ anchor, onClose, items }: { anchor: HTMLElement | 
           <ListItemIcon>
             <AddLinkOutlined fontSize="small" />
           </ListItemIcon>
-          <ListItemText primary="Add a game…" />
+          <ListItemText primary="Set up a new game…" secondary="Tell Tessera where a game folder is" />
         </MenuItem>
       </Menu>
       {link.dialog}

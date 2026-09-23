@@ -5,7 +5,7 @@ import { AssetThumb } from '../components/AssetThumb';
 import { formatCount } from '../components/labels';
 import { md, SHAPE } from '../theme';
 
-const TILE = 56;
+const TILE = 44;
 
 /**
  * The rest of what you are looking through, under the preview: where you are in it, and a way to
@@ -33,11 +33,11 @@ export function FilmStrip({ items, index, total, onPick, onNeed }: { items: (Ass
   }, [onNeed, total, index]);
 
   return (
-    <div style={{ borderTop: `1px solid ${md('outlineVariant')}`, background: md('surfaceContainerLow'), padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div style={{ borderTop: `1px solid ${md('outlineVariant')}`, background: md('surfaceContainerLow'), padding: '6px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
       <Typography variant="labelLarge" noWrap sx={{ color: md('onSurfaceVariant'), flexShrink: 0, width: 108 }}>
         {formatCount(index + 1)} of {formatCount(total)}
       </Typography>
-      <div ref={strip} style={{ display: 'flex', gap: 8, overflowX: 'auto', overflowY: 'hidden', flex: 1, scrollbarWidth: 'thin', paddingBottom: 4 }}>
+      <div ref={strip} style={{ display: 'flex', gap: 8, overflowX: 'auto', overflowY: 'hidden', flex: 1, scrollbarWidth: 'thin', paddingBottom: 2 }}>
         {items.map((a, i) => (
           <button
             key={a ? a.id : `gap-${i}`}
