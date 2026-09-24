@@ -1,4 +1,5 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { classify, preference, variantKey } from '@shared/assets';
@@ -281,12 +282,20 @@ describe('licence health', () => {
 
 describe('an index that will not open', () => {
   it('is thrown away and built again, rather than standing in the way', () => {
-    const dir = tempDir();
+    // Its own folder, and its own clearing up: a database that failed to open can stay open on
+    // Windows, which is the very thing this is about.
+    const dir = mkdtempSync(join(tmpdir(), 'tessera-broken-index-'));
     const path = join(dir, 'index.sqlite');
     // Something that is not a database at all: a crash mid-write, or a half-copied file.
     writeFileSync(path, 'this is not a database');
     const db = openIndexDb(path);
     expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(SCHEMA_VERSION);
+    expect(db.prepare('SELECT count(*) AS n FROM packs').get()).toEqual({ n: 0 });
     db.close();
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // Windows may still be holding the broken file; the runner's temporary folder goes anyway.
+    }
   });
 });
