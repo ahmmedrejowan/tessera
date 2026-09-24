@@ -58,8 +58,10 @@ const schema = z.object({
       port: z.number().int().min(1024).max(65535).catch(DEFAULT_MCP_PORT),
       off: z.array(z.string()).catch([]),
       groupsOff: z.array(z.string()).catch([]),
+      /** Groups that are off until asked for: the app's own settings, and deleting for good. */
+      groupsOn: z.array(z.string()).catch([]),
     })
-    .catch({ enabled: true, port: DEFAULT_MCP_PORT, off: [], groupsOff: [] }),
+    .catch({ enabled: true, port: DEFAULT_MCP_PORT, off: [], groupsOff: [], groupsOn: [] }),
   updateCheck: z.boolean().catch(true),
   autoInstallUpdates: z.boolean().catch(false),
 });

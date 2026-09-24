@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { DEFAULT_MCP_PORT, TOOL_GROUPS, type McpCall, type McpStatus, type McpToolInfo } from '@shared/mcp';
+import { DEFAULT_MCP_PORT, TOOL_GROUPS, groupIsOn, type McpCall, type McpStatus, type McpToolInfo } from '@shared/mcp';
 import { log } from '../log';
 import { TOOL_BY_NAME, TOOLS, type ToolContext } from './tools';
 
@@ -18,7 +18,7 @@ const VERSION = '1.0.0';
 
 interface Options {
   context: () => ToolContext;
-  settings: () => { enabled: boolean; port: number; off: string[]; groupsOff: string[] };
+  settings: () => { enabled: boolean; port: number; off: string[]; groupsOff: string[]; groupsOn: string[] };
   /** Something changed that the window should see (the status card). */
   onChange: () => void;
   /** An agent connected for the first time in this run. */
@@ -62,11 +62,11 @@ export function said(args: unknown): string {
 }
 
 /** Which tools are on: a group can be off, and a single tool can be off inside a group that is on. */
-export function toolsOn(settings: { off: string[]; groupsOff: string[] }): typeof TOOLS {
-  return TOOLS.filter((t) => !settings.groupsOff.includes(t.group) && !settings.off.includes(t.name));
+export function toolsOn(settings: { off: string[]; groupsOff: string[]; groupsOn?: string[] }): typeof TOOLS {
+  return TOOLS.filter((t) => groupIsOn(t.group, settings) && !settings.off.includes(t.name));
 }
 
-export function catalogue(settings: { off: string[]; groupsOff: string[] }): McpToolInfo[] {
+export function catalogue(settings: { off: string[]; groupsOff: string[]; groupsOn?: string[] }): McpToolInfo[] {
   const on = new Set(toolsOn(settings).map((t) => t.name));
   return TOOLS.map((t) => ({
     name: t.name,

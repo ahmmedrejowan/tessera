@@ -1,3 +1,4 @@
+import AddRounded from '@mui/icons-material/AddRounded';
 import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
 import ArrowBack from '@mui/icons-material/ArrowBack';
 import UnarchiveOutlined from '@mui/icons-material/UnarchiveOutlined';
@@ -34,7 +35,7 @@ import { LicenceChip, licenceSummary } from '../../components/LicenceChip';
 import { VirtualGrid } from '../../components/VirtualGrid';
 import { useIndexVersion, useLibraryId } from '../../state/library';
 import { useNav } from '../../state/nav';
-import { md, SHAPE } from '../../theme';
+import { md, mdAlpha, SHAPE } from '../../theme';
 import { AssetTile, TILE_LABEL_HEIGHT } from '../browse/AssetTile';
 import ButtonBase from '@mui/material/ButtonBase';
 import Dialog from '@mui/material/Dialog';
@@ -58,6 +59,7 @@ import { useBrowse } from '../../state/browse';
 import { coverHeight, PackCard } from '../browse/PackCard';
 import { FileTree } from './FileTree';
 import { PackEditor } from './PackEditor';
+import { addToThisPack, droppedOnPack } from './AddAssetsPage';
 
 const Viewer = lazy(() => import('../../viewer/Viewer').then((m) => ({ default: m.Viewer })));
 
@@ -149,6 +151,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   const [showing, setShowing] = useState<'games' | 'collections' | 'types' | null>(null);
   const [copying, setCopying] = useState<HTMLElement | null>(null);
   const [collecting, setCollecting] = useState<HTMLElement | null>(null);
+  const [dropping, setDropping] = useState(false);
   const active = useActiveProject();
   const usage = useQuery({ queryKey: ['usage', lib, version, id], queryFn: () => call('projects:usage', [id]), enabled: !!lib }).data ?? [];
   const holding = useQuery({ queryKey: ['holding', lib, version, id], queryFn: () => call('collections:holding', id), enabled: !!lib }).data ?? [];
@@ -192,7 +195,34 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   const viewed = viewing ? viewing.list[viewing.index] : undefined;
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+    <div
+      style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes('Files')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setDropping(true);
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+        setDropping(false);
+      }}
+      onDrop={(e) => {
+        if (!e.dataTransfer.types.includes('Files')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setDropping(false);
+        const paths = window.tessera.pathsFor([...e.dataTransfer.files]);
+        if (paths.length) void droppedOnPack(id, paths);
+      }}
+    >
+      {dropping && (
+        <div style={{ position: 'absolute', inset: 8, zIndex: 5, borderRadius: SHAPE.lg, border: `2px dashed ${md('primary')}`, background: mdAlpha('primary', 0.06), display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
+          <Typography variant="titleMedium" sx={{ color: md('primary') }}>
+            Add these to “{pack.name}”
+          </Typography>
+        </div>
+      )}
       <ItemHeader
         {...(back.length > 0 ? { onBack: goBack } : {})}
         preview={
@@ -242,6 +272,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
         actions={[
           { label: copyLabel, icon: LinkToGameIcon, primary: true, onClick: (anchor) => setCopying(anchor) },
           { label: 'Add to collection', icon: CollectionIcon, onClick: (anchor) => setCollecting(anchor) },
+          { label: 'Add files', icon: AddRounded, onClick: () => void addToThisPack(id) },
           { label: 'Edit details', icon: EditOutlined, onClick: () => setEditing(true) },
           { label: pack.meta.archived ? 'Bring it back' : 'Archive', icon: pack.meta.archived ? UnarchiveOutlined : ArchiveOutlined, onClick: () => void archivePack(id, !pack.meta.archived) },
           {

@@ -26,7 +26,7 @@ async function copyFile(src: string, dst: string, onBytes: (n: number) => void, 
 }
 
 /** Copy a file or a folder tree, skipping OS clutter. */
-async function copyTree(src: string, dst: string, onBytes: (n: number) => void, signal?: AbortSignal): Promise<void> {
+export async function copyTree(src: string, dst: string, onBytes: (n: number) => void, signal?: AbortSignal): Promise<void> {
   const s = await stat(src);
   if (!s.isDirectory()) return copyFile(src, dst, onBytes, signal);
   await mkdir(dst, { recursive: true });

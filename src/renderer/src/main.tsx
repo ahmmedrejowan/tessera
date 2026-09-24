@@ -10,6 +10,7 @@ import { installCapture } from './reports/capture';
 import { useImport } from './state/importer';
 import { queryClient } from './state/queries';
 import { AppThemeProvider } from './theme/AppThemeProvider';
+import { droppedOnPack } from './pages/pack/AddAssetsPage';
 
 installCapture();
 
@@ -21,6 +22,7 @@ if (window.tessera.e2e) {
       notify,
       ask,
       linkProject: async (path: string) => call('projects:add', await call('projects:probe', path)),
+      addToPack: (packId: string, paths: string[]) => droppedOnPack(packId, paths),
     },
   });
 }

@@ -4,7 +4,9 @@ import { catalogue, said, toolsOn } from '../src/main/mcp/server';
 import { TOOLS, TOOL_BY_NAME } from '../src/main/mcp/tools';
 import { skillMarkdown } from '../src/main/mcp/skill';
 
-const ALL_ON = { off: [], groupsOff: [] };
+const OPT_IN = TOOL_GROUPS.filter((g) => !g.defaultOn).map((g) => g.id);
+const ALL_ON = { off: [], groupsOff: [], groupsOn: OPT_IN };
+const DEFAULTS = { off: [], groupsOff: [], groupsOn: [] };
 
 describe('the tools an agent is offered', () => {
   it('has a unique name and a known group for every tool', () => {
@@ -23,18 +25,37 @@ describe('the tools an agent is offered', () => {
 
   it('covers every group, and reading is separate from changing', () => {
     for (const g of TOOL_GROUPS) expect(TOOLS.some((t) => t.group === g.id)).toBe(true);
-    // Deleting only ever means the bin: the only tools that remove anything are the two bin ones.
+    // Deleting means the bin unless the owner has allowed more: the group that cannot be undone
+    // is its own, and off until asked for.
     expect(TOOLS.filter((t) => t.group === 'remove').map((t) => t.name).sort()).toEqual(['delete_to_bin', 'restore_from_bin']);
-    expect(TOOLS.some((t) => /^empty/.test(t.name))).toBe(false);
+    expect(TOOLS.filter((t) => /^empty|discard/.test(t.name)).every((t) => t.group === 'danger')).toBe(true);
   });
 
   it('switches off a whole group, or one tool inside a group that is on', () => {
     expect(toolsOn(ALL_ON)).toHaveLength(TOOLS.length);
-    const withoutRemove = toolsOn({ off: [], groupsOff: ['remove'] });
+    const withoutRemove = toolsOn({ ...ALL_ON, groupsOff: ['remove'] });
     expect(withoutRemove.some((t) => t.group === 'remove')).toBe(false);
     expect(withoutRemove.some((t) => t.name === 'search')).toBe(true);
-    expect(toolsOn({ off: ['search'], groupsOff: [] }).some((t) => t.name === 'search')).toBe(false);
-    expect(catalogue({ off: ['search'], groupsOff: [] }).find((t) => t.name === 'search')?.on).toBe(false);
+    expect(toolsOn({ ...ALL_ON, off: ['search'] }).some((t) => t.name === 'search')).toBe(false);
+    expect(catalogue({ ...ALL_ON, off: ['search'] }).find((t) => t.name === 'search')?.on).toBe(false);
+  });
+
+  it('keeps the dangerous groups off until they are asked for', () => {
+    expect(OPT_IN).toEqual(['system', 'danger']);
+    const asShipped = toolsOn(DEFAULTS);
+    expect(asShipped.some((t) => t.group === 'danger')).toBe(false);
+    expect(asShipped.some((t) => t.group === 'system')).toBe(false);
+    expect(asShipped.some((t) => t.name === 'search')).toBe(true);
+    // Nothing that cannot be undone is on by default.
+    expect(asShipped.some((t) => t.name === 'empty_bin' || t.name === 'discard_review_pack')).toBe(false);
+    expect(toolsOn({ ...DEFAULTS, groupsOn: ['danger'] }).some((t) => t.name === 'empty_bin')).toBe(true);
+  });
+
+  it('gives an agent every part of the window: packs, files, collections, games, downloads, the app', () => {
+    const names = new Set(TOOLS.map((t) => t.name));
+    for (const needed of ['list_packs', 'list_assets', 'add_files_to_pack', 'set_pack_details', 'set_pack_cover', 'edit_collection', 'delete_collection', 'add_game', 'edit_game', 'unlink_from_game', 'list_libraries', 'open_library', 'create_library', 'get_settings', 'set_settings', 'empty_bin']) {
+      expect(names.has(needed), needed).toBe(true);
+    }
   });
 });
 

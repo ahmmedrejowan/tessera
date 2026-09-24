@@ -26,6 +26,17 @@ export interface ToolContext {
   /** Write what an agent did into the library's activity, so it can always be seen. */
   note: (text: string, detail?: string) => void;
   settings: () => import('@shared/types').Settings;
+  /** The app itself: the libraries it knows, its settings, and what has been happening. */
+  app: {
+    libraries: () => Promise<import('@shared/types').LibrarySummary[]>;
+    openLibrary: (path: string) => Promise<import('@shared/types').LibraryState>;
+    createLibrary: (path: string, name: string) => Promise<import('@shared/types').LibraryState>;
+    closeLibrary: () => Promise<void>;
+    updateSettings: (patch: Partial<import('@shared/types').Settings>) => Promise<import('@shared/types').Settings>;
+    activity: (limit: number) => Promise<import('@shared/types').ActivityEntry[]>;
+    backUpNow: () => Promise<unknown>;
+    reindex: () => Promise<void>;
+  };
 }
 
 export interface Tool<T extends z.ZodTypeAny = z.ZodTypeAny> {
@@ -539,7 +550,377 @@ export const TOOLS: Tool[] = [
       return { restored: back.filter(Boolean).length };
     },
   }),
+
+  // ---- Everything in the library, for an agent that wants the lot ----
+  define({
+    name: 'list_packs',
+    group: 'read',
+    title: 'Every pack',
+    summary: 'All the packs in the library, a page at a time, as a short line each. Use this to work through a whole library; use search when you know what you are after.',
+    input: z.object({
+      scope,
+      limit: z.number().int().min(1).max(1000).default(200),
+      offset: z.number().int().min(0).default(0),
+      sort: z.string().default('name').describe('name, added, size or count.'),
+    }),
+    run: async (args, ctx) => {
+      const sort = (PACK_SORTS as string[]).includes(args.sort) ? (args.sort as PackSort) : 'name';
+      const page = ctx.library.require().queries.packs(query(args), sort, args.offset, args.limit);
+      return {
+        total: page.total,
+        offset: args.offset,
+        packs: page.rows.map((p) => ({ id: p.id, name: p.name, licence: p.licence, creator: p.creator, assets: p.assetCount, bytes: p.size, kinds: p.types, status: p.status, archived: p.archived })),
+      };
+    },
+  }),
+  define({
+    name: 'list_assets',
+    group: 'read',
+    title: 'Every file',
+    summary: 'All the files in the library, a page at a time, as a short line each. A big library holds a hundred thousand: ask for a page, work through it, ask for the next.',
+    input: z.object({
+      scope,
+      packId: z.string().optional().describe('Only the files of this pack.'),
+      limit: z.number().int().min(1).max(1000).default(200),
+      offset: z.number().int().min(0).default(0),
+      sort: z.string().default('name'),
+    }),
+    run: async (args, ctx) => {
+      const sort = (ASSET_SORTS as string[]).includes(args.sort) ? (args.sort as AssetSort) : 'name';
+      const q: BrowseQuery = { ...query(args), ...(args.packId ? { packId: args.packId } : {}) };
+      const page = ctx.library.require().queries.assets(q, sort, args.offset, args.limit);
+      return {
+        total: page.total,
+        offset: args.offset,
+        assets: page.rows.map((a) => ({ id: a.id, name: a.name, packId: a.packId, path: assetPath(a.ref), type: a.type, format: a.ext, bytes: a.size, licence: a.licence })),
+      };
+    },
+  }),
+  define({
+    name: 'list_activity',
+    group: 'read',
+    title: 'What has been happening',
+    summary: 'The library’s own record: packs added, downloads, reviews finished, backups, links to games, and what agents have done.',
+    input: z.object({ limit: z.number().int().min(1).max(200).default(20) }),
+    run: async (args, ctx) => (await ctx.app.activity(args.limit)).map((e) => ({ at: e.at, kind: e.kind, text: e.text, detail: e.detail ?? null })),
+  }),
+
+  // ---- Filing, continued ----
+  define({
+    name: 'edit_collection',
+    group: 'organise',
+    title: 'Change a collection',
+    summary: 'Rename a collection, describe it, set what it will accept, or tie it to a game so linking knows where things go.',
+    input: z.object({
+      collectionId: z.string(),
+      name: z.string().optional(),
+      description: z.string().optional(),
+      projectId: z.string().nullable().optional().describe('The game this collection is for, or null to untie it.'),
+      rules: z
+        .object({
+          licences: z.array(z.string()).default([]),
+          needsCreditLine: z.boolean().default(false),
+          types: z.array(z.string()).default([]),
+        })
+        .partial()
+        .optional()
+        .describe('What may go in. Anything that does not fit is refused, with a reason.'),
+    }),
+    run: async (args, ctx) => {
+      const change: import('@shared/types').CollectionChange = {};
+      if (args.name !== undefined) change.name = args.name;
+      if (args.description !== undefined) change.description = args.description;
+      if (args.projectId !== undefined) change.projectId = args.projectId;
+      if (args.rules) change.rules = { ...NO_RULES, ...args.rules } as import('@shared/collection').CollectionRules;
+      await ctx.library.changeCollection(args.collectionId, change);
+      ctx.note('An agent changed a collection');
+      return { done: true };
+    },
+  }),
+  define({
+    name: 'delete_collection',
+    group: 'organise',
+    title: 'Delete a collection',
+    summary: 'Take a collection away. The packs and files in it stay in the library; only the gathering goes.',
+    input: z.object({ collectionId: z.string() }),
+    run: async (args, ctx) => {
+      await ctx.library.changeCollection(args.collectionId, { delete: true });
+      ctx.note('An agent deleted a collection');
+      return { done: true };
+    },
+  }),
+  define({
+    name: 'set_pack_cover',
+    group: 'organise',
+    title: 'Choose a pack’s cover',
+    summary: 'Pick the picture shown for a pack, by the path of a file inside it, or null to let Tessera choose.',
+    input: z.object({ packId: z.string(), path: z.string().nullable() }),
+    run: async (args, ctx) => {
+      await ctx.library.editPack(args.packId, { cover: args.path });
+      ctx.note('An agent set a pack’s cover');
+      return { done: true };
+    },
+  }),
+
+  // ---- Bringing things in, continued ----
+  define({
+    name: 'add_files_to_pack',
+    group: 'bring',
+    title: 'Add files to a pack',
+    summary: 'Put more files into a pack that is already in the library, copied in as they are. Use it when a download was missing a piece, or when something you made belongs with it.',
+    input: z.object({
+      packId: z.string(),
+      paths: z.array(z.string()).min(1).describe('Absolute paths to files or folders on this computer.'),
+      into: z.string().optional().describe('A folder inside the pack to put them in; made if it is not there. Leave it out for the top of the pack.'),
+      licence: z.string().nullable().optional().describe('Terms for these files alone, when they are not the pack’s own. Written as a rule for each file added.'),
+      creditLine: z.string().nullable().optional(),
+    }),
+    run: async (args, ctx) => {
+      const done = await ctx.library.addFilesToPack(args.packId, args.paths, args.into);
+      if (args.licence !== undefined && done.names.length) {
+        const pack = ctx.library.require().queries.pack(args.packId);
+        const rules = (pack?.meta.licences ?? []).filter((r) => !done.names.includes(r.path));
+        await ctx.library.editPack(args.packId, {
+          licences: [...rules, ...done.names.map((path) => ({ path, licence: { id: args.licence ?? null, attribution: args.creditLine ?? null, proof: [], notes: '' } }))].sort((a, b) => a.path.localeCompare(b.path)),
+        });
+      }
+      ctx.note(`An agent added ${done.added} file${done.added === 1 ? '' : 's'} to a pack`, done.names.slice(0, 6).join(', '));
+      return done;
+    },
+  }),
+  define({
+    name: 'pack_folders',
+    group: 'read',
+    title: 'The folders in a pack',
+    summary: 'The folders inside a pack, so files can be added where they belong.',
+    input: z.object({ packId: z.string() }),
+    run: async (args, ctx) => ({ folders: await ctx.library.packFolders(args.packId) }),
+  }),
+  define({
+    name: 'download_control',
+    group: 'bring',
+    title: 'Manage a download',
+    summary: 'Pause, resume, retry or cancel one download, or tidy the finished ones away.',
+    input: z.object({
+      what: z.enum(['pause', 'resume', 'again', 'cancel', 'remove', 'retryFailed', 'clear']),
+      id: z.string().optional().describe('Which download, from list_downloads. Not needed for retryFailed or clear.'),
+    }),
+    run: async (args, ctx) => {
+      const d = ctx.downloads;
+      if (args.what === 'retryFailed') d.retryFailed();
+      else if (args.what === 'clear') d.clear();
+      else {
+        if (!args.id) throw new Error('Which download? Give the id from list_downloads.');
+        if (args.what === 'pause') d.pause(args.id);
+        if (args.what === 'resume') d.resume(args.id);
+        if (args.what === 'again') d.again(args.id);
+        if (args.what === 'cancel') d.cancel(args.id);
+        if (args.what === 'remove') d.remove(args.id);
+      }
+      return { done: true };
+    },
+  }),
+
+  // ---- Games ----
+  define({
+    name: 'add_game',
+    group: 'link',
+    title: 'Set up a game',
+    summary: 'Tell Tessera where a game folder is, so assets can be linked into it. The engine and the folder assets go in are read from the project itself.',
+    input: z.object({
+      path: z.string().describe('The game’s folder on this computer.'),
+      name: z.string().optional().describe('What to call it; the folder’s name by default.'),
+    }),
+    run: async (args, ctx) => {
+      const probe = await ctx.projects.probe(args.path);
+      const project = await ctx.projects.add({ ...probe, ...(args.name ? { name: args.name } : {}) });
+      ctx.note(`An agent set up the game “${project.name}”`);
+      return { id: project.id, name: project.name, engine: project.engine, target: project.target, notes: probe.notes };
+    },
+  }),
+  define({
+    name: 'edit_game',
+    group: 'link',
+    title: 'Change a game',
+    summary: 'Rename a game, or change the folder assets are linked into and the file its credits are written to.',
+    input: z.object({ projectId: z.string(), name: z.string().optional(), target: z.string().optional(), creditsFile: z.string().optional() }),
+    run: async (args, ctx) => {
+      const { projectId, ...patch } = args;
+      await ctx.projects.update(projectId, patch);
+      ctx.note('An agent changed a game');
+      return { done: true };
+    },
+  }),
+  define({
+    name: 'unlink_from_game',
+    group: 'link',
+    title: 'Take assets out of a game',
+    summary: 'Remove files this library linked into a game, from the game’s folder and from its credits. The library keeps them.',
+    input: z.object({ projectId: z.string(), assetIds: z.array(z.number().int()).default([]), packIds: z.array(z.string()).default([]) }),
+    run: async (args, ctx) => {
+      const items = args.assetIds.length ? ctx.library.require().queries.refs(args.assetIds) : [];
+      for (const packId of args.packIds) for (const f of ctx.library.require().queries.packFiles(packId)) items.push({ packId: f.packId, ref: f.ref });
+      if (!items.length) throw new Error('Nothing to take out: give assetIds or packIds.');
+      const n = await ctx.projects.remove(args.projectId, items, ctx.libraryId());
+      ctx.note(`An agent took ${n} asset${n === 1 ? '' : 's'} out of a game`);
+      return { removed: n };
+    },
+  }),
+  define({
+    name: 'forget_game',
+    group: 'link',
+    title: 'Forget a game',
+    summary: 'Stop tracking a game. Its folder and everything already linked into it are left exactly as they are.',
+    input: z.object({ projectId: z.string() }),
+    run: async (args, ctx) => {
+      await ctx.projects.unlink(args.projectId);
+      ctx.note('An agent stopped tracking a game');
+      return { done: true };
+    },
+  }),
+
+  // ---- The app itself ----
+  define({
+    name: 'list_libraries',
+    group: 'system',
+    title: 'Every library',
+    summary: 'The libraries this computer knows, most recently opened first, and which one is open now.',
+    input: z.object({}),
+    run: async (_args, ctx) => {
+      const state = ctx.library.getState();
+      return {
+        open: state.status === 'ready' ? { id: state.library.id, name: state.library.name, path: state.library.path } : null,
+        libraries: (await ctx.app.libraries()).map((l) => ({ id: l.id, name: l.name, path: l.path, lastOpenedAt: l.lastOpenedAt ?? null })),
+      };
+    },
+  }),
+  define({
+    name: 'open_library',
+    group: 'system',
+    title: 'Open a library',
+    summary: 'Switch to another library by its folder. Everything else works on whichever is open, so say what you have switched to.',
+    input: z.object({ path: z.string().describe('The library’s folder, from list_libraries.') }),
+    run: async (args, ctx) => {
+      const state = await ctx.app.openLibrary(args.path);
+      if (state.status !== 'ready') throw new Error(state.status === 'error' ? state.message : `The library did not open (${state.status}).`);
+      ctx.note(`An agent opened the library “${state.library.name}”`);
+      return { open: true, name: state.library.name, path: state.library.path };
+    },
+  }),
+  define({
+    name: 'create_library',
+    group: 'system',
+    title: 'Make a library',
+    summary: 'Make a new, empty library in a folder, and open it.',
+    input: z.object({ path: z.string().describe('An empty folder, or one that does not exist yet.'), name: z.string() }),
+    run: async (args, ctx) => {
+      const state = await ctx.app.createLibrary(args.path, args.name);
+      if (state.status !== 'ready') throw new Error(state.status === 'error' ? state.message : 'The library was not made.');
+      ctx.note(`An agent made the library “${state.library.name}”`);
+      return { made: true, name: state.library.name, path: state.library.path };
+    },
+  }),
+  define({
+    name: 'close_library',
+    group: 'system',
+    title: 'Close the library',
+    summary: 'Close whatever library is open. Nothing is lost; the window goes back to the start.',
+    input: z.object({}),
+    run: async (_args, ctx) => {
+      await ctx.app.closeLibrary();
+      ctx.note('An agent closed the library');
+      return { closed: true };
+    },
+  }),
+  define({
+    name: 'get_settings',
+    group: 'system',
+    title: 'Read Tessera’s settings',
+    summary: 'Everything in Settings that is not a secret: theme, what happens to downloads, the rules for sites, the bin, and what agents may do.',
+    input: z.object({}),
+    run: async (_args, ctx) => {
+      const s = ctx.settings();
+      const { libraries: _libraries, ...rest } = s;
+      return rest;
+    },
+  }),
+  define({
+    name: 'set_settings',
+    group: 'system',
+    title: 'Change Tessera’s settings',
+    summary: 'Change the app’s own settings: theme, colour, what happens when a download finishes, how long the bin keeps things, and the licence rules for sites. Say what you changed.',
+    input: z.object({
+      theme: z.enum(['system', 'light', 'dark']).optional(),
+      seedColor: z.string().optional().describe('A hex colour, like #3f6f8f.'),
+      afterDownload: z.enum(['ask', 'review', 'sure']).optional(),
+      binKeepDays: z.number().int().min(0).max(3650).optional().describe('0 keeps things until you empty the bin.'),
+      updateCheck: z.boolean().optional(),
+      siteRules: z
+        .array(z.object({ host: z.string(), licence: z.string().nullable(), creditLine: z.string().nullable().default(null), note: z.string().default('') }))
+        .optional()
+        .describe('What to assume for a site you download from. Replaces the list.'),
+    }),
+    run: async (args, ctx) => {
+      const patch = Object.fromEntries(Object.entries(args).filter(([, v]) => v !== undefined));
+      if (!Object.keys(patch).length) throw new Error('Nothing to change.');
+      await ctx.app.updateSettings(patch as Partial<import('@shared/types').Settings>);
+      ctx.note('An agent changed Tessera’s settings', Object.keys(patch).join(', '));
+      return { changed: Object.keys(patch) };
+    },
+  }),
+  define({
+    name: 'read_library_again',
+    group: 'system',
+    title: 'Read the library again',
+    summary: 'Read every pack from scratch. Worth it after files have been moved about by hand; Tessera normally notices on its own.',
+    input: z.object({}),
+    run: async (_args, ctx) => {
+      await ctx.app.reindex();
+      ctx.note('An agent read the library again');
+      return { done: true };
+    },
+  }),
+  define({
+    name: 'back_up_now',
+    group: 'system',
+    title: 'Back up now',
+    summary: 'Make a backup of the open library at once, if backups are set up for it.',
+    input: z.object({}),
+    run: async (_args, ctx) => {
+      await ctx.app.backUpNow();
+      ctx.note('An agent backed up the library');
+      return { done: true };
+    },
+  }),
+
+  // ---- What cannot be undone ----
+  define({
+    name: 'empty_bin',
+    group: 'danger',
+    title: 'Empty the bin',
+    summary: 'Delete what is in the library’s bin from the disk, for good. There is no putting it back. Check list_bin first, and say plainly what is about to go.',
+    input: z.object({ ids: z.array(z.string()).default([]).describe('Entries from list_bin, or leave it out for everything in the bin.') }),
+    run: async (args, ctx) => {
+      const gone = await ctx.library.emptyBin(args.ids.length ? args.ids : undefined);
+      ctx.note(`An agent emptied ${gone} thing${gone === 1 ? '' : 's'} from the bin, for good`);
+      return { gone };
+    },
+  }),
+  define({
+    name: 'discard_review_pack',
+    group: 'danger',
+    title: 'Throw away a pack in Review',
+    summary: 'Delete a pack that is still waiting in Review, straight from the disk. It never reached the library, so there is no bin to catch it.',
+    input: z.object({ packId: z.string() }),
+    run: async (args, ctx) => {
+      const pack = ctx.library.require().queries.pack(args.packId);
+      await ctx.library.discardPack(args.packId);
+      ctx.note(`An agent threw away “${pack?.name ?? 'a pack'}” from Review`);
+      return { done: true };
+    },
+  }),
 ];
+
 
 export const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 

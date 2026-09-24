@@ -6,15 +6,23 @@
  */
 
 /** Tools are switched on and off by what they do, not one by one, unless you want to. */
-export type ToolGroup = 'read' | 'organise' | 'link' | 'bring' | 'remove';
+export type ToolGroup = 'read' | 'organise' | 'link' | 'bring' | 'remove' | 'system' | 'danger';
 
 export const TOOL_GROUPS: { id: ToolGroup; title: string; note: string; defaultOn: boolean }[] = [
   { id: 'read', title: 'Looking', note: 'Search the library, read packs, files, collections and games. Changes nothing.', defaultOn: true },
   { id: 'organise', title: 'Filing', note: 'Star things, make and fill collections, record licences and tags, archive a pack.', defaultOn: true },
   { id: 'link', title: 'Linking to a game', note: 'Copy assets into a game folder, with their licences and credits.', defaultOn: true },
   { id: 'bring', title: 'Bringing things in', note: 'Add packs from this computer and fetch links from the web.', defaultOn: true },
-  { id: 'remove', title: 'Deleting to the bin', note: 'Move packs or files to the library’s bin, and put them back. The bin can only be emptied by you, in the app.', defaultOn: true },
+  { id: 'remove', title: 'Deleting to the bin', note: 'Move packs or files to the library’s bin, and put them back. Nothing here is permanent.', defaultOn: true },
+  { id: 'system', title: 'The app itself', note: 'Open and make libraries, change Tessera’s settings, read the library again, run a backup. Off until you turn it on.', defaultOn: false },
+  { id: 'danger', title: 'Deleting for good', note: 'Empty the bin, throw away a pack waiting in Review. These cannot be undone. Off until you turn it on.', defaultOn: false },
 ];
+
+/** Whether a group is on, given what has been switched off and what has been allowed. */
+export function groupIsOn(id: ToolGroup, settings: { groupsOff: string[]; groupsOn?: string[] }): boolean {
+  const group = TOOL_GROUPS.find((g) => g.id === id);
+  return group?.defaultOn ? !settings.groupsOff.includes(id) : (settings.groupsOn ?? []).includes(id);
+}
 
 export const DEFAULT_MCP_PORT = 7458;
 

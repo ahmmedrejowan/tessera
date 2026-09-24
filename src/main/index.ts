@@ -2,7 +2,7 @@ import { app, BrowserWindow, crashReporter, dialog, nativeTheme, net, session, s
 import { mkdir, writeFile } from 'node:fs/promises';
 import { release, tmpdir } from 'node:os';
 import { readdir, readFile, rm, stat } from 'node:fs/promises';
-import { join, sep } from 'node:path';
+import { basename, join, sep } from 'node:path';
 import type { DownloadItem, LibrarySummary, Platform, Settings } from '@shared/types';
 import { byRecent, patchRecord, recordOf, touchLibrary } from './libraries';
 import { broadcast, handle, onInternalError, UserError } from './ipc';
@@ -38,6 +38,7 @@ import { SettingsStore } from './settings';
 import { RenderWindow } from './thumbs/renderWindow';
 import { ThumbService } from './thumbs/service';
 import { Activity } from './activity';
+import { TOOL_GROUPS } from '@shared/mcp';
 import { McpService, catalogue, portFree } from './mcp/server';
 import { McpHistory } from './mcp/history';
 import { skillMarkdown } from './mcp/skill';
@@ -184,6 +185,23 @@ const mcp = new McpService({
     libraryId,
     note: (text, detail) => activity.add('agent', text, detail),
     settings: () => settings.get(),
+    app: {
+      libraries: () => librarySummaries(),
+      openLibrary: (path) => library.open(path),
+      createLibrary: (path, name) => library.create(path, name),
+      closeLibrary: async () => {
+        library.close();
+        await settings.update({ libraryPath: null });
+      },
+      updateSettings: (patch) => settings.update(patch),
+      activity: (limit) => activity.list(limit),
+      backUpNow: async () => {
+        const done = await backups.backupNow();
+        activity.add('backup', 'Backed up this library');
+        return done;
+      },
+      reindex: () => library.reindex(),
+    },
   }),
   onChange: () => broadcast(windows, 'mcp:changed', 0),
   onCall: (entry) => {
@@ -610,7 +628,13 @@ function registerHandlers(): void {
     const next = { ...now };
     if (change.enabled !== undefined) next.enabled = change.enabled;
     if (change.port !== undefined) next.port = change.port;
-    if (change.group) next.groupsOff = change.group.on ? now.groupsOff.filter((g) => g !== change.group!.id) : [...new Set([...now.groupsOff, change.group.id])];
+    if (change.group) {
+      // A group that is on by default is remembered when it goes off; one that starts off is
+      // remembered when it is allowed. Either way the switch means what it says.
+      const id = change.group.id;
+      if (TOOL_GROUPS.find((g) => g.id === id)?.defaultOn) next.groupsOff = change.group.on ? now.groupsOff.filter((g) => g !== id) : [...new Set([...now.groupsOff, id])];
+      else next.groupsOn = change.group.on ? [...new Set([...now.groupsOn, id])] : now.groupsOn.filter((g) => g !== id);
+    }
     if (change.tool) next.off = change.tool.on ? now.off.filter((t) => t !== change.tool!.name) : [...new Set([...now.off, change.tool.name])];
     await settings.update({ mcp: next });
     await mcp.apply();
@@ -640,6 +664,23 @@ function registerHandlers(): void {
     if (picked.canceled || !picked.filePath) return null;
     await writeFile(picked.filePath, text, 'utf8');
     return { path: picked.filePath };
+  });
+
+  handle('pack:addFiles', async (id, paths, into) => {
+    const pack = library.require().queries.pack(id);
+    const done = await library.addFilesToPack(id, paths, into);
+    if (done.added) activity.add('added', `Added ${done.added} file${done.added === 1 ? '' : 's'} to “${pack?.name ?? 'a pack'}”`, done.names.slice(0, 6).join(', '));
+    return done;
+  });
+  handle('pack:folders', (id) => library.packFolders(id));
+  handle('fs:files', async (paths) => {
+    const out: { path: string; name: string; size: number; isFolder: boolean }[] = [];
+    for (const path of paths) {
+      const s = await stat(path).catch(() => null);
+      if (!s) continue;
+      out.push({ path, name: basename(path), size: s.isDirectory() ? 0 : s.size, isFolder: s.isDirectory() });
+    }
+    return out;
   });
 
   handle('jobs:list', () => jobs.list());

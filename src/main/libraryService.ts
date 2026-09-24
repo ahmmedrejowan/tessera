@@ -1,6 +1,7 @@
 import { watch, type FSWatcher } from 'node:fs';
 import { copyFile, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
+import { isIgnored } from '@shared/assets';
 import { missingForLibrary, type PackEdit, type PackStatus } from '@shared/pack';
 import { FAVOURITES, refuses, type CollectionItem, type CollectionRules, type CollectionSummary, type SmartQuery } from '@shared/collection';
 import type { BrowseQuery, Filters, PackRow } from '@shared/query';
@@ -9,7 +10,7 @@ import { UserError } from './errors';
 import { listPackFiles, parseRef } from './index/files';
 import { LibraryIndex } from './index/indexer';
 import { planImport } from './import/plan';
-import { runImport } from './import/run';
+import { copyTree, runImport } from './import/run';
 import { LibraryQueries } from './index/query';
 import type { Jobs } from './jobs';
 import { createCollection, deleteCollection, favourites, listCollections, updateCollection, withItems, withoutItems, withPacks, withoutPacks } from './library/collections';
@@ -518,6 +519,59 @@ export class LibraryService {
       this.d.onIndexChanged();
     }
     return added.length;
+  }
+
+  /**
+   * Put more files into a pack that is already in the library: the thing a person wants when a
+   * download turns out to be missing a piece, or when they made something that belongs with it.
+   * The files are copied in as they are, under `into` if one is given, and the pack is read again.
+   */
+  async addFilesToPack(id: string, paths: string[], into?: string): Promise<{ added: number; names: string[] }> {
+    const lib = this.require();
+    const pack = await this.packRecord(id);
+    if (!paths.length) return { added: 0, names: [] };
+    const folder = (into ?? '').split('/').filter((p) => p && p !== '.' && p !== '..').map(safeFolderName).join('/');
+    const dir = join(pack.dir, PACK_DIRS.original, folder);
+    await mkdir(dir, { recursive: true });
+    const taken = new Set((await readdir(dir).catch(() => [])).map((n) => n.toLowerCase()));
+    const names: string[] = [];
+    this.busyWriting++;
+    try {
+      for (const src of paths) {
+        const ext = extname(src);
+        const stem = basename(src, ext);
+        // Two files of the same name can both belong here, so the second one is numbered.
+        const name = uniqueName(stem, (c) => taken.has(`${c}${ext}`.toLowerCase())) + ext;
+        await copyTree(src, join(dir, name), () => undefined);
+        taken.add(name.toLowerCase());
+        names.push(folder ? `${folder}/${name}` : name);
+      }
+    } finally {
+      this.busyWriting--;
+    }
+    if (names.length) {
+      await lib.index.syncPack(await this.packRecord(id), lib.index.known(id));
+      this.d.onIndexChanged();
+    }
+    return { added: names.length, names };
+  }
+
+  /** The folders inside a pack, so files can be put where they belong. */
+  async packFolders(id: string): Promise<string[]> {
+    const pack = await this.packRecord(id);
+    const root = join(pack.dir, PACK_DIRS.original);
+    const out: string[] = [];
+    const walk = async (dir: string, prefix: string, depth: number): Promise<void> => {
+      if (depth > 3) return;
+      for (const e of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+        if (!e.isDirectory() || isIgnored(e.name)) continue;
+        const rel = prefix ? `${prefix}/${e.name}` : e.name;
+        out.push(rel);
+        await walk(join(dir, e.name), rel, depth + 1);
+      }
+    };
+    await walk(root, '', 0);
+    return out.sort((a, b) => a.localeCompare(b));
   }
 
   async proofPath(id: string, name: string): Promise<string> {

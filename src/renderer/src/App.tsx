@@ -34,6 +34,7 @@ import { AgentCallsPage } from './pages/agents/AgentCallsPage';
 import { SearchPage } from './pages/SearchPage';
 import { BinPage } from './pages/BinPage';
 import { PackPage } from './pages/pack/PackPage';
+import { AddAssetsPage } from './pages/pack/AddAssetsPage';
 import { Welcome } from './pages/Welcome';
 import { AppShell } from './shell/AppShell';
 import { useLibraryId, useLibraryState, useStats } from './state/library';
@@ -51,6 +52,8 @@ function Current() {
       return <BrowsePage />;
     case 'pack':
       return <PackPage key={route.id} id={route.id} edit={route.edit ?? false} />;
+    case 'addAssets':
+      return <AddAssetsPage key={route.id} id={route.id} />;
     case 'inbox':
       return <InboxPage />;
     case 'downloads':
@@ -140,7 +143,9 @@ function Screen() {
   const inbox = Math.max(0, (useStats().data?.inbox ?? 0) - adding);
   const downloading = (useDownloads().data ?? []).filter(isGoing).length;
   // The Downloads page takes drops of its own (links, and files holding links).
-  const onDownloads = useNav((s) => s.route.to) === 'downloads';
+  // Pages that take their own drops: Downloads (links), a pack and its add page (files into it).
+  const where = useNav((s) => s.route.to);
+  const ownDrop = where === 'downloads' || where === 'pack' || where === 'addAssets';
   const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null);
   if (!state) return null;
   if (state.status === 'opening') {
@@ -169,7 +174,7 @@ function Screen() {
       <AddMenu anchor={addAnchor} onClose={() => setAddAnchor(null)} />
       <CopyConfirm />
       <MenuCommands />
-      <DropOverlay enabled={!onDownloads} />
+      <DropOverlay enabled={!ownDrop} />
     </>
   );
 }

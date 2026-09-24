@@ -85,6 +85,10 @@ export interface Invokes {
   'pack:proof': (id: string) => { name: string; size: number; url: string }[];
   /** Ask for files and copy them into the pack's licence/ folder; returns how many were added. */
   'pack:addProof': (id: string) => number;
+  /** Put more files into a pack that is already in the library, under `into` if one is given. */
+  'pack:addFiles': (id: string, paths: string[], into?: string) => { added: number; names: string[] };
+  /** The folders inside a pack, so added files can be put where they belong. */
+  'pack:folders': (id: string) => string[];
   'pack:openProof': (id: string, name: string) => void;
   'asset:get': (id: number) => AssetRow | null;
   'asset:variants': (id: number) => AssetRow[];
@@ -238,6 +242,8 @@ export interface Invokes {
   'import:choose': (what: 'files' | 'folder' | 'folderOfPacks') => string[] | null;
   /** The sample packs that come with the app. */
   'import:samples': () => string[];
+  /** What these paths are: enough to list them before they are added to a pack. */
+  'fs:files': (paths: string[]) => { path: string; name: string; size: number; isFolder: boolean }[];
   /** `eachInside`: a folder is several packs; 'auto' decides from what's in it. */
   /** Links the user brought, on their way to becoming packs. */
   /** Is there a newer Tessera? Nothing is downloaded or installed by the check. */

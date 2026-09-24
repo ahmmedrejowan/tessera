@@ -66,6 +66,8 @@ export interface Settings {
     off: string[];
     /** Groups switched off by name. */
     groupsOff: string[];
+    /** Groups that start off and have been allowed: the app's own settings, deleting for good. */
+    groupsOn: string[];
   };
   /** Look for a newer Tessera on start and once a day. */
   updateCheck: boolean;
