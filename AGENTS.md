@@ -13,7 +13,9 @@ projects with their licences and credits.
 ```
 npm install
 npm run dev          # the app with hot reload
-npm test             # unit tests (vitest)
+npm test             # the unit suite (vitest)
+npm test -- --coverage   # with a report in coverage/, and a floor that must not drop
+npm run test:e2e     # the built app, driven the way a person drives it
 npm run typecheck
 npm run package      # an unpacked app in release/ for this platform
 npm run dist         # installers for this platform
@@ -39,7 +41,13 @@ touch an installed copy. `TESSERA_USER_DATA=<folder>` points the app at any data
   - `projects/`: linked game projects: engine detection, copying with dependencies, the
     per-project manifest and CREDITS.md.
   - `libraryService.ts`, the open library: opening, watching, syncing, and the operations the
-    window asks for. `index.ts` wires IPC handlers to the services.
+    window asks for.
+  - `index.ts` is the composition root and nothing else: it builds the services once and hands
+    each group of handlers the part of the app it needs. `ipc/` holds those groups, one file per
+    area, each declaring what it takes as `type Deps = Pick<IpcContext, …>`, so a handler cannot
+    reach for a service it was not given. `test/contract.test.ts` reads the contract and the
+    handlers and fails if a channel is missing, answered twice, or answered without being
+    declared.
   - `libraries.ts`: every library this computer knows (`settings.libraries`, by library id):
     each keeps its own settings (Review rule, downloads rule, sync, backups); moving old app-wide
     settings over. Site rules (`settings.siteRules`) are the app's, not a library's.
@@ -115,6 +123,13 @@ it came from.
   free of `electron` imports where possible, so it stays testable.
 
 ## Docs
+
+`docs/testing.md` explains how the two suites are put together, what is deliberately left out of
+the coverage figures and why, and the two rules worth knowing before writing a test: wait for a
+condition rather than a duration, and let a test own the folders it writes into.
+
+`packaging/README.md` explains how a published release reaches Homebrew, winget, Scoop, Chocolatey
+and the AUR, and what each needs from the owner.
 
 `docs/guide.md` is the step by step guide and `docs/faq.md` the questions people ask, both with
 pictures in `docs/images/` made by `scripts/guide-shots.mjs`. The same words are in the app, under
