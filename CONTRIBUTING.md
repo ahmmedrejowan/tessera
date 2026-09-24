@@ -42,12 +42,16 @@ bridge, and the window. The short version:
 - **Comments say why, not what.** The code says what.
 - **Tests for what could break.** A new tool, a new format, a new rule: a test with a name that
   reads as a sentence about behaviour, not about the code.
+  [docs/testing.md](docs/testing.md) explains how the suites are put together, what is deliberately
+  left out of them, and the two rules worth knowing before writing one: wait for a condition rather
+  than a duration, and let a test own the folders it writes into.
 - **Nothing that loses files.** Deleting means the library's bin. A write that could half-finish
   should be atomic, or recoverable.
 - **No new runtime dependency** without a good reason. There are four.
 
-Before you open a pull request: `npm run typecheck && npm test`. CI runs both on macOS, Windows
-and Linux, and builds the app on each.
+Before you open a pull request: `npm run typecheck && npm test`. CI runs both on macOS, Windows and
+Linux, builds the app on each, and holds coverage to a floor, so a change that quietly stops testing
+something fails rather than going unnoticed.
 
 ## Licence
 
