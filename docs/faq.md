@@ -19,9 +19,21 @@ macOS, Windows and Linux. The same app, the same library format; a library copie
 **Is it free?**
 Yes, and free software: GPL-3.0-or-later. You can read how it works, change it, and pass it on.
 
-**Why does macOS say Tessera is damaged?**
-Because the build is not signed with a paid Apple certificate. Right-click Tessera in Applications,
-choose Open, then Open again. Only the first time.
+**Why does macOS say it cannot verify Tessera is free from malware?**
+Because the build is not notarised by Apple, which costs ninety-nine dollars a year that a free
+program would rather not spend. The app is not damaged and nothing has gone wrong with the
+download. Press Done on the warning, then open System Settings, Privacy & Security, scroll to
+Security, and press Open Anyway beside Tessera. Confirm with Touch ID or your password, then press
+Open. Only the first time. On macOS 14 and earlier, right-clicking Tessera and choosing Open does
+the same thing.
+
+**macOS says Tessera is damaged instead. What now?**
+That means the download was flagged on the way in rather than the signature being unrecognised.
+Clear the flag and open it again:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Tessera.app
+```
 
 ## Your files
 

@@ -55,13 +55,24 @@
 Every file, with its checksum and what changed, is on the
 [releases page](https://github.com/ahmmedrejowan/tessera/releases/latest).
 
-These builds are not signed with a paid certificate, so each system asks once:
+These builds are not notarised by Apple or signed with a Windows certificate, so each system asks
+once, the first time you open Tessera. Nothing is wrong with the download.
 
-| System | What it says | What to do |
-|--------|--------------|------------|
-| macOS | "Tessera is damaged and can't be opened" | Right-click Tessera in Applications, choose **Open**, then **Open** again. Only the first time. |
-| Windows | "Windows protected your PC" | Choose **More info**, then **Run anyway**. |
-| Linux | nothing | `chmod +x Tessera-*.AppImage`, or `sudo dpkg -i tessera_*.deb`, or `sudo rpm -i tessera-*.rpm`. |
+**macOS** says it cannot verify the app is free from malware.
+
+1. Double-click Tessera, then press **Done** on the warning.
+2. Apple menu, **System Settings**, **Privacy & Security**.
+3. Scroll to **Security**. There is a line saying Tessera was blocked.
+4. Press **Open Anyway**, and confirm with Touch ID or your password.
+5. Press **Open** on the last box.
+
+From then on it opens like anything else. On macOS 14 and earlier you can instead right-click
+Tessera in Applications and choose **Open**, then **Open** again.
+
+**Windows** says "Windows protected your PC". Choose **More info**, then **Run anyway**.
+
+**Linux** says nothing. `chmod +x Tessera-*.AppImage`, or `sudo dpkg -i tessera_*.deb`, or
+`sudo rpm -i tessera-*.rpm`.
 
 Every release lists the SHA256 of each file, so you can check a download is the one that was built.
 

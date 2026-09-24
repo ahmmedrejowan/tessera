@@ -15,11 +15,18 @@ const what = section ? section.split('\n').slice(1).join('\n').trim() : '';
 
 const unsigned = `## Installing
 
-These builds are not signed with a paid certificate, so each system asks once:
+These builds are not notarised by Apple or signed with a Windows certificate, so each system asks
+once, the first time you open Tessera.
 
-- **macOS**: right-click Tessera in Applications, choose Open, then Open again. Only the first time.
-- **Windows**: SmartScreen says "Windows protected your PC". Choose More info, then Run anyway.
-- **Linux**: \`chmod +x Tessera-*.AppImage\`, \`sudo dpkg -i tessera_*.deb\`, or \`sudo rpm -i tessera-*.rpm\`.
+**macOS** says it cannot verify the app is free from malware. Press Done, then open System
+Settings, Privacy & Security, scroll to Security, and press Open Anyway beside Tessera. Confirm
+with Touch ID or your password, then press Open. On macOS 14 and earlier, right-click Tessera and
+choose Open instead.
+
+**Windows** says "Windows protected your PC". Choose More info, then Run anyway.
+
+**Linux** says nothing. \`chmod +x Tessera-*.AppImage\`, \`sudo dpkg -i tessera_*.deb\`, or
+\`sudo rpm -i tessera-*.rpm\`.
 
 Take the file that matches your computer: \`arm64\` for Apple Silicon, \`x64\` for Intel. The
 SHA256SUMS files beside them are the checksums of everything built here.`;
