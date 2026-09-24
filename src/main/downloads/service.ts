@@ -367,11 +367,18 @@ export class DownloadService {
       this.changed();
 
       const out = createWriteStream(part, { flags: from ? 'a' : 'w' });
+      // A stream that cannot be opened or written to reports it as an event rather than by
+      // throwing: the folder taken away underneath it, a disk that fills up, a drive unplugged
+      // mid-download. Without somewhere for that to go it is an uncaught exception, which takes
+      // the whole app with it over one download that should simply have failed.
+      let broke: Error | null = null;
+      out.on('error', (e: Error) => (broke ??= e));
       const reader = res.body.getReader();
       let mark = Date.now();
       let at = from;
       try {
         for (;;) {
+          if (broke) throw broke;
           const { done, value } = await reader.read();
           if (done) break;
           if (!out.write(value)) await new Promise<void>((r) => out.once('drain', () => r()));
@@ -388,8 +395,13 @@ export class DownloadService {
           }
         }
       } finally {
-        await new Promise<void>((resolve) => out.end(() => resolve()));
+        // A stream that has already failed will not call back, so the error ends the wait too.
+        await new Promise<void>((resolve) => {
+          out.once('error', () => resolve());
+          out.end(() => resolve());
+        });
       }
+      if (broke) throw broke;
 
       const file = join(dir, item.name);
       await rename(part, file);

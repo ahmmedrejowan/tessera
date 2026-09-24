@@ -65,8 +65,11 @@ const track = (service: DownloadService) => {
   started.push(service);
   return service;
 };
-afterEach(() => {
+afterEach(async () => {
   for (const q of started.splice(0)) q.stopAll();
+  // Stopping is immediate, but a download part way through a write unwinds on the next turn of
+  // the loop. Clearing the folders out from under it before then is a race it loses.
+  await new Promise((r) => setTimeout(r, 50));
 });
 
 afterAll(() => {

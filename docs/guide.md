@@ -3,19 +3,43 @@
 Everything in this guide is in the app too, under Help. Read it in order the first time; after
 that, use the contents.
 
-1. [Starting out](#starting-out)
-2. [Getting packs in](#getting-packs-in)
-3. [Review, and why it exists](#review-and-why-it-exists)
-4. [Finding things](#finding-things)
-5. [Looking closely](#looking-closely)
-6. [A pack's own page](#a-packs-own-page)
-7. [Adding to a pack you already have](#adding-to-a-pack-you-already-have)
-8. [Collections](#collections)
-9. [Games](#games)
-10. [Starred, the archive and the bin](#starred-the-archive-and-the-bin)
-11. [Backups and sync](#backups-and-sync)
-12. [AI agents](#ai-agents)
-13. [Questions](#questions)
+1. [Getting it](#getting-it)
+2. [Starting out](#starting-out)
+3. [Getting packs in](#getting-packs-in)
+4. [Review, and why it exists](#review-and-why-it-exists)
+5. [Finding things](#finding-things)
+6. [Looking closely](#looking-closely)
+7. [A pack's own page](#a-packs-own-page)
+8. [Adding to a pack you already have](#adding-to-a-pack-you-already-have)
+9. [Collections](#collections)
+10. [Games](#games)
+11. [Starred, the archive and the bin](#starred-the-archive-and-the-bin)
+12. [Backups and sync](#backups-and-sync)
+13. [AI agents](#ai-agents)
+14. [Questions](#questions)
+
+---
+
+## Getting it
+
+The shortest way, on any system, is a package manager:
+
+| System | What to type |
+|--------|--------------|
+| macOS | `brew tap ahmmedrejowan/tessera && brew install --cask tessera` |
+| Windows | `winget install Rejowan.Tessera` |
+| Windows, Scoop | `scoop bucket add tessera https://github.com/ahmmedrejowan/scoop-tessera` then `scoop install tessera` |
+| Windows, Chocolatey | `choco install tessera` |
+| Arch Linux | `yay -S tessera-bin` |
+
+Or take the file for your computer from the
+[releases page](https://github.com/ahmmedrejowan/tessera/releases/latest): a `.dmg` for macOS, an
+`.exe` for Windows, an `.AppImage`, `.deb` or `.rpm` for Linux.
+
+These builds are not notarised by Apple or signed with a Windows certificate, so each system asks
+once the first time. On a Mac: press Done on the warning, then System Settings, Privacy & Security,
+scroll to Security, and press Open Anyway. On Windows: More info, then Run anyway. Installing with
+Homebrew skips all of this on a Mac.
 
 ---
 
