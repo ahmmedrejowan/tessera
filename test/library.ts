@@ -105,7 +105,23 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
   const context = (): ToolContext => ({
     library,
     projects,
-    downloads: { add: () => ({ added: 0, skipped: 0 }), list: () => [] } as unknown as ToolContext['downloads'],
+    // Enough of the download queue for the tools that drive it; nothing here touches the network.
+    downloads: {
+      add: () => ({ added: 0, skipped: 0 }),
+      list: () => [],
+      pause: () => undefined,
+      resume: () => undefined,
+      again: () => undefined,
+      cancel: () => undefined,
+      remove: () => undefined,
+      pauseAll: () => undefined,
+      resumeAll: () => undefined,
+      retryFailed: () => undefined,
+      clear: async () => undefined,
+      done: () => undefined,
+      fileOf: () => null,
+      urlOf: () => null,
+    } as unknown as ToolContext['downloads'],
     copySource: () => {
       const { queries, index } = library.require();
       return {
