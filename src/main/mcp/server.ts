@@ -153,10 +153,8 @@ export class McpService {
 
   /** One request, one MCP server: nothing is kept between calls, so a crash can't wedge a session. */
   private async answer(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse): Promise<void> {
-    // Only this computer, whatever the request says it is.
-    const from = req.socket.remoteAddress ?? '';
-    if (!from.includes('127.0.0.1') && from !== '::1' && !from.endsWith(':127.0.0.1')) {
-      res.writeHead(403).end('Tessera answers on this computer only.');
+    if (!fromHere(req)) {
+      res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' }).end('Tessera answers agents on this computer only.');
       return;
     }
     if (req.url && !req.url.startsWith('/mcp')) {
@@ -225,6 +223,26 @@ export class McpService {
       if (!res.headersSent) res.writeHead(500).end();
     }
   }
+}
+
+/** The addresses a request may claim to be for: this computer, by any of its local names. */
+const LOCAL = /^(127\.0\.0\.1|localhost|\[?::1\]?)(:\d+)?$/i;
+
+/**
+ * Whether a request really comes from a program on this computer. The socket says where it came
+ * from, but a web page in the browser is also on this computer: it reaches a local server by
+ * pointing a name of its own at 127.0.0.1 (DNS rebinding). The name it used is in Host, and the
+ * page it came from is in Origin, so both have to be local too. A program connecting directly
+ * sends no Origin at all, which is fine.
+ */
+export function fromHere(req: { socket: { remoteAddress?: string | undefined }; headers: Record<string, string | string[] | undefined> }): boolean {
+  const from = req.socket.remoteAddress ?? '';
+  if (!from.includes('127.0.0.1') && from !== '::1' && !from.endsWith(':127.0.0.1')) return false;
+  const host = typeof req.headers.host === 'string' ? req.headers.host : '';
+  if (host && !LOCAL.test(host)) return false;
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : '';
+  if (origin && !LOCAL.test(origin.replace(/^https?:\/\//i, ''))) return false;
+  return true;
 }
 
 /** Can we listen there? Asked before the owner changes the port. */

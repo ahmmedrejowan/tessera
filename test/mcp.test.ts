@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TOOL_GROUPS } from '../src/shared/mcp';
-import { catalogue, said, toolsOn } from '../src/main/mcp/server';
+import { catalogue, fromHere, said, toolsOn } from '../src/main/mcp/server';
 import { TOOLS, TOOL_BY_NAME } from '../src/main/mcp/tools';
 import { skillMarkdown } from '../src/main/mcp/skill';
 
@@ -84,6 +84,27 @@ describe('what a call is shown as', () => {
 
   it('keeps a long value short enough to read', () => {
     expect(said({ text: 'x'.repeat(80) }).length).toBeLessThan(50);
+  });
+});
+
+describe('who may reach the door', () => {
+  const ask = (headers: Record<string, string>, address = '127.0.0.1') => fromHere({ socket: { remoteAddress: address }, headers });
+
+  it('lets a program on this computer in', () => {
+    expect(ask({ host: '127.0.0.1:7458' })).toBe(true);
+    expect(ask({ host: 'localhost:7458' })).toBe(true);
+    expect(ask({}, '::1')).toBe(true);
+    expect(ask({ host: '127.0.0.1:7458', origin: 'http://localhost:3000' })).toBe(true);
+  });
+
+  it('keeps another computer out', () => {
+    expect(ask({ host: '127.0.0.1:7458' }, '192.168.1.24')).toBe(false);
+  });
+
+  it('keeps a web page out, however it found the address', () => {
+    // A page that points a name of its own at 127.0.0.1 still says which name it used.
+    expect(ask({ host: 'tessera.attacker.test:7458' })).toBe(false);
+    expect(ask({ host: '127.0.0.1:7458', origin: 'https://evil.example' })).toBe(false);
   });
 });
 
