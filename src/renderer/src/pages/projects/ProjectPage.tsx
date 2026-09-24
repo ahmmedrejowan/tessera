@@ -25,7 +25,7 @@ import { call } from '../../api';
 import { AssetThumb } from '../../components/AssetThumb';
 import { EmptyState } from '../../components/EmptyState';
 import { Page } from '../Placeholder';
-import { displayName } from '../../components/labels';
+import { displayName, formatCount } from '../../components/labels';
 import { LicenceChip } from '../../components/LicenceChip';
 import { failed, notify } from '../../notices/store';
 import { useLibraryId } from '../../state/library';
@@ -54,6 +54,11 @@ function Setting({ title, body, children }: { title: string; body: ReactNode; ch
 }
 
 /** One linked project: where assets go, its credits, and what's been copied into it. */
+/** How many of a pack's files a game's page draws before offering the rest. */
+const PER_PACK = 24;
+/** And how many packs, for a game that has taken from a hundred of them. */
+const PACKS_SHOWN = 10;
+
 export function ProjectPage({ id }: { id: string }) {
   const { goBack, back, go } = useNav();
   const projects = useProjects();
@@ -63,6 +68,8 @@ export function ProjectPage({ id }: { id: string }) {
   const entries = useQuery({ queryKey: ['projects', 'entries', id, project?.assets, project?.lastCopy], queryFn: () => call('projects:entries', id), enabled: !!project?.exists }).data ?? [];
   const [editingTarget, setEditingTarget] = useState<string | null>(null);
   const [unlinking, setUnlinking] = useState(false);
+  /** Packs whose every file is being shown, rather than the first screenful. */
+  const [open, setOpen] = useState<Set<string>>(new Set());
 
   const openId = useLibraryId();
   // By library (the open one first), then by pack.
@@ -183,8 +190,9 @@ export function ProjectPage({ id }: { id: string }) {
                   {lib.id !== openId && <span style={{ fontWeight: 400 }}>· open that library to preview or copy these again</span>}
                 </Typography>
               )}
-              {lib.packs.map((list) => {
+              {(open.has(lib.id) ? lib.packs : lib.packs.slice(0, PACKS_SHOWN)).map((list) => {
             const first = list[0]!;
+            const key = `${first.libraryId ?? ''}:${first.packId}`;
             const here = (first.libraryId ?? '') === openId;
             return (
               <section key={first.packId} style={{ marginBottom: 16, padding: 12, borderRadius: SHAPE.lg, background: md('surfaceContainerLow') }}>
@@ -210,7 +218,7 @@ export function ProjectPage({ id }: { id: string }) {
                   </Typography>
                 )}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
-                  {list.map((e) => {
+                  {(open.has(key) ? list : list.slice(0, PER_PACK)).map((e) => {
                     const kind = kindOf(e.copiedRef);
                     return (
                       <div key={e.ref} className="tile" style={{ padding: 6, borderRadius: SHAPE.md }} title={e.files.join('\n')} onDoubleClick={() => void call('projects:reveal', id, e.files[0]!)}>
@@ -232,6 +240,16 @@ export function ProjectPage({ id }: { id: string }) {
                     );
                   })}
                 </div>
+                {/* A pack can have thousands of files in a game; they are shown when asked for. */}
+                {list.length > PER_PACK && (
+                  <Button
+                    size="small"
+                    sx={{ mt: 1 }}
+                    onClick={() => setOpen((was) => { const next = new Set(was); if (next.has(key)) next.delete(key); else next.add(key); return next; })}
+                  >
+                    {open.has(key) ? 'Show fewer' : `Show all ${formatCount(list.length)}`}
+                  </Button>
+                )}
               </section>
             );
               })}

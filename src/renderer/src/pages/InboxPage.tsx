@@ -305,12 +305,16 @@ function useReadyMoveOn(rows: PackRow[]): void {
  * Review: packs whose licence or source was not clear. Each has room to fill in the two fields
  * that matter, and moves into the library by itself once it has both.
  */
+/** How many packs Review draws before asking whether you want the rest. */
+const PAGE_OF = 60;
+
 export function InboxPage() {
   const go = useNav((s) => s.go);
   const lib = useLibraryId();
   const version = useIndexVersion();
   const choose = useImport((s) => s.choose);
   // Packs still open on the add page aren't waiting yet.
+  const [shown, setShown] = useState(PAGE_OF);
   const adding = new Set(useAdding((s) => s.drafts).map((d) => d.packId));
   const query = { scope: 'inbox' as const, text: '', filters: {} };
   const packs = useQuery({ queryKey: ['inbox', lib, version], queryFn: () => call('browse:packs', query, 'added', 0, 1000), enabled: !!lib, placeholderData: (p) => p }).data;
@@ -351,10 +355,18 @@ export function InboxPage() {
       ) : (
         <div style={{ padding: PAGE.body }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16, alignItems: 'stretch' }}>
-            {rows.map((p) => (
+            {rows.slice(0, shown).map((p) => (
               <ReviewCard key={p.id} pack={p} selected={chosen.includes(p.id)} onSelect={select} />
             ))}
           </div>
+          {/* A card apiece is a lot of card; a big batch is shown a screenful at a time. */}
+          {rows.length > shown && (
+            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 24 }}>
+              <Button variant="outlined" onClick={() => setShown(shown + PAGE_OF)}>
+                Show {Math.min(PAGE_OF, rows.length - shown)} more of {rows.length}
+              </Button>
+            </div>
+          )}
           {chosen.length > 0 && <FillMany ids={chosen} onDone={() => setPicked([])} />}
         </div>
       )}
