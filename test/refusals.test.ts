@@ -90,3 +90,59 @@ describe('a library that has gone', () => {
     expect(status.open).toBe(false);
   });
 });
+
+describe('a game folder that will not take a write', () => {
+  it.skipIf(windows || process.getuid?.() === 0)('refuses the link, and leaves nothing of it behind', async () => {
+    const app = await running(PACKS);
+    const id = (await callTool(app, 'list_packs', {}) as { packs: { id: string }[] }).packs[0]!.id;
+    const game = tempDir();
+    writeFileSync(join(game, 'game.txt'), 'a folder that is a game\n');
+    const project = (await callTool(app, 'add_game', { path: game, name: 'Locked' })) as { id: string };
+    chmodSync(game, 0o500);
+    try {
+      await expect(callTool(app, 'link_to_game', { projectId: project.id, packIds: [id] })).rejects.toThrow(/permission|EACCES|EPERM/i);
+    } finally {
+      chmodSync(game, 0o700);
+    }
+    // Nothing was copied, and no manifest claims otherwise.
+    expect(readdirSync(game)).toEqual(['game.txt']);
+  });
+});
+
+describe('a file that goes missing halfway through a copy', () => {
+  it('takes back what it had already written', async () => {
+    const app = await running([
+      { name: 'Two Things', files: { 'Models/first.obj': 'o first\n', 'Models/second.obj': 'o second\n' } },
+    ]);
+    const id = (await callTool(app, 'list_packs', {}) as { packs: { id: string }[] }).packs[0]!.id;
+    const game = tempDir();
+    const project = (await callTool(app, 'add_game', { path: game, name: 'Half' })) as { id: string };
+    // One of the two files disappears from the library between the plan and the copy.
+    rmSync(join(app.root, 'packs', 'Two Things', 'original', 'Models', 'second.obj'));
+    await expect(callTool(app, 'link_to_game', { projectId: project.id, packIds: [id] })).rejects.toThrow();
+    // The game folder holds nothing from the run that failed: no half a pack, no licence for
+    // files that are not there.
+    const left = readdirSync(game).filter((n) => n !== '.tessera');
+    expect(left).toEqual([]);
+  });
+});
+
+describe('a pack whose folder is read-only', () => {
+  it.skipIf(windows || process.getuid?.() === 0)('still answers questions, and refuses to change anything', async () => {
+    const app = await running(PACKS);
+    const id = (await callTool(app, 'list_packs', {}) as { packs: { id: string }[] }).packs[0]!.id;
+    const packs = join(app.root, 'packs', 'Mini Arcade', 'original');
+    chmodSync(packs, 0o500);
+    try {
+      // Reading is unaffected: the index is elsewhere, and the files are still readable.
+      const found = (await callTool(app, 'search', { text: 'arcade' })) as { total: number };
+      expect(found.total).toBeGreaterThan(0);
+      const from = tempDir();
+      writeFileSync(join(from, 'more.obj'), 'o more\n');
+      await expect(callTool(app, 'add_files_to_pack', { packId: id, paths: [join(from, 'more.obj')] })).rejects.toThrow();
+    } finally {
+      chmodSync(packs, 0o700);
+    }
+    expect(statSync(packs).isDirectory()).toBe(true);
+  });
+});

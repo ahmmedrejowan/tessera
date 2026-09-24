@@ -232,27 +232,44 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
   let done = 0;
   const written: ManifestEntry[] = [];
   const licencesWritten = new Set<string>();
-  for (const job of jobs) {
-    const packDir = src.packDir(job.entry.packId);
-    for (const f of job.files) {
-      const dest = join(project.path, ...f.dest.split('/'));
-      await mkdir(dirname(dest), { recursive: true });
-      const { file, inside } = parseRef(f.ref);
-      if (inside.length) await writeFile(dest, await readPackFile(packDir, f.ref));
-      else await copyFile(join(packDir, ...file.split('/')), dest);
-      onProgress(++done, total);
+  // If the disk gives out halfway, whatever this run put there and nothing else goes back, so the
+  // game folder is left as it was found rather than holding files no manifest knows about.
+  const fresh: string[] = [];
+  try {
+    for (const job of jobs) {
+      const packDir = src.packDir(job.entry.packId);
+      for (const f of job.files) {
+        const dest = join(project.path, ...f.dest.split('/'));
+        await mkdir(dirname(dest), { recursive: true });
+        if (!existsSync(dest)) fresh.push(dest);
+        const { file, inside } = parseRef(f.ref);
+        if (inside.length) await writeFile(dest, await readPackFile(packDir, f.ref));
+        else await copyFile(join(packDir, ...file.split('/')), dest);
+        onProgress(++done, total);
+      }
+      const pack = src.pack(job.entry.packId);
+      const packRoot = pack ? posix.join(project.target, safeFolderName(pack.folder)) : '';
+      if (pack && !licencesWritten.has(packRoot)) {
+        licencesWritten.add(packRoot);
+        const proof = await copyProof(packDir, src.packRefs(job.entry.packId), join(project.path, ...packRoot.split('/'), 'licence'));
+        const licence = join(project.path, ...packRoot.split('/'), 'LICENCE.txt');
+        if (!existsSync(licence)) fresh.push(licence);
+        await writeFileAtomic(licence, licenceText(pack.meta, proof));
+      }
+      const entry: ManifestEntry = { ...job.entry, files: job.files.map((f) => f.dest), copiedAt: new Date().toISOString() };
+      manifest.entries = manifest.entries.filter((e) => !same(e, manifest, src.libraryId, entry.packId, entry.ref));
+      manifest.entries.push(entry);
+      written.push(entry);
     }
-    const pack = src.pack(job.entry.packId);
-    const packRoot = pack ? posix.join(project.target, safeFolderName(pack.folder)) : '';
-    if (pack && !licencesWritten.has(packRoot)) {
-      licencesWritten.add(packRoot);
-      const proof = await copyProof(packDir, src.packRefs(job.entry.packId), join(project.path, ...packRoot.split('/'), 'licence'));
-      await writeFileAtomic(join(project.path, ...packRoot.split('/'), 'LICENCE.txt'), licenceText(pack.meta, proof));
+  } catch (e) {
+    for (const path of fresh.reverse()) await unlink(path).catch(() => undefined);
+    // And the folders they were put in, as far up as the target, while they are empty.
+    const targetRoot = join(project.path, ...project.target.split('/'));
+    for (const start of [...new Set(fresh.map(dirname))].sort((a, b) => b.length - a.length)) {
+      let dir = start;
+      while (dir.startsWith(targetRoot) && (await rmdir(dir).then(() => true, () => false))) dir = dirname(dir);
     }
-    const entry: ManifestEntry = { ...job.entry, files: job.files.map((f) => f.dest), copiedAt: new Date().toISOString() };
-    manifest.entries = manifest.entries.filter((e) => !same(e, manifest, src.libraryId, entry.packId, entry.ref));
-    manifest.entries.push(entry);
-    written.push(entry);
+    throw e;
   }
   await writeJson(join(project.path, MANIFEST), manifest);
   if (project.creditsFile) await writeCredits(join(project.path, ...project.creditsFile.split('/')), manifest.entries);
