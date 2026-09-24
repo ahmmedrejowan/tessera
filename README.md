@@ -69,17 +69,25 @@ Every release lists the SHA256 of each file, so you can check a download is the 
 
 ## Screenshots
 
-| Home | Browse | A pack |
-|------|--------|--------|
-| ![Home](docs/images/02-home.png) | ![Browse](docs/images/03-browse.png) | ![A pack](docs/images/04-pack.png) |
+| Home | Browse |
+|------|--------|
+| ![Home](docs/images/02-home.png) | ![Browse](docs/images/03-browse.png) |
 
-| The viewer | Collections | Games |
-|------------|-------------|-------|
-| ![The viewer](docs/images/06-viewer.png) | ![Collections](docs/images/07-collections.png) | ![Games](docs/images/08-games.png) |
+| A pack | What is inside it |
+|--------|-------------------|
+| ![A pack](docs/images/04-pack.png) | ![The files in a pack](docs/images/05-pack-files.png) |
 
-| Settings | AI agents | Connecting an agent |
-|----------|-----------|---------------------|
-| ![Settings](docs/images/09-settings.png) | ![AI agents](docs/images/10-agents-settings.png) | ![Connecting](docs/images/11-agents.png) |
+| The viewer | Collections |
+|------------|-------------|
+| ![The viewer](docs/images/06-viewer.png) | ![Collections](docs/images/07-collections.png) |
+
+| Games | Settings |
+|-------|----------|
+| ![Games](docs/images/08-games.png) | ![Settings](docs/images/09-settings.png) |
+
+| AI agents | Connecting an agent |
+|-----------|---------------------|
+| ![AI agents](docs/images/10-agents-settings.png) | ![Connecting](docs/images/11-agents.png) |
 
 ---
 
