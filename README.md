@@ -50,6 +50,7 @@
 | Windows 10 and 11 | [Tessera-Setup.exe](https://github.com/ahmmedrejowan/tessera/releases/latest) |
 | Linux, portable | [Tessera.AppImage](https://github.com/ahmmedrejowan/tessera/releases/latest) |
 | Debian and Ubuntu | [tessera.deb](https://github.com/ahmmedrejowan/tessera/releases/latest) |
+| Fedora and openSUSE | [tessera.rpm](https://github.com/ahmmedrejowan/tessera/releases/latest) |
 
 Every file, with its checksum and what changed, is on the
 [releases page](https://github.com/ahmmedrejowan/tessera/releases/latest).
@@ -60,7 +61,7 @@ These builds are not signed with a paid certificate, so each system asks once:
 |--------|--------------|------------|
 | macOS | "Tessera is damaged and can't be opened" | Right-click Tessera in Applications, choose **Open**, then **Open** again. Only the first time. |
 | Windows | "Windows protected your PC" | Choose **More info**, then **Run anyway**. |
-| Linux | nothing | `chmod +x Tessera-*.AppImage`, or `sudo dpkg -i tessera_*.deb`. |
+| Linux | nothing | `chmod +x Tessera-*.AppImage`, or `sudo dpkg -i tessera_*.deb`, or `sudo rpm -i tessera-*.rpm`. |
 
 Every release lists the SHA256 of each file, so you can check a download is the one that was built.
 

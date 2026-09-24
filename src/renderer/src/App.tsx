@@ -1,5 +1,5 @@
 import CircularProgress from '@mui/material/CircularProgress';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DialogHost } from './notices/DialogHost';
 import { NewCollectionHost } from './pages/collections/CollectionDialog';
@@ -14,27 +14,11 @@ import { BrowsePage } from './pages/browse/BrowsePage';
 import { CollectionPage } from './pages/collections/CollectionPage';
 import { CollectionsPage } from './pages/collections/CollectionsPage';
 import { HomePage } from './pages/HomePage';
-import { AddPage } from './pages/add/AddPage';
 import { InboxPage } from './pages/InboxPage';
-import { DownloadsPage } from './pages/DownloadsPage';
-import { AboutPage } from './pages/AboutPage';
-import { HelpPage } from './pages/help/HelpPage';
-import { HelpTopicPage } from './pages/help/HelpTopicPage';
-import { NotificationsPage } from './pages/NotificationsPage';
-import { SettingsPage } from './pages/SettingsPage';
 import { MenuCommands } from './shell/MenuCommands';
 import { CopyConfirm } from './pages/projects/CopyConfirm';
-import { ProjectPage } from './pages/projects/ProjectPage';
-import { ProjectsPage } from './pages/projects/ProjectsPage';
-import { ArchivePage } from './pages/ArchivePage';
-import { ActivityPage } from './pages/ActivityPage';
-import { AgentsPage } from './pages/agents/AgentsPage';
-import { AgentToolsPage } from './pages/agents/AgentToolsPage';
-import { AgentCallsPage } from './pages/agents/AgentCallsPage';
 import { SearchPage } from './pages/SearchPage';
-import { BinPage } from './pages/BinPage';
 import { PackPage } from './pages/pack/PackPage';
-import { AddAssetsPage } from './pages/pack/AddAssetsPage';
 import { Welcome } from './pages/Welcome';
 import { AppShell } from './shell/AppShell';
 import { useLibraryId, useLibraryState, useStats } from './state/library';
@@ -42,6 +26,25 @@ import { useBrowse } from './state/browse';
 import { useAdding } from './state/adding';
 import { isGoing, useDownloads } from './state/downloads';
 import { useNav } from './state/nav';
+
+// Pages nobody sees on the way in are fetched the first time they are opened, so the window
+// starts with the screens it actually needs.
+const AddPage = lazy(() => import('./pages/add/AddPage').then((m) => ({ default: m.AddPage })));
+const DownloadsPage = lazy(() => import('./pages/DownloadsPage').then((m) => ({ default: m.DownloadsPage })));
+const AboutPage = lazy(() => import('./pages/AboutPage').then((m) => ({ default: m.AboutPage })));
+const HelpPage = lazy(() => import('./pages/help/HelpPage').then((m) => ({ default: m.HelpPage })));
+const HelpTopicPage = lazy(() => import('./pages/help/HelpTopicPage').then((m) => ({ default: m.HelpTopicPage })));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const ProjectPage = lazy(() => import('./pages/projects/ProjectPage').then((m) => ({ default: m.ProjectPage })));
+const ProjectsPage = lazy(() => import('./pages/projects/ProjectsPage').then((m) => ({ default: m.ProjectsPage })));
+const ArchivePage = lazy(() => import('./pages/ArchivePage').then((m) => ({ default: m.ArchivePage })));
+const ActivityPage = lazy(() => import('./pages/ActivityPage').then((m) => ({ default: m.ActivityPage })));
+const AgentsPage = lazy(() => import('./pages/agents/AgentsPage').then((m) => ({ default: m.AgentsPage })));
+const AgentToolsPage = lazy(() => import('./pages/agents/AgentToolsPage').then((m) => ({ default: m.AgentToolsPage })));
+const AgentCallsPage = lazy(() => import('./pages/agents/AgentCallsPage').then((m) => ({ default: m.AgentCallsPage })));
+const BinPage = lazy(() => import('./pages/BinPage').then((m) => ({ default: m.BinPage })));
+const AddAssetsPage = lazy(() => import('./pages/pack/AddAssetsPage').then((m) => ({ default: m.AddAssetsPage })));
 
 function Current() {
   const route = useNav((s) => s.route);
@@ -93,6 +96,15 @@ function Current() {
     case 'settings':
       return <SettingsPage {...('section' in route ? { section: route.section } : {})} />;
   }
+}
+
+/** While a page that is fetched on demand arrives: a beat, not a flash. */
+function Loading() {
+  return (
+    <div style={{ height: '100%', display: 'grid', placeItems: 'center' }}>
+      <CircularProgress />
+    </div>
+  );
 }
 
 /** An error boundary that resets when the page changes. */
@@ -171,7 +183,9 @@ function Screen() {
     <>
       <AppShell onAdd={setAddAnchor} {...(inbox ? { inboxCount: inbox } : {})} {...(downloading ? { downloadCount: downloading } : {})}>
         <RoutedBoundary>
-          <Current />
+          <Suspense fallback={<Loading />}>
+            <Current />
+          </Suspense>
         </RoutedBoundary>
       </AppShell>
       <AddMenu anchor={addAnchor} onClose={() => setAddAnchor(null)} />

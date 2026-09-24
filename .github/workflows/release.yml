@@ -26,6 +26,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      # fpm needs rpmbuild for the Fedora package; the other targets need nothing extra.
+      - name: rpm tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
@@ -51,7 +55,7 @@ jobs:
         run: |
           cd release
           shopt -s nullglob
-          files=(*.dmg *.zip *.exe *.AppImage *.deb)
+          files=(*.dmg *.zip *.exe *.AppImage *.deb *.rpm)
           [ ${#files[@]} -gt 0 ] || { echo "nothing was built"; exit 1; }
           if command -v sha256sum > /dev/null; then sha256sum "${files[@]}" > "SHA256SUMS-${{ runner.os }}.txt";
           else shasum -a 256 "${files[@]}" > "SHA256SUMS-${{ runner.os }}.txt"; fi
@@ -65,6 +69,7 @@ jobs:
             release/*.exe
             release/*.AppImage
             release/*.deb
+            release/*.rpm
             release/SHA256SUMS-*.txt
           if-no-files-found: error
 
