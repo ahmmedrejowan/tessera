@@ -25,6 +25,9 @@ export const ORGANISE: Tool[] = [
       on: z.boolean().default(true).describe('false takes the star off.'),
     }),
     run: async (args, ctx) => {
+      // Starring a pack writes its id into the Favourites collection, which would happily take an
+      // id for a pack that has gone. An agent told "starred" has to be able to believe it.
+      for (const id of args.packIds) if (!ctx.library.require().queries.pack(id)) throw new Error(`No pack with id ${id}.`);
       for (const id of args.packIds) await ctx.library.favouritePack(id, args.on);
       if (args.assetIds.length) await ctx.library.favouriteAssets(ctx.library.require().queries.refs(args.assetIds), args.on);
       const n = args.packIds.length + args.assetIds.length;
@@ -245,6 +248,10 @@ export const ORGANISE: Tool[] = [
     summary: 'Take a collection away. The packs and files in it stay in the library; only the gathering goes.',
     input: z.object({ collectionId: z.string() }),
     run: async (args, ctx) => {
+      // Removing a file that is not there succeeds quietly, which would report a collection as
+      // deleted when there was none of that name to delete.
+      const there = await ctx.library.collections();
+      if (!there.some((c) => c.id === args.collectionId)) throw new Error(`No collection with id ${args.collectionId}.`);
       await ctx.library.changeCollection(args.collectionId, { delete: true });
       ctx.note('An agent deleted a collection');
       return { done: true };

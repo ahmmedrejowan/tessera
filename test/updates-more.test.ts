@@ -54,6 +54,9 @@ function answering(body: unknown, options: { status?: number; file?: Uint8Array 
   return { fetch, asked };
 }
 
+/** The macOS file this very computer would be handed: the test runs on all three systems. */
+const MAC = `Tessera-2.0.0-mac-${process.arch === 'arm64' ? 'arm64' : 'x64'}.dmg`;
+
 const make = (over: Partial<ConstructorParameters<typeof Updates>[0]> = {}) => {
   const changes: number[] = [];
   const { fetch, asked } = answering(release());
@@ -126,7 +129,7 @@ describe('fetching the installer', () => {
     const { updates } = make({ dir, platform: 'darwin' });
     await updates.check();
     const status = await updates.download();
-    expect(status.installer).toBe(join(dir, 'Tessera-2.0.0-mac-arm64.dmg'));
+    expect(status.installer).toBe(join(dir, MAC));
     expect(existsSync(status.installer!)).toBe(true);
     expect(readFileSync(status.installer!)).toEqual(Buffer.from([1, 2, 3, 4]));
     expect(status.downloading).toBe(false);
@@ -148,19 +151,19 @@ describe('fetching the installer', () => {
     const { updates } = make({ dir });
     await updates.check();
     await updates.download();
-    const first = statSync(join(dir, 'Tessera-2.0.0-mac-arm64.dmg')).mtimeMs;
+    const first = statSync(join(dir, MAC)).mtimeMs;
     await new Promise((r) => setTimeout(r, 20));
     await updates.download();
-    expect(statSync(join(dir, 'Tessera-2.0.0-mac-arm64.dmg')).mtimeMs).toBe(first);
+    expect(statSync(join(dir, MAC)).mtimeMs).toBe(first);
   });
 
   it('fetches again when what is there is the wrong size', async () => {
     const dir = tempDir();
     const { updates } = make({ dir });
     await updates.check();
-    writeFileSync(join(dir, 'Tessera-2.0.0-mac-arm64.dmg'), 'half of it');
+    writeFileSync(join(dir, MAC), 'half of it');
     await updates.download();
-    expect(readFileSync(join(dir, 'Tessera-2.0.0-mac-arm64.dmg'))).toEqual(Buffer.from([1, 2, 3, 4]));
+    expect(readFileSync(join(dir, MAC))).toEqual(Buffer.from([1, 2, 3, 4]));
   });
 
   it('says so when the release has nothing for this computer', async () => {
