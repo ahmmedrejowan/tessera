@@ -1,4 +1,4 @@
-import { startApp, withSamples } from './harness.mjs';
+import { settled, startApp, withSamples } from './harness.mjs';
 
 export const name = 'Finding things, and looking at them';
 
@@ -6,7 +6,10 @@ export async function run(ok) {
   const t = await startApp();
   try {
     await withSamples(t);
-    await t.page.locator('nav').getByText('Browse', { exact: true }).click();
+    // Adding nine hundred files leaves the app busy for a moment, and a busy window is a window
+    // that cannot be clicked. Wait for it to be quiet rather than racing it.
+    await settled(t);
+    await t.page.locator('nav').getByText('Browse', { exact: true }).click({ timeout: 60_000 });
     await t.page.waitForTimeout(1500);
 
     const found = await t.call('browse:assets', { scope: 'library', text: 'arcade', filters: {} }, 'relevance', 0, 20);

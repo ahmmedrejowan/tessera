@@ -62,6 +62,32 @@ describe('collections', () => {
     expect((await app.library.collections()).some((c) => c.id === made.id)).toBe(false);
   });
 
+  it('makes one with rules, a description and a game, and puts single files in it', async () => {
+    const { app, arcade, file } = await ready();
+    const made = (await callTool(app, 'create_collection', {
+      name: 'For the jam',
+      description: 'What the first level needs',
+      assetIds: [file.id],
+      rules: { licences: ['CC0-1.0'] },
+    })) as { id: string };
+
+    const summary = (await app.library.collections()).find((c) => c.id === made.id)!;
+    expect(summary.description).toBe('What the first level needs');
+    expect(summary.rules.licences).toEqual(['CC0-1.0']);
+    expect(summary.count).toBe(1);
+
+    // Adding and taking away a single file, by the id the library gives it.
+    await callTool(app, 'add_to_collection', { collectionId: made.id, assetIds: [file.id] });
+    await callTool(app, 'remove_from_collection', { collectionId: made.id, assetIds: [file.id] });
+    expect((await app.library.collections()).find((c) => c.id === made.id)!.count).toBe(0);
+
+    await callTool(app, 'edit_collection', { collectionId: made.id, description: 'Changed', forGame: null, rules: { licences: [] } });
+    const after = (await app.library.collections()).find((c) => c.id === made.id)!;
+    expect(after.description).toBe('Changed');
+    expect(after.rules.licences).toEqual([]);
+    void arcade;
+  });
+
   it('refuses over a collection that is not there', async () => {
     const { app, arcade } = await ready();
     void arcade;
@@ -91,6 +117,24 @@ describe('what a pack says about itself', () => {
     expect(row.creator).toBe('Someone');
     expect(row.genres).toContain('arcade');
     expect(row.tags).toContain('retro');
+  });
+
+  it('records the rest of what is known about it, and what it is called where it came from', async () => {
+    const { app, arcade } = await ready();
+    await callTool(app, 'set_pack_details', {
+      packId: arcade.id,
+      description: 'Little arcade machines',
+      notes: 'Bought in the sale',
+      version: '2.0',
+      creditLine: 'Arcade Deluxe by Someone',
+      sourceName: 'A site with no rules of its own',
+    });
+    const row = pack(app, arcade.id)!;
+    expect(row.meta.description).toBe('Little arcade machines');
+    expect(row.meta.notes).toBe('Bought in the sale');
+    expect(row.meta.version).toBe('2.0');
+    expect(row.meta.licence.attribution).toBe('Arcade Deluxe by Someone');
+    expect(row.meta.source.name).toBe('A site with no rules of its own');
   });
 
   it('gives one folder of a pack terms of its own', async () => {

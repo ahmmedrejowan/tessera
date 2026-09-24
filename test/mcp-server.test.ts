@@ -218,6 +218,55 @@ describe('answering an agent', () => {
   });
 });
 
+describe('what it does with a request it cannot answer', () => {
+  it('greets a person who opens the address in a browser', async () => {
+    const s = await serving();
+    try {
+      const res = await fetch(`http://127.0.0.1:${s.port}/`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toContain('text/plain');
+      expect(await res.text()).toMatch(/agent/i);
+    } finally {
+      await s.mcp.stop();
+    }
+  });
+
+  it('says plainly that it has no such tool', async () => {
+    const s = await serving();
+    try {
+      // There is no such tool to switch on or explain, so this comes back as an error outright.
+      const said = await answer(await s.ask(call('make_me_a_sandwich')));
+      expect(JSON.stringify(said)).toContain('make_me_a_sandwich');
+    } finally {
+      await s.mcp.stop();
+    }
+  });
+
+  it('says a tool is switched off rather than pretending it does not exist', async () => {
+    const s = await serving({ off: ['search'] });
+    try {
+      const said = (await answer(await s.ask(call('search', { text: 'arcade' })))).result as { isError: boolean; content: { text: string }[] };
+      expect(said.isError).toBe(true);
+      expect(said.content[0]!.text).toMatch(/switched off/);
+      expect(s.calls.at(-1)).toMatchObject({ tool: 'search', ok: false });
+    } finally {
+      await s.mcp.stop();
+    }
+  });
+
+  it('names what was wrong with the arguments it was given', async () => {
+    const s = await serving();
+    try {
+      const said = (await answer(await s.ask(call('search', { text: 42 })))).result as { isError: boolean; content: { text: string }[] };
+      expect(said.isError).toBe(true);
+      expect(said.content[0]!.text).toMatch(/text/);
+      expect(s.calls.at(-1)).toMatchObject({ ok: false });
+    } finally {
+      await s.mcp.stop();
+    }
+  });
+});
+
 describe('starting, moving and stopping', () => {
   it('says where it is listening, and how much it has done', async () => {
     const s = await serving();

@@ -70,4 +70,49 @@ describe('the file behind a page', () => {
     const { fetch } = web({ 'https://opengameart.org/content/forest-tiles': '<a href="/comment">Reply</a><a href="https://opengameart.org/sites/default/files/forest-tiles.zip">forest-tiles.zip</a>' });
     expect((await resolveLink('https://opengameart.org/content/forest-tiles', fetch))?.url).toBe('https://opengameart.org/sites/default/files/forest-tiles.zip');
   });
+
+  it('takes a release by its tag, and the source when that is all there is', async () => {
+    const { fetch, asked } = web({
+      'https://api.github.com/repos/kenney/packs/releases/tags/v1.2': { tag_name: 'v1.2', assets: [], zipball_url: 'https://github.com/kenney/packs/zipball/v1.2' },
+    });
+    expect(await resolveLink('https://github.com/kenney/packs/releases/tag/v1.2', fetch)).toEqual({
+      url: 'https://github.com/kenney/packs/zipball/v1.2',
+      name: 'packs-v1.2.zip',
+    });
+    expect(asked[0]).toContain('/tags/v1.2');
+  });
+
+  it('takes whatever the release has when none of it is an archive', async () => {
+    const { fetch } = web({
+      'https://api.github.com/repos/kenney/packs/releases/latest': { tag_name: 'v2', assets: [{ name: 'notes.txt', browser_download_url: 'https://github.com/notes.txt', size: 10 }] },
+    });
+    expect(await resolveLink('https://github.com/kenney/packs/releases', fetch)).toEqual({ url: 'https://github.com/notes.txt', name: 'notes.txt' });
+  });
+});
+
+describe('when a page has nothing to offer', () => {
+  it('says what a release that publishes nothing is missing', async () => {
+    const { fetch } = web({ 'https://api.github.com/repos/kenney/packs/releases/latest': { tag_name: 'v2', assets: [] } });
+    await expect(resolveLink('https://github.com/kenney/packs/releases/latest', fetch)).rejects.toThrow(/no files to download/);
+  });
+
+  it('says which site would not answer, and does not keep asking', async () => {
+    // Nothing is set up to answer, so every page here is a 404.
+    const { fetch } = web({});
+    await expect(resolveLink('https://github.com/kenney/packs/releases/latest', fetch)).rejects.toThrow(/api.github.com answered 404/);
+    await expect(resolveLink('https://kenney.nl/assets/city-kit', fetch)).rejects.toThrow(/page answered 404/);
+    await expect(resolveLink('https://opengameart.org/content/forest-tiles', fetch)).rejects.toThrow(/page answered 404/);
+    // A refusal is permanent: asking again would only get the same answer.
+    await expect(resolveLink('https://kenney.nl/assets/city-kit', fetch)).rejects.toMatchObject({ permanent: true });
+  });
+
+  it('says so when Poly Haven offers nothing for the page', async () => {
+    const { fetch } = web({ 'https://api.polyhaven.com/files/nothing': {} });
+    await expect(resolveLink('https://polyhaven.com/a/nothing', fetch)).rejects.toThrow(/didn’t offer a file/);
+  });
+
+  it('takes the material out of an ambientCG address either way round', async () => {
+    const { fetch } = web({});
+    expect((await resolveLink('https://ambientcg.com/view/Bricks076', fetch))?.name).toBe('Bricks076_2K-JPG.zip');
+  });
 });

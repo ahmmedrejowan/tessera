@@ -23,6 +23,7 @@ import { SettingsStore } from '../src/main/settings';
 import { registerIpc, type IpcContext } from '../src/main/ipc/index';
 import { asked, forget, handlers } from './fake-electron';
 import { PIXEL } from './library';
+import { writeZip } from './zipfixture';
 
 /** A folder that lasts as long as this file does, rather than as long as one test. */
 const mine: string[] = [];
@@ -170,6 +171,15 @@ afterAll(() => {
 });
 
 const packId = () => 'id-mini-arcade';
+
+/** Wait for something the app is writing in the background, or give up with a clear complaint. */
+async function until(check: () => Promise<boolean>, what: string): Promise<void> {
+  for (let i = 0; i < 200; i += 1) {
+    if (await check()) return;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  throw new Error(`gave up waiting for ${what}`);
+}
 
 describe('the contract is answered', () => {
   // That every declared channel is answered is checked in contract.test.ts, by reading the files.
@@ -326,6 +336,77 @@ describe('games', () => {
   it('cancels quietly when nobody picks a folder', async () => {
     asked.folder = null;
     expect(await ok('projects:choose')).toBeNull();
+  });
+
+  it('works out what the folder somebody picked is', async () => {
+    const game = ownDir();
+    mkdirSync(join(game, 'ProjectSettings'), { recursive: true });
+    writeFileSync(join(game, 'ProjectSettings', 'ProjectVersion.txt'), 'm_EditorVersion: 6000.3.24f1\n');
+    asked.folder = game;
+    expect(await ok('projects:choose')).toMatchObject({ engine: 'unity', path: game });
+  });
+
+  it('renames a game, and shows it in the file manager', async () => {
+    const game = ownDir();
+    const added = await ok('projects:add', await ok('projects:probe', game));
+
+    await ok('projects:update', added.id, { name: 'A better name' });
+    expect((await ok('projects:list')).find((p) => p.id === added.id)?.name).toBe('A better name');
+    expect(told).toContain('projects');
+
+    // One file inside it, and the whole folder when no file is named.
+    await ok('projects:reveal', added.id, 'Assets/ThirdParty');
+    expect(asked.revealed.some((p) => p.includes('ThirdParty'))).toBe(true);
+    await ok('projects:reveal', added.id);
+    expect(asked.opened).toContain(game);
+    // A path trying to climb out of the game is not followed.
+    await ok('projects:reveal', added.id, '../../elsewhere');
+    expect(asked.opened.filter((p) => p === game)).toHaveLength(2);
+
+    await ok('projects:unlink', added.id);
+  });
+});
+
+describe('bringing packs in', () => {
+  it('adds what was planned, and notes in Activity what went where', async () => {
+    const downloads = ownDir();
+    const kit = join(downloads, 'kenney_space-kit.zip');
+    await writeZip(kit, { 'License.txt': 'www.kenney.nl  License: (Creative Commons Zero, CC0)', 'Models/ship.glb': 'x' });
+    mkdirSync(join(downloads, 'Mystery'), { recursive: true });
+    writeFileSync(join(downloads, 'Mystery', 'thing.png'), PIXEL);
+
+    const plan = await ok('import:plan', [kit, join(downloads, 'Mystery')], false);
+    expect(plan.map((i) => i.name).sort()).toEqual(['Mystery', 'Space Kit']);
+
+    const done = await ok('import:run', plan);
+    expect(done.failed).toEqual([]);
+    // One knows its licence and joins the library; the other has to be looked at first.
+    expect(done.added.map((a) => [a.name, a.status]).sort()).toEqual([
+      ['Mystery', 'inbox'],
+      ['Space Kit', 'library'],
+    ]);
+    // Notes are written as the app gets round to it, so they are waited for rather than assumed.
+    await until(async () => (await ok('activity:list', 20)).some((n) => n.text.includes('Space Kit')), 'the pack to be noted');
+    await until(async () => (await ok('activity:list', 20)).some((n) => n.text.includes('Review')), 'the one waiting to be noted');
+  });
+
+  it('says nothing in Activity about packs that are only being staged', async () => {
+    const downloads = ownDir();
+    mkdirSync(join(downloads, 'Staged'), { recursive: true });
+    writeFileSync(join(downloads, 'Staged', 'thing.png'), PIXEL);
+    const before = (await ok('activity:list', 50)).length;
+    await ok('import:run', await ok('import:plan', [join(downloads, 'Staged')], false), { stage: true });
+    await new Promise((r) => setTimeout(r, 250));
+    expect((await ok('activity:list', 50)).length).toBe(before);
+  });
+
+  it('asks for files or a folder, and hands back what was picked', async () => {
+    asked.files = [];
+    expect(await ok('import:choose', 'files')).toBeNull();
+    asked.files = ['/tmp/a.zip', '/tmp/b.zip'];
+    expect(await ok('import:choose', 'files')).toEqual(['/tmp/a.zip', '/tmp/b.zip']);
+    asked.folder = '/tmp/packs';
+    expect(await ok('import:choose', 'folderOfPacks')).toEqual(['/tmp/packs']);
   });
 });
 

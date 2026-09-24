@@ -21,6 +21,8 @@ import { Jobs } from '../src/main/jobs';
 import { LibraryService } from '../src/main/libraryService';
 import { ProjectService } from '../src/main/projects/service';
 import { SettingsStore } from '../src/main/settings';
+import { touchLibrary } from '../src/main/libraries';
+import { TOOL_GROUPS } from '@shared/mcp';
 import { registerIpc, type IpcContext } from '../src/main/ipc/index';
 import { asked, forget, handlers } from './fake-electron';
 
@@ -50,6 +52,44 @@ const records =
   };
 const said = (what: string) => heard.find((h) => h.what === what);
 
+/** The backup service as these tests stand in for it. */
+const backups = {
+  status: records('backups.status', { enabled: true, lastBackupAt: null, running: false }),
+  setup: records('backups.setup', Promise.resolve({ ok: true })),
+  password: records('backups.password', Promise.resolve('a very long password')),
+  changePassword: records('backups.changePassword', Promise.resolve()),
+  target: records('backups.target', { provider: 'folder', values: { path: '/tmp/backups' } }) as () => unknown,
+  backupNow: records('backups.backupNow', Promise.resolve({ snapshots: 1 })),
+  join: records('backups.join', Promise.resolve()),
+  setInterval: records('backups.setInterval', Promise.resolve()),
+  snapshots: records('backups.snapshots', Promise.resolve([{ id: 's1', at: '2026-01-01T00:00:00.000Z', size: 10 }])),
+  // The real one reports how far it has got and asks which libraries this computer knows, so
+  // the stand-in does both: that is where the handler's own work is.
+  restore: async (...args: unknown[]) => {
+    heard.push({ what: 'backups.restore', args });
+    (args[4] as (f: number | null) => void)(0.5);
+    return { restored: 1, known: (await (args[5] as () => Promise<unknown[]>)()).length };
+  },
+  turnOff: records('backups.turnOff', Promise.resolve()),
+};
+
+/** What is open for restoring, which a test can set. */
+const restorer = {
+  unlock: records('restorer.unlock', Promise.resolve({ snapshots: [] })),
+  restore: async (...args: unknown[]) => {
+    heard.push({ what: 'restorer.restore', args });
+    (args[3] as (f: number | null) => void)(null);
+    await (args[4] as () => Promise<unknown[]>)();
+    return { restored: 0 };
+  },
+  close: records('restorer.close'),
+  // Nothing has been opened for restoring until a test opens one.
+  opened: null as { target: unknown; password: string } | null,
+};
+
+/** What the updater says it has, which a test can change. */
+const updates = { current: '0.0.0-test', canCheck: true, installer: null as string | null };
+
 const mine: string[] = [];
 const ownDir = () => {
   const dir = mkdtempSync(join(tmpdir(), 'tessera-ipc2-'));
@@ -58,13 +98,15 @@ const ownDir = () => {
 };
 
 let library: LibraryService;
+let settings: SettingsStore;
+let dataDir = '';
 let root = '';
 
 beforeAll(async () => {
-  const dataDir = ownDir();
+  dataDir = ownDir();
   root = join(ownDir(), 'Library');
   const jobs = new Jobs(() => undefined);
-  const settings = new SettingsStore(dataDir);
+  settings = new SettingsStore(dataDir);
   await settings.load();
 
   library = new LibraryService({ dataDir, jobs, onState: () => undefined, onIndexChanged: () => undefined, siteRules: () => [], binKeepDays: () => 30, watchFiles: false });
@@ -106,26 +148,8 @@ beforeAll(async () => {
       clear: records('thumbs.clear', Promise.resolve()),
       reset: records('thumbs.reset'),
     }),
-    backups: stub({
-      status: records('backups.status', { enabled: true, lastBackupAt: null, running: false }),
-      setup: records('backups.setup', Promise.resolve({ ok: true })),
-      password: records('backups.password', Promise.resolve('a very long password')),
-      changePassword: records('backups.changePassword', Promise.resolve()),
-      target: records('backups.target', { provider: 'folder', values: { path: '/tmp/backups' } }),
-      backupNow: records('backups.backupNow', Promise.resolve({ snapshots: 1 })),
-      join: records('backups.join', Promise.resolve()),
-      setInterval: records('backups.setInterval', Promise.resolve()),
-      snapshots: records('backups.snapshots', Promise.resolve([{ id: 's1', at: '2026-01-01T00:00:00.000Z', size: 10 }])),
-      restore: records('backups.restore', Promise.resolve({ restored: 1 })),
-      turnOff: records('backups.turnOff', Promise.resolve()),
-    }),
-    restorer: stub({
-      unlock: records('restorer.unlock', Promise.resolve({ snapshots: [] })),
-      restore: records('restorer.restore', Promise.resolve({ restored: 0 })),
-      close: records('restorer.close'),
-      // Nothing has been opened for restoring in these tests.
-      opened: null,
-    }),
+    backups: stub(backups),
+    restorer: stub(restorer),
     rcloneAuth: stub({
       signIn: records('rclone.signIn', Promise.resolve({ values: { token: 'x' } })),
       cancel: records('rclone.cancel'),
@@ -143,7 +167,7 @@ beforeAll(async () => {
       folderProgress: records('sync.folderProgress', Promise.resolve({ done: 1, total: 2 })),
     }),
     updates: stub({
-      get: records('updates.get', { current: '0.0.0-test', canCheck: true, installer: null }),
+      get: records('updates.get', updates),
       check: records('updates.check', Promise.resolve({ current: '0.0.0-test', latest: '9.9.9' })),
       download: records('updates.download', Promise.resolve({ installer: '/tmp/Tessera.dmg' })),
     }),
@@ -235,8 +259,41 @@ describe('backups', () => {
 
   it('lists what has been kept, and puts one back', async () => {
     expect(await ok('backup:snapshots')).toHaveLength(1);
-    await ok('backup:restore', 's1', '/tmp/restored', 10, 'A library');
-    expect(said('backups.restore')).toBeTruthy();
+    const done = await ok('backup:restore', 's1', '/tmp/restored', 10, 'A library');
+    expect(said('backups.restore')!.args.slice(0, 4)).toEqual(['s1', '/tmp/restored', 10, 'A library']);
+    // The libraries this computer already knows reach the restore, so a copy cannot end up
+    // sharing an id with the library it came from.
+    expect(done).toMatchObject({ known: expect.any(Number) });
+  });
+
+  it('tells a restore which libraries this computer already knows', async () => {
+    // A library this computer has open, and another it merely remembers: a restored copy must not
+    // end up sharing an id with either of them.
+    await touchLibrary(settings, dataDir, { id: 'rest-library', name: 'The rest', path: root });
+    const done = (await ok('backup:restore', 's1', '/tmp/restored', 10, 'A library')) as unknown as { known: number };
+    expect(done.known).toBeGreaterThan(0);
+  });
+
+  it('writes the recovery kit for another store, with its keys when that is asked for', async () => {
+    asked.savePath = join(ownDir(), 'kit.pdf');
+    const target = { provider: 'aws' as const, values: { bucket: 'b', region: 'eu-west-1', accessKey: 'AK', secretKey: 'SECRET' } };
+    // No password given, so it asks for the one in use.
+    const where = await ok('backup:saveKit', { target, includeKeys: true });
+    expect(where).toBe(asked.savePath);
+    expect(said('backups.password')).toBeTruthy();
+  });
+
+  it('refuses to write a recovery kit before there are any backups', async () => {
+    asked.savePath = join(ownDir(), 'kit.pdf');
+    // backups.target() answers with somewhere in these tests, so the refusal is checked by
+    // taking that away for one call.
+    const target = backups.target;
+    backups.target = () => null;
+    try {
+      expect((await refused('backup:saveKit', { includeKeys: false })).code).toBe('no-backup');
+    } finally {
+      backups.target = target;
+    }
   });
 
   it('changes the password, joins another library, sets the interval, turns off', async () => {
@@ -311,6 +368,17 @@ describe('restoring from a backup', () => {
   it('carries on backing up to the store it just restored from', async () => {
     // Nothing has been opened, so it refuses rather than setting up a backup to nowhere.
     expect((await refused('restore:keepBackingUp')).code).toBe('restore-locked');
+
+    const target = { provider: 'folder' as const, values: { path: '/tmp/backups' } };
+    restorer.opened = { target, password: 'a very long password' };
+    try {
+      await ok('restore:keepBackingUp');
+    } finally {
+      restorer.opened = null;
+    }
+    // The backup is set up with what was just restored from, and the copy is closed first.
+    expect(said('restorer.close')).toBeTruthy();
+    expect(said('backups.setup')!.args).toEqual([target, 'a very long password', false]);
   });
 
   it('describes somewhere a restored library could go', async () => {
@@ -438,6 +506,35 @@ describe('agents', () => {
     expect(await ok('mcp:portUser', 59997)).toBeNull();
   });
 
+  it('takes a port back, and starts there without being asked again', async () => {
+    // Nothing is listening on this one, so there is nothing to stop and the server simply starts.
+    expect(await ok('mcp:freePort', 59996)).toEqual({ stopped: null });
+    expect(said('mcp.apply')!.args[0]).toBe(true);
+  });
+
+  it('saves the skill wherever the save box says, and nowhere when it is cancelled', async () => {
+    asked.savePath = null;
+    expect(await ok('mcp:installSkill', 'choose')).toBeNull();
+    asked.savePath = join(ownDir(), 'SKILL.md');
+    expect(await ok('mcp:installSkill', 'choose')).toEqual({ path: asked.savePath });
+    const { readFileSync } = await import('node:fs');
+    expect(readFileSync(asked.savePath, 'utf8').length).toBeGreaterThan(0);
+  });
+
+  it('remembers a group that is on by default going off, and the port', async () => {
+    const on = TOOL_GROUPS.find((g) => g.defaultOn)!.id;
+    await ok('mcp:set', { group: { id: on, on: false } });
+    expect((await ok('settings:get')).mcp.groupsOff).toContain(on);
+    await ok('mcp:set', { group: { id: on, on: true } });
+    expect((await ok('settings:get')).mcp.groupsOff).not.toContain(on);
+
+    await ok('mcp:set', { tool: { name: 'search', on: true } });
+    expect((await ok('settings:get')).mcp.off).not.toContain('search');
+    await ok('mcp:set', { port: 7459 });
+    expect((await ok('settings:get')).mcp.port).toBe(7459);
+    await ok('mcp:set', { port: 7458 });
+  });
+
   it('writes the skill file where the window says', async () => {
     const home = ownDir();
     const before = process.env.HOME;
@@ -449,6 +546,52 @@ describe('agents', () => {
       if (before === undefined) delete process.env.HOME;
       else process.env.HOME = before;
     }
+  });
+});
+
+describe('the desktop, when it answers', () => {
+  it('hands back the folder that was picked, with the labels the window asked for', async () => {
+    asked.folder = null;
+    expect(await ok('dialog:folder', 'Where to?')).toBeNull();
+    asked.folder = '/tmp/picked';
+    expect(await ok('dialog:folder', 'Where to?', { defaultPath: '/tmp', buttonLabel: 'Use this', message: 'Pick one' })).toBe('/tmp/picked');
+  });
+
+  it('hands back the file that was picked', async () => {
+    asked.files = [];
+    expect(await ok('dialog:file', 'Which file?')).toBeNull();
+    asked.files = ['/tmp/key.pem'];
+    expect(await ok('dialog:file', 'Which file?')).toBe('/tmp/key.pem');
+  });
+
+  it('describes the files it is pointed at, and passes over what is not there', async () => {
+    const dir = ownDir();
+    writeFileSync(join(dir, 'a.zip'), 'some bytes');
+    const files = await ok('fs:files', [join(dir, 'a.zip'), dir, join(dir, 'not-there.zip')]);
+    expect(files).toHaveLength(2);
+    expect(files.find((f) => f.name === 'a.zip')).toMatchObject({ isFolder: false, size: 10 });
+    expect(files.find((f) => f.isFolder)).toMatchObject({ size: 0 });
+  });
+
+  it('shows the installer it fetched, and says plainly when there is none', async () => {
+    updates.installer = null;
+    expect((await refused('updates:openInstaller')).code).toBe('no-installer');
+    updates.installer = '/tmp/Tessera.dmg';
+    try {
+      await ok('updates:openInstaller');
+      expect(asked.revealed).toContain('/tmp/Tessera.dmg');
+    } finally {
+      updates.installer = null;
+    }
+  });
+
+  it('saves a problem report where the save box says, and nowhere when it is cancelled', async () => {
+    asked.savePath = null;
+    expect(await ok('reports:saveProblem', 'it broke')).toBeNull();
+    asked.savePath = join(ownDir(), 'report.txt');
+    expect(await ok('reports:saveProblem', 'it broke')).toBe(asked.savePath);
+    const { readFileSync } = await import('node:fs');
+    expect(readFileSync(asked.savePath, 'utf8')).toContain('a report');
   });
 });
 

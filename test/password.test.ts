@@ -28,6 +28,22 @@ describe('backup passwords', () => {
   });
 });
 
+describe('when the system has no password store', () => {
+  // Each of these asks for the other systems' way of doing it, which needs a program that is not
+  // on this one: what is being tested is the answer a person gets, not the store itself.
+  it.skipIf(process.platform === 'win32')('says the Windows store is not available', async () => {
+    await expect(saveToKeychain('someone', 'a password', 'win32')).rejects.toThrow(/isn’t available/);
+  });
+
+  it.skipIf(process.platform === 'linux')('names the package Linux needs', async () => {
+    await expect(saveToKeychain('someone', 'a password', 'linux')).rejects.toThrow(/libsecret-tools/);
+  });
+
+  it.skipIf(process.platform === 'darwin')('says the macOS store is not available', async () => {
+    await expect(saveToKeychain('someone', 'a password', 'darwin')).rejects.toThrow(/isn’t available/);
+  });
+});
+
 describe.skipIf(process.platform !== 'darwin')('the macOS keychain', () => {
   it('keeps a visible copy of the password, fed in without a command line', async () => {
     const account = `tessera-test-${Date.now()}`;

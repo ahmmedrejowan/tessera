@@ -47,6 +47,24 @@ describe('storage for Kopia', () => {
     expect(withoutSecrets(t('aws', { bucket: 'b', accessKey: 'k', secretKey: 's' })).values).toEqual({ bucket: 'b', accessKey: 'k' });
   });
 
+  it('knows where the other S3 services are, and falls back to their usual region', () => {
+    expect(kopiaStorage(t('wasabi', { bucket: 'b', accessKey: 'k', secretKey: 's' }), noRclone).args).toContain('--endpoint=s3.us-east-1.wasabisys.com');
+    expect(kopiaStorage(t('wasabi', { bucket: 'b', region: 'eu-central-2', accessKey: 'k', secretKey: 's' }), noRclone).args).toContain('--endpoint=s3.eu-central-2.wasabisys.com');
+    expect(kopiaStorage(t('spaces', { bucket: 'b', accessKey: 'k', secretKey: 's' }), noRclone).args).toContain('--endpoint=nyc3.digitaloceanspaces.com');
+    expect(kopiaStorage(t('spaces', { bucket: 'b', region: 'ams3', accessKey: 'k', secretKey: 's' }), noRclone).args).toContain('--endpoint=ams3.digitaloceanspaces.com');
+    // No region given at all still points at somewhere real.
+    expect(kopiaStorage(t('aws', { bucket: 'b', accessKey: 'k', secretKey: 's' }), noRclone).args).toContain('--endpoint=s3.us-east-1.amazonaws.com');
+  });
+
+  it('puts Google and Azure under a prefix too, when there is one', () => {
+    expect(kopiaStorage(t('gcs', { bucket: 'b', credentials: '/k.json', prefix: '/mine/' }), noRclone).args).toContain('--prefix=mine/');
+    expect(kopiaStorage(t('azure', { container: 'c', account: 'a', key: 'K', prefix: 'mine' }), noRclone).args).toContain('--prefix=mine/');
+  });
+
+  it('will not back up to iCloud by name: it is a folder like any other', () => {
+    expect(() => kopiaStorage(t('icloud', {}), noRclone)).toThrow(/folder/);
+  });
+
   it('says Kopia’s errors plainly', () => {
     expect(storageError('unable to create format manager: invalid repository password')).toMatch(/password/);
     expect(storageError('found existing data in storage location')).toMatch(/already/);
@@ -55,6 +73,11 @@ describe('storage for Kopia', () => {
     expect(storageError('repository not initialized in the provided storage')).toMatch(/No backups here/);
     expect(storageError('RequestTimeTooSkewed: The difference between the request time and the current time is too large.')).toMatch(/clock/);
     expect(storageError('Get "https://nas.local/": x509: certificate signed by unknown authority')).toMatch(/certificate/);
+    expect(storageError('ssh: handshake failed: Permission denied (publickey)')).toMatch(/ssh-add/);
+    expect(storageError('googleapi: Error 403: userRateLimitExceeded')).toMatch(/limiting how fast/);
+    expect(storageError('AccessDenied: Access Denied (SignatureDoesNotMatch)')).toMatch(/keys or password/);
+    // Anything it has never seen is handed over as it is, rather than dressed up as something else.
+    expect(storageError('something nobody has ever seen before')).toContain('something nobody has ever seen before');
   });
 });
 

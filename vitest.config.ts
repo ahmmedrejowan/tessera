@@ -23,11 +23,10 @@ export default defineConfig({
         'src/main/thumbs/renderWindow.ts',
       ],
       // The floor, not the goal: a little under what the suite covers today, so that a change
-      // which quietly stops testing something fails here rather than going unnoticed. Branches sit
-      // lower than the rest on purpose, and honestly: every ?., ?? and default counts as one, and
-      // the last of them are failures of somebody else's program that would take a fake of it to
-      // force. See docs/testing.md.
-      thresholds: { statements: 84, branches: 73, functions: 82, lines: 88 },
+      // which quietly stops testing something fails here rather than going unnoticed. A system
+      // only runs its own half of what is written for all three, so the floor leaves room for
+      // that too. See docs/testing.md.
+      thresholds: { statements: 87, branches: 78, functions: 84, lines: 91 },
     },
   },
 });

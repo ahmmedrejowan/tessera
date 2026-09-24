@@ -45,23 +45,27 @@ end-to-end suite does exactly that.
 
 | | |
 |---|---|
-| Statements | 85% |
-| Lines | 90% |
-| Functions | 83% |
-| Branches | 74% |
+| Statements | 90% |
+| Lines | 94% |
+| Functions | 87% |
+| Branches | 80% |
+
+697 tests, over 60 files.
 
 The thresholds in `vitest.config.ts` sit a little under these, as a floor: a change that quietly
-stops testing something fails the build rather than going unnoticed. Raise them as the number
-rises; never lower them to make a build pass.
+stops testing something fails the build rather than going unnoticed. They are checked on every
+push, on Linux. Raise them as the number rises; never lower them to make a build pass.
 
 **Why branches sit lower than the rest.** Every `?.`, every `??`, every default argument and each
 side of every ternary counts as a branch, and this code is deliberately full of them: a missing
-field falls back rather than throwing, a failed read is caught rather than propagated. Most of the
-branches still uncovered are the second half of a defence that only runs when somebody else's
-program fails in a particular way, or when the disk does. Forcing each one means a fake of that
-program, per failure, which buys a number rather than a better app. Where a failure is one people
-will actually meet, there is a test for it: Kopia refusing, rclone refusing, a folder that has gone,
-an index that will not open, a copy that stops halfway.
+field falls back rather than throwing, a failed read is caught rather than propagated. What is
+still uncovered is mostly the half of a fork that belongs to another system: the Windows way of
+asking who has a port while the tests run on a Mac, the Linux keyring while they run on Windows.
+Each of those is covered on the system it belongs to; no single run can cover them all. The rest
+are failures of somebody else's program that would take a fake of it, per failure, to force. Where
+a failure is one people will actually meet, there is a test for it: Kopia refusing, rclone
+refusing, a download the site will not hand over, a folder that has gone, an index that will not
+open, a copy that stops halfway.
 
 ## Testing on the other systems
 

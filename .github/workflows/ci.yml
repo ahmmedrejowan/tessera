@@ -69,7 +69,13 @@ jobs:
 
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
+      # The whole suite on all three systems, and on Linux with coverage as well, where the
+      # thresholds in vitest.config.ts are a floor: a change that quietly stops testing something
+      # fails the build rather than going unnoticed.
+      - name: Tests
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then npm test -- --coverage; else npm test; fi
       - run: npm run build
       - name: Package (unpacked, the same settings a release uses)
         run: npx electron-builder --config build/builder.cjs --dir --publish never

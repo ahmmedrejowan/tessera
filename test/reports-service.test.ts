@@ -5,7 +5,7 @@
  * person first. Both of those are promises the app makes in writing, so both are tested here
  * rather than assumed, including the case where the reader says no.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -170,7 +170,63 @@ describe('what is in a report', () => {
   });
 });
 
+describe('when the reports cannot go anywhere', () => {
+  it('keeps what could not be sent for later in the session', async () => {
+    const { reports, settings, dataDir } = await reporting({ consent: 'always' });
+    void settings;
+    void dataDir;
+    // The stand-in above always succeeds, so this one is built to fail instead.
+    const failing = new ReportService({
+      logsDir: join(dataDir, 'logs'),
+      crashDir: null,
+      settings,
+      scrub: () => (text: string) => text,
+      env: { release: 'tessera@0.0.0-test', environment: 'production', os: { name: 'macOS', version: '26.0', arch: 'arm64' }, runtime: { electron: '44.0.0', chrome: '138', node: '24' } },
+      dsn: DSN,
+      fetch: (async () => {
+        throw new Error('offline');
+      }) as never,
+      onAsk: () => undefined,
+      onChange: () => undefined,
+    });
+    failing.record(broke());
+    await settle();
+    // It is still waiting rather than counted as sent, and nothing threw.
+    expect(failing.status().unsent).toBe(1);
+    failing.dispose();
+    void reports;
+  });
+
+  it('will not offer to send a problem report from a build with nowhere to send it', async () => {
+    const { reports } = await reporting({ consent: 'ask', dsn: null });
+    await expect(reports.sendProblem('The window went blank')).rejects.toThrow(/nowhere to send/);
+  });
+});
+
 describe('a problem report written by hand', () => {
+  it('says so plainly when the writer described nothing, and lists what went wrong', async () => {
+    const { reports } = await reporting({ consent: 'ask' });
+    reports.record(broke());
+    reports.record(broke());
+    const text = await reports.problemReport('   ');
+    expect(text).toContain('(not described)');
+    // The same problem twice is one line with a count on it.
+    expect(text).toContain('(×2)');
+  });
+
+  it('says there is nothing waiting when nothing is', async () => {
+    const { reports } = await reporting({ consent: 'ask' });
+    expect(reports.preview()).toBe('Nothing is waiting to be sent.');
+  });
+
+  it('notes that the window had to be loaded again, once', async () => {
+    const { reports } = await reporting({ consent: 'ask' });
+    reports.windowRecovered();
+    expect(reports.pending().recovered).toBe(true);
+    // Read once: the notice is not shown again on the next question.
+    expect(reports.pending().recovered).toBe(false);
+  });
+
   it('is put together from the logs, and can be read before it goes', async () => {
     const { reports, dataDir } = await reporting({ consent: 'ask' });
     writeFileSync(join(dataDir, 'logs', 'tessera.log'), 'something happened in /Users/someone/Library\n');
@@ -192,6 +248,37 @@ describe('a crash the app did not live to report', () => {
     const { reports } = await reporting({ consent: 'always' });
     await reports.scanCrashes();
     expect(reports.status().crashes).toBe(0);
+  });
+
+  it('sends the dump once the reader says so, and clears it away afterwards', async () => {
+    const { reports, sent, dataDir } = await reporting({ consent: 'always' });
+    const dumps = join(dataDir, 'crashes', 'completed');
+    mkdirSync(dumps, { recursive: true });
+    const dump = join(dumps, 'a-crash.dmp');
+    writeFileSync(dump, 'not really a dump');
+
+    await reports.scanCrashes();
+    expect(reports.status().crashes).toBe(1);
+
+    await reports.answerCrashes(true);
+    expect(sent).toHaveLength(1);
+    // Sent or not, a dump is never kept lying about afterwards.
+    expect(existsSync(dump)).toBe(false);
+    expect(reports.status().crashes).toBe(0);
+  });
+
+  it('clears away a dump too old to be worth anything', async () => {
+    const { reports, dataDir } = await reporting({ consent: 'always' });
+    const dumps = join(dataDir, 'crashes', 'completed');
+    mkdirSync(dumps, { recursive: true });
+    const old = join(dumps, 'ancient.dmp');
+    writeFileSync(old, 'not really a dump');
+    const longAgo = new Date(Date.now() - 400 * 86_400_000);
+    utimesSync(old, longAgo, longAgo);
+
+    await reports.scanCrashes();
+    expect(reports.status().crashes).toBe(0);
+    expect(existsSync(old)).toBe(false);
   });
 
   it('notices a crash dump, and sends nothing until the reader says so', async () => {

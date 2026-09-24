@@ -67,6 +67,41 @@ describe('taking a folder as a game', () => {
     expect((await projects.list(libraryId, names)).some((p) => p.id === project.id)).toBe(false);
   });
 
+  it('will not be pointed at a folder outside the game', async () => {
+    const { projects, project } = await withGame();
+    // Somewhere else on the disk is not somewhere a game's assets can go.
+    await expect(projects.update(project.id, { target: 'Assets/../../elsewhere' })).rejects.toThrow(/inside the project/);
+    await expect(projects.update(project.id, { target: '   ' })).rejects.toThrow(/inside the project/);
+    await expect(projects.update(project.id, { creditsFile: '../CREDITS.md' })).rejects.toThrow(/inside the project/);
+    // What it had is untouched by an attempt that was refused.
+    expect((await projects.get(project.id)).target).toBe('Assets/ThirdParty');
+  });
+
+  it('takes the same folder twice as the same game', async () => {
+    const { projects, project, path } = await withGame();
+    const again = await projects.add(await projects.probe(path));
+    expect(again.id).toBe(project.id);
+  });
+
+  it('gives a game with no name of its own one anyway', async () => {
+    const { projects } = await withGame();
+    const probe = await projects.probe(tempDir());
+    const added = await projects.add({ ...probe, name: '   ' });
+    expect(added.name).toBe('Project');
+  });
+
+  it('leaves alone a game whose folder has gone when a pack changes', async () => {
+    const { projects, app, project, path, libraryId } = await withGame();
+    const pack = app.library.require().queries.packs({ scope: 'library', text: '', filters: {} }, 'name', 0, 5).rows[0]!;
+    await projects.copy(project.id, [{ packId: pack.id, ref: 'original/Models/arcade.obj' }], app.context().copySource());
+    rmSync(path, { recursive: true, force: true });
+
+    // None of these can do anything about a folder that is not there, and none of them may throw.
+    await projects.packChanged(libraryId, pack.id, { packName: 'Renamed', licence: 'CC0-1.0', attribution: null, creator: null, sourceUrl: null });
+    expect(await projects.usage(libraryId, [pack.id])).toEqual([]);
+    expect(await projects.keepLicences(libraryId, [pack.id], app.context().copySource())).toBe(0);
+  });
+
   it('refuses clearly over a game it has never heard of', async () => {
     const { projects, libraryId, names } = await withGame();
     await expect(projects.get('not-a-game')).rejects.toMatchObject({ code: expect.any(String) });

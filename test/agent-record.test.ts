@@ -170,6 +170,27 @@ describe('setting an agent up', () => {
     }
   });
 
+  it('will not guess at a settings file that is not JSON', async () => {
+    const home = tempDir();
+    const before = process.env.HOME;
+    const beforeProfile = process.env.USERPROFILE;
+    process.env.HOME = home;
+    process.env.USERPROFILE = home;
+    try {
+      const target = clients('http://127.0.0.1:7458/mcp').find((c) => !c.command)!;
+      mkdirSync(join(target.path, '..'), { recursive: true });
+      writeFileSync(target.path, '{ this is not JSON at all', 'utf8');
+      // Rewriting it would throw away whatever is in there, so it says what to do instead.
+      await expect(installFor(target.id, 'http://127.0.0.1:7458/mcp')).rejects.toThrow(/could not be read as JSON/);
+      expect(readFileSync(target.path, 'utf8')).toBe('{ this is not JSON at all');
+    } finally {
+      if (before === undefined) delete process.env.HOME;
+      else process.env.HOME = before;
+      if (beforeProfile === undefined) delete process.env.USERPROFILE;
+      else process.env.USERPROFILE = beforeProfile;
+    }
+  });
+
   it('refuses an agent it has never heard of', async () => {
     await expect(installFor('not-an-agent', 'http://127.0.0.1:7458/mcp')).rejects.toThrow();
   });

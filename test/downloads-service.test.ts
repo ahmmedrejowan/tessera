@@ -26,7 +26,7 @@ const tempDir = () => {
 };
 
 /** A stand-in for the network, which can be told to be slow, to fail, or to refuse outright. */
-function net(options: { fail?: number; permanent?: boolean; hold?: boolean; body?: string } = {}) {
+function net(options: { fail?: number; permanent?: boolean; hold?: boolean; body?: string; status?: number; statusTimes?: number; disposition?: string; slow?: boolean } = {}) {
   let attempts = 0;
   const started: string[] = [];
   let release: (() => void) | null = null;
@@ -43,14 +43,31 @@ function net(options: { fail?: number; permanent?: boolean; hold?: boolean; body
     if (options.fail && attempts <= options.fail) {
       throw Object.assign(new Error(options.permanent ? 'That link is not a file.' : 'the connection dropped'), { permanent: !!options.permanent });
     }
+    if (options.status && attempts <= (options.statusTimes ?? Number.MAX_SAFE_INTEGER)) {
+      return { ok: false, status: options.status, url, headers: new Headers(), body: null } as Response;
+    }
     const text = options.body ?? 'a pack, pretend';
+    const bytes = new TextEncoder().encode(text);
     return {
       ok: true,
       status: 200,
-      headers: new Headers({ 'content-length': String(text.length), 'content-type': 'application/zip' }),
+      url,
+      headers: new Headers({
+        'content-length': String(bytes.byteLength),
+        'content-type': 'application/zip',
+        ...(options.disposition ? { 'content-disposition': options.disposition } : {}),
+      }),
       body: new ReadableStream<Uint8Array>({
-        start(c) {
-          c.enqueue(new TextEncoder().encode(text));
+        async start(c) {
+          if (options.slow) {
+            // Handed over in pieces, with a gap, so the queue has something to measure a speed from.
+            for (let i = 0; i < bytes.byteLength; i += 1024) {
+              c.enqueue(bytes.subarray(i, i + 1024));
+              await new Promise((r) => setTimeout(r, 300));
+            }
+          } else {
+            c.enqueue(bytes);
+          }
           c.close();
         },
       }),
@@ -166,6 +183,61 @@ describe('when it goes wrong', () => {
     q.downloads.retryFailed();
     await until(() => q.stand.tries() > before, 'it was never tried again');
   });
+});
+
+describe('what the site answers', () => {
+  it('gives up on a link that leads nowhere any more, and says so in plain words', async () => {
+    const q = await queue({ status: 404 });
+    q.downloads.add([FILE]);
+    await until(() => q.downloads.list()[0]?.state === 'failed', 'it never gave up');
+    expect(q.downloads.list()[0]!.error).toContain('404');
+    // There is no point asking again for something that is not there.
+    expect(q.stand.tries()).toBe(1);
+  });
+
+  it('says a file behind a sign-in needs one', async () => {
+    const q = await queue({ status: 403 });
+    q.downloads.add([FILE]);
+    await until(() => q.downloads.list()[0]?.state === 'failed');
+    expect(q.downloads.list()[0]!.error).toMatch(/sign-in/);
+    expect(q.stand.tries()).toBe(1);
+  });
+
+  it('tries again when the site is having a bad moment, and gets there', async () => {
+    // 500 and 429 are the site's problem, not the link's: those are worth asking again.
+    const q = await queue({ status: 503, statusTimes: 1 });
+    q.downloads.add([FILE]);
+    await until(() => q.downloads.list()[0]?.state === 'ready', 'it never got there');
+    expect(q.stand.tries()).toBeGreaterThan(1);
+  });
+
+  it('gives up on an answer that is neither the file nor a bad moment', async () => {
+    const q = await queue({ status: 418 });
+    q.downloads.add([FILE]);
+    await until(() => q.downloads.list()[0]?.state === 'failed');
+    expect(q.downloads.list()[0]!.error).toContain('418');
+  });
+
+  it('names the file the way the site asked for it to be named', async () => {
+    const q = await queue({ disposition: 'attachment; filename="Space Kit v2.zip"' });
+    q.downloads.add(['https://example.test/download?id=99']);
+    await until(() => q.ready.length === 1);
+    expect(q.downloads.list()[0]!.name).toBe('Space Kit v2.zip');
+    expect(existsSync(join(q.dir, q.downloads.list()[0]!.id, 'Space Kit v2.zip'))).toBe(true);
+  });
+
+  it('says how fast it is going and how long is left, while it is going', async () => {
+    const q = await queue({ body: 'x'.repeat(8 * 1024), slow: true });
+    q.downloads.add([FILE]);
+    await until(() => (q.downloads.list()[0]?.speed ?? 0) > 0, 'it never said how fast it was going');
+    const running = q.downloads.list()[0]!;
+    expect(running.total).toBe(8 * 1024);
+    expect(running.eta).not.toBeNull();
+    await until(() => q.downloads.list()[0]?.state === 'ready', 'it never finished');
+    // Once it is done there is nothing left to say about speed.
+    expect(q.downloads.list()[0]!.speed).toBe(0);
+    expect(q.downloads.list()[0]!.eta).toBeNull();
+  }, 30_000);
 });
 
 describe('taking charge of the queue', () => {

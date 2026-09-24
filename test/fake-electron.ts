@@ -20,6 +20,12 @@ export const asked = {
   files: [] as string[],
   /** Where the next save box says to save, or null for "cancelled". */
   savePath: null as string | null,
+  /** What a hidden window should fail with when it is asked to open a page. */
+  pageLoad: null as Error | null,
+  /** How the Mac answers a request for a fingerprint: not asked for, agreed to, or refused. */
+  touchId: 'none' as 'none' | 'agreed' | 'refused',
+  /** Answers web requests instead of the network, when a test sets it. */
+  fetch: null as ((url: string, init?: RequestInit) => Promise<Response>) | null,
 };
 
 export function forget(): void {
@@ -30,6 +36,9 @@ export function forget(): void {
   asked.folder = null;
   asked.files = [];
   asked.savePath = null;
+  asked.pageLoad = null;
+  asked.fetch = null;
+  asked.touchId = 'none';
 }
 
 const theWindow = {
@@ -49,7 +58,9 @@ const theWindow = {
   show: () => undefined,
   close: () => undefined,
   destroy: () => undefined,
-  loadURL: async () => undefined,
+  loadURL: async () => {
+    if (asked.pageLoad) throw asked.pageLoad;
+  },
   loadFile: async () => undefined,
   getBounds: () => ({ x: 0, y: 0, width: 1280, height: 800 }),
   isMaximized: () => false,
@@ -109,8 +120,20 @@ export const screen = {
   getPrimaryDisplay: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }),
 };
 
+export const systemPreferences = {
+  canPromptTouchID: () => asked.touchId !== 'none',
+  promptTouchID: async (_reason: string) => {
+    if (asked.touchId === 'refused') throw new Error('no match');
+  },
+};
+export const session = {
+  fromPartition: () => ({ on: () => undefined, setPermissionRequestHandler: () => undefined }),
+};
 export const nativeTheme = { shouldUseDarkColors: false, on: () => undefined };
-export const net = { fetch: (...args: Parameters<typeof globalThis.fetch>) => globalThis.fetch(...args) };
+export const net = {
+  fetch: (...args: Parameters<typeof globalThis.fetch>) =>
+    asked.fetch ? asked.fetch(String(args[0]), args[1]) : globalThis.fetch(...args),
+};
 export const safeStorage = {
   isEncryptionAvailable: () => false,
   getSelectedStorageBackend: () => 'basic_text',

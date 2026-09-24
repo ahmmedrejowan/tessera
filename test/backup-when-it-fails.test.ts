@@ -111,6 +111,42 @@ describe.skipIf(windows)('when Kopia will not play', () => {
     const { backups, dir } = await setup(`exit 0`);
     await expect(backups.setup(store(dir), 'short', true)).rejects.toThrow();
   });
+
+  it('refuses a store that is not filled in, rather than half-connecting to it', async () => {
+    const { backups } = await setup(`exit 0`);
+    // A bucket with no keys is not somewhere backups can go.
+    await expect(backups.setup({ provider: 'aws', values: { bucket: 'b' } }, 'a long enough password', true)).rejects.toMatchObject({ code: 'incomplete-target' });
+  });
+
+  it('will not join backups that are not set up', async () => {
+    const { backups } = await setup(`exit 0`);
+    await expect(backups.join('some-other-library')).rejects.toMatchObject({ code: 'no-backup' });
+  });
+
+  it('says there is nothing to back up when no library is open', async () => {
+    const dir = tempDir();
+    const dataDir = join(dir, 'data');
+    mkdirSync(dataDir, { recursive: true });
+    fakeKopia(dataDir, 'exit 0');
+    const settings = new SettingsStore(dataDir);
+    await settings.load();
+    const shut = new BackupService({
+      dataDir,
+      settings,
+      secrets: () => ({ save: async () => undefined, load: async () => null, clear: async () => undefined }),
+      keychain: () => true,
+      jobs: new Jobs(() => undefined),
+      // No library is open.
+      library: () => null,
+      isLibrary: async () => true,
+      rclone: () => ({ exe: null, config: '' }),
+      onChange: () => undefined,
+    });
+    await expect(shut.setup(store(dir), 'a long enough password', true)).rejects.toMatchObject({ code: 'no-library' });
+    await expect(shut.backupNow()).rejects.toMatchObject({ code: 'no-library' });
+    // It can still say how things stand, with nothing open.
+    expect((await shut.status()).lastBackupAt).toBeNull();
+  });
 });
 
 describe.skipIf(windows)('when Kopia is not there at all', () => {
