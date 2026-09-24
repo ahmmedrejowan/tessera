@@ -515,7 +515,7 @@ describe('when things are not as expected', () => {
     const { library, close } = await opened();
     const id = only(library).id;
     // A collection that will only take CC-BY packs; this one is CC0.
-    const made = await library.createCollection('Only CC-BY', { rules: { licences: ['CC-BY-4.0'], needsCreditLine: false, types: [] } });
+    const made = await library.createCollection('Only CC-BY', { rules: { licences: ['CC-BY-4.0'], creators: [], styles: [], tags: [], types: [] } });
     const result = await library.changeCollection(made, { addPacks: [id] });
     expect(result.refused.length).toBeGreaterThan(0);
     expect(result.addedPacks).toBe(0);

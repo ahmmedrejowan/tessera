@@ -13,7 +13,7 @@ vi.mock('electron', () => import('./fake-electron'));
 
 import { Jobs } from '../src/main/jobs';
 import { ProjectService } from '../src/main/projects/service';
-import { running, type PackFixture } from './library';
+import { running, PIXEL, type PackFixture } from './library';
 import { tempDir } from './helpers';
 
 const PACKS: PackFixture[] = [
@@ -165,5 +165,119 @@ describe('copying into a game', () => {
   it('refuses to copy into a game that is not there', async () => {
     const { app, projects, packs, aFile } = await withGame();
     await expect(projects.copy('not-a-game', [{ packId: packs[0]!.id, ref: aFile.ref }], app.context().copySource())).rejects.toThrow();
+  });
+});
+
+describe('what a copy warns about before it happens', () => {
+  /** A library holding one pack with the licence and status a test wants to try. */
+  async function withPack(over: { licence?: string | null; source?: string | null } = {}) {
+    const app = await running([{ name: 'One Pack', files: { 'Models/thing.obj': 'o thing\n' }, ...over }]);
+    const projects = new ProjectService(tempDir(), new Jobs(() => undefined));
+    const path = tempDir();
+    const project = await projects.add(await projects.probe(path));
+    const row = app.library.require().queries.packs({ scope: 'all', text: '', filters: {} }, 'added', 0, 10).rows[0]!;
+    const file = app.library.require().queries.packFiles(row.id).find((f) => f.ref.endsWith('.obj'))!;
+    return { app, projects, project, path, row, file };
+  }
+
+  it('says when a pack has no licence recorded', async () => {
+    const { app, projects, project, row, file } = await withPack({ licence: null });
+    const plan = await projects.plan(project.id, [{ packId: row.id, ref: file.ref }], app.context().copySource());
+    expect(plan.warnings.join(' ')).toMatch(/no licence/i);
+  });
+
+  it('says when a pack may not be used in a commercial game', async () => {
+    const { app, projects, project, row, file } = await withPack({ licence: 'CC-BY-NC-4.0' });
+    const plan = await projects.plan(project.id, [{ packId: row.id, ref: file.ref }], app.context().copySource());
+    expect(plan.warnings.join(' ')).toMatch(/commercial/i);
+  });
+
+  it('says when a pack needs a credit line and has none', async () => {
+    const { app, projects, project, row, file } = await withPack({ licence: 'CC-BY-4.0' });
+    const plan = await projects.plan(project.id, [{ packId: row.id, ref: file.ref }], app.context().copySource());
+    expect(plan.warnings.join(' ')).toMatch(/credit line/i);
+  });
+
+  it('says when a pack is still waiting in Review', async () => {
+    const { app, projects, project, row, file } = await withPack({ licence: null, source: null });
+    const plan = await projects.plan(project.id, [{ packId: row.id, ref: file.ref }], app.context().copySource());
+    expect(plan.warnings.join(' ')).toMatch(/Inbox|Review/i);
+  });
+
+  it('says nothing at all about a pack whose papers are in order', async () => {
+    const { app, projects, project, row, file } = await withPack({ licence: 'CC0-1.0' });
+    const plan = await projects.plan(project.id, [{ packId: row.id, ref: file.ref }], app.context().copySource());
+    expect(plan.warnings).toEqual([]);
+  });
+
+  it('plans nothing for a pack or a file that is not there', async () => {
+    const { app, projects, project, row } = await withPack();
+    expect((await projects.plan(project.id, [{ packId: 'not-a-pack', ref: 'x' }], app.context().copySource())).assets).toBe(0);
+    expect((await projects.plan(project.id, [{ packId: row.id, ref: 'original/not-a-file.obj' }], app.context().copySource())).assets).toBe(0);
+  });
+});
+
+describe('a model and the files it needs', () => {
+  it('takes the textures and the material file along with the model', async () => {
+    const app = await running([
+      {
+        name: 'Textured',
+        files: {
+          'Models/car.obj': 'mtllib car.mtl\no car\n',
+          'Models/car.mtl': 'newmtl paint\nmap_Kd ../Textures/paint.png\n',
+          'Textures/paint.png': PIXEL,
+        },
+      },
+    ]);
+    const projects = new ProjectService(tempDir(), new Jobs(() => undefined));
+    const path = tempDir();
+    const project = await projects.add(await projects.probe(path));
+    const row = app.library.require().queries.packs({ scope: 'library', text: '', filters: {} }, 'added', 0, 10).rows[0]!;
+    const model = app.library.require().queries.packFiles(row.id).find((f) => f.ref.endsWith('car.obj'))!;
+
+    const plan = await projects.plan(project.id, [{ packId: row.id, ref: model.ref }], app.context().copySource());
+    // One asset, but more than one file: the material and the texture come with it.
+    expect(plan.assets).toBe(1);
+    expect(plan.files).toBeGreaterThan(1);
+
+    await projects.copy(project.id, [{ packId: row.id, ref: model.ref }], app.context().copySource());
+    const entry = (await projects.entries(project.id, 'test-library', () => 'Library'))[0]!;
+    expect(entry.files.some((f) => f.endsWith('car.mtl'))).toBe(true);
+    expect(entry.files.some((f) => f.endsWith('paint.png'))).toBe(true);
+    for (const f of entry.files) expect(existsSync(join(path, ...f.split('/')))).toBe(true);
+  });
+
+  it('leaves a shared texture in place when only one model that uses it is taken out', async () => {
+    const app = await running([
+      {
+        name: 'Shared',
+        files: {
+          'Models/a.obj': 'mtllib shared.mtl\no a\n',
+          'Models/b.obj': 'mtllib shared.mtl\no b\n',
+          'Models/shared.mtl': 'newmtl s\nmap_Kd ../Textures/shared.png\n',
+          'Textures/shared.png': PIXEL,
+        },
+      },
+    ]);
+    const projects = new ProjectService(tempDir(), new Jobs(() => undefined));
+    const path = tempDir();
+    const project = await projects.add(await projects.probe(path));
+    const row = app.library.require().queries.packs({ scope: 'library', text: '', filters: {} }, 'added', 0, 10).rows[0]!;
+    const files = app.library.require().queries.packFiles(row.id);
+    const a = files.find((f) => f.ref.endsWith('a.obj'))!;
+    const b = files.find((f) => f.ref.endsWith('b.obj'))!;
+
+    const source = app.context().copySource();
+    await projects.copy(project.id, [{ packId: row.id, ref: a.ref }, { packId: row.id, ref: b.ref }], source);
+    const texture = (await projects.entries(project.id, 'test-library', () => 'Library'))[0]!.files.find((f) => f.endsWith('shared.png'))!;
+    expect(existsSync(join(path, ...texture.split('/')))).toBe(true);
+
+    // Taking one out leaves what the other still needs.
+    await projects.remove(project.id, [{ packId: row.id, ref: a.ref }], 'test-library');
+    expect(existsSync(join(path, ...texture.split('/')))).toBe(true);
+
+    // Taking the second out takes it with it.
+    await projects.remove(project.id, [{ packId: row.id, ref: b.ref }], 'test-library');
+    expect(existsSync(join(path, ...texture.split('/')))).toBe(false);
   });
 });
