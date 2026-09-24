@@ -11,6 +11,7 @@ coverage/
 docs/*
 !docs/guide.md
 !docs/faq.md
+!docs/testing.md
 !docs/images/
 build/*.icns
 build/*.ico

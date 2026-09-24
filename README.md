@@ -226,12 +226,18 @@ npm run dist         # installers for this computer, in release/
 ## Testing
 
 ```bash
-npm test             # the unit tests
-npm run test:e2e     # end to end, against the built app
-npm run typecheck    # both TypeScript projects
+npm test                 # the unit suite
+npm test -- --coverage   # with a coverage report in coverage/
+npm run test:e2e         # end to end, against the built app
+npm run typecheck        # both TypeScript projects
 ```
 
-CI runs the typecheck, the tests and a packaged build on macOS, Windows and Linux for every push.
+Over 600 tests across the two suites. They work against real folders, a real index, a real Kopia
+and a real HTTP server rather than mocks, and [docs/testing.md](docs/testing.md) explains how, what
+is deliberately not covered, and how to add one.
+
+CI runs the typecheck, the whole suite and a packaged build on macOS, Windows and Linux for every
+push, and installs Kopia and rclone on each so the backup tests run there too.
 
 ---
 

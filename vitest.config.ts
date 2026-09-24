@@ -22,7 +22,12 @@ export default defineConfig({
         'src/main/drag.ts',
         'src/main/thumbs/renderWindow.ts',
       ],
-      thresholds: { statements: 80, branches: 75, functions: 80, lines: 80 },
+      // The floor, not the goal: a little under what the suite covers today, so that a change
+      // which quietly stops testing something fails here rather than going unnoticed. Branches sit
+      // lower than the rest on purpose, and honestly: every ?., ?? and default counts as one, and
+      // the last of them are failures of somebody else's program that would take a fake of it to
+      // force. See docs/testing.md.
+      thresholds: { statements: 84, branches: 73, functions: 82, lines: 88 },
     },
   },
 });
