@@ -18,6 +18,12 @@ export const TOOL_GROUPS: { id: ToolGroup; title: string; note: string; defaultO
   { id: 'danger', title: 'Deleting for good', note: 'Empty the bin, throw away a pack waiting in Review. These cannot be undone. Off until you turn it on.', defaultOn: false },
 ];
 
+/**
+ * Whether a group is worth a second thought: the ones that start off, because they reach past the
+ * library into the app itself, or cannot be undone.
+ */
+export const isSensitive = (id: ToolGroup): boolean => !TOOL_GROUPS.find((g) => g.id === id)?.defaultOn;
+
 /** Whether a group is on, given what has been switched off and what has been allowed. */
 export function groupIsOn(id: ToolGroup, settings: { groupsOff: string[]; groupsOn?: string[] }): boolean {
   const group = TOOL_GROUPS.find((g) => g.id === id);

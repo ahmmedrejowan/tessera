@@ -3,17 +3,36 @@ import HistoryOutlined from '@mui/icons-material/HistoryOutlined';
 import MenuBookOutlined from '@mui/icons-material/MenuBookOutlined';
 import Button from '@mui/material/Button';
 import Collapse from '@mui/material/Collapse';
+import Tooltip from '@mui/material/Tooltip';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import { useRef, useState, type ReactNode } from 'react';
-import { TOOL_GROUPS, type McpToolInfo, type ToolGroup } from '@shared/mcp';
+import { TOOL_GROUPS, isSensitive, type McpToolInfo, type ToolGroup } from '@shared/mcp';
 import { useMcp, useMcpTools, setMcp } from '../../state/mcp';
 import { useNav } from '../../state/nav';
 import { md, SHAPE } from '../../theme';
 import { PAGE, Page } from '../Placeholder';
 import { SideSections, sectionAnchor, useSectionSpy, type SideSection } from '../settings/SideSections';
 
-const SECTIONS: SideSection[] = TOOL_GROUPS.map((g) => ({ id: g.id, title: g.title }));
+/** A small red dot: this one reaches past the library, or cannot be undone. */
+function Sensitive({ why }: { why: string }) {
+  return (
+    <Tooltip title={why}>
+      <span aria-label={why} style={{ width: 7, height: 7, borderRadius: 4, background: md('error'), flexShrink: 0, display: 'inline-block' }} />
+    </Tooltip>
+  );
+}
+
+const WHY: Partial<Record<ToolGroup, string>> = {
+  system: 'Sensitive: this reaches past the library, into Tessera itself.',
+  danger: 'Sensitive: this cannot be undone.',
+};
+
+const SECTIONS: SideSection[] = TOOL_GROUPS.map((g) => ({
+  id: g.id,
+  title: g.title,
+  ...(isSensitive(g.id) ? { mark: <Sensitive why={WHY[g.id] ?? 'Sensitive.'} /> } : {}),
+}));
 
 /** The arguments a tool takes, read off its schema, so you can see what an agent may send. */
 function args(schema: Record<string, unknown>): { name: string; type: string; required: boolean; note: string }[] {
@@ -52,8 +71,11 @@ function ToolRow({ tool, first }: { tool: McpToolInfo; first: boolean }) {
     <div style={{ borderTop: first ? 'none' : `1px solid ${md('outlineVariant')}` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="bodyLarge" component="div" sx={{ color: tool.on ? md('onSurface') : md('onSurfaceVariant') }}>
-            {tool.title} <Mono dim>{tool.name}</Mono>
+          <Typography variant="bodyLarge" component="div" sx={{ color: tool.on ? md('onSurface') : md('onSurfaceVariant'), display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            {isSensitive(tool.group) && <Sensitive why={WHY[tool.group] ?? 'Sensitive.'} />}
+            <span>
+              {tool.title} <Mono dim>{tool.name}</Mono>
+            </span>
           </Typography>
           <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), maxWidth: 560, display: '-webkit-box', WebkitLineClamp: open ? 4 : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {tool.summary}
@@ -62,7 +84,13 @@ function ToolRow({ tool, first }: { tool: McpToolInfo; first: boolean }) {
         <Button size="small" endIcon={<ExpandMoreOutlined sx={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />} onClick={() => setOpen(!open)}>
           Details
         </Button>
-        <Switch size="small" checked={tool.on} onChange={(e) => void setMcp({ tool: { name: tool.name, on: e.target.checked } })} slotProps={{ input: { 'aria-label': tool.name } }} />
+        <Switch
+          size="small"
+          checked={tool.on}
+          color={isSensitive(tool.group) ? 'error' : 'primary'}
+          onChange={(e) => void setMcp({ tool: { name: tool.name, on: e.target.checked } })}
+          slotProps={{ input: { 'aria-label': tool.name } }}
+        />
       </div>
 
       <Collapse in={open} unmountOnExit>
@@ -192,8 +220,9 @@ export function AgentToolsPage() {
                   <section style={{ marginBottom: 40 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="titleMedium" component="h2" sx={{ color: md('onSurface') }}>
+                        <Typography variant="titleMedium" component="h2" sx={{ color: md('onSurface'), display: 'flex', alignItems: 'center', gap: 1 }}>
                           {group.title}
+                          {isSensitive(group.id) && <Sensitive why={WHY[group.id] ?? 'Sensitive.'} />}
                         </Typography>
                         <Typography variant="bodyMedium" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5, maxWidth: 620 }}>
                           {group.note}
@@ -204,6 +233,7 @@ export function AgentToolsPage() {
                       </Typography>
                       <Switch
                         checked={on > 0}
+                        color={isSensitive(group.id) ? 'error' : 'primary'}
                         onChange={(e) => void setMcp({ group: { id: group.id, on: e.target.checked } })}
                         slotProps={{ input: { 'aria-label': `${group.title} tools` } }}
                       />

@@ -4,7 +4,7 @@ import CloseRounded from '@mui/icons-material/CloseRounded';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import type { McpCall } from '@shared/mcp';
+import { isSensitive, type McpCall } from '@shared/mcp';
 import { useMcpCalls, useMcpTools } from '../../state/mcp';
 import { useNav } from '../../state/nav';
 import { SideBlock } from '../../components/SideBlock';
@@ -39,7 +39,12 @@ export function CallRow({ call, showDate }: { call: McpCall; showDate?: boolean 
         </span>
       </Tooltip>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="bodyMedium" noWrap sx={{ color: md('onSurface') }}>
+        <Typography variant="bodyMedium" noWrap sx={{ color: md('onSurface'), display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          {isSensitive(call.group) && (
+            <Tooltip title="A sensitive tool: it reaches past the library, or cannot be undone.">
+              <span aria-label="Sensitive" style={{ width: 7, height: 7, borderRadius: 4, background: md('error'), flexShrink: 0 }} />
+            </Tooltip>
+          )}
           {title}
         </Typography>
         {(call.said || call.problem) && (

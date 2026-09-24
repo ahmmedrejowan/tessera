@@ -8,6 +8,8 @@ export interface SideSection {
   title: string;
   /** Sections with the same group are listed together under its label. */
   group?: string;
+  /** A mark after the title: a dot for a section worth a second thought. */
+  mark?: ReactNode;
 }
 
 export interface SideGroup {
@@ -70,8 +72,9 @@ export function SideSections({ prefix, sections, groups, current }: { prefix: st
         '&:hover': { backgroundColor: current === s.id ? md('secondaryContainer') : md('surfaceContainerHigh') },
       }}
     >
-      <Typography variant="labelLarge" noWrap sx={{ fontWeight: current === s.id ? 600 : 500 }}>
+      <Typography variant="labelLarge" noWrap sx={{ fontWeight: current === s.id ? 600 : 500, display: 'flex', alignItems: 'center', gap: 0.75 }}>
         {s.title}
+        {s.mark}
       </Typography>
     </ButtonBase>
   );
