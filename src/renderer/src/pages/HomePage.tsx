@@ -14,6 +14,7 @@ import UploadFileOutlined from '@mui/icons-material/UploadFileOutlined';
 import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined';
 import InboxOutlined from '@mui/icons-material/InboxOutlined';
 import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
@@ -99,6 +100,58 @@ function Happening() {
         })}
       </div>
     </Section>
+  );
+}
+
+/**
+ * What needs you: packs waiting in Review, and packs missing a licence, a source or a credit line.
+ * It sits in Home's side column, so each line stacks rather than running along a row.
+ */
+function Watcher({ inbox, watching, ready }: { inbox: number; watching: { id: string; name: string; why: string; licence: string | null }[]; ready: boolean }) {
+  const go = useNav((s) => s.go);
+  if (!inbox && !watching.length) {
+    return ready ? (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow'), color: md('onSurfaceVariant') }}>
+        <CheckCircleOutlined sx={{ color: md('primary'), flexShrink: 0 }} />
+        <Typography variant="bodyMedium">Every pack has its licence and source on record.</Typography>
+      </div>
+    ) : null;
+  }
+  return (
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <Typography variant="titleMedium" component="h2" sx={{ color: md('onSurface') }}>
+          Needs you
+        </Typography>
+        {inbox > 0 && <SeeAll onClick={() => go({ to: 'inbox' })} />}
+      </div>
+      {inbox > 0 && (
+        <ButtonBase onClick={() => go({ to: 'inbox' })} sx={{ justifyContent: 'flex-start', gap: 1.5, p: 2, borderRadius: `${SHAPE.md}px`, backgroundColor: md('tertiaryContainer'), color: md('onTertiaryContainer') }}>
+          <ReviewIcon sx={{ flexShrink: 0 }} />
+          <Typography variant="bodyMedium" sx={{ flex: 1, textAlign: 'left' }}>
+            {inbox} pack{inbox === 1 ? '' : 's'} waiting in Review for a licence or a source
+          </Typography>
+          <ArrowForward sx={{ flexShrink: 0 }} />
+        </ButtonBase>
+      )}
+      {watching.slice(0, 6).map((p) => (
+        <ButtonBase
+          key={p.id + p.why}
+          onClick={() => go({ to: 'pack', id: p.id })}
+          sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, px: 2, py: 1.5, borderRadius: `${SHAPE.md}px`, backgroundColor: md('surfaceContainerLow'), '&:hover': { backgroundColor: md('surfaceContainer') } }}
+        >
+          <WarningAmberOutlined sx={{ color: md('error'), fontSize: 20, flexShrink: 0, mt: 0.25 }} />
+          <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <Typography variant="bodyMedium" component="div" sx={{ color: md('onSurface') }}>
+              <b>{p.name}</b> {p.why}
+            </Typography>
+            <span style={{ display: 'inline-flex', marginTop: 6 }}>
+              <LicenceChip id={p.licence} />
+            </span>
+          </span>
+        </ButtonBase>
+      ))}
+    </section>
   );
 }
 
@@ -274,11 +327,22 @@ export function HomePage() {
         stats
           ? `${formatCount(stats.packs)} pack${stats.packs === 1 ? '' : 's'} · ${formatCount(stats.assets)} asset${stats.assets === 1 ? '' : 's'} · ${formatBytes(stats.size)}${stats.archived ? ` · ${formatCount(stats.archived)} archived` : ''}`
           : undefined
-      } width={1240}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 36, paddingTop: 8 }}>
+      }>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr)',
+          alignItems: 'start',
+          gap: 4,
+          pt: 1,
+          // Wide enough for both, and the side column stays with you as the library scrolls.
+          '@media (min-width: 1240px)': { gridTemplateColumns: 'minmax(0, 1fr) 320px' },
+        }}
+      >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 36, minWidth: 0 }}>
 
         {types.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 240px))', gap: 12, justifyContent: 'start' }}>
             {types.map((t) => {
               const Icon = TYPE_ICONS[t];
               return (
@@ -310,40 +374,6 @@ export function HomePage() {
               );
             })}
           </div>
-        )}
-
-        <AgentCard />
-
-        {watching.length > 0 || (stats?.inbox ?? 0) > 0 ? (
-          <Section title="Watcher" {...((stats?.inbox ?? 0) > 0 ? { action: <SeeAll onClick={() => go({ to: 'inbox' })} /> } : {})}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {(stats?.inbox ?? 0) > 0 && (
-                <ButtonBase onClick={() => go({ to: 'inbox' })} sx={{ justifyContent: 'flex-start', gap: 2, p: 2, borderRadius: `${SHAPE.md}px`, backgroundColor: md('tertiaryContainer'), color: md('onTertiaryContainer') }}>
-                  <ReviewIcon />
-                  <Typography variant="bodyLarge" sx={{ flex: 1, textAlign: 'left' }}>
-                    {stats!.inbox} pack{stats!.inbox === 1 ? '' : 's'} waiting in Review for a licence or a source
-                  </Typography>
-                  <ArrowForward />
-                </ButtonBase>
-              )}
-              {watching.slice(0, 6).map((p) => (
-                <ButtonBase key={p.id + p.why} onClick={() => go({ to: 'pack', id: p.id })} sx={{ justifyContent: 'flex-start', gap: 2, px: 2, py: 1.25, borderRadius: `${SHAPE.md}px`, backgroundColor: md('surfaceContainerLow'), '&:hover': { backgroundColor: md('surfaceContainer') } }}>
-                  <WarningAmberOutlined sx={{ color: md('error') }} />
-                  <Typography variant="bodyMedium" sx={{ flex: 1, textAlign: 'left', color: md('onSurface') }}>
-                    <b>{p.name}</b> {p.why}
-                  </Typography>
-                  <LicenceChip id={p.licence} />
-                </ButtonBase>
-              ))}
-            </div>
-          </Section>
-        ) : (
-          stats && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: md('onSurfaceVariant') }}>
-              <CheckCircleOutlined sx={{ color: md('primary') }} />
-              <Typography variant="bodyMedium">Every pack has its licence and source on record.</Typography>
-            </div>
-          )
         )}
 
         {starredPacks.length > 0 && (
@@ -418,6 +448,13 @@ export function HomePage() {
 
         <Happening />
       </div>
+
+      {/* What needs you, and who else is working here: the same column, whatever the library holds. */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, order: -1, '@media (min-width: 1240px)': { order: 0, position: 'sticky', top: 0 } }}>
+        <Watcher inbox={stats?.inbox ?? 0} watching={watching} ready={!!stats} />
+        <AgentCard />
+      </Box>
+      </Box>
       {packMenu && <PackMenu anchor={packMenu.anchor} pack={packMenu.pack} onClose={() => setPackMenu(null)} onOpen={() => go({ to: 'pack', id: packMenu.pack.id })} />}
     </Page>
   );
