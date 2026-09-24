@@ -9,7 +9,7 @@ import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary, Pr
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { Provider, StorageTarget } from './storage';
 import type { CollectionItem, CollectionRules, CollectionSummary, SmartQuery } from './collection';
-import type { McpStatus, McpToolInfo } from './mcp';
+import type { McpCall, McpStatus, McpToolInfo } from './mcp';
 import type { BinEntry, CollectionResult, PackSuggestions, LibrarySummary, AppInfo, ActivityEntry, DownloadItem, UpdateStatus, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
@@ -120,6 +120,10 @@ export interface Invokes {
   'mcp:set': (change: { enabled?: boolean; port?: number; group?: { id: string; on: boolean }; tool?: { name: string; on: boolean } }) => McpStatus;
   /** Is a port free to listen on? Asked before changing it. */
   'mcp:portFree': (port: number) => boolean;
+  /** What agents have called, newest first. */
+  'mcp:calls': (limit?: number, offset?: number) => { rows: McpCall[]; total: number };
+  /** Forget the call history. */
+  'mcp:clearCalls': () => void;
   /** The skill file an agent is given, as text. */
   'mcp:skill': () => string;
   /** Write the skill where an agent will find it, or wherever the user chooses. */

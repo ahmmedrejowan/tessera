@@ -39,6 +39,7 @@ import { RenderWindow } from './thumbs/renderWindow';
 import { ThumbService } from './thumbs/service';
 import { Activity } from './activity';
 import { McpService, catalogue, portFree } from './mcp/server';
+import { McpHistory } from './mcp/history';
 import { skillMarkdown } from './mcp/skill';
 import { Updates } from './updates';
 import { DownloadService, linksInFiles } from './downloads/service';
@@ -172,6 +173,7 @@ const thumbs = new ThumbService({
 });
 
 const projects = new ProjectService(dataDir, jobs);
+const mcpHistory = new McpHistory(dataDir);
 const mcp = new McpService({
   settings: () => settings.get().mcp,
   context: () => ({
@@ -184,6 +186,10 @@ const mcp = new McpService({
     settings: () => settings.get(),
   }),
   onChange: () => broadcast(windows, 'mcp:changed', 0),
+  onCall: (entry) => {
+    mcpHistory.add(entry);
+    broadcast(windows, 'mcp:changed', 0);
+  },
   onFirstCall: (tool) => {
     log.info('mcp', `an agent called ${tool}`);
     broadcast(windows, 'mcp:changed', 0);
@@ -613,6 +619,11 @@ function registerHandlers(): void {
     return mcp.status();
   });
   handle('mcp:portFree', (port) => portFree(port));
+  handle('mcp:calls', (limit, offset) => mcpHistory.list(limit, offset));
+  handle('mcp:clearCalls', async () => {
+    await mcpHistory.clear();
+    broadcast(windows, 'mcp:changed', 0);
+  });
   handle('mcp:skill', () => skillMarkdown(mcp.status().url));
   handle('mcp:installSkill', async (where) => {
     const text = skillMarkdown(mcp.status().url);

@@ -38,7 +38,7 @@ const by: Record<CollectionSort, (a: CollectionSummary, b: CollectionSummary) =>
   size: (a, b) => b.assets - a.assets,
 };
 
-function CollectionCard({ c }: { c: CollectionSummary }) {
+export function CollectionCard({ c }: { c: CollectionSummary }) {
   const go = useNav((s) => s.go);
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const [editing, setEditing] = useState(false);

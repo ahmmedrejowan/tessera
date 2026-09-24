@@ -1,6 +1,5 @@
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import MenuBookOutlined from '@mui/icons-material/MenuBookOutlined';
-import SmartToyOutlined from '@mui/icons-material/SmartToyOutlined';
 import TuneOutlined from '@mui/icons-material/TuneOutlined';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
@@ -10,6 +9,7 @@ import IconButton from '@mui/material/IconButton';
 import { useMcp, setMcp } from '../../state/mcp';
 import { notify } from '../../notices/store';
 import { useNav } from '../../state/nav';
+import { SideBlock } from '../../components/SideBlock';
 import { md, SHAPE } from '../../theme';
 
 /** When an agent last did something, in words. */
@@ -33,59 +33,62 @@ export function AgentCard() {
   const good = status.enabled && status.running;
 
   return (
-    <section style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16, borderRadius: SHAPE.lg, background: md('surfaceContainerLow') }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ width: 40, height: 40, borderRadius: SHAPE.md, display: 'grid', placeItems: 'center', background: good ? md('secondaryContainer') : md('surfaceContainerHigh'), color: good ? md('onSecondaryContainer') : md('onSurfaceVariant'), flexShrink: 0 }}>
-          <SmartToyOutlined />
-        </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="titleSmall" sx={{ color: md('onSurface') }}>
-            AI agents
-          </Typography>
-          <Typography variant="bodySmall" component="div" sx={{ color: status.error ? md('error') : md('onSurfaceVariant'), display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 4, flexShrink: 0, background: good ? md('primary') : status.error ? md('error') : md('outline') }} />
-            {status.error ? status.error : good ? 'answering' : status.enabled ? 'starting' : 'off'}
-          </Typography>
-        </div>
-        <Tooltip title={status.enabled ? 'Stop answering agents' : 'Answer agents'}>
-          <Switch checked={status.enabled} onChange={(e) => void setMcp({ enabled: e.target.checked })} slotProps={{ input: { 'aria-label': 'Answer AI agents' } }} />
-        </Tooltip>
-      </div>
-
-      {good && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 4px 4px 12px', borderRadius: SHAPE.sm, background: md('surfaceContainerHigh') }}>
-          <Typography variant="bodySmall" sx={{ flex: 1, minWidth: 0, color: md('onSurfaceVariant'), fontFamily: 'ui-monospace, Menlo, Consolas, monospace', wordBreak: 'break-all', userSelect: 'text' }}>
-            {status.url}
-          </Typography>
-          <Tooltip title="Copy the address">
-            <IconButton
-              size="small"
-              aria-label="Copy the address"
-              onClick={() => {
-                void navigator.clipboard.writeText(status.url);
-                notify.success('Address copied.');
-              }}
-            >
-              <ContentCopyOutlined sx={{ fontSize: 16 }} />
-            </IconButton>
+    <SideBlock
+      title="MCP Server"
+      note={
+        <>
+          <span style={{ width: 7, height: 7, borderRadius: 4, flexShrink: 0, background: good ? md('primary') : status.error ? md('error') : md('outline') }} />
+          {good ? 'answering' : status.error ? 'not answering' : status.enabled ? 'starting' : 'off'}
+        </>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {good ? (
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 4px 4px 10px', borderRadius: SHAPE.sm, background: md('surfaceContainerHigh') }}>
+              <Tooltip title={status.url}>
+                <Typography variant="bodySmall" noWrap sx={{ flex: 1, minWidth: 0, color: md('onSurfaceVariant'), fontFamily: 'ui-monospace, Menlo, Consolas, monospace', userSelect: 'text' }}>
+                  {status.url.replace(/^https?:\/\//, '')}
+                </Typography>
+              </Tooltip>
+              <Tooltip title="Copy the address">
+                <IconButton
+                  size="small"
+                  aria-label="Copy the address"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(status.url);
+                    notify.success('Address copied.');
+                  }}
+                >
+                  <ContentCopyOutlined sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            </div>
+          ) : (
+            <Typography variant="bodySmall" sx={{ flex: 1, minWidth: 0, color: status.error ? md('error') : md('onSurfaceVariant') }}>
+              {status.error ?? `Nothing is listening. Port ${status.port} is ready when you are.`}
+            </Typography>
+          )}
+          <Tooltip title={status.enabled ? 'Stop answering agents' : 'Answer agents'}>
+            <Switch checked={status.enabled} onChange={(e) => void setMcp({ enabled: e.target.checked })} slotProps={{ input: { 'aria-label': 'Answer AI agents' } }} />
           </Tooltip>
         </div>
-      )}
 
-      <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-        {status.enabled
-          ? `${status.tools.on} of ${status.tools.all} tools · ${last(status.lastCall)}`
-          : 'An agent on this computer could search the library, file things and link them into a game. Nothing outside can reach it.'}
-      </Typography>
+        <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+          {status.enabled
+            ? `${status.tools.on} of ${status.tools.all} tools · ${last(status.lastCall)}`
+            : 'An agent on this computer could search the library, file things and link them into a game. Nothing outside can reach it.'}
+        </Typography>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <Button size="small" startIcon={<MenuBookOutlined />} onClick={() => go({ to: 'agents' })}>
-          How to connect
-        </Button>
-        <Button size="small" startIcon={<TuneOutlined />} onClick={() => go({ to: 'agentTools' })}>
-          Tools
-        </Button>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          <Button size="small" startIcon={<MenuBookOutlined />} onClick={() => go({ to: 'agents' })}>
+            How to connect
+          </Button>
+          <Button size="small" startIcon={<TuneOutlined />} onClick={() => go({ to: 'agentTools' })}>
+            Tools
+          </Button>
+        </div>
       </div>
-    </section>
+    </SideBlock>
   );
 }

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { DEFAULT_MCP_PORT, TOOL_GROUPS, type McpStatus, type McpToolInfo } from '@shared/mcp';
+import { DEFAULT_MCP_PORT, TOOL_GROUPS, type McpCall, type McpStatus, type McpToolInfo } from '@shared/mcp';
 import { log } from '../log';
 import { TOOL_BY_NAME, TOOLS, type ToolContext } from './tools';
 
@@ -23,6 +23,42 @@ interface Options {
   onChange: () => void;
   /** An agent connected for the first time in this run. */
   onFirstCall: (tool: string) => void;
+  /** Every call, for the history the window shows. */
+  onCall: (call: McpCall) => void;
+}
+
+/** An id means nothing to a person reading a list, so it is counted rather than shown. */
+const isId = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+const NOUNS: Record<string, [string, string]> = {
+  packIds: ['pack', 'packs'],
+  assetIds: ['file', 'files'],
+  ids: ['thing', 'things'],
+  paths: ['path', 'paths'],
+};
+
+/** What an agent asked for, short enough to read in a list. */
+export function said(args: unknown): string {
+  if (!args || typeof args !== 'object' || !Object.keys(args).length) return '';
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(args as Record<string, unknown>)) {
+    if (value === undefined || value === null || value === '' || (Array.isArray(value) && !value.length)) continue;
+    if (isId(value)) continue;
+    if (Array.isArray(value) && value.every(isId)) {
+      const [one, many] = NOUNS[key] ?? ['thing', 'things'];
+      parts.push(`${value.length} ${value.length === 1 ? one : many}`);
+      continue;
+    }
+    const shown = Array.isArray(value)
+      ? value.length <= 2
+        ? value.map((v) => String(v)).join(', ')
+        : `${value.length} ${(NOUNS[key] ?? ['thing', 'things'])[1]}`
+      : typeof value === 'object'
+        ? JSON.stringify(value)
+        : String(value);
+    parts.push(`${key}: ${shown.length > 40 ? `${shown.slice(0, 39)}…` : shown}`);
+    if (parts.join(' · ').length > 90) break;
+  }
+  return parts.join(' · ');
 }
 
 /** Which tools are on: a group can be off, and a single tool can be off inside a group that is on. */
@@ -143,11 +179,16 @@ export class McpService {
       if (!toolsOn(settings).some((t) => t.name === tool.name)) {
         // An answer, not a protocol error: the agent should read it and say so, not fall over.
         const group = TOOL_GROUPS.find((g) => g.id === tool.group);
+        this.o.onCall({ at: new Date().toISOString(), tool: tool.name, group: tool.group, said: said(request.params.arguments), ok: false, problem: 'it is switched off', ms: 0 });
+        this.o.onChange();
         return { isError: true, content: [{ type: 'text' as const, text: `${tool.name} is switched off in Tessera (Settings, "${group?.title ?? tool.group}"). Ask the person using Tessera to turn it on.` }] };
       }
       this.calls++;
+      const started = Date.now();
       this.lastCall = new Date().toISOString();
       this.lastTool = tool.name;
+      const note = (ok: boolean, problem?: string) =>
+        this.o.onCall({ at: new Date(started).toISOString(), tool: tool.name, group: tool.group, said: said(request.params.arguments), ok, ms: Date.now() - started, ...(problem ? { problem } : {}) });
       if (!this.greeted) {
         this.greeted = true;
         this.o.onFirstCall(tool.name);
@@ -156,15 +197,18 @@ export class McpService {
       const context = this.o.context();
       const opening = context.library.getState().status === 'opening';
       if (opening && tool.name !== 'library_status') {
+        note(false, 'the library was still opening');
         return { isError: true, content: [{ type: 'text' as const, text: 'Tessera is still opening its library. Try again in a moment.' }] };
       }
       try {
         const args = tool.input.parse(request.params.arguments ?? {}) as never;
         const out = await tool.run(args, context);
+        note(true);
         return { content: [{ type: 'text' as const, text: JSON.stringify(out ?? { done: true }, null, 2) }] };
       } catch (e) {
         const message = e instanceof z.ZodError ? e.issues.map((i) => `${i.path.join('.') || 'input'}: ${i.message}`).join('; ') : e instanceof Error ? e.message : String(e);
         log.warn('mcp', `${tool.name} failed`, e);
+        note(false, message);
         return { isError: true, content: [{ type: 'text' as const, text: message }] };
       }
     });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TOOL_GROUPS } from '../src/shared/mcp';
-import { catalogue, toolsOn } from '../src/main/mcp/server';
+import { catalogue, said, toolsOn } from '../src/main/mcp/server';
 import { TOOLS, TOOL_BY_NAME } from '../src/main/mcp/tools';
 import { skillMarkdown } from '../src/main/mcp/skill';
 
@@ -35,6 +35,24 @@ describe('the tools an agent is offered', () => {
     expect(withoutRemove.some((t) => t.name === 'search')).toBe(true);
     expect(toolsOn({ off: ['search'], groupsOff: [] }).some((t) => t.name === 'search')).toBe(false);
     expect(catalogue({ off: ['search'], groupsOff: [] }).find((t) => t.name === 'search')?.on).toBe(false);
+  });
+});
+
+describe('what a call is shown as', () => {
+  it('says what was asked for, in the words the agent used', () => {
+    expect(said({ text: 'arcade', of: 'packs' })).toBe('text: arcade · of: packs');
+    expect(said({})).toBe('');
+    expect(said({ text: '', filters: {} })).toBe('filters: {}');
+  });
+
+  it('counts ids rather than showing them, since they mean nothing to a person', () => {
+    expect(said({ packId: '99e983f3-605b-4d42-b89f-d698796ca32f' })).toBe('');
+    expect(said({ packIds: ['99e983f3-605b-4d42-b89f-d698796ca32f'] })).toBe('1 pack');
+    expect(said({ packIds: ['99e983f3-605b-4d42-b89f-d698796ca32f', '99e983f3-605b-4d42-b89f-d698796ca33f'] })).toBe('2 packs');
+  });
+
+  it('keeps a long value short enough to read', () => {
+    expect(said({ text: 'x'.repeat(80) }).length).toBeLessThan(50);
   });
 });
 

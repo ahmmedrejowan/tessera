@@ -30,6 +30,7 @@ import { ArchivePage } from './pages/ArchivePage';
 import { ActivityPage } from './pages/ActivityPage';
 import { AgentsPage } from './pages/agents/AgentsPage';
 import { AgentToolsPage } from './pages/agents/AgentToolsPage';
+import { AgentCallsPage } from './pages/agents/AgentCallsPage';
 import { SearchPage } from './pages/SearchPage';
 import { BinPage } from './pages/BinPage';
 import { PackPage } from './pages/pack/PackPage';
@@ -70,6 +71,8 @@ function Current() {
       return <AgentsPage />;
     case 'agentTools':
       return <AgentToolsPage />;
+    case 'agentCalls':
+      return <AgentCallsPage />;
     case 'about':
       return <AboutPage />;
     case 'notifications':

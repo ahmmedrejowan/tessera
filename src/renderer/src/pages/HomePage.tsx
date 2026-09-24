@@ -24,12 +24,15 @@ import { ASSET_TYPES, TYPE_LABELS, type AssetType } from '@shared/assets';
 import type { ActivityKind } from '@shared/types';
 import { call, on } from '../api';
 import { formatBytes, formatCount, TYPE_ICONS } from '../components/labels';
-import { LicenceChip } from '../components/LicenceChip';
+import { SideBlock } from '../components/SideBlock';
 import { FAVOURITES } from '@shared/collection';
 import { AgentCard } from './agents/AgentCard';
+import { AgentHistory } from './agents/AgentHistory';
+import { CollectionCard } from './collections/CollectionsPage';
 import { PackMenu } from './browse/TileMenu';
 import { CollectionIcon, ReviewIcon } from '../components/icons';
 import type { PackRow } from '@shared/query';
+import type { Engine } from '@shared/project';
 import { useBrowse } from '../state/browse';
 import { useCollections } from '../state/collections';
 import { useImport } from '../state/importer';
@@ -111,47 +114,126 @@ function Watcher({ inbox, watching, ready }: { inbox: number; watching: { id: st
   const go = useNav((s) => s.go);
   if (!inbox && !watching.length) {
     return ready ? (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow'), color: md('onSurfaceVariant') }}>
-        <CheckCircleOutlined sx={{ color: md('primary'), flexShrink: 0 }} />
-        <Typography variant="bodyMedium">Every pack has its licence and source on record.</Typography>
-      </div>
+      <SideBlock title="Watcher">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' }}>
+          <CheckCircleOutlined sx={{ fontSize: 20, color: md('onSurfaceVariant'), flexShrink: 0 }} />
+          <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+            Every pack has its licence and source on record.
+          </Typography>
+        </div>
+      </SideBlock>
     ) : null;
   }
+  const total = inbox + watching.length;
   return (
-    <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <Typography variant="titleMedium" component="h2" sx={{ color: md('onSurface') }}>
-          Needs you
-        </Typography>
-        {inbox > 0 && <SeeAll onClick={() => go({ to: 'inbox' })} />}
-      </div>
-      {inbox > 0 && (
-        <ButtonBase onClick={() => go({ to: 'inbox' })} sx={{ justifyContent: 'flex-start', gap: 1.5, p: 2, borderRadius: `${SHAPE.md}px`, backgroundColor: md('tertiaryContainer'), color: md('onTertiaryContainer') }}>
-          <ReviewIcon sx={{ flexShrink: 0 }} />
-          <Typography variant="bodyMedium" sx={{ flex: 1, textAlign: 'left' }}>
-            {inbox} pack{inbox === 1 ? '' : 's'} waiting in Review for a licence or a source
-          </Typography>
-          <ArrowForward sx={{ flexShrink: 0 }} />
-        </ButtonBase>
-      )}
-      {watching.slice(0, 6).map((p) => (
-        <ButtonBase
-          key={p.id + p.why}
-          onClick={() => go({ to: 'pack', id: p.id })}
-          sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, px: 2, py: 1.5, borderRadius: `${SHAPE.md}px`, backgroundColor: md('surfaceContainerLow'), '&:hover': { backgroundColor: md('surfaceContainer') } }}
-        >
-          <WarningAmberOutlined sx={{ color: md('error'), fontSize: 20, flexShrink: 0, mt: 0.25 }} />
-          <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-            <Typography variant="bodyMedium" component="div" sx={{ color: md('onSurface') }}>
-              <b>{p.name}</b> {p.why}
+    <SideBlock title="Watcher" note={`${total} ${total === 1 ? 'thing' : 'things'} to see to`} action={inbox > 0 ? <SeeAll onClick={() => go({ to: 'inbox' })} /> : undefined}>
+      <div style={{ padding: '2px 14px' }}>
+        {inbox > 0 && (
+          <ButtonBase onClick={() => go({ to: 'inbox' })} sx={{ width: '100%', justifyContent: 'flex-start', gap: 1.25, py: 1.25, textAlign: 'left' }}>
+            <ReviewIcon sx={{ fontSize: 20, color: md('onSurfaceVariant'), flexShrink: 0 }} />
+            <Typography variant="bodySmall" sx={{ flex: 1, color: md('onSurface') }}>
+              {inbox} pack{inbox === 1 ? '' : 's'} waiting in Review
             </Typography>
-            <span style={{ display: 'inline-flex', marginTop: 6 }}>
-              <LicenceChip id={p.licence} />
+            <ArrowForward sx={{ fontSize: 16, color: md('onSurfaceVariant'), flexShrink: 0 }} />
+          </ButtonBase>
+        )}
+        {watching.slice(0, 5).map((p, i) => (
+          <ButtonBase
+            key={p.id + p.why}
+            onClick={() => go({ to: 'pack', id: p.id })}
+            sx={{ width: '100%', justifyContent: 'flex-start', gap: 1.25, py: 1.25, textAlign: 'left', borderTop: i || inbox ? `1px solid ${md('outlineVariant')}` : 'none' }}
+          >
+            <span style={{ width: 6, height: 6, borderRadius: 3, background: md('outline'), flexShrink: 0 }} />
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurface') }}>
+                {p.name}
+              </Typography>
+              <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant') }}>
+                {p.why}
+              </Typography>
             </span>
-          </span>
-        </ButtonBase>
-      ))}
-    </section>
+          </ButtonBase>
+        ))}
+        {watching.length > 5 && (
+          <Typography variant="bodySmall" sx={{ display: 'block', py: 1.25, color: md('onSurfaceVariant') }}>
+            and {watching.length - 5} more
+          </Typography>
+        )}
+      </div>
+    </SideBlock>
+  );
+}
+
+/** Every card in Home's rows is this wide, whatever it holds: packs, collections, games. */
+const CARD_WIDTH = 210;
+const CARD: React.CSSProperties = { width: CARD_WIDTH, flexShrink: 0 };
+
+/**
+ * One kind of asset in this library: how many, what share of the whole, and a way into Browse
+ * with that filter on. Together they say what the library is made of at a glance.
+ */
+function KindTile({ type, count, of }: { type: AssetType; count: number; of: number }) {
+  const Icon = TYPE_ICONS[type];
+  const share = of ? count / of : 0;
+  return (
+    <ButtonBase
+      onClick={() => browseType(type)}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        gap: 1,
+        p: 2,
+        borderRadius: `${SHAPE.lg}px`,
+        backgroundColor: md('surfaceContainerLow'),
+        '&:hover': { backgroundColor: md('surfaceContainer') },
+        '&:active': { opacity: 1 - STATE.pressed },
+      }}
+    >
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ width: 32, height: 32, borderRadius: SHAPE.sm, display: 'grid', placeItems: 'center', background: md('secondaryContainer'), color: md('onSecondaryContainer'), flexShrink: 0 }}>
+          <Icon sx={{ fontSize: 19 }} />
+        </span>
+        <Typography variant="bodySmall" sx={{ flex: 1, textAlign: 'right', color: md('onSurfaceVariant') }}>
+          {share >= 0.005 ? `${Math.round(share * 100)}%` : '<1%'}
+        </Typography>
+      </span>
+      <span style={{ textAlign: 'left' }}>
+        <Typography variant="headlineSmall" component="div" sx={{ color: md('onSurface'), lineHeight: 1.15 }}>
+          {formatCount(count)}
+        </Typography>
+        <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant') }}>
+          {TYPE_LABELS[type]}
+        </Typography>
+      </span>
+      {/* The share of the library this kind is, drawn rather than said twice. */}
+      <span style={{ height: 4, borderRadius: 2, background: mdAlpha('onSurface', 0.08), overflow: 'hidden' }}>
+        <span style={{ display: 'block', height: '100%', width: `${Math.max(share * 100, 2)}%`, background: md('primary'), borderRadius: 2 }} />
+      </span>
+    </ButtonBase>
+  );
+}
+
+/** A game, as a card the same shape as a pack's: where assets are linked to. */
+function GameCard({ project }: { project: { id: string; name: string; engine: Engine; assets: number; packs: number } }) {
+  const go = useNav((s) => s.go);
+  return (
+    <ButtonBase
+      onClick={() => go({ to: 'project', id: project.id })}
+      sx={{ display: 'block', width: '100%', textAlign: 'left', p: 1, borderRadius: `${SHAPE.lg}px`, backgroundColor: md('surfaceContainerLow'), '&:hover': { backgroundColor: md('surfaceContainer') } }}
+    >
+      <span style={{ display: 'grid', placeItems: 'center', aspectRatio: '4 / 3', borderRadius: SHAPE.md, background: md('surfaceContainerHigh') }}>
+        <EngineBadge engine={project.engine} />
+      </span>
+      <span style={{ display: 'block', padding: '10px 6px 4px' }}>
+        <Typography variant="titleSmall" noWrap component="div" sx={{ color: md('onSurface') }}>
+          {project.name}
+        </Typography>
+        <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant') }}>
+          {formatCount(project.assets)} asset{project.assets === 1 ? '' : 's'} linked
+        </Typography>
+      </span>
+    </ButtonBase>
   );
 }
 
@@ -182,11 +264,6 @@ function SeeAll({ onClick }: { onClick: () => void }) {
       See all
     </Button>
   );
-}
-
-/** Open a starred asset where it lives: its pack's page. */
-function openStarred(asset: { packId: string }) {
-  useNav.getState().go({ to: 'pack', id: asset.packId });
 }
 
 /** Browse with one type filter on. */
@@ -301,11 +378,6 @@ export function HomePage() {
     queryFn: () => call('browse:packs', { scope: 'library', text: '', filters: {}, favourites: true }, 'name', 0, 6),
     enabled: !!lib,
   }).data?.rows ?? [];
-  const starredAssets = useQuery({
-    queryKey: ['starred-assets', lib, version],
-    queryFn: () => call('browse:assets', { scope: 'library', text: '', filters: {}, favourites: true }, 'name', 0, 12),
-    enabled: !!lib,
-  }).data;
   const projects = useProjects().data ?? [];
   const collections = useCollections().data ?? [];
   const [packMenu, setPackMenu] = useState<{ anchor: HTMLElement; pack: PackRow } | null>(null);
@@ -342,58 +414,34 @@ export function HomePage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 36, minWidth: 0 }}>
 
         {types.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 240px))', gap: 12, justifyContent: 'start' }}>
-            {types.map((t) => {
-              const Icon = TYPE_ICONS[t];
-              return (
-                <ButtonBase
-                  key={t}
-                  onClick={() => browseType(t)}
-                  sx={{
-                    justifyContent: 'flex-start',
-                    gap: 1.5,
-                    p: 2,
-                    borderRadius: `${SHAPE.lg}px`,
-                    backgroundColor: md('surfaceContainerLow'),
-                    '&:hover': { backgroundColor: md('surfaceContainer') },
-                    '&:active': { opacity: 1 - STATE.pressed },
-                  }}
-                >
-                  <span style={{ width: 40, height: 40, borderRadius: SHAPE.md, display: 'grid', placeItems: 'center', background: md('secondaryContainer'), color: md('onSecondaryContainer') }}>
-                    <Icon />
-                  </span>
-                  <span style={{ textAlign: 'left' }}>
-                    <Typography variant="titleMedium" component="div" sx={{ color: md('onSurface') }}>
-                      {formatCount(stats?.byType[t] ?? 0)}
-                    </Typography>
-                    <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
-                      {TYPE_LABELS[t]}
-                    </Typography>
-                  </span>
-                </ButtonBase>
-              );
-            })}
-          </div>
+          <Section title="Overview" action={<SeeAll onClick={() => go({ to: 'browse' })} />}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 250px))', gap: 12, justifyContent: 'start' }}>
+              {types.map((t) => (
+                <KindTile key={t} type={t} count={stats?.byType[t] ?? 0} of={stats?.assets ?? 0} />
+              ))}
+            </div>
+          </Section>
         )}
 
-        {starredPacks.length > 0 && (
-          <Section title="Starred" action={<SeeAll onClick={() => go({ to: 'collection', id: FAVOURITES })} />}>
+        {recent && recent.length > 0 && (
+          <Section title="Recent" action={<SeeAll onClick={() => (useBrowse.getState().setMode('packs'), useBrowse.getState().setPackSort('added'), go({ to: 'browse' }))} />}>
             <Row>
-              {starredPacks.map((p) => (
-                <div key={p.id} style={{ width: 200, flexShrink: 0 }}>
-                  <PackCard pack={p} width={200} selected={false} onClick={() => go({ to: 'pack', id: p.id })} onOpen={() => go({ to: 'pack', id: p.id })} onMenu={(anchor, x) => setPackMenu({ anchor, pack: x })} />
+              {recent.map((p) => (
+                <div key={p.id} style={CARD}>
+                  <PackCard pack={p} width={CARD_WIDTH} selected={false} onClick={() => go({ to: 'pack', id: p.id })} onOpen={() => go({ to: 'pack', id: p.id })} onMenu={(anchor, x) => setPackMenu({ anchor, pack: x })} />
                 </div>
               ))}
             </Row>
           </Section>
         )}
 
-        {recent && recent.length > 0 && (
-          <Section title="Recently added" action={<SeeAll onClick={() => (useBrowse.getState().setMode('packs'), useBrowse.getState().setPackSort('added'), go({ to: 'browse' }))} />}>
+        {/* Starred packs only. A starred file is one of thousands, and belongs in Browse. */}
+        {starredPacks.length > 0 && (
+          <Section title="Favourite" action={<SeeAll onClick={() => go({ to: 'collection', id: FAVOURITES })} />}>
             <Row>
-              {recent.map((p) => (
-                <div key={p.id} style={{ width: 200, flexShrink: 0 }}>
-                  <PackCard pack={p} width={200} selected={false} onClick={() => go({ to: 'pack', id: p.id })} onOpen={() => go({ to: 'pack', id: p.id })} onMenu={(anchor, x) => setPackMenu({ anchor, pack: x })} />
+              {starredPacks.map((p) => (
+                <div key={p.id} style={CARD}>
+                  <PackCard pack={p} width={CARD_WIDTH} selected={false} onClick={() => go({ to: 'pack', id: p.id })} onOpen={() => go({ to: 'pack', id: p.id })} onMenu={(anchor, x) => setPackMenu({ anchor, pack: x })} />
                 </div>
               ))}
             </Row>
@@ -404,23 +452,9 @@ export function HomePage() {
           <Section title="Collections" action={<SeeAll onClick={() => go({ to: 'collections' })} />}>
             <Row>
               {collections.slice(0, 12).map((c) => (
-                <ButtonBase
-                  key={c.id}
-                  onClick={() => go({ to: 'collection', id: c.id })}
-                  sx={{ flexShrink: 0, width: 200, justifyContent: 'flex-start', gap: 1.5, p: 1.5, borderRadius: `${SHAPE.lg}px`, backgroundColor: md('surfaceContainerLow'), '&:hover': { backgroundColor: md('surfaceContainer') } }}
-                >
-                  <span style={{ width: 40, height: 40, borderRadius: SHAPE.md, display: 'grid', placeItems: 'center', background: md('secondaryContainer'), color: md('onSecondaryContainer'), flexShrink: 0 }}>
-                    <CollectionIcon />
-                  </span>
-                  <span style={{ textAlign: 'left', minWidth: 0 }}>
-                    <Typography variant="titleSmall" noWrap component="div" sx={{ color: md('onSurface') }}>
-                      {c.name}
-                    </Typography>
-                    <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant') }}>
-                      {formatCount(c.assets)} asset{c.assets === 1 ? '' : 's'}
-                    </Typography>
-                  </span>
-                </ButtonBase>
+                <div key={c.id} style={CARD}>
+                  <CollectionCard c={c} />
+                </div>
               ))}
             </Row>
           </Section>
@@ -430,17 +464,9 @@ export function HomePage() {
           <Section title="Games" action={<SeeAll onClick={() => go({ to: 'projects' })} />}>
             <Row>
               {projects.slice(0, 8).map((p) => (
-                <ButtonBase key={p.id} onClick={() => go({ to: 'project', id: p.id })} sx={{ flexShrink: 0, width: 260, justifyContent: 'flex-start', gap: 2, p: 1.5, borderRadius: `${SHAPE.lg}px`, backgroundColor: md('surfaceContainerLow'), '&:hover': { backgroundColor: md('surfaceContainer') } }}>
-                  <EngineBadge engine={p.engine} />
-                  <span style={{ textAlign: 'left', minWidth: 0 }}>
-                    <Typography variant="titleSmall" noWrap component="div" sx={{ color: md('onSurface') }}>
-                      {p.name}
-                    </Typography>
-                    <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
-                      {p.assets} asset{p.assets === 1 ? '' : 's'} linked
-                    </Typography>
-                  </span>
-                </ButtonBase>
+                <div key={p.id} style={CARD}>
+                  <GameCard project={p} />
+                </div>
               ))}
             </Row>
           </Section>
@@ -450,9 +476,10 @@ export function HomePage() {
       </div>
 
       {/* What needs you, and who else is working here: the same column, whatever the library holds. */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, order: -1, '@media (min-width: 1240px)': { order: 0, position: 'sticky', top: 0 } }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, order: -1, '@media (min-width: 1240px)': { order: 0, position: 'sticky', top: 0 } }}>
         <Watcher inbox={stats?.inbox ?? 0} watching={watching} ready={!!stats} />
         <AgentCard />
+        <AgentHistory />
       </Box>
       </Box>
       {packMenu && <PackMenu anchor={packMenu.anchor} pack={packMenu.pack} onClose={() => setPackMenu(null)} onOpen={() => go({ to: 'pack', id: packMenu.pack.id })} />}

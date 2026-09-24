@@ -28,6 +28,21 @@ export interface McpToolInfo {
   on: boolean;
 }
 
+/** One call an agent made: what it asked for, when, and how it went. */
+export interface McpCall {
+  at: string;
+  /** The tool's name, as an agent calls it. */
+  tool: string;
+  group: ToolGroup;
+  /** What was asked, short enough to read at a glance. */
+  said: string;
+  ok: boolean;
+  /** What went wrong, when it did. */
+  problem?: string;
+  /** How long it took, in milliseconds. */
+  ms: number;
+}
+
 export interface McpStatus {
   /** The setting: should it run at all. */
   enabled: boolean;
