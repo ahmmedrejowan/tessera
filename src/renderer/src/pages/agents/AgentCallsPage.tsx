@@ -45,6 +45,8 @@ export function AgentCallsPage() {
   const [shown, setShown] = useState(PAGE);
   const { rows, total } = useMcpCalls(shown);
   const go = useNav((s) => s.go);
+  const back = useNav((s) => s.back);
+  const goBack = useNav((s) => s.goBack);
   const days = byDay(rows);
 
   const clear = async () => {
@@ -71,6 +73,7 @@ export function AgentCallsPage() {
       title="Agent calls"
       subtitle={total ? `${total} call${total === 1 ? '' : 's'} answered, newest first` : 'What agents have asked this library to do'}
       width={900}
+      onBack={() => (back.length ? goBack() : go({ to: 'agents' }))}
       actions={
         <>
           <Button startIcon={<TuneOutlined />} onClick={() => go({ to: 'agentTools' })}>

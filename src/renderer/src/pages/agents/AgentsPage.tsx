@@ -1,56 +1,109 @@
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
+import HistoryOutlined from '@mui/icons-material/HistoryOutlined';
 import InstallDesktopOutlined from '@mui/icons-material/InstallDesktopOutlined';
 import TuneOutlined from '@mui/icons-material/TuneOutlined';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
+import { useRef, type ReactNode } from 'react';
 import { call } from '../../api';
 import { notify, failed } from '../../notices/store';
 import { useMcp, setMcp } from '../../state/mcp';
 import { useNav } from '../../state/nav';
 import { md, SHAPE } from '../../theme';
-import { Page } from '../Placeholder';
+import { PAGE, Page } from '../Placeholder';
+import { SideSections, sectionAnchor, useSectionSpy, type SideSection } from '../settings/SideSections';
 
-function Block({ title, children }: { title: string; children: React.ReactNode }) {
+const SECTIONS: SideSection[] = [
+  { id: 'what', title: 'What this is' },
+  { id: 'connect', title: 'Connect an agent' },
+  { id: 'skill', title: 'The skill file' },
+  { id: 'tools', title: 'What it may do' },
+  { id: 'safety', title: 'What it cannot do' },
+];
+
+/** A titled block of the page, the same shape as a group of settings. */
+function Group({ title, note, children }: { title: string; note?: ReactNode; children: ReactNode }) {
   return (
-    <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <section style={{ marginBottom: 40 }}>
       <Typography variant="titleMedium" component="h2" sx={{ color: md('onSurface') }}>
         {title}
       </Typography>
-      {children}
+      {note && (
+        <Typography variant="bodyMedium" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5, maxWidth: 680 }}>
+          {note}
+        </Typography>
+      )}
+      <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>{children}</div>
     </section>
   );
 }
 
-/** A block of code with a button that copies it, since that is all anyone wants from one. */
-function Code({ text }: { text: string }) {
+/** Something to be pasted somewhere else, with the button that saves you selecting it. */
+function Code({ text, label }: { text: string; label?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '12px 14px', borderRadius: SHAPE.md, background: md('surfaceContainerHighest') }}>
-      <Typography component="pre" variant="bodyMedium" sx={{ flex: 1, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', color: md('onSurface'), userSelect: 'text' }}>
-        {text}
-      </Typography>
-      <Button
-        size="small"
-        startIcon={<ContentCopyOutlined />}
-        onClick={() => {
-          void navigator.clipboard.writeText(text);
-          notify.success('Copied.');
-        }}
-      >
-        Copy
-      </Button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {label && (
+        <Typography variant="labelLarge" sx={{ color: md('onSurfaceVariant') }}>
+          {label}
+        </Typography>
+      )}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '12px 8px 12px 14px', borderRadius: SHAPE.md, background: md('surfaceContainerHigh') }}>
+        <Typography
+          component="pre"
+          variant="bodyMedium"
+          sx={{ flex: 1, minWidth: 0, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', color: md('onSurface'), userSelect: 'text' }}
+        >
+          {text}
+        </Typography>
+        <Button
+          size="small"
+          startIcon={<ContentCopyOutlined />}
+          onClick={() => {
+            void navigator.clipboard.writeText(text);
+            notify.success('Copied.');
+          }}
+        >
+          Copy
+        </Button>
+      </div>
     </div>
   );
 }
 
-/** How to point an AI agent at this library, and what it will be able to do when you have. */
+/** Where one app keeps its MCP settings. The shape is the same everywhere; the file is not. */
+function Where({ app, file, note }: { app: string; file: string; note?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, padding: '10px 0', borderBottom: `1px solid ${md('outlineVariant')}` }}>
+      <Typography variant="bodyLarge" sx={{ width: 140, flexShrink: 0, color: md('onSurface') }}>
+        {app}
+      </Typography>
+      <div style={{ minWidth: 0 }}>
+        <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), fontFamily: 'ui-monospace, Menlo, Consolas, monospace', wordBreak: 'break-all', userSelect: 'text' }}>
+          {file}
+        </Typography>
+        {note && (
+          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
+            {note}
+          </Typography>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** How to point any AI agent at this library, and what it will be able to do when you have. */
 export function AgentsPage() {
   const status = useMcp();
   const go = useNav((s) => s.go);
+  const back = useNav((s) => s.back);
+  const goBack = useNav((s) => s.goBack);
+  const scroller = useRef<HTMLDivElement>(null);
+  const current = useSectionSpy(scroller, 'agents', SECTIONS, true);
   const url = status?.url ?? 'http://127.0.0.1:7458/mcp';
-  // The skill carries the address, so it is read again when the port changes.
   const skill = useQuery({ queryKey: ['mcp-skill', url], queryFn: () => call('mcp:skill'), staleTime: 0 }).data ?? '';
+  const at = (id: string) => sectionAnchor('agents', id);
 
   const install = async (where: 'claude' | 'choose') => {
     try {
@@ -63,80 +116,151 @@ export function AgentsPage() {
 
   return (
     <Page
+      flush
       title="AI agents"
-      subtitle="Let an agent work in this library: the same things this window can do"
-      width={900}
+      onBack={() => (back.length ? goBack() : go({ to: 'home' }))}
       actions={
-        <Button startIcon={<TuneOutlined />} onClick={() => go({ to: 'agentTools' })}>
-          Tools
-        </Button>
+        <>
+          <Button startIcon={<HistoryOutlined />} onClick={() => go({ to: 'agentCalls' })}>
+            Calls
+          </Button>
+          <Button startIcon={<TuneOutlined />} onClick={() => go({ to: 'agentTools' })}>
+            Tools
+          </Button>
+        </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 28, paddingTop: 4 }}>
-        <Typography variant="bodyLarge" sx={{ color: md('onSurface') }}>
-          While Tessera is open it answers on your own computer, and nothing else can reach it. An agent that connects can search the library, record licences, gather collections and link assets into a game.
-          Everything it does appears here as it happens, and is written into Activity so you can see what it did.
-        </Typography>
+      <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', height: '100%' }}>
+        <SideSections prefix="agents" sections={SECTIONS} current={current} />
 
-        <Block title="Claude Code">
-          <Code text={`claude mcp add --transport http tessera ${url}`} />
-        </Block>
+        <div ref={scroller} style={{ overflowY: 'auto', scrollbarGutter: 'stable', minHeight: 0 }}>
+          <div style={{ maxWidth: PAGE.column, padding: '0 32px 64px' }}>
+            <div {...at('what')}>
+              <Group
+                title="What this is"
+                note="Tessera speaks MCP, the protocol AI agents use to reach the programs on a computer. While Tessera is open it answers on this machine, so an agent working beside you can use your library."
+              >
+                <Code text={url} label="The address" />
+                <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), maxWidth: 680 }}>
+                  There is no key and no token, because there is nothing to keep out: the address is bound to this computer, and nothing on your network or the internet can reach it. Whatever an agent
+                  changes appears in this window as it happens, and every call it makes is kept.
+                </Typography>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {status && !status.enabled && (
+                    <Button variant="contained" onClick={() => void setMcp({ enabled: true })}>
+                      Start answering agents
+                    </Button>
+                  )}
+                  <Button variant="outlined" startIcon={<HistoryOutlined />} onClick={() => go({ to: 'agentCalls' })}>
+                    What agents have done
+                  </Button>
+                </div>
+              </Group>
+            </div>
 
-        <Block title="Anything that reads a config file">
-          <Code text={JSON.stringify({ mcpServers: { tessera: { type: 'http', url } } }, null, 2)} />
-        </Block>
+            <div {...at('connect')}>
+              <Group
+                title="Connect an agent"
+                note="Almost every agent reads the same block of JSON. Put this in yours, wherever it keeps its MCP settings, and it will find Tessera."
+              >
+                <Code text={JSON.stringify({ mcpServers: { tessera: { type: 'http', url } } }, null, 2)} label="The usual shape" />
+                <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), maxWidth: 680 }}>
+                  The shape is the same; only the file differs. A few of the common ones:
+                </Typography>
+                <div>
+                  <Where app="Claude Code" file={`claude mcp add --transport http tessera ${url}`} note="A command rather than a file. Add --scope user to have it in every project." />
+                  <Where app="Claude Desktop" file="claude_desktop_config.json" note="Settings, Developer, Edit config." />
+                  <Where app="Cursor" file="~/.cursor/mcp.json, or .cursor/mcp.json in a project" />
+                  <Where app="VS Code" file=".vscode/mcp.json" note="The block is called servers there, not mcpServers." />
+                  <Where app="Anything else" file="its own MCP settings" note="Same shape: a name, the type http, and the address." />
+                </div>
+                <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), maxWidth: 680, marginTop: 8 }}>
+                  An agent that can only start a program and talk to it, rather than speak HTTP, needs a bridge. Give it this as the command instead, and the bridge carries its messages to the address
+                  above.
+                </Typography>
+                <Code text={`npx mcp-remote ${url}`} label="For an agent that cannot speak HTTP" />
+              </Group>
+            </div>
 
-        <Block title="Teach the agent how this place works">
-          <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-            A skill file explains the words Tessera uses (pack, asset, collection, linking, Review, the bin) and the rules that matter, such as never guessing a licence. Install it for Claude, save it anywhere, or copy it into a project.
-          </Typography>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Button variant="contained" startIcon={<InstallDesktopOutlined />} onClick={() => void install('claude')}>
-              Install for Claude
-            </Button>
-            <Button variant="outlined" startIcon={<DownloadOutlined />} onClick={() => void install('choose')}>
-              Save it somewhere
-            </Button>
-            <Button
-              startIcon={<ContentCopyOutlined />}
-              onClick={() => {
-                void navigator.clipboard.writeText(skill);
-                notify.success('The skill is on the clipboard.');
-              }}
-            >
-              Copy it
-            </Button>
+            <div {...at('skill')}>
+              <Group
+                title="The skill file"
+                note="A page of plain Markdown that teaches an agent how this place works: the words Tessera uses (pack, asset, collection, linking, Review, the bin) and the rules that matter, first among them never guess a licence. Any agent that reads instruction files can use it."
+              >
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Button variant="contained" startIcon={<InstallDesktopOutlined />} onClick={() => void install('claude')}>
+                    Install for Claude Code
+                  </Button>
+                  <Button variant="outlined" startIcon={<DownloadOutlined />} onClick={() => void install('choose')}>
+                    Save it somewhere
+                  </Button>
+                  <Button
+                    startIcon={<ContentCopyOutlined />}
+                    onClick={() => {
+                      void navigator.clipboard.writeText(skill);
+                      notify.success('The skill is on the clipboard.');
+                    }}
+                  >
+                    Copy it
+                  </Button>
+                </div>
+                <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+                  Installing writes it to ~/.claude/skills/tessera-library/SKILL.md. For any other agent, save it into the project or paste it where that agent keeps its instructions.
+                </Typography>
+                <Typography
+                  component="pre"
+                  variant="bodySmall"
+                  sx={{
+                    margin: 0,
+                    padding: '14px 16px',
+                    borderRadius: `${SHAPE.md}px`,
+                    background: md('surfaceContainerLow'),
+                    color: md('onSurfaceVariant'),
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
+                    maxHeight: 340,
+                    overflowY: 'auto',
+                    userSelect: 'text',
+                  }}
+                >
+                  {skill}
+                </Typography>
+              </Group>
+            </div>
+
+            <div {...at('tools')}>
+              <Group
+                title="What it may do"
+                note={`${status ? `${status.tools.on} of ${status.tools.all} tools are switched on. ` : ''}An agent can do what this window can: search the library, read a pack, record a licence, gather a collection, link assets into a game, bring new packs in, and move things to the bin. You choose which of those it may reach, by what they do.`}
+              >
+                <div>
+                  <Button variant="outlined" startIcon={<TuneOutlined />} onClick={() => go({ to: 'agentTools' })}>
+                    Choose the tools
+                  </Button>
+                </div>
+              </Group>
+            </div>
+
+            <div {...at('safety')}>
+              <Group title="What it cannot do" note="The limits are Tessera's, not a matter of the agent's good manners.">
+                <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {[
+                    'Delete anything for good. Deleting means the library’s bin, which keeps everything and puts it back where it came from. No tool empties it; only you can, in the app.',
+                    'Reach the library from another computer. The address is bound to this one.',
+                    'Work quietly. Every call is recorded with what was asked and whether it worked, and changes are written into Activity as an agent’s doing.',
+                    'Use a tool you have switched off. It is not offered at all, and a call to it is answered with a line saying where to turn it on.',
+                  ].map((line) => (
+                    <li key={line}>
+                      <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), maxWidth: 680 }}>
+                        {line}
+                      </Typography>
+                    </li>
+                  ))}
+                </ul>
+              </Group>
+            </div>
           </div>
-        </Block>
-
-        <Block title="What it may do">
-          <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-            {status ? `${status.tools.on} of ${status.tools.all} tools are switched on.` : ''} You choose what an agent can reach, by what it does: looking, filing, linking to a game, bringing things in, deleting to the bin. Deleting only ever means the bin, and only you can empty it.
-          </Typography>
-          <div>
-            <Button variant="outlined" onClick={() => go({ to: 'agentTools' })}>
-              Choose the tools
-            </Button>
-          </div>
-        </Block>
-
-        <Block title="The skill, as it will be installed">
-          <Typography
-            component="pre"
-            variant="bodySmall"
-            sx={{ margin: 0, padding: '14px 16px', borderRadius: `${SHAPE.md}px`, background: md('surfaceContainerLow'), color: md('onSurfaceVariant'), whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', maxHeight: 320, overflowY: 'auto', userSelect: 'text' }}
-          >
-            {skill}
-          </Typography>
-        </Block>
-
-        {status && !status.enabled && (
-          <div>
-            <Button variant="contained" onClick={() => void setMcp({ enabled: true })}>
-              Start answering agents
-            </Button>
-          </div>
-        )}
+        </div>
       </div>
     </Page>
   );

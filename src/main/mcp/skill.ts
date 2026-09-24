@@ -62,16 +62,20 @@ attention. If nothing is open, ask the person to open one in Tessera.
 ${groups}
 ## Connecting
 
-The app is already listening; there is nothing to install and no key to paste.
+The app is already listening; there is nothing to install and no key to paste. Most agents take a
+block like this wherever they keep their MCP settings:
+
+\`\`\`json
+{ "mcpServers": { "tessera": { "type": "http", "url": "${url}" } } }
+\`\`\`
+
+Claude Code can do it in one line:
 
 \`\`\`bash
 claude mcp add --transport http tessera ${url}
 \`\`\`
 
-For a client that reads a config file:
-
-\`\`\`json
-{ "mcpServers": { "tessera": { "type": "http", "url": "${url}" } } }
-\`\`\`
+An agent that can only start a program and talk to it, rather than speak HTTP, needs a bridge:
+run \`npx mcp-remote ${url}\` as its command.
 `;
 }

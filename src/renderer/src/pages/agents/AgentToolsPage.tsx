@@ -1,16 +1,18 @@
-import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined';
-import Accordion from '@mui/material/Accordion';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import AccordionSummary from '@mui/material/AccordionSummary';
+import HistoryOutlined from '@mui/icons-material/HistoryOutlined';
+import MenuBookOutlined from '@mui/icons-material/MenuBookOutlined';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
+import { useRef } from 'react';
 import { TOOL_GROUPS, type McpToolInfo, type ToolGroup } from '@shared/mcp';
 import { useMcp, useMcpTools, setMcp } from '../../state/mcp';
 import { useNav } from '../../state/nav';
 import { md, SHAPE } from '../../theme';
-import { Page } from '../Placeholder';
+import { PAGE, Page } from '../Placeholder';
+import { SideSections, sectionAnchor, useSectionSpy, type SideSection } from '../settings/SideSections';
+
+const SECTIONS: SideSection[] = TOOL_GROUPS.map((g) => ({ id: g.id, title: g.title }));
 
 /** The arguments a tool takes, read off its schema, so you can see what an agent may send. */
 function args(schema: Record<string, unknown>): { name: string; type: string; required: boolean }[] {
@@ -23,22 +25,22 @@ function args(schema: Record<string, unknown>): { name: string; type: string; re
   }));
 }
 
-function ToolRow({ tool }: { tool: McpToolInfo }) {
+function ToolRow({ tool, first }: { tool: McpToolInfo; first: boolean }) {
   const takes = args(tool.schema);
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '12px 16px', borderRadius: SHAPE.md, background: md('surfaceContainerLow') }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '16px 0', borderTop: first ? 'none' : `1px solid ${md('outlineVariant')}` }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="titleSmall" sx={{ color: md('onSurface') }}>
+        <Typography variant="bodyLarge" component="div" sx={{ color: md('onSurface') }}>
           {tool.title}
           <Typography component="span" variant="bodySmall" sx={{ color: md('onSurfaceVariant'), ml: 1, fontFamily: 'ui-monospace, Menlo, Consolas, monospace' }}>
             {tool.name}
           </Typography>
         </Typography>
-        <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+        <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant'), maxWidth: 620, display: 'block', mt: 0.25 }}>
           {tool.summary}
         </Typography>
         {takes.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
             {takes.map((a) => (
               <Chip
                 key={a.name}
@@ -56,12 +58,16 @@ function ToolRow({ tool }: { tool: McpToolInfo }) {
   );
 }
 
-/** Everything an agent can do, grouped by what it does, each one with a switch. */
+/** Everything an agent can do, a group at a time, each with a switch of its own. */
 export function AgentToolsPage() {
   const status = useMcp();
   const tools = useMcpTools();
   const go = useNav((s) => s.go);
-
+  const back = useNav((s) => s.back);
+  const goBack = useNav((s) => s.goBack);
+  const scroller = useRef<HTMLDivElement>(null);
+  const current = useSectionSpy(scroller, 'tools', SECTIONS, tools.length > 0);
+  const at = (id: string) => sectionAnchor('tools', id);
   const inGroup = (g: ToolGroup) => tools.filter((t) => t.group === g);
   const all = (on: boolean) => {
     for (const g of TOOL_GROUPS) void setMcp({ group: { id: g.id, on } });
@@ -69,53 +75,72 @@ export function AgentToolsPage() {
 
   return (
     <Page
+      flush
       title="Agent tools"
-      subtitle={status ? `${status.tools.on} of ${status.tools.all} switched on. An agent can only do what is on here.` : 'What an agent may do in this library'}
-      width={980}
+      onBack={() => (back.length ? goBack() : go({ to: 'agents' }))}
       actions={
         <>
-          <Button onClick={() => all(false)}>Turn all off</Button>
-          <Button onClick={() => all(true)}>Turn all on</Button>
-          <Button variant="outlined" onClick={() => go({ to: 'agents' })}>
+          <Button startIcon={<MenuBookOutlined />} onClick={() => go({ to: 'agents' })}>
             How to connect
+          </Button>
+          <Button startIcon={<HistoryOutlined />} onClick={() => go({ to: 'agentCalls' })}>
+            Calls
           </Button>
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 4 }}>
-        {TOOL_GROUPS.map((group) => {
-          const mine = inGroup(group.id);
-          const on = mine.filter((t) => t.on).length;
-          return (
-            <Accordion key={group.id} disableGutters defaultExpanded={group.id === 'read'} sx={{ borderRadius: `${SHAPE.lg}px`, overflow: 'hidden', background: md('surfaceContainer'), '&::before': { display: 'none' } }}>
-              <AccordionSummary expandIcon={<ExpandMoreOutlined />}>
-                <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
-                  <Typography variant="titleMedium" sx={{ color: md('onSurface') }}>
-                    {group.title}
-                  </Typography>
-                  <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-                    {group.note}
-                  </Typography>
+      <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', height: '100%' }}>
+        <SideSections prefix="tools" sections={SECTIONS} current={current} />
+
+        <div ref={scroller} style={{ overflowY: 'auto', scrollbarGutter: 'stable', minHeight: 0 }}>
+          <div style={{ maxWidth: PAGE.column, padding: '0 32px 64px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '4px 0 24px' }}>
+              <Typography variant="bodyMedium" sx={{ flex: 1, color: md('onSurfaceVariant') }}>
+                {status ? `${status.tools.on} of ${status.tools.all} switched on.` : ''} An agent can only do what is on here, and a change takes effect at once.
+              </Typography>
+              <Button size="small" onClick={() => all(false)}>
+                Turn all off
+              </Button>
+              <Button size="small" onClick={() => all(true)}>
+                Turn all on
+              </Button>
+            </div>
+
+            {TOOL_GROUPS.map((group) => {
+              const mine = inGroup(group.id);
+              const on = mine.filter((t) => t.on).length;
+              return (
+                <div key={group.id} {...at(group.id)}>
+                  <section style={{ marginBottom: 40 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="titleMedium" component="h2" sx={{ color: md('onSurface') }}>
+                          {group.title}
+                        </Typography>
+                        <Typography variant="bodyMedium" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5, maxWidth: 620 }}>
+                          {group.note}
+                        </Typography>
+                      </div>
+                      <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant'), whiteSpace: 'nowrap', mt: 1 }}>
+                        {on} of {mine.length} on
+                      </Typography>
+                      <Switch
+                        checked={on > 0}
+                        onChange={(e) => void setMcp({ group: { id: group.id, on: e.target.checked } })}
+                        slotProps={{ input: { 'aria-label': `${group.title} tools` } }}
+                      />
+                    </div>
+                    <div style={{ marginTop: 8, padding: '0 20px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow') }}>
+                      {mine.map((t, i) => (
+                        <ToolRow key={t.name} tool={t} first={i === 0} />
+                      ))}
+                    </div>
+                  </section>
                 </div>
-                <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant'), alignSelf: 'center', mr: 1, whiteSpace: 'nowrap' }}>
-                  {on} of {mine.length} on
-                </Typography>
-                <Switch
-                  checked={on > 0}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => void setMcp({ group: { id: group.id, on: e.target.checked } })}
-                  slotProps={{ input: { 'aria-label': `${group.title} tools` } }}
-                  sx={{ alignSelf: 'center' }}
-                />
-              </AccordionSummary>
-              <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 1, pt: 0 }}>
-                {mine.map((t) => (
-                  <ToolRow key={t.name} tool={t} />
-                ))}
-              </AccordionDetails>
-            </Accordion>
-          );
-        })}
+              );
+            })}
+          </div>
+        </div>
       </div>
     </Page>
   );
