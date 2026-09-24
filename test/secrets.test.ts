@@ -24,6 +24,9 @@ vi.mock('electron', () => ({
   },
 }));
 
+/** The computer this test is really running on, before any of it pretends to be Linux. */
+const reallyWindows = process.platform === 'win32';
+
 const dir = mkdtempSync(join(tmpdir(), 'tessera-secrets-'));
 const path = join(dir, 'passwords', 'backup');
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -82,9 +85,9 @@ describe('a password, where there is no keychain', () => {
       await secret.save('a password');
       expect(readFileSync(path, 'utf8')).toContain('tessera-plain:');
       expect(await secret.load()).toBe('a password');
-      // 0600: nobody else on this computer can read it. Windows has no such bits, and this
+      // 0600: nobody else on this computer can read it. Windows keeps no such bits, and this
       // fallback is for a Linux machine with no keyring in the first place.
-      if (process.platform !== 'win32') expect(statSync(path).mode & 0o077).toBe(0);
+      if (!reallyWindows) expect(statSync(path).mode & 0o077).toBe(0);
     } finally {
       back();
     }
