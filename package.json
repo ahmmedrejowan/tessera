@@ -39,6 +39,7 @@
     "@types/yauzl": "^3.4.0",
     "@types/yazl": "^3.3.1",
     "@vitejs/plugin-react": "^5.2.0",
+    "@vitest/coverage-v8": "^5.0.1",
     "ag-psd": "^31.0.2",
     "electron": "^44.4.3",
     "electron-builder": "^26.15.3",
@@ -66,7 +67,7 @@
     "appId": "com.rejowan.tessera",
     "productName": "Tessera",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
-    "copyright": "Copyright \u00a9 2026 K M Rejowan Ahmmed",
+    "copyright": "Copyright © 2026 K M Rejowan Ahmmed",
     "directories": {
       "output": "release",
       "buildResources": "build"
