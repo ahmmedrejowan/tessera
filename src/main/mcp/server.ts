@@ -107,11 +107,13 @@ export class McpService {
   }
 
   /** Start, stop or move as the settings say. Safe to call whenever they change. */
-  async apply(): Promise<void> {
+  async apply(again = false): Promise<void> {
     const { enabled, port } = this.o.settings();
     const wanted = enabled ? port || DEFAULT_MCP_PORT : 0;
     const now = this.http?.listening ? (this.http.address() as { port: number } | null)?.port : 0;
-    if (wanted === (now ?? 0)) return;
+    // `again` is for after the port has been freed: nothing in the settings changed, but the
+    // world did.
+    if (!again && wanted === (now ?? 0)) return;
     await this.stop();
     if (wanted) await this.start(wanted);
     this.o.onChange();
@@ -122,7 +124,7 @@ export class McpService {
     const http = createServer((req, res) => void this.answer(req, res));
     await new Promise<void>((resolve) => {
       http.once('error', (e: NodeJS.ErrnoException) => {
-        this.error = e.code === 'EADDRINUSE' ? `Port ${port} is already taken. Choose another in Settings.` : e.message;
+        this.error = e.code === 'EADDRINUSE' ? `Port ${port} is already taken.` : e.message;
         log.warn('mcp', `could not listen on ${port}`, e);
         this.http = null;
         resolve();

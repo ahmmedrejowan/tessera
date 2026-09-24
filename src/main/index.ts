@@ -42,6 +42,7 @@ import { TOOL_GROUPS } from '@shared/mcp';
 import { McpService, catalogue, portFree } from './mcp/server';
 import { McpHistory } from './mcp/history';
 import { clients, installFor } from './mcp/clients';
+import { freePort, whoHasPort } from './mcp/port';
 import { skillMarkdown } from './mcp/skill';
 import { Updates } from './updates';
 import { DownloadService, linksInFiles } from './downloads/service';
@@ -644,6 +645,14 @@ function registerHandlers(): void {
     return mcp.status();
   });
   handle('mcp:portFree', (port) => portFree(port));
+  handle('mcp:portUser', (port) => whoHasPort(port));
+  handle('mcp:freePort', async (port) => {
+    const done = await freePort(port);
+    // The port is ours to take now; start there without being asked again.
+    await mcp.apply(true);
+    broadcast(windows, 'mcp:changed', 0);
+    return done;
+  });
   handle('mcp:clients', () => clients(mcp.status().url));
   handle('mcp:installClient', (id) => installFor(id, mcp.status().url));
   handle('mcp:calls', (limit, offset) => mcpHistory.list(limit, offset));

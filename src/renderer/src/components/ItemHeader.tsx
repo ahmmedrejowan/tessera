@@ -84,7 +84,9 @@ function Column({ actions, width, height }: { actions: ItemAction[]; width: numb
               px: 1.25,
               flexShrink: 0,
               borderRadius: `${SHAPE.sm}px`,
-              // One of them is the thing this header is for; the rest are the same button, quieter.
+              // One of them is the thing this header is for and is filled; the rest are outlined,
+              // the same button in every other way. The border is on both, so the sizes match.
+              border: `1px solid ${a.primary ? 'transparent' : md('outlineVariant')}`,
               backgroundColor: a.primary ? md('primary') : 'transparent',
               color: a.primary ? md('onPrimary') : a.danger ? md('error') : md('onSurfaceVariant'),
               '&:hover': { backgroundColor: a.primary ? md('primary') : md('surfaceContainerHigh') },
@@ -168,7 +170,7 @@ export function ItemHeader({
       </div>
 
       {/* Doing things with it on the left, looking after it on the right, a line between. */}
-      <div style={{ flexShrink: 0, borderLeft: `1px solid ${md('outlineVariant')}`, paddingLeft: 16, display: 'flex', gap: 12, height: HEADER_SIZE, boxSizing: 'border-box' }}>
+      <div style={{ flexShrink: 0, display: 'flex', gap: 12, height: HEADER_SIZE, boxSizing: 'border-box' }}>
         <Column actions={using} width={190} height={rowHeight} />
         {manage.length > 0 && (
           <>

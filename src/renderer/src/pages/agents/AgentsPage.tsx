@@ -15,6 +15,7 @@ import { useNav } from '../../state/nav';
 import { md, SHAPE } from '../../theme';
 import { PAGE, Page } from '../Placeholder';
 import { SideSections, sectionAnchor, useSectionSpy, type SideSection } from '../settings/SideSections';
+import { PortControl } from './PortControl';
 
 const SECTIONS: SideSection[] = [
   { id: 'what', title: 'What this is' },
@@ -186,6 +187,7 @@ export function AgentsPage() {
                 note="Tessera speaks MCP, the protocol AI agents use to reach the programs on a computer. While Tessera is open it answers on this machine, so an agent working beside you can use your library."
               >
                 <Code text={url} label="The address" />
+                <PortControl />
                 <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), maxWidth: 680 }}>
                   There is no key and no token, because there is nothing to keep out: the address is bound to this computer, and nothing on your network or the internet can reach it. Whatever an agent
                   changes appears in this window as it happens, and every call it makes is kept.

@@ -124,6 +124,10 @@ export interface Invokes {
   'mcp:set': (change: { enabled?: boolean; port?: number; group?: { id: string; on: boolean }; tool?: { name: string; on: boolean } }) => McpStatus;
   /** Is a port free to listen on? Asked before changing it. */
   'mcp:portFree': (port: number) => boolean;
+  /** What is listening on a port, when something is. */
+  'mcp:portUser': (port: number) => { pid: number; name: string; ours: boolean } | null;
+  /** Stop whatever is listening on a port, and start answering there. */
+  'mcp:freePort': (port: number) => { stopped: { pid: number; name: string; ours: boolean } | null };
   /** What agents have called, newest first. */
   'mcp:calls': (limit?: number, offset?: number) => { rows: McpCall[]; total: number };
   /** Forget the call history. */
