@@ -123,3 +123,52 @@ describe('the skill file', () => {
     expect(text.toLowerCase()).toContain('bin');
   });
 });
+
+describe('what an agent asked for, put into words', () => {
+  const ID = '4b0c1e2a-3f4d-5a6b-7c8d-9e0f1a2b3c4d';
+
+  it('says nothing when there was nothing to say', () => {
+    expect(said(undefined)).toBe('');
+    expect(said(null)).toBe('');
+    expect(said({})).toBe('');
+    expect(said('not an object')).toBe('');
+  });
+
+  it('leaves out what is empty rather than showing it as empty', () => {
+    expect(said({ text: '', packIds: [], note: null, limit: undefined })).toBe('');
+  });
+
+  it('counts ids rather than printing them, because they mean nothing to a reader', () => {
+    expect(said({ packId: ID })).toBe('');
+    expect(said({ packIds: [ID] })).toBe('1 pack');
+    expect(said({ packIds: [ID, ID, ID] })).toBe('3 packs');
+    expect(said({ assetIds: [ID] })).toBe('1 file');
+    expect(said({ ids: [ID, ID] })).toBe('2 things');
+  });
+
+  it('shows one or two of something, and counts more than two', () => {
+    expect(said({ paths: ['/a/one.zip', '/a/two.zip'] })).toBe('paths: /a/one.zip, /a/two.zip');
+    expect(said({ paths: ['/a', '/b', '/c'] })).toBe('paths: 3 paths');
+  });
+
+  it('shows what was actually asked for, in the words the agent used', () => {
+    expect(said({ text: 'arcade' })).toBe('text: arcade');
+    expect(said({ text: 'arcade', limit: 20 })).toBe('text: arcade · limit: 20');
+    expect(said({ on: false })).toBe('on: false');
+  });
+
+  it('shortens anything too long to read in a list', () => {
+    const long = said({ text: 'a'.repeat(200) });
+    expect(long.length).toBeLessThan(60);
+    expect(long).toContain('…');
+  });
+
+  it('stops once the line is long enough, rather than running on', () => {
+    const many = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`field${i}`, `value number ${i}`]));
+    expect(said(many).length).toBeLessThan(130);
+  });
+
+  it('writes an object out as itself', () => {
+    expect(said({ rules: { licences: ['CC0-1.0'] } })).toContain('licences');
+  });
+});
