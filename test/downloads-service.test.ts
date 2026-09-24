@@ -5,14 +5,25 @@
  * judgement: how many it runs at once, what it retries and what it gives up on, what it remembers
  * across a restart, and that pausing something actually stops it.
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('electron', () => import('./fake-electron'));
 
 import { DownloadService } from '../src/main/downloads/service';
-import { tempDir } from './helpers';
+
+/**
+ * Folders of this file's own. A queue keeps writing its list for a moment after a test ends, and
+ * the shared helper clears its folders the instant one does, which is a race the queue loses.
+ */
+const mine: string[] = [];
+const tempDir = () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tessera-dl-'));
+  mine.push(dir);
+  return dir;
+};
 
 /** A stand-in for the network, which can be told to be slow, to fail, or to refuse outright. */
 function net(options: { fail?: number; permanent?: boolean; hold?: boolean; body?: string } = {}) {
@@ -52,6 +63,10 @@ function net(options: { fail?: number; permanent?: boolean; hold?: boolean; body
 const started: DownloadService[] = [];
 afterEach(() => {
   for (const q of started.splice(0)) q.stopAll();
+});
+
+afterAll(() => {
+  for (const dir of mine.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
 async function queue(options: Parameters<typeof net>[0] = {}, atOnce = 3) {
@@ -225,6 +240,8 @@ describe('across a restart', () => {
     await first.load();
     first.add([FILE]);
     await until(() => first.list()[0]?.state === 'ready');
+    // The list is written a moment after the change, so the restart waits for it to land.
+    await until(() => existsSync(join(dir, 'downloads.json')) && readFileSync(join(dir, 'downloads.json'), 'utf8').includes(FILE), 'the list was never written');
 
     const second = new DownloadService({ dir, fetch: stand.fetch, onChanged: () => undefined, onReady: () => undefined });
     started.push(second);
