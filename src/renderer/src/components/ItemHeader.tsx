@@ -61,10 +61,16 @@ function Belongs({ icon: Icon, names, total, word, empty, onOpen }: { icon: Comp
   );
 }
 
-/** One column of things to do, in the order they were given. */
-function Column({ actions, width }: { actions: ItemAction[]; width: number }) {
+/** The gap between one thing to do and the next. */
+const ROW_GAP = 4;
+
+/**
+ * One column of things to do. Every button is the same size, whichever column it is in, and the
+ * columns together stand as tall as the preview on the other side of the header.
+ */
+function Column({ actions, width, height }: { actions: ItemAction[]; width: number; height: number }) {
   return (
-    <div style={{ width, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <div style={{ width, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: ROW_GAP }}>
       {actions.map((a) => {
         const Icon = a.icon;
         return (
@@ -72,19 +78,20 @@ function Column({ actions, width }: { actions: ItemAction[]; width: number }) {
             key={a.label}
             onClick={(e) => a.onClick(e.currentTarget)}
             sx={{
-              justifyContent: a.primary ? 'center' : 'flex-start',
+              justifyContent: 'flex-start',
               gap: 1.25,
-              height: a.primary ? 36 : 28,
-              px: a.primary ? 1.5 : 1,
-              mb: a.primary ? 0.5 : 0,
+              height,
+              px: 1.25,
+              flexShrink: 0,
               borderRadius: `${SHAPE.sm}px`,
+              // One of them is the thing this header is for; the rest are the same button, quieter.
               backgroundColor: a.primary ? md('primary') : 'transparent',
               color: a.primary ? md('onPrimary') : a.danger ? md('error') : md('onSurfaceVariant'),
               '&:hover': { backgroundColor: a.primary ? md('primary') : md('surfaceContainerHigh') },
               '&:hover .over': { opacity: a.primary ? STATE.hover : 0 },
             }}
           >
-            {a.primary ? null : <Icon sx={{ fontSize: 18 }} />}
+            <Icon sx={{ fontSize: 18 }} />
             <Typography variant="labelLarge" noWrap sx={{ fontWeight: a.primary ? 600 : 500 }}>
               {a.label}
             </Typography>
@@ -128,6 +135,12 @@ export function ItemHeader({
   actions: ItemAction[];
 }) {
   const shown = actions.filter((a) => !a.hidden);
+  const using = shown.filter((a) => !a.manage);
+  const manage = shown.filter((a) => a.manage);
+  // The taller column decides the size of every button, so the two read as one block the height
+  // of the preview beside them.
+  const rows = Math.max(using.length, manage.length, 1);
+  const rowHeight = Math.min(56, Math.max(30, Math.floor((HEADER_SIZE - (rows - 1) * ROW_GAP) / rows)));
   return (
     <header style={{ display: 'flex', gap: 16, padding: '16px 32px 12px', alignItems: 'flex-start' }}>
       {onBack && (
@@ -154,10 +167,15 @@ export function ItemHeader({
         <Belongs icon={CollectionIcon} names={collections.names} total={collections.total} word="collection" empty="In no collection" onOpen={collections.onOpen} />
       </div>
 
-      {/* Doing things with it on the left, looking after it on the right. */}
-      <div style={{ flexShrink: 0, borderLeft: `1px solid ${md('outlineVariant')}`, paddingLeft: 16, display: 'flex', gap: 12 }}>
-        <Column actions={shown.filter((a) => !a.manage)} width={186} />
-        {shown.some((a) => a.manage) && <Column actions={shown.filter((a) => a.manage)} width={126} />}
+      {/* Doing things with it on the left, looking after it on the right, a line between. */}
+      <div style={{ flexShrink: 0, borderLeft: `1px solid ${md('outlineVariant')}`, paddingLeft: 16, display: 'flex', gap: 12, height: HEADER_SIZE, boxSizing: 'border-box' }}>
+        <Column actions={using} width={190} height={rowHeight} />
+        {manage.length > 0 && (
+          <>
+            <span style={{ width: 1, alignSelf: 'stretch', background: md('outlineVariant') }} />
+            <Column actions={manage} width={132} height={rowHeight} />
+          </>
+        )}
       </div>
     </header>
   );
