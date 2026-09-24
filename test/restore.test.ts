@@ -90,3 +90,62 @@ describe('restoring a copy beside the library', () => {
     await expect(restoreLibrary(run, copy, 100, () => undefined, async () => [])).rejects.toThrow(/new or empty folder/);
   });
 });
+
+describe.skipIf(!kopia)('what restoring refuses to do', () => {
+  it('will not open a store before Kopia is there', async () => {
+    const restorer = new RestoreService(await mkdtemp(join(tmpdir(), 'tessera-restore-')), () => null);
+    await expect(restorer.unlock({ provider: 'folder', values: { path: '/tmp' } }, 'password')).rejects.toMatchObject({ code: 'no-kopia' });
+  });
+
+  it('will not open a folder that holds no backup', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tessera-restore-'));
+    const restorer = new RestoreService(dir, () => kopia);
+    await expect(restorer.unlock({ provider: 'folder', values: { path: dir } }, 'password')).rejects.toMatchObject({ code: 'not-a-backup' });
+  });
+
+  it('will not open a store that has not been described fully', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tessera-restore-'));
+    const restorer = new RestoreService(dir, () => kopia);
+    // An S3 store with no bucket is not somewhere; saying so beats a Kopia error nobody can read.
+    await expect(restorer.unlock({ provider: 's3', values: {} }, 'password')).rejects.toMatchObject({ code: 'incomplete-target' });
+  });
+
+  it('will not restore before a store has been opened', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tessera-restore-'));
+    const restorer = new RestoreService(dir, () => kopia);
+    await expect(restorer.restore('snapshot', join(dir, 'into'), 10, () => undefined, async () => [])).rejects.toMatchObject({ code: 'restore-locked' });
+    expect(restorer.opened).toBeNull();
+  });
+
+  it('closes quietly whether or not anything was open', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tessera-restore-'));
+    const restorer = new RestoreService(dir, () => kopia);
+    await restorer.close();
+    await restorer.close();
+    expect(restorer.opened).toBeNull();
+  });
+
+  it('refuses the wrong password for a store that is really there', async () => {
+    const { Kopia } = await import('../src/main/backup/kopia');
+    const dir = await mkdtemp(join(tmpdir(), 'tessera-restore-'));
+    const store = join(dir, 'store');
+    const source = join(dir, 'library');
+    await mkdir(source, { recursive: true });
+    await writeFile(join(source, 'tessera-library.json'), JSON.stringify({ format: 1, id: 'aaaa-bbbb', name: 'Mine', createdAt: '2026-01-01T00:00:00.000Z' }));
+
+    const maker = new Kopia(kopia!, join(dir, 'kopia-home'));
+    await maker.connect({ type: 'filesystem', args: [`--path=${store}`], env: {} }, 'correct horse battery', true);
+    await maker.snapshot(source, 'correct horse battery', 'Mine');
+    await maker.disconnect('correct horse battery');
+
+    const restorer = new RestoreService(join(dir, 'restore-home'), () => kopia);
+    await expect(restorer.unlock({ provider: 'folder', values: { path: store } }, 'the wrong password')).rejects.toMatchObject({ code: 'restore-connect' });
+
+    // The right one opens it, and says what is in there.
+    const found = await restorer.unlock({ provider: 'folder', values: { path: store } }, 'correct horse battery');
+    expect(found.length).toBe(1);
+    expect(found[0]!.snapshots.length).toBe(1);
+    expect(restorer.opened?.password).toBe('correct horse battery');
+    await restorer.close();
+  });
+});

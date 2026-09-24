@@ -416,3 +416,109 @@ describe('when the folder changes underneath it', () => {
     close();
   });
 });
+
+describe('when things are not as expected', () => {
+  it('refuses to open a folder that is not a library, and says which', async () => {
+    const { library, close } = await opened();
+    const notALibrary = tempDir();
+    const state = await library.open(notALibrary);
+    expect(state.status).toBe('error');
+    expect(library.getState().status).toBe('error');
+    close();
+  });
+
+  it('refuses to open a library whose own record is unreadable', async () => {
+    const { library, root, close } = await opened();
+    library.close();
+    writeFileSync(join(root, 'tessera-library.json'), '{ not json');
+    const state = await library.open(root);
+    expect(state.status).toBe('error');
+    close();
+  });
+
+  it('refuses a name that is empty or absurd', async () => {
+    const { library, close } = await opened();
+    await expect(library.rename('   ')).rejects.toMatchObject({ code: 'no-name' });
+    await expect(library.rename('x'.repeat(200))).rejects.toMatchObject({ code: 'long-name' });
+    close();
+  });
+
+  it('refuses everything once no library is open', async () => {
+    const { library, close } = await opened();
+    close();
+    await expect(library.packRecord('anything')).rejects.toMatchObject({ code: 'no-library' });
+    await expect(library.collections()).rejects.toMatchObject({ code: 'no-library' });
+    await expect(library.createCollection('x', {})).rejects.toMatchObject({ code: 'no-library' });
+    await expect(library.rename('x')).rejects.toMatchObject({ code: 'no-library' });
+  });
+
+  it('will not let a pack into the library without both a licence and a source', async () => {
+    const dataDir = tempDir();
+    const root = join(tempDir(), 'Library');
+    const library = new LibraryService({ dataDir, jobs: new Jobs(() => undefined), onState: () => undefined, onIndexChanged: () => undefined, siteRules: () => [], binKeepDays: () => 30, watchFiles: false });
+    await library.create(root, 'Review');
+    const dir = join(root, 'packs', 'No Papers');
+    mkdirSync(join(dir, 'original'), { recursive: true });
+    mkdirSync(join(dir, 'licence'), { recursive: true });
+    writeFileSync(join(dir, 'original', 'thing.obj'), 'o thing\n');
+    writeFileSync(join(dir, 'pack.json'), JSON.stringify({ format: 1, id: 'id-no-papers', name: 'No Papers', status: 'inbox', licence: { id: null, attribution: null, proof: [], notes: '' }, source: { site: null, name: null, url: null, creator: null, creatorUrl: null }, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }));
+    await library.sync();
+    await library.sync();
+
+    await expect(library.setStatus('id-no-papers', 'library')).rejects.toThrow();
+
+    await library.editPack('id-no-papers', { licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' }, source: { site: null, name: 'Somewhere', url: null, creator: null, creatorUrl: null } });
+    await library.setStatus('id-no-papers', 'library');
+    expect(library.require().queries.pack('id-no-papers')?.status).toBe('library');
+    library.close();
+  });
+
+  it('gives part of a pack terms of its own, and keeps them with it', async () => {
+    const { library, root, close } = await opened();
+    const id = only(library).id;
+    await library.editPack(id, { licences: [{ path: 'Models', licence: { id: 'CC-BY-4.0', attribution: 'Someone', proof: [], notes: '' } }] });
+    const onDisk = JSON.parse(readFileSync(join(root, 'packs', 'Mini Arcade', 'pack.json'), 'utf8')) as { licences: { path: string }[] };
+    expect(onDisk.licences.map((r) => r.path)).toEqual(['Models']);
+    close();
+  });
+
+  it('empties only what it was asked to', async () => {
+    const { library, close } = await opened({ 'One Pack': { 'a.obj': 'o a\n' }, 'Two Pack': { 'b.obj': 'o b\n' } });
+    const packs = library.require().queries.packs({ scope: 'library', text: '', filters: {} }, 'added', 0, 10).rows;
+    await library.removePack(packs[0]!.id);
+    await library.removePack(packs[1]!.id);
+
+    const waiting = await library.bin();
+    expect(waiting).toHaveLength(2);
+    expect(await library.emptyBin([waiting[0]!.id])).toBe(1);
+    expect(await library.bin()).toHaveLength(1);
+    close();
+  });
+
+  it('adds files into a folder that is not there yet, making it', async () => {
+    const { library, root, close } = await opened();
+    const id = only(library).id;
+    const from = tempDir();
+    writeFileSync(join(from, 'new.obj'), 'o new\n');
+    await library.addFilesToPack(id, [join(from, 'new.obj')], 'Brand/New/Folder');
+    expect(existsSync(join(root, 'packs', 'Mini Arcade', 'original', 'Brand', 'New', 'Folder', 'new.obj'))).toBe(true);
+    close();
+  });
+
+  it('refuses to add a file that is not there', async () => {
+    const { library, close } = await opened();
+    await expect(library.addFilesToPack(only(library).id, [join(tempDir(), 'gone.obj')])).rejects.toThrow();
+    close();
+  });
+
+  it('counts what a collection refused, rather than taking it quietly', async () => {
+    const { library, close } = await opened();
+    const id = only(library).id;
+    // A collection that will only take CC-BY packs; this one is CC0.
+    const made = await library.createCollection('Only CC-BY', { rules: { licences: ['CC-BY-4.0'], needsCreditLine: false, types: [] } });
+    const result = await library.changeCollection(made, { addPacks: [id] });
+    expect(result.refused.length).toBeGreaterThan(0);
+    expect(result.addedPacks).toBe(0);
+    close();
+  });
+});
