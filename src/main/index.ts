@@ -5,7 +5,8 @@ import { readdir, readFile, rm, stat } from 'node:fs/promises';
 import { basename, join, sep } from 'node:path';
 import type { DownloadItem, LibrarySummary, Platform, Settings } from '@shared/types';
 import { byRecent, patchRecord, recordOf, touchLibrary } from './libraries';
-import { broadcast, handle, onInternalError, UserError } from './ipc';
+import { broadcast, onInternalError, UserError } from './ipc';
+import { registerIpc, type IpcContext } from './ipc/index';
 import { parseRef } from './index/files';
 import { Jobs, type JobHandle } from './jobs';
 import { DIRS, readLibraryInfo } from './library/layout';
@@ -405,7 +406,7 @@ async function start(): Promise<void> {
     nativeTheme.themeSource = next.theme;
     broadcast(windows, 'settings:changed', next);
   });
-  registerHandlers();
+  registerIpc(context());
   void applySystemProxy((url) => session.defaultSession.resolveProxy(url)).then((p) => p && log.info('app', 'using the system proxy for helper programs'));
   installMenu(() => BrowserWindow.getFocusedWindow() ?? windows()[0], join(dataDir, 'logs'));
   registerDrag({
@@ -458,482 +459,45 @@ async function start(): Promise<void> {
   });
 }
 
-function registerHandlers(): void {
-  handle('app:info', () => ({
-    name: app.getName(),
-    version: app.getVersion(),
+/** Everything the handlers are given: the app, put together once, in one place. */
+function context(): IpcContext {
+  return {
+    dataDir,
     platform,
-    versions: { electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node },
-  }));
-  handle('settings:get', () => settings.get());
-  handle('settings:update', (patch) => {
-    // Backups change only through their own calls.
-    const { libraries: _l, ...rest } = patch as Partial<Settings>;
-    return settings.update(rest);
-  });
-  handle('window:chrome', ({ background, foreground }) => {
-    if (platform === 'darwin') return;
-    for (const w of windows()) w.setTitleBarOverlay({ color: background, symbolColor: foreground, height: 64 });
-  });
-
-  handle('dialog:folder', async (title, extra = {}) => {
-    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options: Electron.OpenDialogOptions = {
-      title,
-      message: extra.message ?? title,
-      ...(extra.defaultPath ? { defaultPath: extra.defaultPath } : {}),
-      ...(extra.buttonLabel ? { buttonLabel: extra.buttonLabel } : {}),
-      properties: ['openDirectory', 'createDirectory'],
-    };
-    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-    return result.canceled ? null : (result.filePaths[0] ?? null);
-  });
-  handle('fs:places', () => ({ documents: app.getPath('documents'), home: app.getPath('home'), desktop: app.getPath('desktop'), separator: sep }));
-  handle('fs:describe', (path) => describeFolder(path));
-  handle('library:locate', (path) => locateLibrary(path));
-  handle('library:state', () => library.getState());
-  handle('library:inspect', (path) => library.inspect(path));
-  handle('library:create', (path, name) => library.create(path, name));
-  handle('library:open', (path) => library.open(path));
-  handle('library:rename', async (name) => {
-    const state = await library.rename(name);
-    if (state.status === 'ready') await patchRecord(settings, state.library.id, { name: state.library.name });
-    librariesChanged();
-    return state;
-  });
-  handle('library:setPrefs', async (prefs) => {
-    const record = openRecord();
-    if (!record) throw new UserError('no-library', 'No library is open.');
-    await patchRecord(settings, record.id, prefs);
-    librariesChanged();
-  });
-  handle('libraries:list', () => librarySummaries());
-  handle('libraries:forget', async (id) => {
-    const state = library.getState();
-    if (state.status === 'ready' && state.library.id === id) throw new UserError('library-open', 'Close the library first.');
-    const { [id]: _gone, ...rest } = settings.get().libraries;
-    await settings.update({ libraries: rest });
-    sync.reconcileSoon();
-    librariesChanged();
-  });
-  handle('library:close', async () => {
-    library.close();
-    await settings.update({ libraryPath: null });
-  });
-  handle('library:refresh', () => library.sync());
-  handle('library:stats', () => library.require().queries.stats());
-  handle('library:terms', (field) => library.require().queries.terms(field));
-  handle('library:health', () => library.require().queries.health());
-  handle('library:reindex', () => library.reindex());
-  handle('thumbs:size', async () => {
-    const dir = thumbDir();
-    if (!dir) return 0;
-    let total = 0;
-    for (const f of await readdir(dir).catch(() => [] as string[])) total += (await stat(join(dir, f)).catch(() => null))?.size ?? 0;
-    return total;
-  });
-  handle('thumbs:clear', async () => {
-    const dir = thumbDir();
-    if (dir) await rm(dir, { recursive: true, force: true });
-    thumbs.reset();
-    broadcast(windows, 'index:changed', ++indexVersion);
-  });
-  handle('app:showLogs', () => void shell.openPath(join(dataDir, 'logs')));
-
-  handle('browse:assets', (q, sort, offset, limit) => library.require().queries.assets(q, sort, offset, Math.min(limit, 1000)));
-  handle('browse:packs', (q, sort, offset, limit) => library.require().queries.packs(q, sort, offset, Math.min(limit, 1000)));
-  handle('browse:facets', (q, mode) => library.require().queries.facets(q, mode));
-  handle('browse:allIds', (q, mode) => library.require().queries.allIds(q, mode));
-  handle('browse:sum', (mode, ids) => library.require().queries.sum(mode, ids));
-
-  handle('pack:get', (id) => library.require().queries.pack(id));
-  handle('pack:files', (id) => library.require().queries.packFiles(id));
-  handle('pack:edit', async (id, edit) => {
-    await library.editPack(id, edit);
-    // Projects keep the pack's licence and credit line on record: bring them up to date.
-    const row = library.require().queries.pack(id);
-    if (row) {
-      const m = row.meta;
-      await projects
-        .packChanged(libraryId(), id, { packName: m.name, licence: m.licence.id, attribution: m.licence.attribution, creator: m.source.creator, sourceUrl: m.source.url })
-        .catch((e: unknown) => log.warn('projects', 'could not update projects after a pack edit', e));
-    }
-  });
-  handle('pack:detect', (id) => library.detect(id));
-  handle('pack:partLicences', (id) => library.partLicences(id));
-  handle('pack:details', (id) => library.details(id));
-  handle('pack:discard', (id) => library.discardPack(id));
-  handle('pack:recordPage', (id, what) => {
-    // In the background, one page at a time: the add page doesn't wait for it.
-    pageRecords = pageRecords.then(() => recordPage(id, what)).catch((e: unknown) => log.warn('pages', 'could not keep a record of a download page', e));
-  });
-  handle('pack:status', async (id, status) => {
-    const name = library.require().queries.pack(id)?.name;
-    await library.setStatus(id, status);
-    if (status === 'library' && name) activity.add('reviewed', `“${name}” passed Review and is in the library`);
-  });
-  handle('pack:remove', async (id) => {
-    await projects.keepLicences(libraryId(), [id], copySource()).catch((e: unknown) => log.warn('projects', 'could not write a licence into a game', e));
-    return library.removePack(id);
-  });
-  handle('assets:remove', async (items) => {
-    await projects.keepLicences(libraryId(), [...new Set(items.map((i) => i.packId))], copySource()).catch((e: unknown) => log.warn('projects', 'could not write a licence into a game', e));
-    return library.removeFiles(items);
-  });
-  handle('bin:list', () => library.bin());
-  handle('bin:restore', (id) => library.restoreFromBin(id));
-  handle('bin:empty', (ids) => library.emptyBin(ids));
-  handle('pack:proof', async (id) => (await library.proofFiles(id)).map((f) => ({ ...f, url: packFileUrl(id, `licence/${f.name}`) })));
-  handle('pack:addProof', async (id) => {
-    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options = { title: 'Add licence proof', properties: ['openFile', 'multiSelections'] as ('openFile' | 'multiSelections')[] };
-    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-    return result.canceled ? 0 : library.addProof(id, result.filePaths);
-  });
-  handle('pack:openProof', async (id, name) => {
-    const error = await shell.openPath(await library.proofPath(id, name));
-    if (error) throw new UserError('open-failed', error);
-  });
-  handle('asset:get', (id) => library.require().queries.asset(id));
-  handle('asset:variants', (id) => library.require().queries.variants(id));
-  handle('assets:refs', (ids) => library.require().queries.refs(ids.slice(0, 10_000)));
-  handle('pack:textures', (id) => {
-    const out: Record<string, string> = {};
-    for (const img of library.require().queries.packImages(id)) out[img.name.toLowerCase()] ??= packFileUrl(id, img.ref);
-    return out;
-  });
-  handle('pack:reveal', async (id, ref) => {
-    const pack = await library.packRecord(id);
-    // A file inside an archive can't be shown; the archive holding it can.
-    const onDisk = ref ? parseRef(ref).file : null;
-    shell.showItemInFolder(onDisk ? join(pack.dir, ...onDisk.split('/')) : join(pack.dir, 'pack.json'));
-  });
-
-  handle('pack:open', async (id, ref) => {
-    const pack = await library.packRecord(id);
-    const { file, inside } = parseRef(ref);
-    const onDisk = join(pack.dir, ...file.split('/'));
-    // A file inside an archive can't be handed to another app; show the archive instead.
-    if (inside.length) {
-      shell.showItemInFolder(onDisk);
-      return 'inArchive';
-    }
-    const error = await shell.openPath(onDisk);
-    if (error) throw new Error(error);
-    return 'opened';
-  });
-
-  handle('mcp:status', () => mcp.status());
-  handle('mcp:tools', () => catalogue(settings.get().mcp));
-  handle('mcp:set', async (change) => {
-    const now = settings.get().mcp;
-    const next = { ...now };
-    if (change.enabled !== undefined) next.enabled = change.enabled;
-    if (change.port !== undefined) next.port = change.port;
-    if (change.group) {
-      // A group that is on by default is remembered when it goes off; one that starts off is
-      // remembered when it is allowed. Either way the switch means what it says.
-      const id = change.group.id;
-      if (TOOL_GROUPS.find((g) => g.id === id)?.defaultOn) next.groupsOff = change.group.on ? now.groupsOff.filter((g) => g !== id) : [...new Set([...now.groupsOff, id])];
-      else next.groupsOn = change.group.on ? [...new Set([...now.groupsOn, id])] : now.groupsOn.filter((g) => g !== id);
-    }
-    if (change.tool) next.off = change.tool.on ? now.off.filter((t) => t !== change.tool!.name) : [...new Set([...now.off, change.tool.name])];
-    await settings.update({ mcp: next });
-    await mcp.apply();
-    // Which tools are on changes nothing about the socket, so say so here: the window is showing it.
-    broadcast(windows, 'mcp:changed', 0);
-    return mcp.status();
-  });
-  handle('mcp:portFree', (port) => portFree(port));
-  handle('mcp:portUser', (port) => whoHasPort(port));
-  handle('mcp:freePort', async (port) => {
-    const done = await freePort(port);
-    // The port is ours to take now; start there without being asked again.
-    await mcp.apply(true);
-    broadcast(windows, 'mcp:changed', 0);
-    return done;
-  });
-  handle('mcp:clients', () => clients(mcp.status().url));
-  handle('mcp:installClient', (id) => installFor(id, mcp.status().url));
-  handle('mcp:calls', (limit, offset) => mcpHistory.list(limit, offset));
-  handle('mcp:clearCalls', async () => {
-    await mcpHistory.clear();
-    broadcast(windows, 'mcp:changed', 0);
-  });
-  handle('mcp:skill', () => skillMarkdown(mcp.status().url));
-  handle('mcp:installSkill', async (where) => {
-    const text = skillMarkdown(mcp.status().url);
-    if (where === 'claude') {
-      const dir = join(app.getPath('home'), '.claude', 'skills', 'tessera-library');
-      await mkdir(dir, { recursive: true });
-      const file = join(dir, 'SKILL.md');
-      await writeFile(file, text, 'utf8');
-      return { path: file };
-    }
-    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options = { title: 'Save the skill', defaultPath: join(app.getPath('documents'), 'SKILL.md'), filters: [{ name: 'Markdown', extensions: ['md'] }] };
-    const picked = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
-    if (picked.canceled || !picked.filePath) return null;
-    await writeFile(picked.filePath, text, 'utf8');
-    return { path: picked.filePath };
-  });
-
-  handle('pack:addFiles', async (id, paths, into) => {
-    const pack = library.require().queries.pack(id);
-    const done = await library.addFilesToPack(id, paths, into);
-    if (done.added) activity.add('added', `Added ${done.added} file${done.added === 1 ? '' : 's'} to “${pack?.name ?? 'a pack'}”`, done.names.slice(0, 6).join(', '));
-    return done;
-  });
-  handle('pack:folders', (id) => library.packFolders(id));
-  handle('fs:files', async (paths) => {
-    const out: { path: string; name: string; size: number; isFolder: boolean }[] = [];
-    for (const path of paths) {
-      const s = await stat(path).catch(() => null);
-      if (!s) continue;
-      out.push({ path, name: basename(path), size: s.isDirectory() ? 0 : s.size, isFolder: s.isDirectory() });
-    }
-    return out;
-  });
-
-  handle('jobs:list', () => jobs.list());
-
-  handle('collections:list', () => library.collections());
-  handle('collections:create', (name, init) => library.createCollection(name, init));
-  handle('collections:change', (id, change) => library.changeCollection(id, change));
-  handle('collections:holding', (packId, ref) => library.collectionsHolding(packId, ref));
-  handle('favourites:assets', (items, on) => library.favouriteAssets(items, on));
-  handle('favourites:pack', (id, on) => library.favouritePack(id, on));
-  handle('pack:archive', async (id, on) => {
-    if (on) await projects.keepLicences(libraryId(), [id], copySource()).catch((e: unknown) => log.warn('projects', 'could not write a licence into a game', e));
-    return library.archivePack(id, on);
-  });
-
-  handle('projects:list', () => projects.list(libraryId(), libraryNameOf));
-  handle('projects:choose', async () => {
-    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options: Electron.OpenDialogOptions = { title: 'Choose a game project', buttonLabel: 'Choose', properties: ['openDirectory'] };
-    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-    return result.canceled || !result.filePaths[0] ? null : projects.probe(result.filePaths[0]);
-  });
-  handle('projects:probe', (path) => projects.probe(path));
-  handle('projects:add', async (probe) => {
-    const project = await projects.add(probe);
-    if (!settings.get().activeProjectId) await settings.update({ activeProjectId: project.id });
-    projectsChanged();
-    return project;
-  });
-  handle('projects:update', async (id, patch) => {
-    await projects.update(id, patch);
-    projectsChanged();
-  });
-  handle('projects:unlink', async (id) => {
-    await projects.unlink(id);
-    if (settings.get().activeProjectId === id) await settings.update({ activeProjectId: null });
-    projectsChanged();
-  });
-  handle('projects:entries', (id) => projects.entries(id, libraryId(), libraryNameOf));
-  handle('projects:usage', (packIds, refs) => projects.usage(libraryId(), packIds, refs));
-  handle('projects:plan', (id, items) => projects.plan(id, items, copySource()));
-  handle('projects:copy', async (id, items) => {
-    const n = await projects.copy(id, items, copySource());
-    projectsChanged();
-    const project = await projects.get(id).catch(() => null);
-    if (n) activity.add('project', `Copied ${n} asset${n === 1 ? '' : 's'} to ${project?.name ?? 'a project'}`);
-    return n;
-  });
-  handle('projects:remove', async (id, items) => {
-    const n = await projects.remove(id, items, libraryId());
-    projectsChanged();
-    return n;
-  });
-  handle('projects:reveal', async (id, rel) => {
-    const project = await projects.get(id);
-    if (rel && !rel.split('/').includes('..')) shell.showItemInFolder(join(project.path, ...rel.split('/')));
-    else void shell.openPath(project.path);
-  });
-
-  handle('backup:status', () => backups.status());
-  handle('backup:chooseFolder', async () => {
-    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options: Electron.OpenDialogOptions = { title: 'Choose where to keep backups', buttonLabel: 'Choose', properties: ['openDirectory', 'createDirectory'] };
-    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-    return result.canceled ? null : (result.filePaths[0] ?? null);
-  });
-  handle('backup:setup', (target, password, create) => backups.setup(target, password, create));
-  handle('backup:signIn', (provider, client) => rcloneAuth.signIn(providerInfo(provider), (url) => broadcast(windows, 'backup:signInUrl', url), client));
-  handle('backup:cancelSignIn', () => rcloneAuth.cancel());
-  handle('backup:hostKey', (host, port) => hostKeys(host, port));
-  handle('backup:keyNeedsPassphrase', (path) => keyFileNeedsPassphrase(path));
-  handle('backup:generatePassword', () => generatePassword());
-  handle('backup:revealPassword', async () => {
-    // Where the Mac can ask for Touch ID, it does before showing the password.
-    if (platform === 'darwin' && process.env.TESSERA_E2E !== '1' && systemPreferences.canPromptTouchID()) {
-      await systemPreferences.promptTouchID('show your backup password').catch(() => {
-        throw new UserError('not-confirmed', 'The password stays hidden.');
-      });
-    }
-    return backups.password();
-  });
-  handle('backup:changePassword', (next) => backups.changePassword(next));
-  handle('backup:saveKit', async ({ password, target, includeKeys }) => {
-    const state = library.getState();
-    const where = target ?? backups.target();
-    if (!where) throw new UserError('no-backup', 'Backups aren’t set up yet.');
-    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options: Electron.SaveDialogOptions = { title: 'Save the recovery kit', defaultPath: join(app.getPath('documents'), 'Tessera recovery kit.pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] };
-    const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
-    if (result.canceled || !result.filePath) return null;
-    await writeRecoveryKit(result.filePath, { library: state.status === 'ready' ? state.library.name : 'Your library', target: where, password: password ?? (await backups.password()), includeKeys: includeKeys && !!target });
-    return result.filePath;
-  });
-  handle('backup:saveToKeychain', async (password) => {
-    const state = library.getState();
-    const target = backups.target();
-    const account = [state.status === 'ready' ? state.library.name : null, target ? describeTarget(target) : null].filter(Boolean).join(' · ') || 'Tessera';
-    await saveToKeychain(account, password ?? (await backups.password()));
-  });
-  handle('dialog:file', async (title) => {
-    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options: Electron.OpenDialogOptions = { title, message: title, properties: ['openFile', 'showHiddenFiles'] };
-    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-    return result.canceled ? null : (result.filePaths[0] ?? null);
-  });
-  handle('fs:reveal', (path) => shell.showItemInFolder(path));
-  handle('app:openExternal', (url) => {
-    // Only the local sign-in pages rclone serves, and the web.
-    if (/^https?:\/\//.test(url)) void shell.openExternal(url);
-  });
-  handle('backup:now', async () => {
-    const done = await backups.backupNow();
-    activity.add('backup', 'Backed up this library');
-    return done;
-  });
-  handle('backup:join', (libraryId) => backups.join(libraryId));
-  handle('backup:setInterval', (hours) => backups.setInterval(hours));
-  handle('backup:snapshots', () => backups.snapshots());
-  // Libraries this computer knows, to keep a restored copy from sharing an id with its original.
-  const knownLibraries = async () => {
-    const state = library.getState();
-    const known: { id: string; path: string }[] = state.status === 'ready' ? [{ id: state.library.id, path: state.library.path }] : [];
-    for (const { path } of Object.values(settings.get().libraries)) {
-      const kind = await library.inspect(path).catch(() => null);
-      if (kind === 'library') known.push({ id: (await readLibraryInfo(path)).id, path });
-    }
-    return known;
+    windows,
+    settings,
+    library,
+    projects,
+    downloads,
+    thumbs,
+    backups,
+    restorer,
+    rcloneAuth,
+    sync,
+    updates,
+    reports,
+    activity,
+    jobs,
+    mcp,
+    mcpHistory,
+    indexChanged: () => broadcast(windows, 'index:changed', ++indexVersion),
+    librariesChanged,
+    projectsChanged,
+    backupChanged: () => broadcast(windows, 'backup:changed', ++backupVersion),
+    syncChanged: () => broadcast(windows, 'sync:changed', ++syncVersion),
+    libraryId,
+    libraryNameOf,
+    librarySummaries,
+    copySource,
+    openRecord,
+    thumbDir,
+    readDocument,
+    recordPage: (id, what) => {
+      // One at a time, and never in the way of the answer to the window.
+      pageRecords = pageRecords.then(() => recordPage(id, what)).catch((e: unknown) => log.warn('pages', 'could not keep a record of a download page', e));
+    },
+    start,
   };
-  const restoreProgress = (job: JobHandle) => (f: number | null) => {
-    job.update(f, 'Putting the files back');
-    broadcast(windows, 'restore:progress', f);
-  };
-  handle('backup:restore', (id, target, size, name) => jobs.run('Restoring a copy of the library', (job) => backups.restore(id, target, size, name, restoreProgress(job), knownLibraries)));
-  handle('backup:turnOff', () => backups.turnOff());
-
-  handle('restore:places', () => backupPlaces());
-  handle('restore:find', async () => findBackups(await backupPlaces()));
-  handle('restore:storeAt', (path) => storeAt(path));
-  handle('restore:unlock', (target, password) => restorer.unlock(target, password));
-  handle('restore:run', (id, target, size) => jobs.run('Restoring a library', (job) => restorer.restore(id, target, size, restoreProgress(job), knownLibraries)));
-  handle('restore:keepBackingUp', async () => {
-    const opened = restorer.opened;
-    if (!opened) throw new UserError('restore-locked', 'Open the backup first.');
-    await restorer.close();
-    await backups.setup(opened.target, opened.password, false);
-  });
-  handle('restore:close', () => restorer.close());
-
-  handle('sync:status', () => sync.status());
-  handle('sync:enable', (mode) => sync.enable(mode));
-  handle('sync:setMode', (mode) => sync.setMode(mode));
-  handle('sync:setWhileClosed', async (v) => {
-    await sync.setWhileClosed(v);
-    librariesChanged();
-  });
-  handle('sync:disable', () => sync.disable());
-  handle('sync:addDevice', (id, name) => sync.addDevice(id, name));
-  handle('sync:removeDevice', (id) => sync.removeDevice(id));
-  handle('sync:receive', () => sync.startForReceiving());
-  handle('sync:acceptFolder', (folderId, offeredBy, label, path, mode) => sync.acceptFolder(folderId, offeredBy, label, path, mode));
-  handle('sync:folderProgress', (folderId) => sync.folderProgress(folderId));
-  handle('tools:install', async (tool) => {
-    const version = await installTool(tool, dataDir, (url, init) => net.fetch(url, init), (p) => broadcast(windows, 'tools:installProgress', { tool, ...p }));
-    broadcast(windows, tool === 'syncthing' ? 'sync:changed' : 'backup:changed', tool === 'syncthing' ? ++syncVersion : ++backupVersion);
-    return version;
-  });
-  handle('tools:packageManagers', () => ['brew', 'winget', 'apt', 'dnf', 'pacman', 'zypper', 'flatpak', 'snap'].filter((tool) => !!findTool(tool)));
-
-  // Three small CC0 packs by Kenney, shipped with the app for a first look (resources/samples).
-  handle('import:samples', async () => {
-    const dir = app.isPackaged ? join(process.resourcesPath, 'samples') : join(app.getAppPath(), 'resources', 'samples');
-    const files = (await readdir(dir).catch(() => [] as string[])).filter((f) => f.endsWith('.zip')).sort();
-    if (!files.length) throw new UserError('no-samples', 'The sample packs aren’t in this copy of Tessera.');
-    return files.map((f) => join(dir, f));
-  });
-  handle('import:choose', async (what) => {
-    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options: Electron.OpenDialogOptions =
-      what === 'files'
-        ? { title: 'Add packs', buttonLabel: 'Add', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Downloads and assets', extensions: ['*'] }] }
-        : { title: what === 'folder' ? 'Add a folder as one pack' : 'Add a folder of packs', buttonLabel: 'Add', properties: ['openDirectory', 'multiSelections'] };
-    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-    return result.canceled || !result.filePaths.length ? null : result.filePaths;
-  });
-  handle('activity:list', (limit) => activity.list(limit ?? 20));
-  handle('updates:status', () => updates.get());
-  handle('updates:check', () => updates.check());
-  handle('app:document', (name) => readDocument(name));
-  handle('updates:download', () => updates.download());
-  handle('updates:openInstaller', () => {
-    const file = updates.get().installer;
-    if (!file) throw new UserError('no-installer', 'There is no installer to open yet.');
-    shell.showItemInFolder(file);
-  });
-
-  handle('downloads:list', () => downloads.list());
-  handle('downloads:add', (text) => downloads.add(linksIn(text)));
-  handle('downloads:linksIn', (paths) => linksInFiles(paths));
-  handle('downloads:pause', (id) => downloads.pause(id));
-  handle('downloads:again', (id) => downloads.again(id));
-  handle('downloads:remove', (id) => downloads.remove(id));
-  handle('downloads:pauseAll', () => downloads.pauseAll());
-  handle('downloads:resumeAll', () => downloads.resumeAll());
-  handle('downloads:retryFailed', () => downloads.retryFailed());
-  handle('downloads:resume', (id) => downloads.resume(id));
-  handle('downloads:cancel', (id) => downloads.cancel(id));
-  handle('downloads:clear', () => downloads.clear());
-  handle('downloads:files', (ids) => ids.flatMap((id) => {
-    const path = downloads.fileOf(id);
-    const url = downloads.urlOf(id);
-    return path && url ? [{ id, path, url }] : [];
-  }));
-  handle('downloads:done', (ids) => { for (const id of ids) void downloads.done(id, null); });
-
-  handle('import:plan', (paths, eachInside) => library.planImport(paths, eachInside));
-  handle('import:run', async (items, opts) => {
-    const result = await library.import(items, openRecord()?.skipInboxWhenSure ?? true, !!opts?.stage);
-    const added = result.added.filter((a) => a.status === 'library');
-    const waiting = result.added.filter((a) => a.status === 'inbox');
-    if (added.length) activity.add('added', added.length === 1 ? `Added “${added[0]!.name}”` : `Added ${added.length} packs`, added.map((a) => a.name).slice(0, 6).join(', '));
-    if (waiting.length && !opts?.stage) activity.add('added', waiting.length === 1 ? `“${waiting[0]!.name}” is waiting in Review` : `${waiting.length} packs are waiting in Review`);
-    return result;
-  });
-  handle('thumbs:get', (keys) => thumbs.get(keys.slice(0, 500)));
-
-  handle('reports:capture', (input) => void reports.record({ ...input, source: 'window' }));
-  handle('reports:status', () => reports.status());
-  handle('reports:pending', () => reports.pending());
-  handle('reports:preview', () => reports.preview());
-  handle('reports:respond', (answer) => reports.respond(answer));
-  handle('reports:crashes', (send) => reports.answerCrashes(send));
-  handle('reports:problem', (note) => reports.problemReport(note));
-  handle('reports:saveProblem', async (note) => {
-    const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options: Electron.SaveDialogOptions = { title: 'Save problem report', defaultPath: join(app.getPath('desktop'), `tessera-report-${new Date().toISOString().slice(0, 10)}.txt`), filters: [{ name: 'Text', extensions: ['txt'] }] };
-    const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
-    if (result.canceled || !result.filePath) return null;
-    await writeFile(result.filePath, await reports.problemReport(note));
-    return result.filePath;
-  });
-  handle('reports:sendProblem', (note) => reports.sendProblem(note));
 }
 
 async function createWindow(): Promise<void> {
