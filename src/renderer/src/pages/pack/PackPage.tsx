@@ -292,11 +292,12 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
           { label: copyLabel, icon: LinkToGameIcon, primary: true, onClick: (anchor) => setCopying(anchor) },
           { label: 'Add to collection', icon: CollectionIcon, onClick: (anchor) => setCollecting(anchor) },
           { label: 'Add files', icon: AddRounded, onClick: () => void addToThisPack(id) },
-          { label: 'Edit details', icon: EditOutlined, onClick: () => setEditing(true) },
-          { label: pack.meta.archived ? 'Bring it back' : 'Archive', icon: pack.meta.archived ? UnarchiveOutlined : ArchiveOutlined, onClick: () => void archivePack(id, !pack.meta.archived) },
+          { label: 'Edit details', icon: EditOutlined, manage: true, onClick: () => setEditing(true) },
+          { label: pack.meta.archived ? 'Bring it back' : 'Archive', icon: pack.meta.archived ? UnarchiveOutlined : ArchiveOutlined, manage: true, onClick: () => void archivePack(id, !pack.meta.archived) },
           {
             label: 'Delete',
             icon: DeleteOutlined,
+            manage: true,
             danger: true,
             onClick: async () => {
               if (await removePacks([id], pack.name)) go({ to: 'browse' });

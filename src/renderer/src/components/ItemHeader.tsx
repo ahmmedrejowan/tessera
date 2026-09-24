@@ -17,6 +17,8 @@ export interface ItemAction {
   onClick: (anchor: HTMLElement) => void;
   /** The one thing this header is for, drawn as a filled button at the top. */
   primary?: boolean;
+  /** Looking after the thing itself rather than using it: its own column, on the right. */
+  manage?: boolean;
   danger?: boolean;
   hidden?: boolean;
 }
@@ -59,6 +61,41 @@ function Belongs({ icon: Icon, names, total, word, empty, onOpen }: { icon: Comp
   );
 }
 
+/** One column of things to do, in the order they were given. */
+function Column({ actions, width }: { actions: ItemAction[]; width: number }) {
+  return (
+    <div style={{ width, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {actions.map((a) => {
+        const Icon = a.icon;
+        return (
+          <ButtonBase
+            key={a.label}
+            onClick={(e) => a.onClick(e.currentTarget)}
+            sx={{
+              justifyContent: a.primary ? 'center' : 'flex-start',
+              gap: 1.25,
+              height: a.primary ? 36 : 28,
+              px: a.primary ? 1.5 : 1,
+              mb: a.primary ? 0.5 : 0,
+              borderRadius: `${SHAPE.sm}px`,
+              backgroundColor: a.primary ? md('primary') : 'transparent',
+              color: a.primary ? md('onPrimary') : a.danger ? md('error') : md('onSurfaceVariant'),
+              '&:hover': { backgroundColor: a.primary ? md('primary') : md('surfaceContainerHigh') },
+              '&:hover .over': { opacity: a.primary ? STATE.hover : 0 },
+            }}
+          >
+            {a.primary ? null : <Icon sx={{ fontSize: 18 }} />}
+            <Typography variant="labelLarge" noWrap sx={{ fontWeight: a.primary ? 600 : 500 }}>
+              {a.label}
+            </Typography>
+            <span className="over" style={{ position: 'absolute', inset: 0, background: md('onPrimary'), opacity: 0, borderRadius: SHAPE.sm }} />
+          </ButtonBase>
+        );
+      })}
+    </div>
+  );
+}
+
 /**
  * The head of a pack or an asset: what it looks like, what it is, what it belongs to, and the
  * handful of things to do with it. The actions on the right set the height and the preview on the
@@ -90,6 +127,7 @@ export function ItemHeader({
   collections: { names: string[]; total: number; onOpen: () => void };
   actions: ItemAction[];
 }) {
+  const shown = actions.filter((a) => !a.hidden);
   return (
     <header style={{ display: 'flex', gap: 16, padding: '16px 32px 12px', alignItems: 'flex-start' }}>
       {onBack && (
@@ -116,36 +154,10 @@ export function ItemHeader({
         <Belongs icon={CollectionIcon} names={collections.names} total={collections.total} word="collection" empty="In no collection" onOpen={collections.onOpen} />
       </div>
 
-      <div style={{ width: 190, flexShrink: 0, borderLeft: `1px solid ${md('outlineVariant')}`, paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {actions
-          .filter((a) => !a.hidden)
-          .map((a) => {
-            const Icon = a.icon;
-            return (
-              <ButtonBase
-                key={a.label}
-                onClick={(e) => a.onClick(e.currentTarget)}
-                sx={{
-                  justifyContent: a.primary ? 'center' : 'flex-start',
-                  gap: 1.25,
-                  height: a.primary ? 36 : 28,
-                  px: a.primary ? 1.5 : 1,
-                  mb: a.primary ? 0.5 : 0,
-                  borderRadius: `${SHAPE.sm}px`,
-                  backgroundColor: a.primary ? md('primary') : 'transparent',
-                  color: a.primary ? md('onPrimary') : a.danger ? md('error') : md('onSurfaceVariant'),
-                  '&:hover': { backgroundColor: a.primary ? md('primary') : md('surfaceContainerHigh') },
-                  '&:hover .over': { opacity: a.primary ? STATE.hover : 0 },
-                }}
-              >
-                {a.primary ? null : <Icon sx={{ fontSize: 18 }} />}
-                <Typography variant="labelLarge" noWrap sx={{ fontWeight: a.primary ? 600 : 500 }}>
-                  {a.label}
-                </Typography>
-                <span className="over" style={{ position: 'absolute', inset: 0, background: md('onPrimary'), opacity: 0, borderRadius: SHAPE.sm }} />
-              </ButtonBase>
-            );
-          })}
+      {/* Doing things with it on the left, looking after it on the right. */}
+      <div style={{ flexShrink: 0, borderLeft: `1px solid ${md('outlineVariant')}`, paddingLeft: 16, display: 'flex', gap: 12 }}>
+        <Column actions={shown.filter((a) => !a.manage)} width={186} />
+        {shown.some((a) => a.manage) && <Column actions={shown.filter((a) => a.manage)} width={126} />}
       </div>
     </header>
   );
