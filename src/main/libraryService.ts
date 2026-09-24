@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { watch, type FSWatcher } from 'node:fs';
+import { readdirSync, watch, type Dirent, type FSWatcher } from 'node:fs';
 import { copyFile, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { isIgnored } from '@shared/assets';
@@ -50,6 +50,8 @@ export class LibraryService {
   private state: LibraryState = { status: 'none' };
   private current: Open | null = null;
   private watcher: FSWatcher | null = null;
+  /** Where a whole tree cannot be watched at once, one watcher per folder instead. */
+  private watchers: FSWatcher[] = [];
   private syncing: Promise<void> | null = null;
   private syncAgain = false;
   private watchTimer: NodeJS.Timeout | null = null;
@@ -114,6 +116,7 @@ export class LibraryService {
   close(): void {
     this.watcher?.close();
     this.watcher = null;
+    for (const w of this.watchers.splice(0)) w.close();
     this.current?.index.close();
     this.current = null;
     if (this.state.status !== 'none') this.setState({ status: 'none' });
@@ -150,6 +153,8 @@ export class LibraryService {
         job.done(result.changed || result.removed ? `${result.changed} changed, ${result.removed} removed` : 'Up to date');
         if (this.state.status === 'ready') this.setState({ ...this.state, problems: result.problems });
         if (result.changed || result.removed || collectionsChanged) this.d.onIndexChanged();
+        // Where each folder is watched on its own, a pack that has just appeared needs watching too.
+        if (this.watchers.length && (result.changed || result.removed)) this.startWatching(lib.root);
       } catch (e) {
         job.fail(e);
       } finally {
@@ -173,17 +178,43 @@ export class LibraryService {
     this.d.onIndexChanged();
   }
 
+  /**
+   * Notice files changing under the library. macOS and Windows can watch a whole tree at once;
+   * Linux cannot, so there each pack folder is watched, and the packs folder itself, which is
+   * where a new pack appears. Either way the answer is the same: read the library again, once the
+   * changes have stopped coming.
+   */
   private startWatching(root: string): void {
-    try {
-      this.watcher = watch(root, { recursive: true }, () => {
-        if (this.watchTimer) clearTimeout(this.watchTimer);
-        this.watchTimer = setTimeout(() => (this.busyWriting ? undefined : void this.sync()), 1500);
-      });
-      this.watcher.on('error', (e) => log.warn('library', 'folder watching stopped', e));
-    } catch (e) {
-      // Without watching, changes made outside the app show up on the next open or manual refresh.
-      log.warn('library', 'could not watch the library folder', e);
+    const soon = () => {
+      if (this.watchTimer) clearTimeout(this.watchTimer);
+      this.watchTimer = setTimeout(() => (this.busyWriting ? undefined : void this.sync()), 1500);
+    };
+    const watchOne = (dir: string, recursive: boolean): FSWatcher | null => {
+      try {
+        const w = watch(dir, { recursive }, soon);
+        w.on('error', (e) => log.warn('library', `watching ${dir} stopped`, e));
+        return w;
+      } catch (e) {
+        log.info('library', `could not watch ${dir}`, e);
+        return null;
+      }
+    };
+    for (const w of this.watchers.splice(0)) w.close();
+    const whole = this.watcher ?? (process.platform === 'linux' ? null : watchOne(root, true));
+    if (whole) {
+      this.watcher = whole;
+      return;
     }
+    // One watcher for the library, one for the packs folder, and one for each pack in it.
+    const dirs = [root, join(root, DIRS.packs), join(root, DIRS.collections)];
+    let packs: Dirent[] = [];
+    try {
+      packs = readdirSync(join(root, DIRS.packs), { withFileTypes: true });
+    } catch {
+      // A library with no packs folder yet: the watcher on the library itself will see it appear.
+    }
+    for (const entry of packs) if (entry.isDirectory()) dirs.push(join(root, DIRS.packs, entry.name));
+    this.watchers = dirs.map((d) => watchOne(d, false)).filter((w): w is FSWatcher => !!w);
   }
 
   /** A pack's record as it is on disk now. */

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { callTool, running, PIXEL, type Running } from './library';
+import { callTool, running, PIXEL, type PackFixture, type Running } from './library';
 import { tempDir } from './helpers';
 
 /**
@@ -9,7 +9,7 @@ import { tempDir } from './helpers';
  * about behaviour: an agent asks, the library changes, and the next question sees the change.
  */
 
-const PACKS = [
+const PACKS: PackFixture[] = [
   { name: 'Mini Arcade', files: { 'Models/arcade.obj': 'o arcade\nv 0 0 0\n', 'Models/pinball.obj': 'o pinball\nv 1 0 0\n', 'Textures/wood.png': PIXEL } },
   { name: 'Rocks', files: { 'rock_a.obj': 'o rock\n', 'rock_b.obj': 'o rock\n' }, licence: null, source: null },
 ];

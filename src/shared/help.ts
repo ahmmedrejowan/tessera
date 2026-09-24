@@ -287,6 +287,47 @@ export const HELP: HelpTopic[] = [
     ],
   },
   {
+    id: 'keeping',
+    title: 'Starred, archived, deleted',
+    summary: 'Keeping what matters to hand, and what happens when you delete something',
+    icon: 'organise',
+    questions: [
+      {
+        id: 'star',
+        q: 'What does starring do?',
+        a: [
+          'A star marks something worth coming back to. Starred packs and files come first in every sort, Home keeps a row of them, and they gather in the Favourites collection.',
+          'Star a pack from its page, from the three dots on its card, or by pressing the star on a tile.',
+        ],
+      },
+      {
+        id: 'archive',
+        q: 'What is the archive for?',
+        a: [
+          'A pack you want to keep but not see. Archiving takes it out of browsing and search while keeping every file exactly where it was, and games that already use it are unaffected.',
+          'The Archive in the sidebar lists what is in there, and one press brings a pack back.',
+        ],
+      },
+      {
+        id: 'bin',
+        q: 'Where do deleted things go?',
+        a: [
+          'To the library’s own bin, a folder inside the library. Nothing is deleted from your disk when you press Delete: it waits in the bin until you empty it, or until the time you set in Settings runs out.',
+          'Putting something back returns it to the exact pack and folder it came from. If something else has taken that name in the meantime, the one coming back is numbered rather than overwriting it.',
+          'Emptying the bin is the one thing that cannot be undone, and only you can do it: no agent tool can, unless you switch that group on yourself.',
+        ],
+      },
+      {
+        id: 'add-to-pack',
+        q: 'Can I add a file to a pack I already have?',
+        a: [
+          'Yes. Open the pack and press Add files, or drag the files onto its page. You choose where inside the pack they go: the top, a folder it already has, or a new one.',
+          'If they came under different terms from the rest of the pack, say so on that page and a rule is written for exactly those files.',
+        ],
+      },
+    ],
+  },
+  {
     id: 'agents',
     title: 'AI agents',
     summary: 'Letting an agent work in the library, and choosing what it may do',

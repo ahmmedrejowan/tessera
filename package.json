@@ -3,7 +3,7 @@
   "productName": "Tessera",
   "version": "0.1.0",
   "description": "A desktop library for game assets: every pack in one place, with its licence and source on record.",
-  "author": "K M Rejowan Ahmmed <kmrejowan@gmail.com>",
+  "author": "K M Rejowan Ahmmed <hello@rejowan.com>",
   "license": "GPL-3.0-or-later",
   "private": true,
   "type": "module",
@@ -157,7 +157,7 @@
       ],
       "category": "Development",
       "icon": "build/icon.png",
-      "maintainer": "K M Rejowan Ahmmed <kmrejowan@gmail.com>"
+      "maintainer": "K M Rejowan Ahmmed <hello@rejowan.com>"
     },
     "npmRebuild": false
   }

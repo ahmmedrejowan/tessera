@@ -34,15 +34,25 @@
 - **Backups and sync** - encrypted backups with Kopia, sync between your own computers with Syncthing, both optional
 - **Yours, offline** - no accounts, no telemetry, no analytics. Your library is ordinary folders you can open at any time
 
+![The first screen](docs/images/01-welcome.png)
+
 ---
 
 ## Download
 
 ![GitHub Release](https://img.shields.io/github/v/release/ahmmedrejowan/tessera)
+[![Downloads](https://img.shields.io/github/downloads/ahmmedrejowan/tessera/total.svg)](https://github.com/ahmmedrejowan/tessera/releases)
 
-Installers for macOS, Windows and Linux are on the
-[releases page](https://github.com/ahmmedrejowan/tessera/releases/latest). Take the one that
-matches your computer (`arm64` for Apple Silicon, `x64` for Intel).
+| Your computer | Download |
+|---------------|----------|
+| macOS, Apple Silicon (M1 and newer) | [Tessera-arm64.dmg](https://github.com/ahmmedrejowan/tessera/releases/latest) |
+| macOS, Intel | [Tessera-x64.dmg](https://github.com/ahmmedrejowan/tessera/releases/latest) |
+| Windows 10 and 11 | [Tessera-Setup.exe](https://github.com/ahmmedrejowan/tessera/releases/latest) |
+| Linux, portable | [Tessera.AppImage](https://github.com/ahmmedrejowan/tessera/releases/latest) |
+| Debian and Ubuntu | [tessera.deb](https://github.com/ahmmedrejowan/tessera/releases/latest) |
+
+Every file, with its checksum and what changed, is on the
+[releases page](https://github.com/ahmmedrejowan/tessera/releases/latest).
 
 These builds are not signed with a paid certificate, so each system asks once:
 
@@ -72,10 +82,24 @@ Every release lists the SHA256 of each file, so you can check a download is the 
 
 ---
 
-## Guide
+## Using it
 
-A [step by step guide](docs/guide.md), with pictures, and the
-[questions people ask](docs/faq.md). The same thing is in the app, under Help.
+1. **Make a library.** The first screen asks where it should live. It is an ordinary folder: your
+   packs go in `packs/`, one folder each, exactly as they were downloaded.
+2. **Put something in it.** Drag a zip or a folder onto the window, use the + button, or paste a
+   link into Downloads. Tessera reads the pack, including inside archives, and fills in what it can.
+3. **Answer the licence question.** A pack with no licence or no source waits in Review until it
+   has both. That is the whole point: it can never leave for a game unaccounted for.
+4. **Find things.** Search across packs, files and tags, or narrow by kind, format, creator,
+   licence, style. Double-click anything to see it properly.
+5. **Gather.** A collection holds packs and files for one game, and can refuse anything that does
+   not fit its rules.
+6. **Link it into a game.** Tell Tessera where the game folder is; it copies the assets in, in the
+   format that engine prefers, with a licence file beside them and CREDITS.md kept up to date.
+
+Then, when you want it: [the step by step guide](docs/guide.md) with pictures, the
+[questions people ask](docs/faq.md), and the [wiki](https://github.com/ahmmedrejowan/tessera/wiki).
+The same words are in the app, under Help.
 
 ---
 

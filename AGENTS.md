@@ -116,4 +116,7 @@ it came from.
 
 ## Docs
 
-Longer documentation and user instructions will live in `docs/`.
+`docs/guide.md` is the step by step guide and `docs/faq.md` the questions people ask, both with
+pictures in `docs/images/` made by `scripts/guide-shots.mjs`. The same words are in the app, under
+Help, in `src/shared/help.ts`. Working notes (decisions, the session log, plans) stay out of the
+repository.
