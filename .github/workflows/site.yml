@@ -1,0 +1,49 @@
+name: Tell the website
+
+# The website reads this repository: the releases, the guide, the questions, the changelog and the
+# privacy notice. It keeps what it read for an hour, which is fine for a quiet day and far too slow
+# for the hour a release goes out. This asks it to look again, straight away.
+#
+# It needs one secret, SITE_REVALIDATE_TOKEN, matching REVALIDATE_TOKEN in the website's hosting.
+# Without it this does nothing at all, which is what should happen in a fork.
+
+on:
+  release:
+    types: [published, edited, deleted]
+  push:
+    branches: [main]
+    paths:
+      - docs/guide.md
+      - docs/faq.md
+      - CHANGELOG.md
+      - PRIVACY.md
+  workflow_dispatch:
+
+concurrency:
+  group: tell-the-website
+  cancel-in-progress: true
+
+jobs:
+  tell:
+    name: Ask the website to look again
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask
+        env:
+          TOKEN: ${{ secrets.SITE_REVALIDATE_TOKEN }}
+          SITE: https://tessera.rejowan.com
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${TOKEN:-}" ]; then
+            echo "No SITE_REVALIDATE_TOKEN is set, so there is nothing to tell. The site will"
+            echo "notice within the hour by itself."
+            exit 0
+          fi
+          # The token goes in a header, never on the command line, and the answer says which pages
+          # were refreshed.
+          code=$(curl -sS -o response.json -w '%{http_code}' -X POST "$SITE/api/revalidate" \
+            -H "Authorization: Bearer $TOKEN" --retry 3 --retry-delay 5 --max-time 60)
+          cat response.json
+          echo
+          [ "$code" = "200" ]

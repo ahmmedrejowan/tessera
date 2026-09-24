@@ -9,8 +9,16 @@ export async function run(ok) {
     // Adding nine hundred files leaves the app busy for a moment, and a busy window is a window
     // that cannot be clicked. Wait for it to be quiet rather than racing it.
     await settled(t);
-    await t.page.locator('nav').getByText('Browse', { exact: true }).click({ timeout: 60_000 });
-    await t.page.waitForTimeout(1500);
+
+    // Playwright will not click until an element has held still for two drawn frames, and a
+    // window on a headless display can go a long time without drawing one. The check that matters
+    // is that the rail's Browse is really there and really visible, which is made first; the click
+    // itself is then sent without waiting for the compositor.
+    const browse = t.page.locator('nav').getByText('Browse', { exact: true });
+    await browse.waitFor({ state: 'visible', timeout: 60_000 });
+    await browse.click({ force: true, timeout: 30_000 });
+    // It worked if the window moved: the grid belongs to Browse and to nothing else.
+    await t.page.locator('[role="listbox"], [role="option"]').first().waitFor({ state: 'visible', timeout: 60_000 });
 
     const found = await t.call('browse:assets', { scope: 'library', text: 'arcade', filters: {} }, 'relevance', 0, 20);
     ok('search finds files by a word in their path', found.total > 0, `${found.total} files`);
