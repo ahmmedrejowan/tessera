@@ -44,7 +44,7 @@ export function DeviceId({ id }: { id: string }) {
         {id}
       </Typography>
       <Tooltip title="Copy">
-        <IconButton size="small" onClick={() => void navigator.clipboard.writeText(id).then(() => notify.success('Device ID copied.'))}>
+        <IconButton aria-label="Copy" size="small" onClick={() => void navigator.clipboard.writeText(id).then(() => notify.success('Device ID copied.'))}>
           <ContentCopyOutlined fontSize="small" />
         </IconButton>
       </Tooltip>

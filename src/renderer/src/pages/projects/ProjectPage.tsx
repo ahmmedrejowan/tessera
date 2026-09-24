@@ -202,12 +202,12 @@ export function ProjectPage({ id }: { id: string }) {
                   </Typography>
                   <LicenceChip id={first.licence} />
                   <Tooltip title={here ? 'Copy again, picking up changes' : ''}>
-                    <IconButton size="small" disabled={!here} sx={{ visibility: here ? 'visible' : 'hidden' }} onClick={() => void copyToProject(project, list.map((e) => ({ packId: e.packId, ref: e.ref })))}>
+                    <IconButton aria-label="Copy again" size="small" disabled={!here} sx={{ visibility: here ? 'visible' : 'hidden' }} onClick={() => void copyToProject(project, list.map((e) => ({ packId: e.packId, ref: e.ref })))}>
                       <RefreshOutlined fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Remove this pack’s assets from the project">
-                    <IconButton size="small" onClick={() => void remove(list)}>
+                    <IconButton aria-label="Take this pack out of the game" size="small" onClick={() => void remove(list)}>
                       <DeleteOutlined fontSize="small" />
                     </IconButton>
                   </Tooltip>

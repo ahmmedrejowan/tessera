@@ -77,7 +77,7 @@ export function SiteRules() {
             />
             <TextField size="small" defaultValue={r.creator ?? ''} onBlur={(e) => e.target.value.trim() !== (r.creator ?? '') && patch(r.host, { creator: e.target.value.trim() || null })} placeholder="Creator (optional)" />
             <Tooltip title={`Forget ${r.host}`}>
-              <IconButton onClick={() => save(rules.filter((x) => x.host !== r.host))}>
+              <IconButton aria-label="Forget this site" onClick={() => save(rules.filter((x) => x.host !== r.host))}>
                 <DeleteOutlineRounded />
               </IconButton>
             </Tooltip>

@@ -90,7 +90,7 @@ export function CommandLine({ command, found }: { command: string; found?: boole
       <code style={{ flex: 1, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 13, userSelect: 'text', overflowWrap: 'anywhere' }}>{command}</code>
       {found && <span style={{ fontSize: 11, padding: '1px 8px', borderRadius: SHAPE.full, background: md('inversePrimary'), color: md('onPrimaryContainer'), whiteSpace: 'nowrap' }}>on this computer</span>}
       <Tooltip title={copied ? 'Copied' : 'Copy'}>
-        <IconButton size="small" sx={{ color: 'inherit' }} onClick={() => void navigator.clipboard.writeText(command).then(() => setCopied(true))}>
+        <IconButton aria-label="Copy" size="small" sx={{ color: 'inherit' }} onClick={() => void navigator.clipboard.writeText(command).then(() => setCopied(true))}>
           <ContentCopyRounded fontSize="small" />
         </IconButton>
       </Tooltip>

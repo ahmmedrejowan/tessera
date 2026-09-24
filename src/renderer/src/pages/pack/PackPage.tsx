@@ -417,7 +417,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
                     {pack.meta.licence.attribution}
                   </Typography>
                   <Tooltip title="Copy credit line">
-                    <IconButton size="small" onClick={() => void navigator.clipboard.writeText(pack.meta.licence.attribution ?? '')}>
+                    <IconButton aria-label="Copy the credit line" size="small" onClick={() => void navigator.clipboard.writeText(pack.meta.licence.attribution ?? '')}>
                       <ContentCopyOutlined fontSize="small" />
                     </IconButton>
                   </Tooltip>

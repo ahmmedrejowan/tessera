@@ -161,7 +161,7 @@ export function PackParts({ id, meta, files }: { id: string; meta: PackMeta; fil
                 Edit
               </Button>
               <Tooltip title="Remove this rule">
-                <IconButton size="small" onClick={() => void save(rules.filter((x) => x.path !== r.path))}>
+                <IconButton aria-label="Remove this rule" size="small" onClick={() => void save(rules.filter((x) => x.path !== r.path))}>
                   <DeleteOutlineRounded fontSize="small" />
                 </IconButton>
               </Tooltip>

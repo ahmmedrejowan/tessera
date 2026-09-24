@@ -15,7 +15,7 @@ import Select from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useRef, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { assetPath, TYPE_LABELS } from '@shared/assets';
 import { licenceForPath } from '@shared/pack';
 import type { AssetRow } from '@shared/query';
@@ -144,6 +144,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
   const version = useIndexVersion();
   const dark = useIsDark();
   const go = useNav((s) => s.go);
+  const surface = useRef<HTMLDivElement>(null);
   const [infoOpen, setInfoOpen] = useState(() => localStorage.getItem('tessera.viewer.info') !== '0');
   const [fileId, setFileId] = useState(asset.id);
   const [command, setCommand] = useState<{ kind: 'fit' | 'actual'; n: number }>();
@@ -184,6 +185,9 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      // A menu or a dialog opened from inside the viewer takes the keyboard first: Escape should
+      // close the thing you just opened, not the whole viewer behind it.
+      if (document.querySelector('.MuiModal-root, .MuiPopover-root')) return;
       if (e.key === 'Escape' || e.key === ' ') {
         e.preventDefault();
         onClose();
@@ -208,6 +212,14 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [onClose, onPrev, onNext, asset]);
+
+  // The viewer covers the window, so the keyboard should be in it, and should go back where it
+  // came from when it closes.
+  useEffect(() => {
+    const before = document.activeElement as HTMLElement | null;
+    surface.current?.focus();
+    return () => before?.focus?.();
+  }, []);
 
   useEffect(() => {
     try {
@@ -269,7 +281,10 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
 
   return (
     <div
+      ref={surface}
+      tabIndex={-1}
       role="dialog"
+      aria-modal="true"
       aria-label={`Preview of ${asset.name}`}
       style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', flexDirection: 'column', background: md('surfaceContainerLowest'), animation: 'viewer-in 140ms ease-out', WebkitAppRegion: 'no-drag' } as CSSProperties}
     >
@@ -432,7 +447,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
                       <span style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                         <span style={{ flex: 1 }}>{part.attribution}</span>
                         <Tooltip title="Copy the credit line">
-                          <IconButton size="small" onClick={() => void navigator.clipboard.writeText(part.attribution ?? '')}>
+                          <IconButton aria-label="Copy the credit line" size="small" onClick={() => void navigator.clipboard.writeText(part.attribution ?? '')}>
                             <ContentCopyOutlined fontSize="small" />
                           </IconButton>
                         </Tooltip>

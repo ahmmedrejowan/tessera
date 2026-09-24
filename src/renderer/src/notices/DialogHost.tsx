@@ -34,7 +34,7 @@ function Details({ text }: { text: string }) {
         <div style={{ position: 'relative', marginTop: 4, borderRadius: SHAPE.md, background: md('surfaceContainerHighest') }}>
           <pre style={{ margin: 0, padding: '12px 44px 12px 14px', maxHeight: 200, overflow: 'auto', font: '12px/1.5 ui-monospace, Menlo, Consolas, monospace', color: md('onSurface'), whiteSpace: 'pre-wrap', wordBreak: 'break-word', userSelect: 'text' }}>{text}</pre>
           <Tooltip title={copied ? 'Copied' : 'Copy'}>
-            <IconButton size="small" onClick={() => void navigator.clipboard.writeText(text).then(() => setCopied(true))} sx={{ position: 'absolute', top: 6, right: 6 }}>
+            <IconButton aria-label="Copy" size="small" onClick={() => void navigator.clipboard.writeText(text).then(() => setCopied(true))} sx={{ position: 'absolute', top: 6, right: 6 }}>
               <ContentCopyRounded fontSize="small" />
             </IconButton>
           </Tooltip>

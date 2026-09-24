@@ -224,7 +224,7 @@ export function ModelView({ url, ext, textures, dark, onStats }: { url: string; 
           }}
         >
           <Tooltip title={playing ? 'Pause' : 'Play'}>
-            <IconButton size="small" onClick={() => setPlaying(!playing)}>
+            <IconButton aria-label="Play or pause" size="small" onClick={() => setPlaying(!playing)}>
               {playing ? <Pause fontSize="small" /> : <PlayArrow fontSize="small" />}
             </IconButton>
           </Tooltip>

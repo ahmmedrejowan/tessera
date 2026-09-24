@@ -125,7 +125,7 @@ export function AudioView({ url, onInfo }: { url: string; onInfo?: (i: AudioInfo
           {playing ? <Pause /> : <PlayArrow />}
         </IconButton>
         <Tooltip title={loop ? 'Stop looping' : 'Loop'}>
-          <IconButton onClick={() => setLoop(!loop)} aria-pressed={loop} sx={loop ? { color: md('primary') } : {}}>
+          <IconButton aria-label="Loop" onClick={() => setLoop(!loop)} aria-pressed={loop} sx={loop ? { color: md('primary') } : {}}>
             <Repeat />
           </IconButton>
         </Tooltip>
