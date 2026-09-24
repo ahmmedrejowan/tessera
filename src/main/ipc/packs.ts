@@ -5,7 +5,7 @@
  * given to it; nothing in this file reaches for a service of its own.
  */
 import { BrowserWindow, app, dialog, shell } from 'electron';
-import { join } from 'node:path';
+import { join, relative, resolve, isAbsolute } from 'node:path';
 import { packFileUrl } from '@shared/urls';
 import { parseRef } from '../index/files';
 import { UserError, handle } from '../ipc';
@@ -13,6 +13,18 @@ import { log } from '../log';
 import type { IpcContext } from './context';
 
 type Deps = Pick<IpcContext, 'activity' | 'copySource' | 'library' | 'libraryId' | 'projects' | 'recordPage' | 'windows'>;
+
+/**
+ * Where a file of a pack actually is. Every ref the window sends comes from the index, so it is
+ * always inside the pack already; this is here so that it stays true if one ever does not, because
+ * the two channels below hand a path to the desktop, and the desktop does not ask questions.
+ */
+function withinPack(dir: string, rel: string): string {
+  const path = resolve(dir, ...rel.split('/'));
+  const step = relative(dir, path);
+  if (!step || step.startsWith('..') || isAbsolute(step)) throw new UserError('not-in-pack', 'That file is not in the pack.');
+  return path;
+}
 
 export function registerPackIpc(c: Deps): void {
   const { activity, copySource, library, libraryId, projects, recordPage, windows } = c;
@@ -82,13 +94,13 @@ export function registerPackIpc(c: Deps): void {
     const pack = await library.packRecord(id);
     // A file inside an archive can't be shown; the archive holding it can.
     const onDisk = ref ? parseRef(ref).file : null;
-    shell.showItemInFolder(onDisk ? join(pack.dir, ...onDisk.split('/')) : join(pack.dir, 'pack.json'));
+    shell.showItemInFolder(onDisk ? withinPack(pack.dir, onDisk) : join(pack.dir, 'pack.json'));
   });
 
   handle('pack:open', async (id, ref) => {
     const pack = await library.packRecord(id);
     const { file, inside } = parseRef(ref);
-    const onDisk = join(pack.dir, ...file.split('/'));
+    const onDisk = withinPack(pack.dir, file);
     // A file inside an archive can't be handed to another app; show the archive instead.
     if (inside.length) {
       shell.showItemInFolder(onDisk);

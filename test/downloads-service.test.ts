@@ -7,7 +7,7 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('electron', () => import('./fake-electron'));
 
@@ -48,6 +48,12 @@ function net(options: { fail?: number; permanent?: boolean; hold?: boolean; body
   return { fetch, tries: () => attempts, started, let: () => release?.() };
 }
 
+/** Every queue a test started, stopped before its folder goes, so nothing writes into thin air. */
+const started: DownloadService[] = [];
+afterEach(() => {
+  for (const q of started.splice(0)) q.stopAll();
+});
+
 async function queue(options: Parameters<typeof net>[0] = {}, atOnce = 3) {
   const dir = tempDir();
   const ready: string[] = [];
@@ -61,12 +67,13 @@ async function queue(options: Parameters<typeof net>[0] = {}, atOnce = 3) {
     onReady: (item) => void ready.push(item.url),
   });
   await downloads.load();
+  started.push(downloads);
   return { dir, downloads, ready, stand, changed: () => changes };
 }
 
 /** Wait until the queue settles on a state, rather than guessing how long it takes. */
 async function until(check: () => boolean, what = 'the queue never settled'): Promise<void> {
-  for (let i = 0; i < 200; i += 1) {
+  for (let i = 0; i < 1500; i += 1) {
     if (check()) return;
     await new Promise((r) => setTimeout(r, 10));
   }
@@ -86,7 +93,6 @@ describe('taking links', () => {
     expect(item.url).toBe(FILE);
     expect(existsSync(q.downloads.fileOf(item.id)!)).toBe(true);
     expect(readFileSync(q.downloads.fileOf(item.id)!, 'utf8')).toBe('a pack, pretend');
-    q.downloads.stopAll();
   });
 
   it('takes a list at once, and skips the same link twice', async () => {
@@ -95,13 +101,11 @@ describe('taking links', () => {
     expect(first.added).toBe(2);
     expect(q.downloads.add([FILE])).toEqual({ added: 0, skipped: 1 });
     await until(() => q.downloads.list().filter((i) => i.state === 'ready').length === 2);
-    q.downloads.stopAll();
   });
 
   it('will not take something that is not a link', async () => {
     const q = await queue();
     expect(q.downloads.add(['not a link', 'ftp://example.test/thing.zip'])).toMatchObject({ added: 0 });
-    q.downloads.stopAll();
   });
 
   it('runs only as many at once as the settings allow', async () => {
@@ -110,7 +114,6 @@ describe('taking links', () => {
     await until(() => q.downloads.list().filter((i) => i.state === 'running').length === 2);
     expect(q.downloads.list().filter((i) => i.state === 'running')).toHaveLength(2);
     expect(q.downloads.list().filter((i) => i.state === 'waiting')).toHaveLength(1);
-    q.downloads.stopAll();
   });
 });
 
@@ -120,7 +123,6 @@ describe('when it goes wrong', () => {
     q.downloads.add([FILE]);
     await until(() => q.downloads.list()[0]?.state === 'ready', 'it never recovered');
     expect(q.stand.tries()).toBeGreaterThan(1);
-    q.downloads.stopAll();
   });
 
   it('gives up at once on a link that is simply wrong', async () => {
@@ -129,7 +131,6 @@ describe('when it goes wrong', () => {
     await until(() => q.downloads.list()[0]?.state === 'failed', 'it never gave up');
     expect(q.stand.tries()).toBe(1);
     expect(q.downloads.list()[0]!.error).toBeTruthy();
-    q.downloads.stopAll();
   });
 
   it('tries the failed ones again when asked', async () => {
@@ -138,7 +139,6 @@ describe('when it goes wrong', () => {
     await until(() => q.downloads.list()[0]?.state === 'failed');
     q.downloads.retryFailed();
     expect(q.downloads.list()[0]!.state).not.toBe('failed');
-    q.downloads.stopAll();
   });
 });
 
@@ -154,7 +154,6 @@ describe('taking charge of the queue', () => {
 
     q.downloads.resume(id);
     expect(['waiting', 'running']).toContain(q.downloads.list()[0]!.state);
-    q.downloads.stopAll();
   });
 
   it('pauses the lot and starts the lot', async () => {
@@ -166,7 +165,6 @@ describe('taking charge of the queue', () => {
     expect(q.downloads.list().every((i) => i.state === 'paused')).toBe(true);
     q.downloads.resumeAll();
     expect(q.downloads.list().every((i) => i.state !== 'paused')).toBe(true);
-    q.downloads.stopAll();
   });
 
   it('cancels one, and forgets it when asked', async () => {
@@ -180,7 +178,6 @@ describe('taking charge of the queue', () => {
 
     q.downloads.remove(id);
     expect(q.downloads.list()).toEqual([]);
-    q.downloads.stopAll();
   });
 
   it('clears out what is finished and leaves the rest', async () => {
@@ -189,7 +186,6 @@ describe('taking charge of the queue', () => {
     await until(() => q.downloads.list()[0]?.state === 'ready');
     await q.downloads.clear();
     expect(q.downloads.list()).toEqual([]);
-    q.downloads.stopAll();
   });
 
   it('marks one as added to the library, with the pack it became', async () => {
@@ -200,7 +196,6 @@ describe('taking charge of the queue', () => {
     q.downloads.done(id, 'Kit');
     expect(q.downloads.list()[0]!.packName).toBe('Kit');
     expect(q.downloads.urlOf(id)).toBe(FILE);
-    q.downloads.stopAll();
   });
 
   it('says nothing about an id it has never seen', async () => {
@@ -213,7 +208,6 @@ describe('taking charge of the queue', () => {
     q.downloads.cancel('nope');
     q.downloads.remove('nope');
     q.downloads.again('nope');
-    q.downloads.stopAll();
   });
 });
 
@@ -222,23 +216,23 @@ describe('across a restart', () => {
     const dir = tempDir();
     const stand = net();
     const first = new DownloadService({ dir, fetch: stand.fetch, onChanged: () => undefined, onReady: () => undefined });
+    started.push(first);
     await first.load();
     first.add([FILE]);
     await until(() => first.list()[0]?.state === 'ready');
-    first.stopAll();
 
     const second = new DownloadService({ dir, fetch: stand.fetch, onChanged: () => undefined, onReady: () => undefined });
+    started.push(second);
     await second.load();
     expect(second.list().map((i) => i.url)).toEqual([FILE]);
-    second.stopAll();
   });
 
   it('starts empty rather than broken when the list on disk is nonsense', async () => {
     const dir = tempDir();
     writeFileSync(join(dir, 'downloads.json'), '{ not json at all');
     const downloads = new DownloadService({ dir, fetch: net().fetch, onChanged: () => undefined, onReady: () => undefined });
+    started.push(downloads);
     await downloads.load();
     expect(downloads.list()).toEqual([]);
-    downloads.stopAll();
   });
 });

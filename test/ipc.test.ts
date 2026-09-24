@@ -372,7 +372,7 @@ describe('settings, activity and documents', () => {
   });
 
   it('keeps activity, newest first', async () => {
-    activity.add('pack', 'Something happened');
+    activity.add('library', 'Something happened');
     await new Promise((r) => setTimeout(r, 30));
     const rows = await ok('activity:list', 10);
     expect(rows[0]?.text).toBe('Something happened');

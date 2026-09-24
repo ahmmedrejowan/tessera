@@ -173,7 +173,7 @@ beforeAll(async () => {
 
     libraryId: () => 'rest-library',
     libraryNameOf: () => 'The rest',
-    librarySummaries: async () => [{ id: 'rest-library', name: 'The rest', path: root, packs: 0, assets: 0, size: 0, lastOpenedAt: new Date().toISOString(), open: true, missing: false }],
+    librarySummaries: async () => [{ id: 'rest-library', name: 'The rest', path: root, packs: 0, assets: 0, size: 0, lastOpenedAt: new Date().toISOString(), open: true, found: true, backup: null, sync: null } as never],
     copySource: () => {
       const { queries, index } = library.require();
       return {
@@ -192,7 +192,7 @@ beforeAll(async () => {
     thumbDir: () => join(dataDir, 'thumbs'),
     readDocument: async (name) => `the ${name}`,
     recordPage: records('recordPage'),
-    start: records('start', Promise.resolve()),
+    start: async () => void records('start')(),
   };
 
   registerIpc(context);
@@ -234,7 +234,7 @@ describe('backups', () => {
 
   it('lists what has been kept, and puts one back', async () => {
     expect(await ok('backup:snapshots')).toHaveLength(1);
-    await ok('backup:restore', 's1', { provider: 'folder', values: { path: '/tmp/backups' } }, 10, 'A library');
+    await ok('backup:restore', 's1', '/tmp/restored', 10, 'A library');
     expect(said('backups.restore')).toBeTruthy();
   });
 
@@ -255,11 +255,11 @@ describe('backups', () => {
 
   it('writes the recovery kit where the save box says, and nowhere when it is cancelled', async () => {
     asked.savePath = null;
-    expect(await ok('backup:saveKit', { password: 'a very long password', target: null, includeKeys: false })).toBeNull();
+    expect(await ok('backup:saveKit', { password: 'a very long password', includeKeys: false })).toBeNull();
   });
 
   it('signs in to a cloud provider, and can be told to stop', async () => {
-    await ok('backup:signIn', 'drive', null);
+    await ok('backup:signIn', 'gdrive');
     expect(said('rclone.signIn')).toBeTruthy();
     await ok('backup:cancelSignIn');
     expect(said('rclone.cancel')).toBeTruthy();
@@ -281,7 +281,7 @@ describe('restoring from a backup', () => {
   it('unlocks one, restores from it, and closes it again', async () => {
     await ok('restore:unlock', { provider: 'folder', values: { path: '/tmp/backups' } }, 'a password');
     expect(said('restorer.unlock')).toBeTruthy();
-    await ok('restore:run', 's1', { provider: 'folder', values: { path: '/tmp/backups' } }, 10);
+    await ok('restore:run', 's1', '/tmp/restored', 10);
     expect(said('restorer.restore')).toBeTruthy();
     await ok('restore:close');
     expect(said('restorer.close')).toBeTruthy();
@@ -457,7 +457,7 @@ describe('updates and problem reports', () => {
   });
 
   it('takes what the window caught, and what the reader answered', async () => {
-    await ok('reports:capture', { message: 'it broke', stack: 'somewhere' });
+    await ok('reports:capture', { source: 'window', kind: 'exception', name: 'Error', message: 'it broke', stack: 'somewhere' });
     await ok('reports:respond', 'always');
     await ok('reports:crashes', true);
     expect(said('reports.record')).toBeTruthy();
