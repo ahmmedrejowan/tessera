@@ -101,6 +101,11 @@ export const shell = {
   trashItem: async () => undefined,
 };
 
+export const screen = {
+  getAllDisplays: () => [{ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }],
+  getPrimaryDisplay: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }),
+};
+
 export const nativeTheme = { shouldUseDarkColors: false, on: () => undefined };
 export const net = { fetch: (...args: Parameters<typeof globalThis.fetch>) => globalThis.fetch(...args) };
 export const safeStorage = {
