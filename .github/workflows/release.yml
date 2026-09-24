@@ -1,10 +1,14 @@
 name: Release builds
 
-# Installers for every platform, from a version tag (v0.2.0) or by hand.
+# Installers for every platform, from a version tag (v0.2.0) or by hand. A tag also drafts a
+# release with the files and their checksums; you read it over and press publish.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -23,11 +27,14 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run typecheck
       - run: npm test
       - run: npm run build
         env:
           # Where error reports go (a Sentry-compatible DSN). Without the secret the build can't send any.
           TESSERA_REPORTS_DSN: ${{ secrets.TESSERA_REPORTS_DSN }}
+          # Where the app looks for a newer version: this repository's published releases.
+          TESSERA_UPDATE_FEED: ${{ vars.TESSERA_UPDATE_FEED || format('https://api.github.com/repos/{0}/releases/latest', github.repository) }}
       - run: npx electron-builder --config build/builder.cjs --publish never
         env:
           # Real signing when these secrets exist; otherwise the same unsigned / ad-hoc builds as before.
@@ -38,6 +45,17 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           WIN_CSC_LINK: ${{ secrets.WIN_CERT_PFX }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+      # A checksum beside each file, so anyone can tell a download is the one that was built here.
+      - name: Checksums
+        shell: bash
+        run: |
+          cd release
+          shopt -s nullglob
+          files=(*.dmg *.zip *.exe *.AppImage *.deb)
+          [ ${#files[@]} -gt 0 ] || { echo "nothing was built"; exit 1; }
+          if command -v sha256sum > /dev/null; then sha256sum "${files[@]}" > "SHA256SUMS-${{ runner.os }}.txt";
+          else shasum -a 256 "${files[@]}" > "SHA256SUMS-${{ runner.os }}.txt"; fi
+          cat "SHA256SUMS-${{ runner.os }}.txt"
       - uses: actions/upload-artifact@v4
         with:
           name: tessera-${{ matrix.os }}
@@ -47,4 +65,32 @@ jobs:
             release/*.exe
             release/*.AppImage
             release/*.deb
+            release/SHA256SUMS-*.txt
           if-no-files-found: error
+
+  publish:
+    name: Draft the release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: downloaded
+          merge-multiple: true
+      - run: ls -la downloaded
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          name: Tessera ${{ github.ref_name }}
+          body: |
+            Installers for macOS, Windows and Linux are below, with their SHA256 checksums.
+
+            These builds are not signed with a paid certificate, so each system asks once:
+
+            - **macOS**: right-click Tessera in Applications, choose Open, then Open again.
+            - **Windows**: SmartScreen says "unrecognised app". Choose More info, then Run anyway.
+            - **Linux**: mark the AppImage executable, or install the .deb.
+
+            What changed is in CHANGELOG.md.
+          files: downloaded/*

@@ -54,10 +54,22 @@ export function isNewer(latest: string, current: string): boolean {
   return false;
 }
 
-/** The file a release publishes for this computer. */
-export function installerFor(assets: Asset[], platform: NodeJS.Platform): Asset | null {
+/**
+ * The file a release publishes for this computer. A release carries a build for each architecture,
+ * so an Apple Silicon machine must not be handed the Intel one; where nothing says, anything of
+ * the right kind will do.
+ */
+export function installerFor(assets: Asset[], platform: NodeJS.Platform, arch: string = process.arch): Asset | null {
   const wants = platform === 'darwin' ? /\.dmg$/i : platform === 'win32' ? /\.exe$/i : /\.(appimage|deb)$/i;
-  return assets.find((a) => wants.test(a.name)) ?? null;
+  const kind = assets.filter((a) => wants.test(a.name));
+  const names = arch === 'arm64' ? [/arm64|aarch64/i] : arch === 'x64' ? [/x64|x86_64|amd64|intel/i] : [];
+  for (const name of names) {
+    const match = kind.find((a) => name.test(a.name));
+    if (match) return match;
+  }
+  // Nothing names an architecture: on arm64, anything not marked for Intel; otherwise the first.
+  const plain = kind.filter((a) => !/arm64|aarch64|x64|x86_64|amd64/i.test(a.name));
+  return plain[0] ?? kind[0] ?? null;
 }
 
 export class Updates {

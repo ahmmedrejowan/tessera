@@ -1,0 +1,42 @@
+name: Something went wrong
+description: Tessera did something it should not, or stopped doing something it should.
+labels: [problem]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time. If this is a security problem, please email
+        hello@rejowan.com instead: see SECURITY.md.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+      placeholder: I dropped a zip on the window, and it went to Review even though the licence is in the zip.
+    validations:
+      required: true
+  - type: textarea
+    id: again
+    attributes:
+      label: How to make it happen again
+      description: Step by step, if you can. A pack or a file that shows it is very welcome.
+  - type: input
+    id: version
+    attributes:
+      label: Which version
+      description: Help, then About, shows it.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: Which system
+      options: [macOS, Windows, Linux]
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: A screenshot, the size of your library, whether it happens every time.

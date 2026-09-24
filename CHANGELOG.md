@@ -12,6 +12,15 @@ The first working version. Everything below is in the app today.
   snapshot and an archive.org copy kept as proof. Anything unclear waits in Review.
 - **Adding**: drag packs in, choose files or a folder, or paste links; a full page opens with
   everything Tessera could work out already filled in, and batches are filled in once for many.
+- **Add to a pack you already have**: more files into a pack in the library, from its page or by
+  dropping them on it, with a place inside the pack and terms of their own if they came from
+  somewhere else.
+- **Starred, archived, binned**: star anything worth coming back to; archive a pack you want kept
+  but out of the way; deleting means the library's own bin, which puts things back where they were.
+- **AI agents**: while Tessera is open it answers agents on this computer alone, with 49 tools
+  covering everything the window can do. You choose what they may reach; the app's own settings and
+  deleting for good start switched off. Every call is listed, and every change is in Activity.
+- **Update checks and error reports**, both on your say-so and neither carrying anything about you.
 - **Sites you've settled**: tell Tessera a site's packs are CC0 and its next ones fill themselves.
 - **Downloads**: bring links, one or a list; asset pages from Kenney, Poly Haven, ambientCG,
   OpenGameArt, GitHub releases, Google Drive and Dropbox lead to the file behind them. Pause,

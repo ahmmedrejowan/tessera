@@ -7,7 +7,11 @@ coverage/
 .DS_Store
 .env
 .env.*
-docs/
+# Working notes stay private; the guide, the questions and their pictures are published.
+docs/*
+!docs/guide.md
+!docs/faq.md
+!docs/images/
 build/*.icns
 build/*.ico
 /.idea/

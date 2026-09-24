@@ -1,0 +1,16 @@
+name: An idea
+description: Something Tessera should do, or should do differently.
+labels: [idea]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you would like
+      description: What you are trying to do, and where Tessera gets in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: now
+    attributes:
+      label: How you manage today
+      description: What you do instead, if anything.

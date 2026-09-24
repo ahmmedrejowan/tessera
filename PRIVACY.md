@@ -21,13 +21,36 @@ own computer, and nothing about them is collected by anyone.
   report, nothing about your library.
 - **Backups.** Only to the place you set up, encrypted before they leave, with your password.
 - **Sync.** Directly between computers you have paired, over your own network.
-- **Error reports.** Never sent without your say-so. You see exactly what a report contains
-  first; names of files, packs and folders are removed, and nothing says who you are.
+- **Error reports.** Never sent without your say-so, and only to a Sentry-compatible service run
+  for Tessera. You see exactly what a report contains first; names of files, packs and folders are
+  removed, and nothing says who you are. A build made without that setting cannot send one at all.
+- **Helper programs.** If you turn on backups or sync, Tessera offers to fetch Kopia, rclone or
+  Syncthing from their own projects' releases on github.com, and checks what it downloaded against
+  the checksum published with it. Nothing about you is sent with the request.
+
+## What it opens on this computer
+
+- **A door for AI agents**, while the app is open: an address on this computer alone
+  (127.0.0.1, port 7458 by default). Nothing on your network or the internet can reach it, a web
+  page cannot use it, and you choose which tools an agent may call. It can be switched off in
+  Settings, and every call it answers is listed in the app.
+
+## Files outside your library
+
+Tessera reads and writes outside the library only where you point it:
+
+- Files and folders you add, from wherever you chose them.
+- A game's folder, when you link assets into it: the assets, a licence file beside them, and the
+  credits file.
+- The place you set up for backups.
+- Its own helper programs, and the usual places those are installed, when it looks for them.
+- An agent's settings file, when you press Set it up on the AI agents page. It reads the file,
+  adds Tessera's own entry, and keeps a copy of the old one beside it.
 
 ## What Tessera never does
 
 - No accounts, no telemetry, no analytics, no advertising identifiers.
-- No reading of files outside your library folder and its own data folder.
+- No reading of your disk at large: only the library, its own data folder, and what you point it at.
 - No selling or sharing of anything, because there is nothing collected to share.
 
 ## Getting in touch

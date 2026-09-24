@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: A question about using Tessera
+    url: https://github.com/ahmmedrejowan/tessera/discussions
+    about: Ask here, or read what others have asked.
+  - name: A security problem
+    url: https://github.com/ahmmedrejowan/tessera/blob/main/SECURITY.md
+    about: Please email rather than opening an issue.

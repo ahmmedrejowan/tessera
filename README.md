@@ -20,6 +20,29 @@ Runs on macOS, Windows and Linux.
 
 Status: in development.
 
+![Home](docs/images/02-home.png)
+
+## Installing
+
+Downloads are on the [releases page](https://github.com/ahmmedrejowan/tessera/releases): a `.dmg`
+for macOS, a `.exe` for Windows, and an `.AppImage` or `.deb` for Linux. Take the one that matches
+your computer (`arm64` for Apple Silicon, `x64` for Intel).
+
+Tessera is free software and the builds are not signed with a paid certificate, so each system
+asks once whether you meant it:
+
+- **macOS**: move Tessera to Applications, then right-click it and choose **Open**, and **Open**
+  again in the box that appears. Double-clicking the first time says the app "cannot be opened";
+  right-click and Open is the way past it, and only the first time.
+- **Windows**: SmartScreen says "Windows protected your PC". Choose **More info**, then
+  **Run anyway**.
+- **Linux**: `chmod +x Tessera-*.AppImage` and run it, or `sudo dpkg -i tessera_*.deb`.
+
+Each release lists the SHA256 of every file, so you can check a download is the one that was built.
+
+There is a [step by step guide](docs/guide.md), with pictures, and the app has the same thing under
+Help.
+
 ## Building
 
 ```
@@ -29,7 +52,8 @@ npm test
 npm run dist       # installers for this platform, in release/
 ```
 
-See `AGENTS.md` for how the code fits together.
+Node 24 or newer. `AGENTS.md` explains how the code fits together, and `CONTRIBUTING.md` how to
+help.
 
 ## Licence
 

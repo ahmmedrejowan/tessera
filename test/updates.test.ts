@@ -41,6 +41,20 @@ describe('looking for a newer Tessera', () => {
     expect(installerFor([], 'darwin')).toBeNull();
   });
 
+  it('picks the one built for this kind of computer, not just the first of its sort', () => {
+    const assets = [
+      { name: 'Tessera-0.2.0-x64.dmg', url: 'https://example.com/intel', size: 1 },
+      { name: 'Tessera-0.2.0-arm64.dmg', url: 'https://example.com/apple', size: 2 },
+      { name: 'Tessera-Setup-0.2.0-x64.exe', url: 'https://example.com/win-intel', size: 3 },
+      { name: 'Tessera-Setup-0.2.0-arm64.exe', url: 'https://example.com/win-arm', size: 4 },
+    ];
+    expect(installerFor(assets, 'darwin', 'arm64')?.url).toBe('https://example.com/apple');
+    expect(installerFor(assets, 'darwin', 'x64')?.url).toBe('https://example.com/intel');
+    expect(installerFor(assets, 'win32', 'arm64')?.url).toBe('https://example.com/win-arm');
+    // A release that names no architecture still offers something.
+    expect(installerFor([{ name: 'Tessera-0.2.0.dmg', url: 'https://example.com/plain', size: 1 }], 'darwin', 'arm64')?.url).toBe('https://example.com/plain');
+  });
+
   it('reads a published release, and says plainly when there is nowhere to look', async () => {
     const release = { tag_name: 'v0.3.0', html_url: 'https://example.com/r/0.3.0', body: 'Downloads page\nSite rules', published_at: '2026-09-22T00:00:00Z' };
     const seen: string[] = [];
