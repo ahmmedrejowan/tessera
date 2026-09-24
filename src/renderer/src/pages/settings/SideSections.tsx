@@ -1,15 +1,15 @@
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
 import { useEffect, useState, type ReactNode, type RefObject } from 'react';
-import { md, SHAPE } from '../../theme';
+import { md, mdAlpha, SHAPE } from '../../theme';
 
 export interface SideSection {
   id: string;
   title: string;
   /** Sections with the same group are listed together under its label. */
   group?: string;
-  /** A mark after the title: a dot for a section worth a second thought. */
-  mark?: ReactNode;
+  /** A section worth a second thought reads in a faint red rather than the usual ground. */
+  sensitive?: boolean;
 }
 
 export interface SideGroup {
@@ -67,14 +67,13 @@ export function SideSections({ prefix, sections, groups, current }: { prefix: st
         height: 40,
         px: 1.5,
         borderRadius: `${SHAPE.full}px`,
-        color: current === s.id ? md('onSecondaryContainer') : md('onSurfaceVariant'),
-        backgroundColor: current === s.id ? md('secondaryContainer') : 'transparent',
-        '&:hover': { backgroundColor: current === s.id ? md('secondaryContainer') : md('surfaceContainerHigh') },
+        color: current === s.id ? md('onSecondaryContainer') : s.sensitive ? md('onSurface') : md('onSurfaceVariant'),
+        backgroundColor: current === s.id ? md('secondaryContainer') : s.sensitive ? mdAlpha('error', 0.08) : 'transparent',
+        '&:hover': { backgroundColor: current === s.id ? md('secondaryContainer') : s.sensitive ? mdAlpha('error', 0.14) : md('surfaceContainerHigh') },
       }}
     >
-      <Typography variant="labelLarge" noWrap sx={{ fontWeight: current === s.id ? 600 : 500, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+      <Typography variant="labelLarge" noWrap sx={{ fontWeight: current === s.id ? 600 : 500 }}>
         {s.title}
-        {s.mark}
       </Typography>
     </ButtonBase>
   );

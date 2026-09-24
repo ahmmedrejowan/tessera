@@ -8,7 +8,7 @@ import { isSensitive, type McpCall } from '@shared/mcp';
 import { useMcpCalls, useMcpTools } from '../../state/mcp';
 import { useNav } from '../../state/nav';
 import { SideBlock } from '../../components/SideBlock';
-import { md } from '../../theme';
+import { md, mdAlpha, SHAPE } from '../../theme';
 
 /** The time of day a call came in. */
 export function at(iso: string): string {
@@ -20,7 +20,10 @@ export function CallRow({ call, showDate }: { call: McpCall; showDate?: boolean 
   // The tool's own words for itself, so the history reads like the tools page.
   const title = useMcpTools().find((t) => t.name === call.tool)?.title ?? call.tool;
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0' }}>
+    <div
+      // A sensitive tool reads in a faint red, here as on the tools page.
+      style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 10px', margin: '0 -10px', borderRadius: SHAPE.sm, background: isSensitive(call.group) ? mdAlpha('error', 0.07) : 'transparent' }}
+    >
       <Tooltip title={call.ok ? 'It worked' : (call.problem ?? 'It did not work')}>
         <span
           style={{
@@ -39,12 +42,7 @@ export function CallRow({ call, showDate }: { call: McpCall; showDate?: boolean 
         </span>
       </Tooltip>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="bodyMedium" noWrap sx={{ color: md('onSurface'), display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          {isSensitive(call.group) && (
-            <Tooltip title="A sensitive tool: it reaches past the library, or cannot be undone.">
-              <span aria-label="Sensitive" style={{ width: 7, height: 7, borderRadius: 4, background: md('error'), flexShrink: 0 }} />
-            </Tooltip>
-          )}
+        <Typography variant="bodyMedium" noWrap sx={{ color: md('onSurface') }}>
           {title}
         </Typography>
         {(call.said || call.problem) && (
