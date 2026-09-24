@@ -312,7 +312,8 @@ export const HELP: HelpTopic[] = [
         id: 'agents-tools',
         q: 'How do I decide what an agent may do?',
         a: [
-          'Agent tools lists everything an agent can call, grouped by what it does: looking, filing, linking to a game, bringing things in, and deleting to the bin. Each group has a switch, and so does each tool inside it.',
+          'Agent tools lists everything an agent can call, grouped by what it does: looking, filing, linking to a game, bringing things in, deleting to the bin, the app itself, and deleting for good. Each group has a switch, and so does each tool inside it. Every tool says what it takes and what it gives back, with an example, so you can judge it without calling it.',
+          'The last two groups start off. “The app itself” lets an agent switch libraries, change Tessera’s settings and run a backup; “Deleting for good” lets it empty the bin and throw away a pack waiting in Review. Turn them on only if you want an agent to have that reach.',
           'A tool that is switched off is not offered, and a call to it is refused with a line saying it is off in Tessera. Changes take effect at once, mid-conversation.',
         ],
       },
@@ -320,8 +321,8 @@ export const HELP: HelpTopic[] = [
         id: 'agents-safe',
         q: 'Can an agent delete my files?',
         a: [
-          'Only to the library’s bin, which keeps everything and puts it back where it came from. Emptying the bin is yours alone: no tool does it, however the request is worded.',
-          'Everything an agent does is written into Activity with the tool it used, and the window updates as it happens, so you can watch it work and undo what you would rather it had not.',
+          'As it comes, only to the library’s bin, which keeps everything and puts it back where it came from. Emptying the bin needs the “Deleting for good” group, which starts off; until you turn it on, no tool can make a deletion permanent, however the request is worded.',
+          'Everything an agent does is written into Activity with the tool it used, and every call it makes is listed under Recent calls on Home, so you can watch it work and undo what you would rather it had not.',
         ],
       },
     ],

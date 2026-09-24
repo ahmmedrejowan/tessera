@@ -1,10 +1,11 @@
+import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined';
 import HistoryOutlined from '@mui/icons-material/HistoryOutlined';
 import MenuBookOutlined from '@mui/icons-material/MenuBookOutlined';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
+import Collapse from '@mui/material/Collapse';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
-import { useRef } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { TOOL_GROUPS, type McpToolInfo, type ToolGroup } from '@shared/mcp';
 import { useMcp, useMcpTools, setMcp } from '../../state/mcp';
 import { useNav } from '../../state/nav';
@@ -15,45 +16,122 @@ import { SideSections, sectionAnchor, useSectionSpy, type SideSection } from '..
 const SECTIONS: SideSection[] = TOOL_GROUPS.map((g) => ({ id: g.id, title: g.title }));
 
 /** The arguments a tool takes, read off its schema, so you can see what an agent may send. */
-function args(schema: Record<string, unknown>): { name: string; type: string; required: boolean }[] {
-  const props = (schema.properties ?? {}) as Record<string, { type?: string; enum?: unknown[]; anyOf?: { type?: string }[] }>;
+function args(schema: Record<string, unknown>): { name: string; type: string; required: boolean; note: string }[] {
+  const props = (schema.properties ?? {}) as Record<string, { type?: string; enum?: unknown[]; anyOf?: { type?: string }[]; description?: string; items?: { type?: string } }>;
   const required = new Set((schema.required as string[] | undefined) ?? []);
   return Object.entries(props).map(([name, p]) => ({
     name,
-    type: p.enum ? p.enum.join(' | ') : (p.type ?? p.anyOf?.map((a) => a.type).filter(Boolean).join(' or ') ?? 'value'),
+    type: p.enum
+      ? p.enum.map((v) => String(v)).join(' | ')
+      : p.type === 'array'
+        ? `${p.items?.type ?? 'value'}[]`
+        : (p.type ?? p.anyOf?.map((a) => a.type).filter(Boolean).join(' or ') ?? 'value'),
     required: required.has(name),
+    note: p.description ?? '',
   }));
 }
 
+/** A line of code, the way the rest of the app shows one. */
+function Mono({ children, dim }: { children: ReactNode; dim?: boolean }) {
+  return (
+    <Typography component="span" variant="bodySmall" sx={{ fontFamily: 'ui-monospace, Menlo, Consolas, monospace', color: dim ? md('onSurfaceVariant') : md('onSurface') }}>
+      {children}
+    </Typography>
+  );
+}
+
+/**
+ * One tool: what it is called, what it does, and its switch. Everything an agent would need to
+ * call it (the arguments, what comes back, an answer) waits behind Details, so the list stays a
+ * list.
+ */
 function ToolRow({ tool, first }: { tool: McpToolInfo; first: boolean }) {
+  const [open, setOpen] = useState(false);
   const takes = args(tool.schema);
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '16px 0', borderTop: first ? 'none' : `1px solid ${md('outlineVariant')}` }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="bodyLarge" component="div" sx={{ color: md('onSurface') }}>
-          {tool.title}
-          <Typography component="span" variant="bodySmall" sx={{ color: md('onSurfaceVariant'), ml: 1, fontFamily: 'ui-monospace, Menlo, Consolas, monospace' }}>
-            {tool.name}
+    <div style={{ borderTop: first ? 'none' : `1px solid ${md('outlineVariant')}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="bodyLarge" component="div" sx={{ color: tool.on ? md('onSurface') : md('onSurfaceVariant') }}>
+            {tool.title} <Mono dim>{tool.name}</Mono>
           </Typography>
-        </Typography>
-        <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant'), maxWidth: 620, display: 'block', mt: 0.25 }}>
-          {tool.summary}
-        </Typography>
-        {takes.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-            {takes.map((a) => (
-              <Chip
-                key={a.name}
-                size="small"
-                variant="outlined"
-                label={`${a.name}${a.required ? '' : '?'}: ${a.type}`}
-                sx={{ borderRadius: `${SHAPE.xs}px`, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: 11 }}
-              />
-            ))}
-          </div>
-        )}
+          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), maxWidth: 560, display: '-webkit-box', WebkitLineClamp: open ? 4 : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {tool.summary}
+          </Typography>
+        </div>
+        <Button size="small" endIcon={<ExpandMoreOutlined sx={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />} onClick={() => setOpen(!open)}>
+          Details
+        </Button>
+        <Switch size="small" checked={tool.on} onChange={(e) => void setMcp({ tool: { name: tool.name, on: e.target.checked } })} slotProps={{ input: { 'aria-label': tool.name } }} />
       </div>
-      <Switch checked={tool.on} onChange={(e) => void setMcp({ tool: { name: tool.name, on: e.target.checked } })} slotProps={{ input: { 'aria-label': tool.name } }} />
+
+      <Collapse in={open} unmountOnExit>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '4px 0 18px' }}>
+          <div>
+            <Typography variant="labelLarge" sx={{ color: md('onSurfaceVariant') }}>
+              It takes
+            </Typography>
+            {takes.length ? (
+              <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column' }}>
+                {takes.map((a) => (
+                  <div key={a.name} style={{ display: 'flex', gap: 12, padding: '6px 0', borderBottom: `1px solid ${md('outlineVariant')}` }}>
+                    <div style={{ width: 200, flexShrink: 0 }}>
+                      <Mono>{a.name}</Mono>
+                      {!a.required && (
+                        <Typography component="span" variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+                          {' '}
+                          optional
+                        </Typography>
+                      )}
+                      <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), fontFamily: 'ui-monospace, Menlo, Consolas, monospace' }}>
+                        {a.type}
+                      </Typography>
+                    </div>
+                    <Typography variant="bodySmall" sx={{ flex: 1, color: md('onSurfaceVariant') }}>
+                      {a.note}
+                    </Typography>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
+                Nothing.
+              </Typography>
+            )}
+          </div>
+
+          {tool.returns && (
+            <div>
+              <Typography variant="labelLarge" sx={{ color: md('onSurfaceVariant') }}>
+                It gives back
+              </Typography>
+              <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mb: 0.75 }}>
+                {tool.returns}
+              </Typography>
+              {tool.example && (
+                <Typography
+                  component="pre"
+                  variant="bodySmall"
+                  sx={{
+                    margin: 0,
+                    padding: '10px 14px',
+                    borderRadius: `${SHAPE.md}px`,
+                    background: md('surfaceContainerHigh'),
+                    color: md('onSurface'),
+                    fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: 260,
+                    overflowY: 'auto',
+                    userSelect: 'text',
+                  }}
+                >
+                  {tool.example}
+                </Typography>
+              )}
+            </div>
+          )}
+        </div>
+      </Collapse>
     </div>
   );
 }
@@ -130,7 +208,7 @@ export function AgentToolsPage() {
                         slotProps={{ input: { 'aria-label': `${group.title} tools` } }}
                       />
                     </div>
-                    <div style={{ marginTop: 8, padding: '0 20px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow') }}>
+                    <div style={{ marginTop: 10, padding: '2px 20px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow') }}>
                       {mine.map((t, i) => (
                         <ToolRow key={t.name} tool={t} first={i === 0} />
                       ))}

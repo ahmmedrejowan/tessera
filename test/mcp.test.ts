@@ -59,6 +59,16 @@ describe('the tools an agent is offered', () => {
   });
 });
 
+describe('what a tool says it gives back', () => {
+  it('has an answer and an example for every tool', () => {
+    for (const t of catalogue(ALL_ON)) {
+      expect(t.returns, t.name).toBeTruthy();
+      expect(t.example, t.name).toBeTruthy();
+      expect(() => JSON.parse(t.example!), t.name).not.toThrow();
+    }
+  });
+});
+
 describe('what a call is shown as', () => {
   it('says what was asked for, in the words the agent used', () => {
     expect(said({ text: 'arcade', of: 'packs' })).toBe('text: arcade · of: packs');

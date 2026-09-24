@@ -6,7 +6,8 @@ import TuneOutlined from '@mui/icons-material/TuneOutlined';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
-import { useRef, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
+import type { McpClientInfo } from '@shared/mcp';
 import { call } from '../../api';
 import { notify, failed } from '../../notices/store';
 import { useMcp, setMcp } from '../../state/mcp';
@@ -72,23 +73,66 @@ function Code({ text, label }: { text: string; label?: string }) {
   );
 }
 
-/** Where one app keeps its MCP settings. The shape is the same everywhere; the file is not. */
-function Where({ app, file, note }: { app: string; file: string; note?: string }) {
+/** One agent: what Tessera would write, where, and the two ways to get it there. */
+function Client({ client }: { client: McpClientInfo }) {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+
+  const install = async () => {
+    setBusy(true);
+    try {
+      const where = await call('mcp:installClient', client.id);
+      setDone(where.byCommand ? 'Set up with its own command.' : `Written to ${where.path}.${where.backup ? ' The old file is beside it.' : ''}`);
+      notify.success(`${client.name} is set up.`, where.byCommand ? {} : { action: { label: 'Show the file', run: () => void call('fs:reveal', where.path) } });
+    } catch (e) {
+      failed(e, `${client.name} could not be set up`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, padding: '10px 0', borderBottom: `1px solid ${md('outlineVariant')}` }}>
-      <Typography variant="bodyLarge" sx={{ width: 140, flexShrink: 0, color: md('onSurface') }}>
-        {app}
-      </Typography>
-      <div style={{ minWidth: 0 }}>
-        <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), fontFamily: 'ui-monospace, Menlo, Consolas, monospace', wordBreak: 'break-all', userSelect: 'text' }}>
-          {file}
-        </Typography>
-        {note && (
-          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
-            {note}
+    <div style={{ padding: '14px 16px', borderRadius: SHAPE.md, background: md('surfaceContainerLow'), display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="titleSmall" sx={{ color: md('onSurface') }}>
+            {client.name}
           </Typography>
-        )}
+          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
+            {client.note}
+          </Typography>
+          {client.path && (
+            <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), fontFamily: 'ui-monospace, Menlo, Consolas, monospace', wordBreak: 'break-all', mt: 0.5, userSelect: 'text' }}>
+              {client.path}
+            </Typography>
+          )}
+        </div>
+        <Button size="small" variant="contained" disabled={busy} onClick={() => void install()}>
+          {busy ? 'Setting up…' : 'Set it up'}
+        </Button>
+        <Button
+          size="small"
+          startIcon={<ContentCopyOutlined />}
+          onClick={() => {
+            void navigator.clipboard.writeText(client.command ?? client.snippet);
+            notify.success(`${client.name}’s block copied.`);
+          }}
+        >
+          Copy
+        </Button>
       </div>
+      <Typography
+        component="pre"
+        variant="bodySmall"
+        sx={{ margin: 0, padding: '10px 12px', borderRadius: `${SHAPE.sm}px`, background: md('surfaceContainerHigh'), color: md('onSurface'), fontFamily: 'ui-monospace, Menlo, Consolas, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', userSelect: 'text' }}
+      >
+        {client.command ?? client.snippet}
+      </Typography>
+      {done && (
+        <Typography variant="bodySmall" sx={{ color: md('primary') }}>
+          {done}
+        </Typography>
+      )}
     </div>
   );
 }
@@ -103,6 +147,7 @@ export function AgentsPage() {
   const current = useSectionSpy(scroller, 'agents', SECTIONS, true);
   const url = status?.url ?? 'http://127.0.0.1:7458/mcp';
   const skill = useQuery({ queryKey: ['mcp-skill', url], queryFn: () => call('mcp:skill'), staleTime: 0 }).data ?? '';
+  const agents = useQuery({ queryKey: ['mcp-clients', url], queryFn: () => call('mcp:clients'), staleTime: 0 }).data ?? [];
   const at = (id: string) => sectionAnchor('agents', id);
 
   const install = async (where: 'claude' | 'choose') => {
@@ -163,16 +208,14 @@ export function AgentsPage() {
                 title="Connect an agent"
                 note="Almost every agent reads the same block of JSON. Put this in yours, wherever it keeps its MCP settings, and it will find Tessera."
               >
-                <Code text={JSON.stringify({ mcpServers: { tessera: { type: 'http', url } } }, null, 2)} label="The usual shape" />
+                <Code text={JSON.stringify({ mcpServers: { tessera: { type: 'http', url } } }, null, 2)} label="The usual shape, for anything not listed below" />
                 <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), maxWidth: 680 }}>
-                  The shape is the same; only the file differs. A few of the common ones:
+                  For these, Tessera can write it for you. The file is read first, only Tessera’s own entry is added, and a copy of the old file is kept beside it.
                 </Typography>
-                <div>
-                  <Where app="Claude Code" file={`claude mcp add --transport http tessera ${url}`} note="A command rather than a file. Add --scope user to have it in every project." />
-                  <Where app="Claude Desktop" file="claude_desktop_config.json" note="Settings, Developer, Edit config." />
-                  <Where app="Cursor" file="~/.cursor/mcp.json, or .cursor/mcp.json in a project" />
-                  <Where app="VS Code" file=".vscode/mcp.json" note="The block is called servers there, not mcpServers." />
-                  <Where app="Anything else" file="its own MCP settings" note="Same shape: a name, the type http, and the address." />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {agents.map((c) => (
+                    <Client key={c.id} client={c} />
+                  ))}
                 </div>
                 <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), maxWidth: 680, marginTop: 8 }}>
                   An agent that can only start a program and talk to it, rather than speak HTTP, needs a bridge. Give it this as the command instead, and the bridge carries its messages to the address

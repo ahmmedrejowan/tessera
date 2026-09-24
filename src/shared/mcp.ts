@@ -34,6 +34,10 @@ export interface McpToolInfo {
   schema: Record<string, unknown>;
   /** Whether this tool is switched on right now. */
   on: boolean;
+  /** One line on what comes back. */
+  returns?: string;
+  /** An answer of that shape, as pretty JSON. */
+  example?: string;
 }
 
 /** One call an agent made: what it asked for, when, and how it went. */
@@ -49,6 +53,21 @@ export interface McpCall {
   problem?: string;
   /** How long it took, in milliseconds. */
   ms: number;
+}
+
+/** An agent Tessera can write itself into, and what it would write. */
+export interface McpClientInfo {
+  id: string;
+  name: string;
+  note: string;
+  /** Where its settings live on this computer. */
+  path: string;
+  /** What the block of servers is called in that file. */
+  key: string;
+  /** The block itself, ready to paste. */
+  snippet: string;
+  /** The command that does the same thing, when the agent has one. */
+  command?: string;
 }
 
 export interface McpStatus {

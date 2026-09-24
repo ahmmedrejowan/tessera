@@ -9,7 +9,7 @@ import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary, Pr
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
 import type { Provider, StorageTarget } from './storage';
 import type { CollectionItem, CollectionRules, CollectionSummary, SmartQuery } from './collection';
-import type { McpCall, McpStatus, McpToolInfo } from './mcp';
+import type { McpCall, McpClientInfo, McpStatus, McpToolInfo } from './mcp';
 import type { BinEntry, CollectionResult, PackSuggestions, LibrarySummary, AppInfo, ActivityEntry, DownloadItem, UpdateStatus, BackupPlace, BackupStatus, ErrorInput, FoundBackup, RestoreSource, ToolName, FolderInfo, LocateResult, ReportsStatus, MenuCommand, CollectionChange, Detected, Snapshot, SyncMode, SyncStatus, FolderKind, ImportItem, ImportResult, Job, LibraryState, Platform, Settings, SettingsPatch, ThumbState } from './types';
 
 export interface Invokes {
@@ -130,6 +130,10 @@ export interface Invokes {
   'mcp:clearCalls': () => void;
   /** The skill file an agent is given, as text. */
   'mcp:skill': () => string;
+  /** The agents Tessera can set itself up in, with the block each one takes. */
+  'mcp:clients': () => McpClientInfo[];
+  /** Write Tessera into one agent's settings, keeping a copy of the old file. */
+  'mcp:installClient': (id: string) => { path: string; backup: string | null; byCommand: boolean };
   /** Write the skill where an agent will find it, or wherever the user chooses. */
   'mcp:installSkill': (where: 'claude' | 'choose') => { path: string } | null;
 

@@ -5,6 +5,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { DEFAULT_MCP_PORT, TOOL_GROUPS, groupIsOn, type McpCall, type McpStatus, type McpToolInfo } from '@shared/mcp';
 import { log } from '../log';
+import { ANSWERS } from './examples';
 import { TOOL_BY_NAME, TOOLS, type ToolContext } from './tools';
 
 /**
@@ -75,6 +76,7 @@ export function catalogue(settings: { off: string[]; groupsOff: string[]; groups
     summary: t.summary,
     schema: z.toJSONSchema(t.input, { io: 'input' }) as Record<string, unknown>,
     on: on.has(t.name),
+    ...(ANSWERS[t.name] ? { returns: ANSWERS[t.name]!.returns, example: JSON.stringify(ANSWERS[t.name]!.example, null, 2) } : {}),
   }));
 }
 

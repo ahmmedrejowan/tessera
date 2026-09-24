@@ -93,6 +93,13 @@ const assetOut = (a: import('@shared/query').AssetRow) => ({
 const ASSET_SORTS: AssetSort[] = ['relevance', 'name', 'added', 'size', 'pack', 'type'];
 const PACK_SORTS: PackSort[] = ['name', 'added', 'size', 'count'];
 
+/** The files of a pack as the window counts them: its assets, not the archive that holds them. */
+const packAssets = (ctx: ToolContext, packId: string): { packId: string; ref: string }[] =>
+  ctx.library
+    .require()
+    .queries.assets({ scope: 'all', text: '', filters: {}, packIds: [packId] }, 'name', 0, 100_000)
+    .rows.map((a) => ({ packId: a.packId, ref: a.ref }));
+
 const query = (args: { text?: string; filters?: Record<string, string[]>; scope?: 'library' | 'inbox' | 'all'; starred?: boolean }): BrowseQuery => ({
   scope: args.scope ?? 'library',
   text: args.text ?? '',
@@ -467,7 +474,7 @@ export const TOOLS: Tool[] = [
     }),
     run: async (args, ctx) => {
       const items = args.assetIds.length ? ctx.library.require().queries.refs(args.assetIds) : [];
-      for (const packId of args.packIds) for (const f of ctx.library.require().queries.packFiles(packId)) items.push({ packId: f.packId, ref: f.ref });
+      for (const packId of args.packIds) items.push(...packAssets(ctx, packId));
       if (!items.length) throw new Error('Nothing to link: give assetIds or packIds.');
       const n = await ctx.projects.copy(args.projectId, items, ctx.copySource());
       ctx.note(`An agent linked ${n} asset${n === 1 ? '' : 's'} to a game`);
@@ -587,7 +594,7 @@ export const TOOLS: Tool[] = [
     }),
     run: async (args, ctx) => {
       const sort = (ASSET_SORTS as string[]).includes(args.sort) ? (args.sort as AssetSort) : 'name';
-      const q: BrowseQuery = { ...query(args), ...(args.packId ? { packId: args.packId } : {}) };
+      const q: BrowseQuery = { ...query(args), ...(args.packId ? { packIds: [args.packId] } : {}) };
       const page = ctx.library.require().queries.assets(q, sort, args.offset, args.limit);
       return {
         total: page.total,
@@ -759,7 +766,7 @@ export const TOOLS: Tool[] = [
     input: z.object({ projectId: z.string(), assetIds: z.array(z.number().int()).default([]), packIds: z.array(z.string()).default([]) }),
     run: async (args, ctx) => {
       const items = args.assetIds.length ? ctx.library.require().queries.refs(args.assetIds) : [];
-      for (const packId of args.packIds) for (const f of ctx.library.require().queries.packFiles(packId)) items.push({ packId: f.packId, ref: f.ref });
+      for (const packId of args.packIds) items.push(...packAssets(ctx, packId));
       if (!items.length) throw new Error('Nothing to take out: give assetIds or packIds.');
       const n = await ctx.projects.remove(args.projectId, items, ctx.libraryId());
       ctx.note(`An agent took ${n} asset${n === 1 ? '' : 's'} out of a game`);
