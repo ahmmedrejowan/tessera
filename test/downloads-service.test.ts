@@ -12,7 +12,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('electron', () => import('./fake-electron'));
 
-import { DownloadService } from '../src/main/downloads/service';
+import { DownloadService, nameFor, safeName } from '../src/main/downloads/service';
 
 /**
  * Folders of this file's own. A queue keeps writing its list for a moment after a test ends, and
@@ -61,6 +61,10 @@ function net(options: { fail?: number; permanent?: boolean; hold?: boolean; body
 
 /** Every queue a test started, stopped before its folder goes, so nothing writes into thin air. */
 const started: DownloadService[] = [];
+const track = (service: DownloadService) => {
+  started.push(service);
+  return service;
+};
 afterEach(() => {
   for (const q of started.splice(0)) q.stopAll();
 });
@@ -256,5 +260,57 @@ describe('across a restart', () => {
     started.push(downloads);
     await downloads.load();
     expect(downloads.list()).toEqual([]);
+  });
+});
+
+describe('naming what arrives', () => {
+  it('takes the name the site gave it, not the one in the link', async () => {
+    const dir = tempDir();
+    const downloads = track(
+      new DownloadService({
+        dir,
+        fetch: async () =>
+          ({
+            ok: true,
+            status: 200,
+            url: 'https://example.test/download?id=1234',
+            headers: new Headers({ 'content-length': '4', 'content-type': 'application/zip', 'content-disposition': 'attachment; filename="Space Kit v2.zip"' }),
+            body: new ReadableStream<Uint8Array>({
+              start(c) {
+                c.enqueue(new TextEncoder().encode('abcd'));
+                c.close();
+              },
+            }),
+          }) as Response,
+        onChanged: () => undefined,
+        onReady: () => undefined,
+      }),
+    );
+    await downloads.load();
+    downloads.add(['https://example.test/download?id=1234']);
+    await until(() => downloads.list()[0]?.state === 'ready');
+    expect(downloads.list()[0]!.name).toBe('Space Kit v2.zip');
+  });
+
+  it('falls back to the link, and then to the site, when the name is nonsense', () => {
+    expect(nameFor('https://example.test/packs/city-kit.zip', null)).toBe('city-kit.zip');
+    expect(nameFor('https://example.test/packs/city-kit.zip', 'attachment; filename="../../etc/passwd"')).not.toContain('..');
+    expect(nameFor('https://example.test/', null)).toBeTruthy();
+  });
+
+  it('keeps a name that could not be used as one out of the file system', () => {
+    expect(safeName('a/b\\c:d*e?f"g<h>i|j.zip')).not.toMatch(/[/\\:*?"<>|]/);
+    expect(safeName('   ')).toBeTruthy();
+    expect(safeName('.'.repeat(300)).length).toBeLessThan(200);
+  });
+});
+
+describe('links brought in bulk', () => {
+  it('takes only so many at once, however many are pasted', async () => {
+    const q = await queue();
+    const many = Array.from({ length: 600 }, (_, i) => `https://example.test/packs/${i}.zip`);
+    const added = q.downloads.add(many);
+    expect(added.added).toBeLessThanOrEqual(500);
+    q.downloads.pauseAll();
   });
 });

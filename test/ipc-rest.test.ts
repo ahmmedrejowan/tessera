@@ -123,7 +123,8 @@ beforeAll(async () => {
       unlock: records('restorer.unlock', Promise.resolve({ snapshots: [] })),
       restore: records('restorer.restore', Promise.resolve({ restored: 0 })),
       close: records('restorer.close'),
-      keepBackingUp: records('restorer.keepBackingUp', Promise.resolve()),
+      // Nothing has been opened for restoring in these tests.
+      opened: null,
     }),
     rcloneAuth: stub({
       signIn: records('rclone.signIn', Promise.resolve({ values: { token: 'x' } })),
@@ -265,6 +266,26 @@ describe('backups', () => {
     expect(said('rclone.cancel')).toBeTruthy();
   });
 
+  it('writes the recovery kit where the save box says', async () => {
+    asked.savePath = join(ownDir(), 'Tessera recovery kit.pdf');
+    const where = await ok('backup:saveKit', { password: 'a very long password', includeKeys: false });
+    expect(where).toBe(asked.savePath);
+    const { existsSync, statSync } = await import('node:fs');
+    expect(existsSync(where!)).toBe(true);
+    expect(statSync(where!).size).toBeGreaterThan(0);
+  });
+
+  it('offers to put the password in the system keychain', async () => {
+    // There is no keychain in a test run, so this has to fail plainly rather than hang.
+    const answer = await invoke('backup:saveToKeychain', 'a very long password');
+    expect(typeof answer.ok).toBe('boolean');
+  });
+
+  it('fetches a server host keys, or says it could not reach it', async () => {
+    const answer = await invoke('backup:hostKey', 'localhost', '1');
+    expect(typeof answer.ok).toBe('boolean');
+  });
+
   it('says whether a key file needs a passphrase', async () => {
     const dir = ownDir();
     writeFileSync(join(dir, 'plain'), '-----BEGIN OPENSSH PRIVATE KEY-----\n');
@@ -285,6 +306,11 @@ describe('restoring from a backup', () => {
     expect(said('restorer.restore')).toBeTruthy();
     await ok('restore:close');
     expect(said('restorer.close')).toBeTruthy();
+  });
+
+  it('carries on backing up to the store it just restored from', async () => {
+    // Nothing has been opened, so it refuses rather than setting up a backup to nowhere.
+    expect((await refused('restore:keepBackingUp')).code).toBe('restore-locked');
   });
 
   it('describes somewhere a restored library could go', async () => {
@@ -323,6 +349,10 @@ describe('sync', () => {
 });
 
 describe('helper programs', () => {
+  it('refuses to fetch a program it has never heard of', async () => {
+    await expect(invoke('tools:install', 'not-a-tool' as never)).resolves.toMatchObject({ ok: false });
+  });
+
   it('lists the package managers this computer actually has', async () => {
     const found = await ok('tools:packageManagers');
     expect(Array.isArray(found)).toBe(true);

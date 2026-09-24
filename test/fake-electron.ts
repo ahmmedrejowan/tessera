@@ -37,7 +37,10 @@ const theWindow = {
   webContents: {
     send: (channel: string, payload: unknown) => void asked.sent.push({ channel, payload }),
     setWindowOpenHandler: () => undefined,
+    setAudioMuted: () => undefined,
     session: { setPermissionRequestHandler: () => undefined },
+    // Enough of a PDF for anything that checks it is one.
+    printToPDF: async () => Buffer.from('%PDF-1.4\n%fake\n'),
   },
   setBackgroundColor: () => undefined,
   setTitleBarOverlay: () => undefined,
