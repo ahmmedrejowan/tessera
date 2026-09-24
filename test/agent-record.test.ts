@@ -133,6 +133,25 @@ describe('who has a port', () => {
 });
 
 describe('setting an agent up', () => {
+  /**
+   * A home of this test's own. Windows keeps an agent's settings under APPDATA rather than in the
+   * home folder, so all three have to move, or a test writes into the settings of whoever is
+   * running it.
+   */
+  function ownHome<T>(run: (home: string) => Promise<T>): Promise<T> {
+    const home = tempDir();
+    const before = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, APPDATA: process.env.APPDATA };
+    process.env.HOME = home;
+    process.env.USERPROFILE = home;
+    process.env.APPDATA = join(home, 'AppData', 'Roaming');
+    return run(home).finally(() => {
+      for (const [name, value] of Object.entries(before)) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    });
+  }
+
   it('describes every agent it knows, each with something to copy', () => {
     const all = clients('http://127.0.0.1:7458/mcp');
     expect(all.length).toBeGreaterThan(3);
@@ -145,12 +164,7 @@ describe('setting an agent up', () => {
   });
 
   it('writes Tessera into an agent settings file, keeping the old one', async () => {
-    const home = tempDir();
-    const before = process.env.HOME;
-    const beforeProfile = process.env.USERPROFILE;
-    process.env.HOME = home;
-    process.env.USERPROFILE = home;
-    try {
+    await ownHome(async () => {
       const target = clients('http://127.0.0.1:7458/mcp').find((c) => !c.command);
       expect(target).toBeTruthy();
       const first = await installFor(target!.id, 'http://127.0.0.1:7458/mcp');
@@ -162,33 +176,18 @@ describe('setting an agent up', () => {
       const second = await installFor(target!.id, 'http://127.0.0.1:7458/mcp');
       expect(second.backup).toBeTruthy();
       expect(existsSync(second.backup!)).toBe(true);
-    } finally {
-      if (before === undefined) delete process.env.HOME;
-      else process.env.HOME = before;
-      if (beforeProfile === undefined) delete process.env.USERPROFILE;
-      else process.env.USERPROFILE = beforeProfile;
-    }
+    });
   });
 
   it('will not guess at a settings file that is not JSON', async () => {
-    const home = tempDir();
-    const before = process.env.HOME;
-    const beforeProfile = process.env.USERPROFILE;
-    process.env.HOME = home;
-    process.env.USERPROFILE = home;
-    try {
+    await ownHome(async () => {
       const target = clients('http://127.0.0.1:7458/mcp').find((c) => !c.command)!;
       mkdirSync(join(target.path, '..'), { recursive: true });
       writeFileSync(target.path, '{ this is not JSON at all', 'utf8');
       // Rewriting it would throw away whatever is in there, so it says what to do instead.
       await expect(installFor(target.id, 'http://127.0.0.1:7458/mcp')).rejects.toThrow(/could not be read as JSON/);
       expect(readFileSync(target.path, 'utf8')).toBe('{ this is not JSON at all');
-    } finally {
-      if (before === undefined) delete process.env.HOME;
-      else process.env.HOME = before;
-      if (beforeProfile === undefined) delete process.env.USERPROFILE;
-      else process.env.USERPROFILE = beforeProfile;
-    }
+    });
   });
 
   it('refuses an agent it has never heard of', async () => {
@@ -196,10 +195,7 @@ describe('setting an agent up', () => {
   });
 
   it('keeps what was already in the file beside its own entry', async () => {
-    const home = tempDir();
-    const before = process.env.HOME;
-    process.env.HOME = home;
-    try {
+    await ownHome(async () => {
       const target = clients('http://127.0.0.1:7458/mcp').find((c) => !c.command)!;
       const first = await installFor(target.id, 'http://127.0.0.1:7458/mcp');
       const doc = JSON.parse(readFileSync(first.path, 'utf8')) as Record<string, Record<string, unknown>>;
@@ -212,9 +208,6 @@ describe('setting an agent up', () => {
       const after = JSON.parse(readFileSync(first.path, 'utf8')) as Record<string, Record<string, unknown>>;
       expect(after[key]!['something-else']).toBeTruthy();
       expect(Object.keys(after[key]!)).toContain('tessera');
-    } finally {
-      if (before === undefined) delete process.env.HOME;
-      else process.env.HOME = before;
-    }
+    });
   });
 });
