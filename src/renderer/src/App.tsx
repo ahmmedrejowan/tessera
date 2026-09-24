@@ -108,7 +108,10 @@ function RoutedBoundary({ children }: { children: ReactNode }) {
 export function App() {
   return (
     <>
-      <Screen />
+      {/* The page has its own boundary; this one catches the shell around it. */}
+      <ErrorBoundary resetKey="shell" page="the window">
+        <Screen />
+      </ErrorBoundary>
       <NoticeHost />
       <DialogHost />
       <NewCollectionHost />

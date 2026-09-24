@@ -1,5 +1,6 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { log } from '../log';
 import { DatabaseSync } from 'node:sqlite';
 
 /**
@@ -100,8 +101,7 @@ CREATE VIRTUAL TABLE packs_fts USING fts5(pack_id UNINDEXED, words, tokenize='un
 
 const DROP = ['hidden', 'collection_packs', 'collection_items', 'packs_fts', 'assets_fts', 'assets', 'pack_terms', 'packs'];
 
-export function openIndexDb(path: string): DatabaseSync {
-  if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
+function open(path: string): DatabaseSync {
   const db = new DatabaseSync(path);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA temp_store = MEMORY;');
   const { user_version: version } = db.prepare('PRAGMA user_version').get() as { user_version: number };
@@ -113,6 +113,23 @@ export function openIndexDb(path: string): DatabaseSync {
     db.exec('COMMIT');
   }
   return db;
+}
+
+/**
+ * The index for a library. It is only ever a copy of what the folders say, so an index that will
+ * not open (a crash mid-write, a full disk, a file half-copied by something else) is thrown away
+ * and built again rather than standing between someone and their library.
+ */
+export function openIndexDb(path: string): DatabaseSync {
+  if (path === ':memory:') return open(path);
+  mkdirSync(dirname(path), { recursive: true });
+  try {
+    return open(path);
+  } catch (e) {
+    log.warn('index', `the index at ${path} could not be opened; building it again`, e);
+    for (const f of [path, `${path}-wal`, `${path}-shm`]) rmSync(f, { force: true });
+    return open(path);
+  }
 }
 
 /** Run `fn` in a transaction, rolling back if it throws. */

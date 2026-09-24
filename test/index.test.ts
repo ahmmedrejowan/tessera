@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { classify, preference, variantKey } from '@shared/assets';
 import type { BrowseQuery } from '@shared/query';
 import { displayPath, listPackFiles, parseRef, readPackFile } from '../src/main/index/files';
+import { openIndexDb, SCHEMA_VERSION } from '../src/main/index/db';
 import { LibraryIndex } from '../src/main/index/indexer';
 import { LibraryQueries, searchTerms } from '../src/main/index/query';
 import { createLibrary } from '../src/main/library/layout';
@@ -275,5 +276,17 @@ describe('licence health', () => {
     const h = new LibraryQueries(index.db).health();
     expect(h.noCreditLine.map((p) => p.name)).toEqual(['Icons']);
     expect(h.restricted.map((p) => p.name)).toEqual(['Hobby']);
+  });
+});
+
+describe('an index that will not open', () => {
+  it('is thrown away and built again, rather than standing in the way', () => {
+    const dir = tempDir();
+    const path = join(dir, 'index.sqlite');
+    // Something that is not a database at all: a crash mid-write, or a half-copied file.
+    writeFileSync(path, 'this is not a database');
+    const db = openIndexDb(path);
+    expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(SCHEMA_VERSION);
+    db.close();
   });
 });

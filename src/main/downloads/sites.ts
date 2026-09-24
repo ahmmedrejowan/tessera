@@ -18,14 +18,17 @@ export interface Resolved {
 const refuse = (message: string) => Object.assign(new Error(message), { permanent: true });
 const UA = 'Tessera asset library';
 
+/** A page that never answers must not hold a download up for ever. */
+const PATIENCE = 20_000;
+
 const text = async (fetch: Fetch, url: string): Promise<string> => {
-  const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'text/html,application/json' } });
+  const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'text/html,application/json' }, signal: AbortSignal.timeout(PATIENCE) });
   if (!res.ok) throw refuse(`That page answered ${res.status}.`);
   return res.text();
 };
 
 const json = async (fetch: Fetch, url: string): Promise<unknown> => {
-  const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
+  const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(PATIENCE) });
   if (!res.ok) throw refuse(`${new URL(url).hostname} answered ${res.status}.`);
   return res.json();
 };

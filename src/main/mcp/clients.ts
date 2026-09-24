@@ -96,8 +96,9 @@ async function runCommand(command: string): Promise<boolean> {
   const [program, ...args] = command.split(' ');
   if (!program) return false;
   return new Promise((resolve) => {
-    // A login shell so the command is found where the person installed it.
-    const child = spawn(program, args, { stdio: 'ignore', shell: true, env: { ...process.env, PATH: `${process.env.PATH ?? ''}:/usr/local/bin:/opt/homebrew/bin:${join(home(), '.local', 'bin')}` } });
+    // No shell: the parts are already separate. PATH is widened so the command is found where
+    // people usually install it, since a windowed app does not inherit a login shell's PATH.
+    const child = spawn(program, args, { stdio: 'ignore', env: { ...process.env, PATH: `${process.env.PATH ?? ''}:/usr/local/bin:/opt/homebrew/bin:${join(home(), '.local', 'bin')}` } });
     child.on('error', () => resolve(false));
     child.on('exit', (code) => resolve(code === 0));
   });

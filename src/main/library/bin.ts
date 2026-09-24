@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, rename, rm, stat } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { z } from 'zod';
 import { assetPath } from '@shared/assets';
 import type { BinEntry } from '@shared/types';
@@ -78,6 +78,22 @@ export async function binFiles(root: string, packDir: string, packId: string, pa
   return made;
 }
 
+/**
+ * Where something goes back to. Whatever took its name in the meantime is left alone: the thing
+ * coming back is numbered instead, because two files are always better than one overwritten.
+ */
+async function freePath(wanted: string): Promise<string> {
+  if (!(await stat(wanted).catch(() => null))) return wanted;
+  const dot = basename(wanted).lastIndexOf('.');
+  const stem = dot > 0 ? wanted.slice(0, wanted.length - (basename(wanted).length - dot)) : wanted;
+  const ext = dot > 0 ? basename(wanted).slice(dot) : '';
+  for (let i = 2; i < 1000; i++) {
+    const next = `${stem} (${i})${ext}`;
+    if (!(await stat(next).catch(() => null))) return next;
+  }
+  throw new Error(`There is already something at ${wanted}.`);
+}
+
 /** Put an entry back where it came from. Returns what was restored, or null when it has gone. */
 export async function restoreFromBin(root: string, id: string, packDir: (packId: string) => string, packsDir: string): Promise<BinEntry | null> {
   const entries = await readBin(root);
@@ -85,13 +101,13 @@ export async function restoreFromBin(root: string, id: string, packDir: (packId:
   if (!entry) return null;
   if (entry.kind === 'pack') {
     const from = join(kept(root, entry), entry.ref);
-    if (await stat(from).catch(() => null)) await rename(from, join(packsDir, entry.ref));
+    if (await stat(from).catch(() => null)) await rename(from, await freePath(join(packsDir, entry.ref)));
   } else if (!entry.hiddenOnly) {
     const from = join(kept(root, entry), entry.ref);
     const to = join(packDir(entry.packId), ...entry.ref.split('/'));
     if (await stat(from).catch(() => null)) {
       await mkdir(dirname(to), { recursive: true });
-      await rename(from, to);
+      await rename(from, await freePath(to));
     }
   }
   await rm(kept(root, entry), { recursive: true, force: true });

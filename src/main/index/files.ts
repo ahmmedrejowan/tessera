@@ -1,5 +1,6 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
+import { UserError } from '../errors';
 import { assetPath, isIgnored } from '@shared/assets';
 import { PACK_DIRS } from '../library/layout';
 import { isZip, listZip, readZipEntry } from './zip';
@@ -92,7 +93,13 @@ export async function readPackFile(packDir: string, ref: string, maxBytes = 512 
   const { file, inside } = parseRef(ref);
   if (file.split('/').includes('..')) throw new Error('invalid path');
   const path = join(packDir, ...file.split('/'));
-  if (!inside.length) return readFile(path);
+  if (!inside.length) {
+    // A loose file is capped the same as one inside an archive: a huge video must not be read
+    // whole into memory just because something asked for it.
+    const on = await stat(path);
+    if (on.size > maxBytes) throw new UserError('file-too-big', `That file is ${Math.round(on.size / 1048576)} MB, too big to read in one go.`);
+    return readFile(path);
+  }
   // Each archive in the chain is read from the one before it; the outermost from disk. Keys of
   // nested archives carry the outer file's size and time, so a replaced download isn't read stale.
   const s = await stat(path);

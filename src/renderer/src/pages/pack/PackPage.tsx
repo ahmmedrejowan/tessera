@@ -29,6 +29,7 @@ import type { AssetRow } from '@shared/query';
 import { sourceInfo } from '@shared/sources';
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
+import { Page } from '../Placeholder';
 import { failed, notify } from '../../notices/store';
 import { formatBytes, formatCount, sourceName, typeSummary } from '../../components/labels';
 import { LicenceChip, licenceSummary } from '../../components/LicenceChip';
@@ -124,7 +125,8 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   const [sort, setSort] = useState<PackSort>('folder');
   const [viewing, setViewing] = useState<{ list: AssetRow[]; index: number } | null>(null);
 
-  const pack = useQuery({ queryKey: ['pack', lib, version, id], queryFn: () => call('pack:get', id), enabled: !!lib, placeholderData: (p) => p }).data;
+  const asked = useQuery({ queryKey: ['pack', lib, version, id], queryFn: () => call('pack:get', id), enabled: !!lib, placeholderData: (p) => p });
+  const pack = asked.data;
   const files = useQuery({ queryKey: ['pack-files', lib, version, id], queryFn: () => call('pack:files', id), enabled: !!lib }).data ?? [];
   const proof = useQuery({ queryKey: ['proof', lib, version, id], queryFn: () => call('pack:proof', id), enabled: !!lib && tab === 'licence' }).data ?? [];
 
@@ -174,7 +176,24 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
     [assets, setMenu],
   );
 
-  if (!pack) return null;
+  if (!pack) {
+    // Still reading, or a pack that has gone: a page that stays blank tells nobody anything.
+    if (asked.isPending) return <Page title="">{null}</Page>;
+    return (
+      <Page title="Pack" onBack={() => (back.length ? goBack() : go({ to: 'browse' }))}>
+        <EmptyState
+          icon={SearchOutlined}
+          title="That pack isn’t here"
+          body="It may have been deleted, or it belongs to another library. Browse shows everything this one holds."
+          actions={
+            <Button variant="contained" onClick={() => go({ to: 'browse' })}>
+              Browse the library
+            </Button>
+          }
+        />
+      </Page>
+    );
+  }
   const kinds = Object.entries(pack.types).sort((a, b) => b[1] - a[1]);
   const copyLabel = active ? `Link to ${active.name}` : 'Link to a game';
   // The creator and the site are often the same name; say it once.

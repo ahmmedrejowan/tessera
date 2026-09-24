@@ -1,3 +1,4 @@
+import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import { assetPath } from '@shared/assets';
 import { linksIn } from '@shared/links';
@@ -99,6 +100,13 @@ const packAssets = (ctx: ToolContext, packId: string): { packId: string; ref: st
     .require()
     .queries.assets({ scope: 'all', text: '', filters: {}, packIds: [packId] }, 'name', 0, 100_000)
     .rows.map((a) => ({ packId: a.packId, ref: a.ref }));
+
+/** A path from an agent is only meaningful if it is absolute: the app's own folder is not its business. */
+const absolute = (paths: string[]): string[] => {
+  const wrong = paths.filter((p) => !isAbsolute(p));
+  if (wrong.length) throw new Error(`Give a full path from the top of the disk, not ${wrong[0]}.`);
+  return paths;
+};
 
 const query = (args: { text?: string; filters?: Record<string, string[]>; scope?: 'library' | 'inbox' | 'all'; starred?: boolean }): BrowseQuery => ({
   scope: args.scope ?? 'library',
@@ -263,7 +271,7 @@ export const TOOLS: Tool[] = [
     name: 'list_bin',
     group: 'read',
     title: 'What is in the bin',
-    summary: 'Everything deleted from this library, waiting to be put back or emptied. Emptying the bin is the one thing an agent cannot do.',
+    summary: 'Everything deleted from this library, waiting to be put back or emptied. Emptying it for good needs a tool the owner has to allow first.',
     input: z.object({}),
     run: async (_args, ctx) => ctx.library.bin(),
   }),
@@ -502,7 +510,7 @@ export const TOOLS: Tool[] = [
       eachInside: z.union([z.boolean(), z.literal('auto')]).default('auto').describe('true: treat a folder as many packs, one per thing inside. auto decides from what is in it.'),
     }),
     run: async (args, ctx) => {
-      const items = await ctx.library.planImport(args.paths, args.eachInside);
+      const items = await ctx.library.planImport(absolute(args.paths), args.eachInside);
       const result = await ctx.library.import(items, false);
       ctx.note(`An agent added ${result.added.length} pack${result.added.length === 1 ? '' : 's'}`, args.paths.join(', '));
       return { added: result.added.map((p) => ({ id: p.id, name: p.name, status: p.status })), failed: result.failed };
@@ -683,7 +691,7 @@ export const TOOLS: Tool[] = [
       creditLine: z.string().nullable().optional(),
     }),
     run: async (args, ctx) => {
-      const done = await ctx.library.addFilesToPack(args.packId, args.paths, args.into);
+      const done = await ctx.library.addFilesToPack(args.packId, absolute(args.paths), args.into);
       if (args.licence !== undefined && done.names.length) {
         const pack = ctx.library.require().queries.pack(args.packId);
         const rules = (pack?.meta.licences ?? []).filter((r) => !done.names.includes(r.path));
@@ -739,7 +747,7 @@ export const TOOLS: Tool[] = [
       name: z.string().optional().describe('What to call it; the folder’s name by default.'),
     }),
     run: async (args, ctx) => {
-      const probe = await ctx.projects.probe(args.path);
+      const probe = await ctx.projects.probe(absolute([args.path])[0]!);
       const project = await ctx.projects.add({ ...probe, ...(args.name ? { name: args.name } : {}) });
       ctx.note(`An agent set up the game “${project.name}”`);
       return { id: project.id, name: project.name, engine: project.engine, target: project.target, notes: probe.notes };
@@ -808,7 +816,7 @@ export const TOOLS: Tool[] = [
     summary: 'Switch to another library by its folder. Everything else works on whichever is open, so say what you have switched to.',
     input: z.object({ path: z.string().describe('The library’s folder, from list_libraries.') }),
     run: async (args, ctx) => {
-      const state = await ctx.app.openLibrary(args.path);
+      const state = await ctx.app.openLibrary(absolute([args.path])[0]!);
       if (state.status !== 'ready') throw new Error(state.status === 'error' ? state.message : `The library did not open (${state.status}).`);
       ctx.note(`An agent opened the library “${state.library.name}”`);
       return { open: true, name: state.library.name, path: state.library.path };
@@ -821,7 +829,7 @@ export const TOOLS: Tool[] = [
     summary: 'Make a new, empty library in a folder, and open it.',
     input: z.object({ path: z.string().describe('An empty folder, or one that does not exist yet.'), name: z.string() }),
     run: async (args, ctx) => {
-      const state = await ctx.app.createLibrary(args.path, args.name);
+      const state = await ctx.app.createLibrary(absolute([args.path])[0]!, args.name);
       if (state.status !== 'ready') throw new Error(state.status === 'error' ? state.message : 'The library was not made.');
       ctx.note(`An agent made the library “${state.library.name}”`);
       return { made: true, name: state.library.name, path: state.library.path };

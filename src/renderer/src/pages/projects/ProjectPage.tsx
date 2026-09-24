@@ -24,6 +24,7 @@ import { ENGINE_LABELS, type ManifestEntry } from '@shared/project';
 import { call } from '../../api';
 import { AssetThumb } from '../../components/AssetThumb';
 import { EmptyState } from '../../components/EmptyState';
+import { Page } from '../Placeholder';
 import { displayName } from '../../components/labels';
 import { LicenceChip } from '../../components/LicenceChip';
 import { failed, notify } from '../../notices/store';
@@ -55,7 +56,8 @@ function Setting({ title, body, children }: { title: string; body: ReactNode; ch
 /** One linked project: where assets go, its credits, and what's been copied into it. */
 export function ProjectPage({ id }: { id: string }) {
   const { goBack, back, go } = useNav();
-  const project = useProjects().data?.find((p) => p.id === id);
+  const projects = useProjects();
+  const project = projects.data?.find((p) => p.id === id);
   const active = useActiveProject();
   const updateSettings = useUpdateSettings();
   const entries = useQuery({ queryKey: ['projects', 'entries', id, project?.assets, project?.lastCopy], queryFn: () => call('projects:entries', id), enabled: !!project?.exists }).data ?? [];
@@ -77,7 +79,24 @@ export function ProjectPage({ id }: { id: string }) {
       .map((l) => ({ ...l, packs: [...l.packs.values()].sort((a, b) => a[0]!.packName.localeCompare(b[0]!.packName)) }));
   }, [entries, openId]);
 
-  if (!project) return null;
+  if (!project) {
+    // A game that has been forgotten, or an old link to one: say so rather than showing nothing.
+    if (!projects.data) return <Page title="">{null}</Page>;
+    return (
+      <Page title="Game" onBack={() => go({ to: 'projects' })}>
+        <EmptyState
+          icon={SportsEsportsOutlined}
+          title="That game isn’t here"
+          body="It may have been forgotten. Games lists the ones Tessera knows about, and you can set one up again at any time."
+          actions={
+            <Button variant="contained" onClick={() => go({ to: 'projects' })}>
+              See the games
+            </Button>
+          }
+        />
+      </Page>
+    );
+  }
   const isActive = active?.id === id;
   const remove = async (items: ManifestEntry[]) => {
     const n = await call('projects:remove', id, items.map((e) => ({ packId: e.packId, ref: e.ref, ...(e.libraryId ? { libraryId: e.libraryId } : {}) })));
