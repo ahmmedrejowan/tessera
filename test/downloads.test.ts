@@ -1,13 +1,41 @@
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { hostLabel, linksIn, nameFromUrl } from '../src/shared/links';
 import { DownloadService, linksInFiles, nameFor, safeName } from '../src/main/downloads/service';
 import type { DownloadItem } from '../src/shared/types';
-import { tempDir } from './helpers';
 
-/** Wait for the list to settle on what the test is looking for. */
-async function until(check: () => boolean, what: string, goes = 200): Promise<void> {
+/**
+ * Folders of this file's own, cleared once at the end. A queue keeps writing its list for a moment
+ * after a test finishes, and a folder taken away underneath it is a race the queue loses.
+ */
+const mine: string[] = [];
+const tempDir = (prefix = 'tessera-dl-') => {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  mine.push(dir);
+  return dir;
+};
+
+/** Every queue a test started, stopped before the next one begins. */
+const started: DownloadService[] = [];
+const track = (service: DownloadService) => {
+  started.push(service);
+  return service;
+};
+
+afterEach(() => {
+  for (const service of started.splice(0)) service.stopAll();
+});
+afterAll(() => {
+  for (const dir of mine.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+/**
+ * Wait for the list to settle on what the test is looking for. A dropped connection is waited out
+ * before another go, and those waits are seconds, so this has to be patient enough for them.
+ */
+async function until(check: () => boolean, what: string, goes = 1500): Promise<void> {
   for (let i = 0; i < goes; i++) {
     if (check()) return;
     await new Promise((r) => setTimeout(r, 10));
@@ -53,12 +81,12 @@ describe('the download queue', () => {
   it('fetches a link, keeps the file and says it is ready', async () => {
     const dir = tempDir('tessera-dl-');
     const ready: DownloadItem[] = [];
-    const service = new DownloadService({
+    const service = track(new DownloadService({
       dir,
       fetch: () => Promise.resolve(body('a zip, more or less')),
       onChanged: () => undefined,
       onReady: (item) => ready.push(item),
-    });
+    }));
     expect(service.add(['https://a.example/packs/city-kit.zip'])).toEqual({ added: 1, skipped: 0 });
     await until(() => ready.length === 1, 'the download to finish');
     const item = service.list()[0]!;
@@ -79,12 +107,12 @@ describe('the download queue', () => {
 
   it('says so when a link opens a page instead of a file, and never keeps it', async () => {
     const dir = tempDir('tessera-dl-');
-    const service = new DownloadService({
+    const service = track(new DownloadService({
       dir,
       fetch: () => Promise.resolve(new Response('<html>Download</html>', { headers: { 'content-type': 'text/html; charset=utf-8' } })),
       onChanged: () => undefined,
       onReady: () => undefined,
-    });
+    }));
     service.add(['https://a.example/assets/city-kit']);
     await until(() => service.list()[0]?.state === 'failed', 'the page to be refused');
     expect(service.list()[0]!.error).toMatch(/opens a web page/);
@@ -97,7 +125,7 @@ describe('the download queue', () => {
     const whole = 'one two three four';
     const asked: (string | null)[] = [];
     let attempt = 0;
-    const service = new DownloadService({
+    const service = track(new DownloadService({
       dir,
       fetch: (_url, init) => {
         asked.push(new Headers(init?.headers).get('range'));
@@ -116,7 +144,7 @@ describe('the download queue', () => {
       },
       onChanged: () => undefined,
       onReady: () => undefined,
-    });
+    }));
     service.add(['https://a.example/packs/big.zip']);
     // The dropped connection is not the user's problem: it waits a moment and asks for the rest.
     await until(() => service.list()[0]?.state === 'ready', 'the rest to arrive', 600);

@@ -1,3 +1,5 @@
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createServer, type Server } from 'node:http';
 import { afterEach, describe, expect, it } from 'vitest';
 import { touchLibrary } from '../src/main/libraries';
@@ -127,5 +129,90 @@ describe('sync', () => {
     fake.state.folders.push({ id: 'tessera-arriving', path: '/x', paused: false, devices: [] });
     await switchTo(home);
     expect(folder('arriving')?.paused).toBe(false);
+  });
+});
+
+describe('sync, the rest of it', () => {
+  /** A service pointed at a fake Syncthing, with one library open. */
+  async function paired() {
+    const fake = fakeSyncthing();
+    server = fake.server;
+    await new Promise<void>((r) => server!.listen(0, '127.0.0.1', r));
+    const port = (server.address() as { port: number }).port;
+    const dataDir = tempDir();
+    const settings = new SettingsStore(dataDir);
+    await settings.load();
+    const lib = { id: 'lib1', name: 'My Library', path: '/libraries/mine' };
+    await touchLibrary(settings, dataDir, lib);
+    let changes = 0;
+    const sync = new SyncService({
+      dataDir,
+      settings,
+      library: () => lib,
+      onChange: () => void (changes += 1),
+      launcher: async () => ({ base: `http://127.0.0.1:${port}`, key: 'secret', stop: () => undefined }),
+    });
+    return { sync, fake, settings, dataDir, changed: () => changes };
+  }
+
+  it('says nothing is set up before anything is', async () => {
+    const { sync } = await paired();
+    const status = await sync.status();
+    expect(status.enabled).toBe(false);
+  });
+
+  it('stops sharing with one computer', async () => {
+    const { sync, fake } = await paired();
+    await sync.enable('full');
+    await sync.addDevice(OTHER, 'Desktop PC');
+    expect(fake.state.devices.map((d) => d.deviceID)).toContain(OTHER);
+
+    await sync.removeDevice(OTHER);
+    expect(fake.state.devices.map((d) => d.deviceID)).not.toContain(OTHER);
+  });
+
+  it('refuses a device id that is not one', async () => {
+    const { sync } = await paired();
+    await sync.enable('full');
+    await expect(sync.addDevice('nonsense', 'x')).rejects.toMatchObject({ code: 'bad-device-id' });
+  });
+
+  it('waits to be sent a library, and then knows which computer this is', async () => {
+    const { sync } = await paired();
+    await sync.startForReceiving();
+    expect((await sync.status()).myId).toBe(ME);
+  });
+
+  it('takes a library another computer offered, and says how far it has got', async () => {
+    const { sync, fake } = await paired();
+    await sync.startForReceiving();
+    const where = join(tempDir(), 'Arriving');
+    await sync.acceptFolder('tessera-theirs', OTHER, 'Their Library', where, 'full');
+    expect(fake.state.folders.map((f) => f.id)).toContain('tessera-theirs');
+
+    const progress = await sync.folderProgress('tessera-theirs');
+    expect(progress).toMatchObject({ state: 'idle' });
+  });
+
+  it('shuts the helper down without complaining twice', async () => {
+    const { sync } = await paired();
+    await sync.enable('full');
+    await sync.shutdown();
+    await sync.shutdown();
+  });
+
+  it('says whether the helper program is there, and whether it is Tessera own copy', async () => {
+    const { sync } = await paired();
+    expect(typeof sync.available()).toBe('boolean');
+    // A test drives it through a launcher of its own, so it is never the bundled one.
+    expect(sync.bundled()).toBe(false);
+  });
+
+  it('refuses a folder that already has something in it', async () => {
+    const { sync } = await paired();
+    await sync.startForReceiving();
+    const busy = tempDir();
+    writeFileSync(join(busy, 'already-here.txt'), 'something');
+    await expect(sync.acceptFolder('tessera-x', OTHER, 'Theirs', busy, 'full')).rejects.toMatchObject({ code: 'folder-not-empty' });
   });
 });

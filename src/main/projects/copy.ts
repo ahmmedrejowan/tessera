@@ -233,13 +233,17 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
   const written: ManifestEntry[] = [];
   const licencesWritten = new Set<string>();
   // If the disk gives out halfway, whatever this run put there and nothing else goes back, so the
-  // game folder is left as it was found rather than holding files no manifest knows about.
+  // game folder is left as it was found rather than holding files no manifest knows about. The
+  // folders are tracked apart from the files: the very first file can fail after its folder has
+  // been made, and an empty folder left behind is still a trace of a copy that did not happen.
   const fresh: string[] = [];
+  const made: string[] = [];
   try {
     for (const job of jobs) {
       const packDir = src.packDir(job.entry.packId);
       for (const f of job.files) {
         const dest = join(project.path, ...f.dest.split('/'));
+        made.push(dirname(dest));
         await mkdir(dirname(dest), { recursive: true });
         if (!existsSync(dest)) fresh.push(dest);
         const { file, inside } = parseRef(f.ref);
@@ -253,6 +257,7 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
         licencesWritten.add(packRoot);
         const proof = await copyProof(packDir, src.packRefs(job.entry.packId), join(project.path, ...packRoot.split('/'), 'licence'));
         const licence = join(project.path, ...packRoot.split('/'), 'LICENCE.txt');
+        made.push(dirname(licence));
         if (!existsSync(licence)) fresh.push(licence);
         await writeFileAtomic(licence, licenceText(pack.meta, proof));
       }
@@ -263,12 +268,13 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
     }
   } catch (e) {
     for (const path of fresh.reverse()) await unlink(path).catch(() => undefined);
-    // And the folders they were put in, as far up as the target, while they are empty.
+    // And every folder this run made, as far up as the target itself, while they are empty.
     const targetRoot = join(project.path, ...project.target.split('/'));
-    for (const start of [...new Set(fresh.map(dirname))].sort((a, b) => b.length - a.length)) {
+    for (const start of [...new Set(made)].sort((a, b) => b.length - a.length)) {
       let dir = start;
       while (dir.startsWith(targetRoot) && (await rmdir(dir).then(() => true, () => false))) dir = dirname(dir);
     }
+    await rmdir(targetRoot).catch(() => undefined);
     throw e;
   }
   await writeJson(join(project.path, MANIFEST), manifest);
