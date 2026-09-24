@@ -33,3 +33,5 @@ The first working version. Everything below is in the app today.
 - **Backups and sync**: encrypted backups with Kopia to a drive, a cloud drive, cloud storage or
   a server; sync between your own computers with Syncthing.
 - **Previews**: 3D models, images, HDRIs, sounds and fonts, shown in the app.
+- **Where it runs**: macOS on Apple Silicon and Intel, Windows 10 and 11, and Linux as an
+  AppImage, a .deb or an .rpm.

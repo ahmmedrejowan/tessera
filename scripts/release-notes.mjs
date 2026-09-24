@@ -19,7 +19,7 @@ These builds are not signed with a paid certificate, so each system asks once:
 
 - **macOS**: right-click Tessera in Applications, choose Open, then Open again. Only the first time.
 - **Windows**: SmartScreen says "Windows protected your PC". Choose More info, then Run anyway.
-- **Linux**: \`chmod +x Tessera-*.AppImage\`, or \`sudo dpkg -i tessera_*.deb\`.
+- **Linux**: \`chmod +x Tessera-*.AppImage\`, \`sudo dpkg -i tessera_*.deb\`, or \`sudo rpm -i tessera-*.rpm\`.
 
 Take the file that matches your computer: \`arm64\` for Apple Silicon, \`x64\` for Intel. The
 SHA256SUMS files beside them are the checksums of everything built here.`;
