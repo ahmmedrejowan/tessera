@@ -19,6 +19,12 @@ macOS, Windows and Linux. The same app, the same library format; a library copie
 **Is it free?**
 Yes, and free software: GPL-3.0-or-later. You can read how it works, change it, and pass it on.
 
+**Can I install it with a package manager?**
+Yes, on every system. macOS: `brew tap ahmmedrejowan/tessera && brew install --cask tessera`.
+Windows: `winget install Rejowan.Tessera`, or Scoop, or Chocolatey. Arch Linux: `yay -S
+tessera-bin`. On a Mac, Homebrew is the easiest route, because it clears the download flag as it
+installs and macOS then opens Tessera without asking you to allow it.
+
 **Why does macOS say it cannot verify Tessera is free from malware?**
 Because the build is not notarised by Apple, which costs ninety-nine dollars a year that a free
 program would rather not spend. The app is not damaged and nothing has gone wrong with the

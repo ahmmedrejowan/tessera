@@ -43,12 +43,28 @@
 ![GitHub Release](https://img.shields.io/github/v/release/ahmmedrejowan/tessera)
 [![Downloads](https://img.shields.io/github/downloads/ahmmedrejowan/tessera/total.svg)](https://github.com/ahmmedrejowan/tessera/releases)
 
+### With a package manager
+
+| Your computer | What to type |
+|---------------|--------------|
+| macOS | `brew tap ahmmedrejowan/tessera && brew install --cask tessera` |
+| Windows | `winget install Rejowan.Tessera` |
+| Windows, Scoop | `scoop bucket add tessera https://github.com/ahmmedrejowan/scoop-tessera && scoop install tessera` |
+| Windows, Chocolatey | `choco install tessera` |
+| Arch Linux | `yay -S tessera-bin` |
+
+Homebrew is worth preferring on a Mac: it clears the download flag as it installs, so macOS opens
+Tessera without asking you to allow it first.
+
+### Or take the file
+
 | Your computer | Download |
 |---------------|----------|
-| macOS, Apple Silicon (M1 and newer) | [Tessera-arm64.dmg](https://github.com/ahmmedrejowan/tessera/releases/latest) |
-| macOS, Intel | [Tessera-x64.dmg](https://github.com/ahmmedrejowan/tessera/releases/latest) |
-| Windows 10 and 11 | [Tessera-Setup.exe](https://github.com/ahmmedrejowan/tessera/releases/latest) |
-| Linux, portable | [Tessera.AppImage](https://github.com/ahmmedrejowan/tessera/releases/latest) |
+| macOS, Apple Silicon (M1 and newer) | [Tessera-mac-arm64.dmg](https://github.com/ahmmedrejowan/tessera/releases/latest) |
+| macOS, Intel | [Tessera-mac-x64.dmg](https://github.com/ahmmedrejowan/tessera/releases/latest) |
+| Windows 10 and 11 | [Tessera-win-x64.exe](https://github.com/ahmmedrejowan/tessera/releases/latest) |
+| Windows on Arm | [Tessera-win-arm64.exe](https://github.com/ahmmedrejowan/tessera/releases/latest) |
+| Linux, portable | [Tessera-linux.AppImage](https://github.com/ahmmedrejowan/tessera/releases/latest) |
 | Debian and Ubuntu | [tessera.deb](https://github.com/ahmmedrejowan/tessera/releases/latest) |
 | Fedora and openSUSE | [tessera.rpm](https://github.com/ahmmedrejowan/tessera/releases/latest) |
 
@@ -56,7 +72,8 @@ Every file, with its checksum and what changed, is on the
 [releases page](https://github.com/ahmmedrejowan/tessera/releases/latest).
 
 These builds are not notarised by Apple or signed with a Windows certificate, so each system asks
-once, the first time you open Tessera. Nothing is wrong with the download.
+once, the first time you open Tessera. Nothing is wrong with the download. Installing with Homebrew
+skips this on a Mac entirely.
 
 **macOS** says it cannot verify the app is free from malware.
 
@@ -75,6 +92,11 @@ Tessera in Applications and choose **Open**, then **Open** again.
 `sudo rpm -i tessera-*.rpm`.
 
 Every release lists the SHA256 of each file, so you can check a download is the one that was built.
+Each file also carries a signed record of the commit and the workflow that produced it:
+
+```bash
+gh attestation verify Tessera-*.dmg -R ahmmedrejowan/tessera
+```
 
 ---
 

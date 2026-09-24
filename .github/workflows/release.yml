@@ -9,6 +9,9 @@ on:
 
 permissions:
   contents: write
+  # Signed, verifiable proof that each file came from this commit through this workflow.
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -49,6 +52,18 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           WIN_CSC_LINK: ${{ secrets.WIN_CERT_PFX }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+      # Proof of where each file came from, checkable with: gh attestation verify <file> -R <repo>
+      - name: Attest what was built
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
+            release/*.rpm
+
       # A checksum beside each file, so anyone can tell a download is the one that was built here.
       - name: Checksums
         shell: bash

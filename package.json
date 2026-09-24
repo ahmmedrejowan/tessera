@@ -65,6 +65,7 @@
   "build": {
     "appId": "com.rejowan.tessera",
     "productName": "Tessera",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "copyright": "Copyright \u00a9 2026 K M Rejowan Ahmmed",
     "directories": {
       "output": "release",
@@ -137,6 +138,13 @@
       "target": [
         {
           "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
           "arch": [
             "x64",
             "arm64"

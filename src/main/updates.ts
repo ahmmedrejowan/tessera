@@ -60,7 +60,7 @@ export function isNewer(latest: string, current: string): boolean {
  * the right kind will do.
  */
 export function installerFor(assets: Asset[], platform: NodeJS.Platform, arch: string = process.arch): Asset | null {
-  const wants = platform === 'darwin' ? /\.dmg$/i : platform === 'win32' ? /\.exe$/i : /\.(appimage|deb)$/i;
+  const wants = platform === 'darwin' ? /\.dmg$/i : platform === 'win32' ? /\.exe$/i : /\.(appimage|deb|rpm)$/i;
   const kind = assets.filter((a) => wants.test(a.name));
   const names = arch === 'arm64' ? [/arm64|aarch64/i] : arch === 'x64' ? [/x64|x86_64|amd64|intel/i] : [];
   for (const name of names) {

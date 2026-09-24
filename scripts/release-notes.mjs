@@ -15,6 +15,21 @@ const what = section ? section.split('\n').slice(1).join('\n').trim() : '';
 
 const unsigned = `## Installing
 
+With a package manager:
+
+| System | What to type |
+|--------|--------------|
+| macOS | \`brew tap ahmmedrejowan/tessera && brew install --cask tessera\` |
+| Windows | \`winget install Rejowan.Tessera\` |
+| Windows, Scoop | \`scoop bucket add tessera https://github.com/ahmmedrejowan/scoop-tessera && scoop install tessera\` |
+| Windows, Chocolatey | \`choco install tessera\` |
+| Arch Linux | \`yay -S tessera-bin\` |
+
+Homebrew is worth preferring on a Mac: it clears the download flag as it installs, so none of the
+below applies.
+
+Or take a file from the list above.
+
 These builds are not notarised by Apple or signed with a Windows certificate, so each system asks
 once, the first time you open Tessera.
 
@@ -29,6 +44,11 @@ choose Open instead.
 \`sudo rpm -i tessera-*.rpm\`.
 
 Take the file that matches your computer: \`arm64\` for Apple Silicon, \`x64\` for Intel. The
-SHA256SUMS files beside them are the checksums of everything built here.`;
+SHA256SUMS files beside them are the checksums of everything built here, and each file carries a
+signed record of the commit and workflow that produced it:
+
+\`\`\`bash
+gh attestation verify <file> -R ${process.env.GITHUB_REPOSITORY ?? 'ahmmedrejowan/tessera'}
+\`\`\``;
 
 process.stdout.write(what ? `## What's new\n\n${what}\n\n${unsigned}\n` : `${unsigned}\n`);

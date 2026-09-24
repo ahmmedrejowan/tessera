@@ -15,3 +15,5 @@ docs/*
 build/*.icns
 build/*.ico
 /.idea/
+
+dist-manifests/

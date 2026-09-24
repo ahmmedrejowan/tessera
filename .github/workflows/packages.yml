@@ -1,0 +1,158 @@
+name: Package managers
+
+# When a release is published, tell every package manager about it. Each step is skipped, loudly
+# but harmlessly, when the secret it needs is not set, so this workflow is safe to have before any
+# of the accounts exist.
+#
+# Settings it uses, all optional:
+#   TAP_TOKEN        a personal access token with contents:write on the tap and bucket repos
+#   WINGET_TOKEN     a token with public_repo, for the pull request to microsoft/winget-pkgs
+#   AUR_SSH_KEY      the private half of the SSH key registered with your AUR account
+#   CHOCO_API_KEY    the push key from community.chocolatey.org
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release to describe, for example v0.2.0
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  manifests:
+    name: Write the manifests
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.which.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - id: which
+        run: echo "tag=${{ github.event.release.tag_name || inputs.tag }}" >> "$GITHUB_OUTPUT"
+      - name: Write them
+        run: node scripts/manifests.mjs "${{ steps.which.outputs.tag }}"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manifests
+          path: dist-manifests
+          if-no-files-found: error
+
+  homebrew:
+    name: Homebrew tap
+    needs: manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: manifests, path: manifests }
+      - name: Push the cask
+        env:
+          TOKEN: ${{ secrets.TAP_TOKEN }}
+          TAG: ${{ needs.manifests.outputs.tag }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "no TAP_TOKEN; skipping"; exit 0; fi
+          git clone "https://x-access-token:$TOKEN@github.com/${{ github.repository_owner }}/homebrew-tessera.git" tap
+          mkdir -p tap/Casks
+          cp manifests/homebrew/Casks/tessera.rb tap/Casks/tessera.rb
+          cd tap
+          git config user.name "K M Rejowan Ahmmed"
+          git config user.email "hello@rejowan.com"
+          git add -A
+          git diff --staged --quiet && { echo "already up to date"; exit 0; }
+          git commit -m "Tessera $TAG"
+          git push
+
+  scoop:
+    name: Scoop bucket
+    needs: manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: manifests, path: manifests }
+      - name: Push the manifest
+        env:
+          TOKEN: ${{ secrets.TAP_TOKEN }}
+          TAG: ${{ needs.manifests.outputs.tag }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "no TAP_TOKEN; skipping"; exit 0; fi
+          git clone "https://x-access-token:$TOKEN@github.com/${{ github.repository_owner }}/scoop-tessera.git" bucket
+          mkdir -p bucket/bucket
+          cp manifests/scoop/bucket/tessera.json bucket/bucket/tessera.json
+          cd bucket
+          git config user.name "K M Rejowan Ahmmed"
+          git config user.email "hello@rejowan.com"
+          git add -A
+          git diff --staged --quiet && { echo "already up to date"; exit 0; }
+          git commit -m "Tessera $TAG"
+          git push
+
+  winget:
+    name: winget
+    needs: manifests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Is there a token?
+        id: gate
+        env:
+          TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "no WINGET_TOKEN; skipping"; echo "go=no" >> "$GITHUB_OUTPUT";
+          else echo "go=yes" >> "$GITHUB_OUTPUT"; fi
+      # Opens the pull request against microsoft/winget-pkgs from your fork of it.
+      - if: steps.gate.outputs.go == 'yes'
+        uses: vedantmgoyal9/winget-releaser@main
+        with:
+          identifier: Rejowan.Tessera
+          version: ${{ needs.manifests.outputs.tag }}
+          installers-regex: '-win-(x64|arm64)\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}
+
+  aur:
+    name: Arch User Repository
+    needs: manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: manifests, path: manifests }
+      - name: Is there a key?
+        id: gate
+        env:
+          KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then echo "no AUR_SSH_KEY; skipping"; echo "go=no" >> "$GITHUB_OUTPUT";
+          else echo "go=yes" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.gate.outputs.go == 'yes'
+        uses: KSXGitHub/github-actions-deploy-aur@v3.0.1
+        with:
+          pkgname: tessera-bin
+          pkgbuild: manifests/aur/PKGBUILD
+          assets: manifests/aur/.SRCINFO
+          commit_username: K M Rejowan Ahmmed
+          commit_email: hello@rejowan.com
+          ssh_private_key: ${{ secrets.AUR_SSH_KEY }}
+          commit_message: Tessera ${{ needs.manifests.outputs.tag }}
+          force_push: true
+
+  chocolatey:
+    name: Chocolatey
+    needs: manifests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: manifests, path: manifests }
+      - name: Pack and push
+        shell: pwsh
+        env:
+          KEY: ${{ secrets.CHOCO_API_KEY }}
+        run: |
+          if (-not $env:KEY) { Write-Host "no CHOCO_API_KEY; skipping"; exit 0 }
+          Set-Location manifests/chocolatey
+          choco pack
+          choco apikey --api-key $env:KEY --source https://push.chocolatey.org/
+          choco push (Get-ChildItem *.nupkg)[0].FullName --source https://push.chocolatey.org/
