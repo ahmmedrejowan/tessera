@@ -232,12 +232,14 @@ npm run test:e2e         # end to end, against the built app
 npm run typecheck        # both TypeScript projects
 ```
 
-Over 600 tests across the two suites. They work against real folders, a real index, a real Kopia
-and a real HTTP server rather than mocks, and [docs/testing.md](docs/testing.md) explains how, what
-is deliberately not covered, and how to add one.
+Around 740 checks across the two suites, covering 90% of the statements and 80% of the branches in
+the main process. They work against real folders, a real index, a real Kopia and a real HTTP server
+rather than mocks, and [docs/testing.md](docs/testing.md) explains how, what is deliberately not
+covered, and how to add one.
 
 CI runs the typecheck, the whole suite and a packaged build on macOS, Windows and Linux for every
-push, and installs Kopia and rclone on each so the backup tests run there too.
+push, installs Kopia and rclone on each so the backup tests run there too, and holds coverage to a
+floor so a change that quietly stops testing something fails the build.
 
 ---
 
