@@ -74,6 +74,10 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      # What is new comes from CHANGELOG.md, so the release page and the app agree.
+      - run: node scripts/release-notes.mjs ${{ github.ref_name }} > release-notes.md
+      - run: cat release-notes.md
       - uses: actions/download-artifact@v4
         with:
           path: downloaded
@@ -83,14 +87,5 @@ jobs:
         with:
           draft: true
           name: Tessera ${{ github.ref_name }}
-          body: |
-            Installers for macOS, Windows and Linux are below, with their SHA256 checksums.
-
-            These builds are not signed with a paid certificate, so each system asks once:
-
-            - **macOS**: right-click Tessera in Applications, choose Open, then Open again.
-            - **Windows**: SmartScreen says "unrecognised app". Choose More info, then Run anyway.
-            - **Linux**: mark the AppImage executable, or install the .deb.
-
-            What changed is in CHANGELOG.md.
+          body_path: release-notes.md
           files: downloaded/*
