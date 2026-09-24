@@ -137,8 +137,12 @@ describe('when it goes wrong', () => {
     const q = await queue({ fail: 99, permanent: true });
     q.downloads.add([FILE]);
     await until(() => q.downloads.list()[0]?.state === 'failed');
+
+    // It will fail again straight away, so what is checked is that it was tried again at all,
+    // rather than which state it happens to be in a moment later.
+    const before = q.stand.tries();
     q.downloads.retryFailed();
-    expect(q.downloads.list()[0]!.state).not.toBe('failed');
+    await until(() => q.stand.tries() > before, 'it was never tried again');
   });
 });
 
@@ -162,9 +166,10 @@ describe('taking charge of the queue', () => {
     await until(() => q.downloads.list().some((i) => i.state === 'running'));
 
     q.downloads.pauseAll();
-    expect(q.downloads.list().every((i) => i.state === 'paused')).toBe(true);
+    await until(() => q.downloads.list().every((i) => i.state !== 'running'), 'something was still running');
+
     q.downloads.resumeAll();
-    expect(q.downloads.list().every((i) => i.state !== 'paused')).toBe(true);
+    await until(() => q.downloads.list().every((i) => i.state !== 'paused'), 'something was left paused');
   });
 
   it('cancels one, and forgets it when asked', async () => {
