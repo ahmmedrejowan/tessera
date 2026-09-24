@@ -26,6 +26,29 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      # Backups and restoring are tested against the real Kopia and rclone rather than a stand-in,
+      # because what they are for is somebody's only copy of their work. Without these installed
+      # those tests skip, and the one feature nobody can afford a bug in goes unchecked.
+      - name: Kopia and rclone
+        shell: bash
+        run: |
+          set -e
+          case "${{ runner.os }}" in
+            macOS)
+              brew install kopia rclone
+              ;;
+            Linux)
+              sudo apt-get update
+              sudo apt-get install -y rclone
+              curl -fsSL "https://github.com/kopia/kopia/releases/download/v0.21.1/kopia-0.21.1-linux-x64.tar.gz" -o /tmp/kopia.tar.gz
+              sudo tar -xzf /tmp/kopia.tar.gz --strip-components=1 -C /usr/local/bin kopia-0.21.1-linux-x64/kopia
+              ;;
+            Windows)
+              choco install kopia rclone -y --no-progress
+              ;;
+          esac
+          kopia --version
+          rclone --version | head -1
       - run: npm ci
       - run: npm run typecheck
       - run: npm test

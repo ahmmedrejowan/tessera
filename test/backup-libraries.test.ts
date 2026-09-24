@@ -166,3 +166,105 @@ describe.skipIf(!exe)('backups per library', () => {
     expect(Object.values(settings.get().libraries).some((r) => r.id.startsWith('unread-'))).toBe(false);
   });
 });
+
+describe.skipIf(!exe)('what a backup service says and does', () => {
+  it('backs up now, lists what it kept, and puts a file back', async () => {
+    const dir = tempDir();
+    const { backups, openLibrary, settled } = await setup(join(dir, 'data'));
+    const work = library(dir, 'aaaaaaaa-work', 'Work');
+    await openLibrary(work);
+    await backups.setup({ provider: 'folder', values: { path: join(dir, 'store') } }, 'correct horse battery', true);
+    expect((await settled(work.id)).lastError).toBeNull();
+
+    // Something changes, and a second backup keeps both.
+    writeFileSync(join(work.path, 'packs', 'Kit', 'new-file.txt'), 'added later');
+    await backups.backupNow();
+    const snapshots = await backups.snapshots();
+    expect(snapshots.length).toBeGreaterThanOrEqual(2);
+    expect(snapshots[0]!.startTime).toBeTruthy();
+    expect(snapshots[0]!.size).toBeGreaterThan(0);
+
+    // The oldest copy does not have the later file, which is the point of keeping more than one.
+    const into = join(dir, 'restored');
+    const steps: (number | null)[] = [];
+    await backups.restore(snapshots[snapshots.length - 1]!.id, into, snapshots[0]!.size, 'Work again', (f) => steps.push(f), async () => []);
+    expect(existsSync(join(into, 'packs', 'Kit', 'pack.json'))).toBe(true);
+    expect(existsSync(join(into, 'packs', 'Kit', 'new-file.txt'))).toBe(false);
+    expect(steps.length).toBeGreaterThan(0);
+
+    // A restore never writes over the library it came from.
+    await expect(backups.restore(snapshots[0]!.id, work.path, snapshots[0]!.size, 'Nope', () => undefined, async () => [])).rejects.toMatchObject({ code: 'restore-into-library' });
+  });
+
+  it('keeps the password, hands it back, and changes it', async () => {
+    const dir = tempDir();
+    const { backups, openLibrary, settled } = await setup(join(dir, 'data'));
+    const work = library(dir, 'aaaaaaaa-work', 'Work');
+    await openLibrary(work);
+    await backups.setup({ provider: 'folder', values: { path: join(dir, 'store') } }, 'correct horse battery', true);
+    await settled(work.id);
+
+    expect(await backups.password()).toBe('correct horse battery');
+    await backups.changePassword('a different long password');
+    expect(await backups.password()).toBe('a different long password');
+
+    // The store still opens with the new one.
+    await backups.backupNow();
+    expect((await backups.snapshots()).length).toBeGreaterThan(0);
+  });
+
+  it('says where the backups go, and how often', async () => {
+    const dir = tempDir();
+    const { backups, settings, openLibrary, settled } = await setup(join(dir, 'data'));
+    const work = library(dir, 'aaaaaaaa-work', 'Work');
+    await openLibrary(work);
+    await backups.setup({ provider: 'folder', values: { path: join(dir, 'store') } }, 'correct horse battery', true);
+    await settled(work.id);
+
+    expect(backups.target()).toMatchObject({ provider: 'folder' });
+    await backups.setInterval(6);
+    expect(settings.get().libraries[work.id]?.backup?.intervalHours).toBe(6);
+  });
+
+  it('turns off, and forgets where they went', async () => {
+    const dir = tempDir();
+    const { backups, settings, openLibrary, settled } = await setup(join(dir, 'data'));
+    const work = library(dir, 'aaaaaaaa-work', 'Work');
+    await openLibrary(work);
+    await backups.setup({ provider: 'folder', values: { path: join(dir, 'store') } }, 'correct horse battery', true);
+    await settled(work.id);
+
+    await backups.turnOff();
+    expect(settings.get().libraries[work.id]?.backup).toBeNull();
+    expect((await backups.status()).repoPath).toBeNull();
+    // The copies themselves are left alone: turning backups off is not deleting them.
+    expect(existsSync(join(dir, 'store'))).toBe(true);
+  });
+
+  it('refuses the wrong password rather than making a second store', async () => {
+    const dir = tempDir();
+    const { backups, openLibrary, settled } = await setup(join(dir, 'data'));
+    const work = library(dir, 'aaaaaaaa-work', 'Work');
+    await openLibrary(work);
+    const store = join(dir, 'store');
+    await backups.setup({ provider: 'folder', values: { path: store } }, 'correct horse battery', true);
+    await settled(work.id);
+
+    const home = library(dir, 'bbbbbbbb-home', 'Home');
+    await openLibrary(home);
+    await expect(backups.setup({ provider: 'folder', values: { path: store } }, 'the wrong password', false)).rejects.toThrow();
+  });
+
+  it('says nothing is set up when nothing is', async () => {
+    const dir = tempDir();
+    const { backups, openLibrary } = await setup(join(dir, 'data'));
+    await openLibrary(library(dir, 'aaaaaaaa-work', 'Work'));
+    const status = await backups.status();
+    expect(status.repoPath).toBeNull();
+    expect(status.target).toBeNull();
+    expect(status.lastBackupAt).toBeNull();
+    // Nothing to back up to, and nothing kept: both say so rather than pretending.
+    await expect(backups.backupNow()).rejects.toThrow();
+    await expect(backups.snapshots()).rejects.toThrow();
+  });
+});
