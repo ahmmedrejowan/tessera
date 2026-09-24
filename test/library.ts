@@ -66,6 +66,9 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
     },
     siteRules: () => [],
     binKeepDays: () => 30,
+    // No watching in tests: the folders go the moment a test ends, and a watcher pointed at a
+    // folder that has gone is a crash on Windows.
+    watchFiles: false,
   });
   await library.create(root, 'Test library');
   opened.push(library);

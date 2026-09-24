@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, renameSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { log } from '../log';
 import { DatabaseSync } from 'node:sqlite';
@@ -127,9 +127,41 @@ export function openIndexDb(path: string): DatabaseSync {
     return open(path);
   } catch (e) {
     log.warn('index', `the index at ${path} could not be opened; building it again`, e);
-    for (const f of [path, `${path}-wal`, `${path}-shm`]) rmSync(f, { force: true });
-    return open(path);
+    return open(clearOut(path));
   }
+}
+
+/**
+ * Make room for a new index where a broken one sits. Deleting it is the tidy way; Windows will not
+ * delete a file something still has open, so it is moved aside instead, and if even that is
+ * refused, the new index simply goes somewhere else. Being able to open the library matters more
+ * than the name of a file nobody looks at.
+ */
+function clearOut(path: string): string {
+  for (const f of [`${path}-wal`, `${path}-shm`]) {
+    try {
+      rmSync(f, { force: true });
+    } catch {
+      // It goes with the rest, or it is left behind; either way it is not read again.
+    }
+  }
+  try {
+    rmSync(path, { force: true });
+    return path;
+  } catch {
+    // Still held open. Move it out of the way.
+  }
+  const aside = `${path}.broken-${Date.now()}`;
+  try {
+    renameSync(path, aside);
+    log.info('index', `the broken index was moved to ${aside}`);
+    return path;
+  } catch {
+    // Not even that. Build the new one beside it.
+  }
+  const fresh = `${path}.${Date.now()}.sqlite`;
+  log.info('index', `building the index at ${fresh} instead`);
+  return fresh;
 }
 
 /** Run `fn` in a transaction, rolling back if it throws. */

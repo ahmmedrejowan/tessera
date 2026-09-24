@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readdirSync, watch, type Dirent, type FSWatcher } from 'node:fs';
+import { existsSync, readdirSync, watch, type Dirent, type FSWatcher } from 'node:fs';
 import { copyFile, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { isIgnored } from '@shared/assets';
@@ -34,6 +34,8 @@ interface Deps {
   siteRules: () => SiteRule[];
   /** How long deleted things wait in the library's bin before they go for good; 0 keeps them. */
   binKeepDays: () => number;
+  /** Watch the library folder for changes made outside the app. Off in tests. */
+  watchFiles?: boolean;
 }
 
 interface Open {
@@ -52,6 +54,8 @@ export class LibraryService {
   private watcher: FSWatcher | null = null;
   /** Where a whole tree cannot be watched at once, one watcher per folder instead. */
   private watchers: FSWatcher[] = [];
+  /** Checks that the folder being watched is still there. */
+  private rootCheck: NodeJS.Timeout | null = null;
   private syncing: Promise<void> | null = null;
   private syncAgain = false;
   private watchTimer: NodeJS.Timeout | null = null;
@@ -114,9 +118,7 @@ export class LibraryService {
   }
 
   close(): void {
-    this.watcher?.close();
-    this.watcher = null;
-    for (const w of this.watchers.splice(0)) w.close();
+    this.stopWatching();
     this.current?.index.close();
     this.current = null;
     if (this.state.status !== 'none') this.setState({ status: 'none' });
@@ -185,6 +187,7 @@ export class LibraryService {
    * changes have stopped coming.
    */
   private startWatching(root: string): void {
+    if (this.d.watchFiles === false) return;
     const soon = () => {
       if (this.watchTimer) clearTimeout(this.watchTimer);
       this.watchTimer = setTimeout(() => (this.busyWriting ? undefined : void this.sync()), 1500);
@@ -203,6 +206,7 @@ export class LibraryService {
     const whole = this.watcher ?? (process.platform === 'linux' ? null : watchOne(root, true));
     if (whole) {
       this.watcher = whole;
+      this.watchRoot(root);
       return;
     }
     // One watcher for the library, one for the packs folder, and one for each pack in it.
@@ -215,6 +219,30 @@ export class LibraryService {
     }
     for (const entry of packs) if (entry.isDirectory()) dirs.push(join(root, DIRS.packs, entry.name));
     this.watchers = dirs.map((d) => watchOne(d, false)).filter((w): w is FSWatcher => !!w);
+    this.watchRoot(root);
+  }
+
+  /**
+   * Let go of a folder that has gone. A drive pulled out, or a library deleted from underneath us,
+   * leaves the system's own watcher pointing at nothing, and on Windows that can take the whole
+   * app down with it. Checking now and then costs nothing and closes the window on that.
+   */
+  private watchRoot(root: string): void {
+    if (this.rootCheck) clearInterval(this.rootCheck);
+    this.rootCheck = setInterval(() => {
+      if (existsSync(root)) return;
+      log.warn('library', `${root} is no longer there; letting go of it`);
+      this.stopWatching();
+    }, 5000);
+    this.rootCheck.unref?.();
+  }
+
+  private stopWatching(): void {
+    if (this.rootCheck) clearInterval(this.rootCheck);
+    this.rootCheck = null;
+    this.watcher?.close();
+    this.watcher = null;
+    for (const w of this.watchers.splice(0)) w.close();
   }
 
   /** A pack's record as it is on disk now. */
