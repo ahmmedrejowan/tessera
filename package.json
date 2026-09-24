@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "icon": "electron scripts/make-icon.cjs",
     "package": "npm run build && electron-builder --config build/builder.cjs --dir",
-    "dist": "npm run build && electron-builder --config build/builder.cjs"
+    "dist": "npm run build && electron-builder --config build/builder.cjs",
+    "test:e2e": "node test/e2e/run.mjs"
   },
   "devDependencies": {
     "@electron/windows-sign": "^1.2.2",
@@ -64,7 +65,7 @@
   "build": {
     "appId": "com.rejowan.tessera",
     "productName": "Tessera",
-    "copyright": "Copyright © 2026 K M Rejowan Ahmmed",
+    "copyright": "Copyright \u00a9 2026 K M Rejowan Ahmmed",
     "directories": {
       "output": "release",
       "buildResources": "build"
