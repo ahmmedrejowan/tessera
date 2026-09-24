@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { watch, type FSWatcher } from 'node:fs';
 import { copyFile, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
@@ -272,7 +273,9 @@ export class LibraryService {
     const lib = this.current;
     if (!lib) return false;
     const all = await listCollections(lib.root);
-    const sig = JSON.stringify(all.map((c) => [c.id, c.updatedAt, c.items.length]));
+    // What they hold, not when they were touched: two changes in the same millisecond are still
+    // two changes, and the one that starred a pack must not be the one that goes unnoticed.
+    const sig = createHash('sha1').update(JSON.stringify(all.map((c) => [c.id, c.name, c.items, c.packs, c.rules, c.query, c.projectId]))).digest('hex');
     if (sig === this.collectionsSig) return false;
     this.collectionsSig = sig;
     lib.index.setCollections(all);
