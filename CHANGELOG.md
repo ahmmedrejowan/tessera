@@ -1,8 +1,10 @@
 # What's new in Tessera
 
-## 0.1.0: in development
+## 0.1.0: the first preview (25 September 2026)
 
-The first working version. Everything below is in the app today.
+The first working version, published as a preview: everything below is in the app today, and the
+parts that touch somebody's own files have been held to it. Treat it as a preview all the same,
+keep a copy of anything you cannot lose, and tell me what breaks.
 
 - **Libraries**, as many as you like, each its own folder of ordinary files and folders. The
   switcher at the top right moves between them; each keeps its own settings, backups and sync.

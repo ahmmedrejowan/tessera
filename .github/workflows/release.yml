@@ -109,22 +109,3 @@ jobs:
           name: Tessera ${{ github.ref_name }}
           body_path: release-notes.md
           files: downloaded/*
-
-  # The website reads its downloads and changelog from this repository and caches them for an hour.
-  # This tells it to look again now. Without the two settings the step is skipped, and the site is
-  # at most an hour behind.
-  site:
-    name: Tell the website
-    needs: publish
-    runs-on: ubuntu-latest
-    steps:
-      - name: Refresh the site
-        env:
-          SITE: ${{ vars.TESSERA_SITE_URL }}
-          KEY: ${{ secrets.TESSERA_SITE_REVALIDATE_KEY }}
-        run: |
-          if [ -z "$SITE" ] || [ -z "$KEY" ]; then
-            echo "no site settings; the site will catch up within the hour"
-            exit 0
-          fi
-          curl -fsS -X POST "$SITE/api/revalidate" -H "x-revalidate-key: $KEY"
