@@ -102,25 +102,29 @@ gh attestation verify Tessera-*.dmg -R ahmmedrejowan/tessera
 
 ## Screenshots
 
-| Home | Browse |
-|------|--------|
-| ![Home](docs/images/02-home.png) | ![Browse](docs/images/03-browse.png) |
+| Home | Every pack |
+|------|------------|
+| ![Home](docs/images/02-home.png) | ![Browsing by pack](docs/images/12-packs.png) |
 
-| A pack | What is inside it |
-|--------|-------------------|
-| ![A pack](docs/images/04-pack.png) | ![The files in a pack](docs/images/05-pack-files.png) |
+| Browsing the assets | A pack's own page |
+|---------------------|-------------------|
+| ![Browse](docs/images/03-browse.png) | ![A pack](docs/images/04-pack.png) |
 
-| The viewer | Collections |
-|------------|-------------|
-| ![The viewer](docs/images/06-viewer.png) | ![Collections](docs/images/07-collections.png) |
+| What is inside a pack | The viewer |
+|-----------------------|------------|
+| ![The files in a pack](docs/images/05-pack-files.png) | ![The viewer](docs/images/06-viewer.png) |
 
-| Games | Settings |
-|-------|----------|
-| ![Games](docs/images/08-games.png) | ![Settings](docs/images/09-settings.png) |
+| Games | Collections |
+|-------|-------------|
+| ![Games](docs/images/08-games.png) | ![Collections](docs/images/07-collections.png) |
 
-| AI agents | Connecting an agent |
-|-----------|---------------------|
-| ![AI agents](docs/images/10-agents-settings.png) | ![Connecting](docs/images/11-agents.png) |
+| Settings | AI agents |
+|----------|-----------|
+| ![Settings](docs/images/09-settings.png) | ![AI agents](docs/images/10-agents-settings.png) |
+
+| Connecting an agent | The first screen |
+|---------------------|------------------|
+| ![Connecting](docs/images/11-agents.png) | ![The first screen](docs/images/01-welcome.png) |
 
 ---
 
