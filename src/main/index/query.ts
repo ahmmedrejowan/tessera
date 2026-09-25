@@ -53,6 +53,8 @@ const ASSET_COLUMN: Partial<Record<Facet, string>> = { type: 'a.type', format: '
 const STARRED_ASSET = `EXISTS (SELECT 1 FROM collection_items f WHERE f.collection_id = '${FAVOURITES}' AND f.pack_id = a.pack_id AND f.ref = a.ref) DESC, `;
 const STARRED_PACK = `EXISTS (SELECT 1 FROM collection_packs f WHERE f.collection_id = '${FAVOURITES}' AND f.pack_id = p.id) DESC, `;
 
+// A sort that is not one of these (an older window, a typo in an agent's call) falls back to by
+// name rather than reaching SQLite as the word "undefined".
 const ASSET_SORT: Record<AssetSort, string> = {
   relevance: 'a.name COLLATE NOCASE, a.id',
   name: 'a.name COLLATE NOCASE, a.id',
@@ -176,7 +178,7 @@ export class LibraryQueries {
     // In a collection, "best match" without search words is the order things were added.
     const order = q.collectionId && !terms.length && sort === 'relevance'
       ? '(SELECT position FROM collection_items ci WHERE ci.collection_id = ? AND ci.pack_id = a.pack_id AND ci.ref = a.ref), a.id'
-      : `${STARRED_ASSET}${score}${ASSET_SORT[sort]}`;
+      : `${STARRED_ASSET}${score}${ASSET_SORT[sort] ?? ASSET_SORT.name}`;
     const orderParams = q.collectionId && !terms.length && sort === 'relevance' ? [q.collectionId] : exact;
     const rows = this.all<RawAsset>(`SELECT ${ASSET_FIELDS} ${from} ORDER BY ${order} LIMIT ? OFFSET ?`, [...w.params, ...orderParams, limit, offset]);
     return { rows: rows.map(toAsset), total };
@@ -185,7 +187,7 @@ export class LibraryQueries {
   packs(q: BrowseQuery, sort: PackSort, offset: number, limit: number): Page<PackRow> {
     const w = this.where(this.clauses(q, 'packs'));
     const total = this.get<{ n: number }>(`SELECT count(*) AS n FROM packs p ${w.sql}`, w.params)!.n;
-    const raw = this.all<RawPack>(`SELECT ${PACK_FIELDS} FROM packs p ${w.sql} ORDER BY ${STARRED_PACK}${PACK_SORT[sort]} LIMIT ? OFFSET ?`, [...w.params, limit, offset]);
+    const raw = this.all<RawPack>(`SELECT ${PACK_FIELDS} FROM packs p ${w.sql} ORDER BY ${STARRED_PACK}${PACK_SORT[sort] ?? PACK_SORT.name} LIMIT ? OFFSET ?`, [...w.params, limit, offset]);
     return { rows: this.toPackRows(raw), total };
   }
 

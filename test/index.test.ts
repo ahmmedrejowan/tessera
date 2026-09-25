@@ -162,6 +162,13 @@ describe('index and queries', () => {
     expect(city).toMatchObject({ name: 'City Kit', assetCount: 2, fileCount: 6, coverRef: 'original/kenney_city-kit.zip!Preview.png', types: { model: 2 } });
   });
 
+  it('falls back to sorting by name when asked for a sort it does not have', () => {
+    // An older window, or an agent with a typo: the answer is the ordinary order, not an error.
+    const named = q.assets(base, 'name', 0, 100).rows.map((r) => r.name);
+    expect(q.assets(base, 'best' as never, 0, 100).rows.map((r) => r.name)).toEqual(named);
+    expect(q.packs(base, 'newest' as never, 0, 10).rows.map((r) => r.name)).toEqual(q.packs(base, 'name', 0, 10).rows.map((r) => r.name));
+  });
+
   it('lists every id a query matches, and what they come to', () => {
     const ids = q.allIds(base, 'assets');
     expect(ids).toHaveLength(4);
