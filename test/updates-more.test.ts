@@ -104,6 +104,26 @@ describe('checking for a newer version', () => {
     expect((await updates.check()).error).toContain('No releases');
   });
 
+  it('takes the newest published release when the feed is a list', async () => {
+    // GitHub's "latest" leaves previews out, so the app asks for the list and chooses itself.
+    const { fetch } = answering([
+      release({ tag_name: 'v3.0.0', draft: true }),
+      release({ tag_name: 'v2.5.0', prerelease: true }),
+      release({ tag_name: 'v2.0.0' }),
+    ]);
+    const { updates } = make({ fetch });
+    const status = await updates.check();
+    // The draft is skipped; a preview is not, because a preview is what people are running.
+    expect(status.latest).toBe('2.5.0');
+    expect(status.newer).toBe(true);
+  });
+
+  it('says so plainly when the list is empty', async () => {
+    const { fetch } = answering([]);
+    const { updates } = make({ fetch });
+    expect((await updates.check()).error).toContain('No releases');
+  });
+
   it('will not compare with a draft', async () => {
     const { fetch } = answering(release({ draft: true }));
     const { updates } = make({ fetch });

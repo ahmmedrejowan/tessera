@@ -156,7 +156,13 @@ export class Updates {
     try {
       const res = await this.d.fetch(this.d.feed, { headers: { 'User-Agent': 'Tessera', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(20_000) });
       if (!res.ok) throw new Error(res.status === 404 ? 'No releases have been published yet.' : `The release list answered ${res.status}.`);
-      const release = (await res.json()) as { tag_name?: string; name?: string; html_url?: string; body?: string; published_at?: string; draft?: boolean; prerelease?: boolean; assets?: { name: string; browser_download_url: string; size: number }[] };
+      type Published = { tag_name?: string; name?: string; html_url?: string; body?: string; published_at?: string; draft?: boolean; prerelease?: boolean; assets?: { name: string; browser_download_url: string; size: number }[] };
+      const answer = (await res.json()) as Published | Published[];
+      // The feed is either one release or a list of them. GitHub's "latest" leaves previews out
+      // altogether, so a project that publishes previews points at the list and takes the newest
+      // finished one, preview or not.
+      const release = Array.isArray(answer) ? answer.filter((r) => !r.draft && r.published_at)[0] : answer;
+      if (!release) throw new Error('No releases have been published yet.');
       const tag = release.tag_name ?? release.name ?? null;
       if (!tag || release.draft) throw new Error('No finished release to compare with.');
       this.assets = (release.assets ?? []).map((a) => ({ name: a.name, url: a.browser_download_url, size: a.size }));

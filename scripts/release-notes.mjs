@@ -40,8 +40,8 @@ choose Open instead.
 
 **Windows** says "Windows protected your PC". Choose More info, then Run anyway.
 
-**Linux** says nothing. \`chmod +x Tessera-*.AppImage\`, \`sudo dpkg -i tessera_*.deb\`, or
-\`sudo rpm -i tessera-*.rpm\`.
+**Linux** says nothing. \`chmod +x Tessera-*.AppImage\`, \`sudo dpkg -i Tessera-*.deb\`, or
+\`sudo rpm -i Tessera-*.rpm\`.
 
 Take the file that matches your computer: \`arm64\` for Apple Silicon, \`x64\` for Intel. The
 SHA256SUMS files beside them are the checksums of everything built here, and each file carries a

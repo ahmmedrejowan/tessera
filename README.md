@@ -88,8 +88,8 @@ Tessera in Applications and choose **Open**, then **Open** again.
 
 **Windows** says "Windows protected your PC". Choose **More info**, then **Run anyway**.
 
-**Linux** says nothing. `chmod +x Tessera-*.AppImage`, or `sudo dpkg -i tessera_*.deb`, or
-`sudo rpm -i tessera-*.rpm`.
+**Linux** says nothing. `chmod +x Tessera-*.AppImage`, or `sudo dpkg -i Tessera-*.deb`, or
+`sudo rpm -i Tessera-*.rpm`.
 
 Every release lists the SHA256 of each file, so you can check a download is the one that was built.
 Each file also carries a signed record of the commit and the workflow that produced it:
