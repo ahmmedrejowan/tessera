@@ -43,7 +43,8 @@ describe('the file behind a page', () => {
   });
 
   it('reads the zip off a Kenney page, and says so when the page has changed', async () => {
-    const page = '<a href="/media/pages/assets/city-kit/abc123/kenney_city-kit.zip">Download</a>';
+    // Kenney writes its attributes in single quotes, as the real pages do.
+    const page = "<a id='donate-text' href='/media/pages/assets/city-kit/abc123/kenney_city-kit.zip' data-lity-close>Continue</a>";
     const { fetch } = web({ 'https://kenney.nl/assets/city-kit': page });
     expect((await resolveLink('https://kenney.nl/assets/city-kit', fetch))?.url).toBe('https://kenney.nl/media/pages/assets/city-kit/abc123/kenney_city-kit.zip');
 

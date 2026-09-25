@@ -118,13 +118,25 @@ gh attestation verify Tessera-*.dmg -R ahmmedrejowan/tessera
 |-------|----------|
 | ![Games](docs/images/08-games.png) | ![A game's page](docs/images/13-project.png) |
 
-| Collections | Settings |
-|-------------|----------|
-| ![Collections](docs/images/07-collections.png) | ![Settings](docs/images/09-settings.png) |
+| Collections | Review |
+|-------------|--------|
+| ![Collections](docs/images/07-collections.png) | ![Review](docs/images/15-review.png) |
 
-| AI agents | Connecting an agent |
-|-----------|----------------------|
-| ![AI agents](docs/images/10-agents-settings.png) | ![Connecting](docs/images/11-agents.png) |
+| Downloads | One library, or several |
+|-----------|-------------------------|
+| ![Downloads](docs/images/16-downloads.png) | ![The library switcher](docs/images/14-libraries.png) |
+
+| Backups | Sync |
+|---------|------|
+| ![Backups](docs/images/17-backups.png) | ![Sync](docs/images/18-sync.png) |
+
+| Settings | AI agents |
+|----------|-----------|
+| ![Settings](docs/images/09-settings.png) | ![AI agents](docs/images/10-agents-settings.png) |
+
+| Connecting an agent | The first screen |
+|---------------------|------------------|
+| ![Connecting](docs/images/11-agents.png) | ![The first screen](docs/images/01-welcome.png) |
 
 ---
 

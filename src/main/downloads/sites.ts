@@ -34,7 +34,10 @@ const json = async (fetch: Fetch, url: string): Promise<unknown> => {
 };
 
 /** Links in a page's HTML, in the order they appear. */
-const hrefs = (html: string): string[] => [...html.matchAll(/href\s*=\s*"([^"]+)"/gi)].map((m) => m[1]!);
+// Pages in the wild quote their attributes however they like: Kenney's are in single quotes, so
+// reading only double-quoted ones found no download at all.
+const hrefs = (html: string): string[] =>
+  [...html.matchAll(/href\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi)].map((m) => m[1] ?? m[2] ?? m[3]!).filter(Boolean);
 
 const host = (u: URL) => u.hostname.replace(/^www\./, '');
 
