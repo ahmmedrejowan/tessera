@@ -98,9 +98,11 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
       }),
     );
   }
-  // Opening a library starts a sync of its own; the second call waits for that one to finish too.
-  await library.sync();
-  await library.sync();
+  // Opening a library starts a sync of its own, which can be reading these very folders while
+  // they are still being written. A sync that has already looked at a pack will not look again
+  // until the folder changes, so a half-written pack could stay half-read; reading everything from
+  // scratch is what makes the fixture the same on every machine.
+  await library.reindex();
 
   const context = (): ToolContext => ({
     library,

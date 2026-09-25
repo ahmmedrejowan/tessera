@@ -117,6 +117,12 @@ describe('a file that goes missing halfway through a copy', () => {
     const id = (await callTool(app, 'list_packs', {}) as { packs: { id: string }[] }).packs[0]!.id;
     const game = tempDir();
     const project = (await callTool(app, 'add_game', { path: game, name: 'Half' })) as { id: string };
+    // The copy is planned from the index, so the test only means anything if the index holds both
+    // files to begin with. Said out loud, because a run where it holds one would otherwise look
+    // like the app failing to take back what it wrote.
+    const planned = app.library.require().queries.assets({ scope: 'all', text: '', filters: {}, packIds: [id] }, 'name', 0, 100).rows;
+    expect(planned.map((a) => a.ref).sort()).toEqual(['original/Models/first.obj', 'original/Models/second.obj']);
+
     // One of the two files disappears from the library between the plan and the copy.
     rmSync(join(app.root, 'packs', 'Two Things', 'original', 'Models', 'second.obj'));
     await expect(callTool(app, 'link_to_game', { projectId: project.id, packIds: [id] })).rejects.toThrow();

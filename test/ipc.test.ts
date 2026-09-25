@@ -98,8 +98,7 @@ beforeAll(async () => {
       updatedAt: new Date().toISOString(),
     }),
   );
-  await library.sync();
-  await library.sync();
+  await library.reindex();
 
   projects = new ProjectService(dataDir, jobs);
   activity = new Activity(dataDir, () => 'handlers-library', () => undefined);

@@ -111,7 +111,7 @@ beforeAll(async () => {
 
   library = new LibraryService({ dataDir, jobs, onState: () => undefined, onIndexChanged: () => undefined, siteRules: () => [], binKeepDays: () => 30, watchFiles: false });
   await library.create(root, 'The rest');
-  await library.sync();
+  await library.reindex();
 
   const stub = <T>(shape: unknown): T => shape as T;
   const nothing = () => undefined;
