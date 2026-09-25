@@ -114,17 +114,17 @@ gh attestation verify Tessera-*.dmg -R ahmmedrejowan/tessera
 |-----------------------|------------|
 | ![The files in a pack](docs/images/05-pack-files.png) | ![The viewer](docs/images/06-viewer.png) |
 
-| Games | Collections |
-|-------|-------------|
-| ![Games](docs/images/08-games.png) | ![Collections](docs/images/07-collections.png) |
+| Games | One game |
+|-------|----------|
+| ![Games](docs/images/08-games.png) | ![A game's page](docs/images/13-project.png) |
 
-| Settings | AI agents |
-|----------|-----------|
-| ![Settings](docs/images/09-settings.png) | ![AI agents](docs/images/10-agents-settings.png) |
+| Collections | Settings |
+|-------------|----------|
+| ![Collections](docs/images/07-collections.png) | ![Settings](docs/images/09-settings.png) |
 
-| Connecting an agent | The first screen |
-|---------------------|------------------|
-| ![Connecting](docs/images/11-agents.png) | ![The first screen](docs/images/01-welcome.png) |
+| AI agents | Connecting an agent |
+|-----------|----------------------|
+| ![AI agents](docs/images/10-agents-settings.png) | ![Connecting](docs/images/11-agents.png) |
 
 ---
 
