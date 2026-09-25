@@ -87,6 +87,18 @@ describe('the record of what agents have done', () => {
     const page = await history.list();
     expect(page.total).toBe(1000);
     expect(page.rows[0]!.tool).toBe('tool-1599');
+
+    // Reading it also writes the shortened list back, in its own time. Waited for rather than
+    // assumed: that the file on disk really is shorter is the point, and a test that walks away
+    // while the write is still going takes its folder with it.
+    const file = join(dir, 'agent-calls.jsonl');
+    const lineCount = () => readFileSync(file, 'utf8').trim().split('\n').filter(Boolean).length;
+    // Not "fewer than it was": a write in progress has emptied the file for an instant, and that
+    // is not the answer being waited for.
+    for (let tries = 0; tries < 300 && lineCount() !== 1000; tries += 1) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(lineCount()).toBe(1000);
   });
 });
 

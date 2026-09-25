@@ -13,5 +13,7 @@ export function tempDir(prefix = 'tessera-test-'): string {
 }
 
 afterEach(() => {
-  for (const d of made.splice(0)) rmSync(d, { recursive: true, force: true });
+  // Retries because a service may still be finishing a write of its own as its folder goes: on
+  // Linux a file appearing mid-removal is an ENOTEMPTY, which has nothing to do with the test.
+  for (const d of made.splice(0)) rmSync(d, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
 });
