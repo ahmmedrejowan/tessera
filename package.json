@@ -170,5 +170,12 @@
       "maintainer": "K M Rejowan Ahmmed <hello@rejowan.com>"
     },
     "npmRebuild": false
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "ssh2": false,
+    "cpu-features": false,
+    "electron-winstaller": false
   }
 }
