@@ -304,3 +304,11 @@ do the assets you keep in your library.
 - [Releases](https://github.com/ahmmedrejowan/tessera/releases) - every version, with its notes
 - [Security](SECURITY.md) - please email rather than opening an issue
 - [Privacy](PRIVACY.md) - what stays here, and what leaves only when you ask
+
+---
+
+<p align="center">
+  <a href="https://www.producthunt.com/products/tessera-11">
+    <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1261930&amp;theme=dark" alt="Find Tessera on Product Hunt" width="250" height="54" />
+  </a>
+</p>
