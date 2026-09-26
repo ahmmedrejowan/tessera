@@ -1,6 +1,6 @@
 # Questions people ask
 
-The [step by step guide](guide.md) covers how to use Tessera. This is the rest: the things people
+The [guide](guide/01-getting-started.md) covers how to use Tessera. This is the rest: the things people
 want to know before they trust an app with a collection they have spent years building.
 
 ## Getting started

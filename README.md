@@ -157,7 +157,7 @@ gh attestation verify Tessera-*.dmg -R ahmmedrejowan/tessera
 6. **Link it into a game.** Tell Tessera where the game folder is; it copies the assets in, in the
    format that engine prefers, with a licence file beside them and CREDITS.md kept up to date.
 
-Then, when you want it: [the step by step guide](docs/guide.md) with pictures, the
+Then, when you want it: [the guide](docs/guide/) with pictures, the
 [questions people ask](docs/faq.md), and the [wiki](https://github.com/ahmmedrejowan/tessera/wiki).
 The same words are in the app, under Help.
 

@@ -9,7 +9,7 @@ coverage/
 .env.*
 # Working notes stay private; the guide, the questions and their pictures are published.
 docs/*
-!docs/guide.md
+!docs/guide/
 !docs/faq.md
 !docs/testing.md
 !docs/images/
