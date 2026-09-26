@@ -390,10 +390,12 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   app.on('second-instance', () => {
     const w = windows()[0];
-    if (w) {
-      if (w.isMinimized()) w.restore();
-      w.focus();
-    }
+    if (!w) return;
+    // Opening it again is how somebody asks for the window back, so make sure they get it: a
+    // window that is hidden rather than minimised cannot be focused into view.
+    if (w.isMinimized()) w.restore();
+    if (!w.isVisible()) w.show();
+    w.focus();
   });
   void app.whenReady().then(start);
 }
@@ -531,7 +533,21 @@ async function createWindow(): Promise<void> {
   });
   if (saved?.maximized) win.maximize();
   trackWindowState(win, dataDir);
-  win.once('ready-to-show', () => win.show());
+
+  /*
+    Showing the window is deliberately not left to one event. `ready-to-show` is the right moment,
+    but it depends on the renderer producing a frame, and on some machines (Windows, seen in the
+    wild) it never arrives: the process runs, the window exists, and nothing is ever on screen.
+    So: whichever of these happens first, and never twice.
+  */
+  const reveal = () => {
+    if (win.isDestroyed() || win.isVisible()) return;
+    win.show();
+  };
+  win.once('ready-to-show', reveal);
+  win.webContents.once('did-finish-load', reveal);
+  const failsafe = setTimeout(reveal, 5000);
+  win.on('closed', () => clearTimeout(failsafe));
 
   // Links open in the browser; the window itself never navigates away from the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -542,8 +558,14 @@ async function createWindow(): Promise<void> {
     if (url !== win.webContents.getURL()) event.preventDefault();
   });
 
-  if (process.env.ELECTRON_RENDERER_URL) await win.loadURL(process.env.ELECTRON_RENDERER_URL);
-  else await win.loadFile(join(import.meta.dirname, '../renderer/index.html'));
+  try {
+    if (process.env.ELECTRON_RENDERER_URL) await win.loadURL(process.env.ELECTRON_RENDERER_URL);
+    else await win.loadFile(join(import.meta.dirname, '../renderer/index.html'));
+  } catch (error) {
+    // A window nobody can see is worse than a window showing that something went wrong.
+    log.error('app', 'the window could not load', error);
+    reveal();
+  }
 }
 
 app.on('window-all-closed', () => {
