@@ -4,11 +4,15 @@ name: Package managers
 # but harmlessly, when the secret it needs is not set, so this workflow is safe to have before any
 # of the accounts exist.
 #
+# The tap and the bucket are written to with a deploy key each: an SSH key that belongs to one
+# repository, can push to that repository and nothing else, and never expires.
+#
 # Settings it uses, all optional:
-#   TAP_TOKEN        a personal access token with contents:write on the tap and bucket repos
-#   WINGET_TOKEN     a token with public_repo, for the pull request to microsoft/winget-pkgs
-#   AUR_SSH_KEY      the private half of the SSH key registered with your AUR account
-#   CHOCO_API_KEY    the push key from community.chocolatey.org
+#   HOMEBREW_TAP_KEY   private half of the deploy key on ahmmedrejowan/homebrew-tessera
+#   SCOOP_BUCKET_KEY   private half of the deploy key on ahmmedrejowan/scoop-tessera
+#   WINGET_TOKEN       a token with public_repo, for the pull request to microsoft/winget-pkgs
+#   AUR_SSH_KEY        the private half of the SSH key registered with your AUR account
+#   CHOCO_API_KEY      the push key from community.chocolatey.org
 on:
   release:
     types: [published]
@@ -53,11 +57,16 @@ jobs:
         with: { name: manifests, path: manifests }
       - name: Push the cask
         env:
-          TOKEN: ${{ secrets.TAP_TOKEN }}
+          KEY: ${{ secrets.HOMEBREW_TAP_KEY }}
           TAG: ${{ needs.manifests.outputs.tag }}
         run: |
-          if [ -z "$TOKEN" ]; then echo "no TAP_TOKEN; skipping"; exit 0; fi
-          git clone "https://x-access-token:$TOKEN@github.com/${{ github.repository_owner }}/homebrew-tessera.git" tap
+          if [ -z "$KEY" ]; then echo "no HOMEBREW_TAP_KEY; skipping"; exit 0; fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/tap_key
+          chmod 600 ~/.ssh/tap_key
+          ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/tap_key -o IdentitiesOnly=yes"
+          git clone "git@github.com:${{ github.repository_owner }}/homebrew-tessera.git" tap
           mkdir -p tap/Casks
           cp manifests/homebrew/Casks/tessera.rb tap/Casks/tessera.rb
           cd tap
@@ -77,11 +86,16 @@ jobs:
         with: { name: manifests, path: manifests }
       - name: Push the manifest
         env:
-          TOKEN: ${{ secrets.TAP_TOKEN }}
+          KEY: ${{ secrets.SCOOP_BUCKET_KEY }}
           TAG: ${{ needs.manifests.outputs.tag }}
         run: |
-          if [ -z "$TOKEN" ]; then echo "no TAP_TOKEN; skipping"; exit 0; fi
-          git clone "https://x-access-token:$TOKEN@github.com/${{ github.repository_owner }}/scoop-tessera.git" bucket
+          if [ -z "$KEY" ]; then echo "no SCOOP_BUCKET_KEY; skipping"; exit 0; fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/bucket_key
+          chmod 600 ~/.ssh/bucket_key
+          ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/bucket_key -o IdentitiesOnly=yes"
+          git clone "git@github.com:${{ github.repository_owner }}/scoop-tessera.git" bucket
           mkdir -p bucket/bucket
           cp manifests/scoop/bucket/tessera.json bucket/bucket/tessera.json
           cd bucket
