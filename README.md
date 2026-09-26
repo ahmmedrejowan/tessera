@@ -15,6 +15,12 @@
 [![CI](https://github.com/ahmmedrejowan/tessera/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmmedrejowan/tessera/actions/workflows/ci.yml)
 
 [tessera.rejowan.com](https://tessera.rejowan.com)
+
+  <a href="https://www.youtube.com/watch?v=ToopqlN9PU4">
+    <img src="https://i.ytimg.com/vi/ToopqlN9PU4/maxresdefault.jpg" alt="Watch Tessera in forty seconds" width="640">
+  </a>
+
+  <p><a href="https://www.youtube.com/watch?v=ToopqlN9PU4"><b>Watch it in forty seconds</b></a></p>
 </div>
 
 ---

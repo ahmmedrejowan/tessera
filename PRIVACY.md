@@ -73,6 +73,9 @@ tessera.rejowan.com is separate from the application and knows nothing about you
   the counts are only ever seen in aggregate.
 - **No cookies, no advertising, no third-party scripts.** The fonts, images and scripts are served
   from the site itself.
+- **The video on the home page** is a picture served from here until you press play. Only then is
+  the player fetched from YouTube, on their no-cookie domain, and only then does your browser talk
+  to them. Not pressing it sends them nothing.
 - **What the pages read.** The site asks GitHub for the list of releases and for the documents in
   this repository, from the server, so your browser never talks to GitHub unless you follow a link.
 - **Downloads** go to GitHub's release files, under GitHub's own terms, and your browser makes
