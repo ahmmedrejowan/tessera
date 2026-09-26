@@ -48,10 +48,12 @@
 | Your computer | What to type |
 |---------------|--------------|
 | macOS | `brew tap ahmmedrejowan/tessera && brew install --cask tessera` |
-| Windows | `winget install Rejowan.Tessera` |
 | Windows, Scoop | `scoop bucket add tessera https://github.com/ahmmedrejowan/scoop-tessera && scoop install tessera` |
-| Windows, Chocolatey | `choco install tessera` |
-| Arch Linux | `yay -S tessera-bin` |
+
+Homebrew 7 asks before it loads anything from a tap that is not its own. If it does, run
+`brew trust --cask ahmmedrejowan/tessera/tessera` and install again. winget, Chocolatey and the AUR
+do not carry Tessera yet; their manifests are written on every release, ready for the day those
+accounts exist.
 
 Homebrew is worth preferring on a Mac: it clears the download flag as it installs, so macOS opens
 Tessera without asking you to allow it first.

@@ -22,15 +22,18 @@ that, use the contents.
 
 ## Getting it
 
-The shortest way, on any system, is a package manager:
+The shortest way, on a Mac or with Scoop on Windows, is a package manager:
 
 | System | What to type |
 |--------|--------------|
 | macOS | `brew tap ahmmedrejowan/tessera && brew install --cask tessera` |
-| Windows | `winget install Rejowan.Tessera` |
 | Windows, Scoop | `scoop bucket add tessera https://github.com/ahmmedrejowan/scoop-tessera` then `scoop install tessera` |
-| Windows, Chocolatey | `choco install tessera` |
-| Arch Linux | `yay -S tessera-bin` |
+
+Homebrew 7 asks before it loads anything from a tap that is not its own. If it does, run
+`brew trust --cask ahmmedrejowan/tessera/tessera` and install again.
+
+winget, Chocolatey and the AUR do not carry Tessera yet. Every release writes their manifests
+already, so the day those accounts exist they will be published from the same build.
 
 Or take the file for your computer from the
 [releases page](https://github.com/ahmmedrejowan/tessera/releases/latest): a `.dmg` for macOS, an

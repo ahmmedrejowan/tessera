@@ -76,8 +76,7 @@ function cask(f) {
   sha256 arm:   "${arm.sha256}",
          intel: "${intel.sha256}"
 
-  url "${HOME}/releases/download/v#{version}/Tessera-#{version}-mac-#{arch}.dmg",
-      verified: "github.com/${REPO}/"
+  url "${HOME}/releases/download/v#{version}/Tessera-#{version}-mac-#{arch}.dmg"
   name "Tessera"
   desc "${DESC}"
   homepage "${HOME}"
