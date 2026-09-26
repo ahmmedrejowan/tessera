@@ -44,6 +44,17 @@ describe('when the system has no password store', () => {
   });
 });
 
+describe('whatever the store does', () => {
+  it('gives up rather than hanging when the program never answers', async () => {
+    // A system nobody knows falls back to the Linux route, whose program is not here. What is
+    // being checked is that the answer comes back at all, and quickly: every program the password
+    // store runs is given ten seconds and then killed, so nothing can wait for ever.
+    const started = Date.now();
+    await expect(saveToKeychain('someone', 'a password', 'nothing-like-this' as NodeJS.Platform)).rejects.toThrow();
+    expect(Date.now() - started).toBeLessThan(11_000);
+  });
+});
+
 describe.skipIf(process.platform !== 'darwin')('the macOS keychain', () => {
   it('keeps a visible copy of the password, fed in without a command line', async () => {
     const account = `tessera-test-${Date.now()}`;

@@ -42,13 +42,28 @@ export function recoveryKitHtml(k: KitInput): string {
   </body></html>`;
 }
 
-function run(cmd: string, args: string[], input: string): Promise<void> {
+/**
+ * Run a program, feed it something on standard input, and never wait for ever: a password store
+ * that does not answer must become a message, not a window that has stopped responding.
+ */
+function run(cmd: string, args: string[], input: string, extra: { env?: NodeJS.ProcessEnv } = {}): Promise<void> {
   return new Promise((resolve, reject) => {
-    const p = spawn(cmd, args, { stdio: ['pipe', 'ignore', 'pipe'] });
+    const p = spawn(cmd, args, { stdio: ['pipe', 'ignore', 'pipe'], ...(extra.env ? { env: extra.env } : {}) });
     let err = '';
+    let settled = false;
+    const done = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn();
+    };
+    const timer = setTimeout(() => {
+      p.kill();
+      done(() => reject(new Error(`${cmd} did not answer in time`)));
+    }, 10_000);
     p.stderr.on('data', (d: Buffer) => (err += d.toString()));
-    p.on('error', (e) => reject(e));
-    p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(err.trim() || `${cmd} stopped with ${code}`))));
+    p.on('error', (e) => done(() => reject(e)));
+    p.on('exit', (code) => done(() => (code === 0 ? resolve() : reject(new Error(err.trim() || `${cmd} stopped with ${code}`)))));
     p.stdin.end(input);
   });
 }
@@ -70,13 +85,19 @@ export async function saveToKeychain(account: string, password: string, platform
       // `security -i` reads commands from standard input.
       await run('security', ['-i'], `add-generic-password -U -a ${quote(account)} -s ${quote(KEYCHAIN_SERVICE)} -l ${quote(KEYCHAIN_SERVICE)} -w ${quote(password)}\n`);
     } else if (platform === 'win32') {
+      // The password goes through the environment of this one child process, not on a command
+      // line, where any other program could read it out of the process list. Standard input would
+      // be better still, but PowerShell started with -Command does not reliably hand a pipe to
+      // [Console]::In, and waits on a console that is not there: the call simply never returns.
       const script = [
-        '$pw = [Console]::In.ReadToEnd()',
+        '$pw = $env:TESSERA_KEYCHAIN_PASSWORD',
         '[void][Windows.Security.Credentials.PasswordVault,Windows.Security.Credentials,ContentType=WindowsRuntime]',
         '$v = New-Object Windows.Security.Credentials.PasswordVault',
         `$v.Add((New-Object Windows.Security.Credentials.PasswordCredential(${psQuote(KEYCHAIN_SERVICE)}, ${psQuote(account)}, $pw)))`,
       ].join('; ');
-      await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], password);
+      await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], '', {
+        env: { ...process.env, TESSERA_KEYCHAIN_PASSWORD: password },
+      });
     } else {
       await run('secret-tool', ['store', `--label=${KEYCHAIN_SERVICE}`, 'service', 'tessera-backup', 'account', account], password);
     }
