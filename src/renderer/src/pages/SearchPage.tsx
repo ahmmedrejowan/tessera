@@ -3,7 +3,7 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { TYPE_LABELS, type AssetType } from '@shared/assets';
 import type { AssetRow, PackRow } from '@shared/query';
 import { call } from '../api';
@@ -20,6 +20,8 @@ import { PackCard } from './browse/PackCard';
 import { AssetMenu, PackMenu } from './browse/TileMenu';
 import { md, SHAPE } from '../theme';
 import { Page } from './Placeholder';
+
+const Viewer = lazy(() => import('../viewer/Viewer').then((m) => ({ default: m.Viewer })));
 
 const SHOWN = 12;
 
@@ -53,6 +55,8 @@ export function SearchPage({ text }: { text: string }) {
   const query = { scope: 'library' as const, text: q, filters: {} };
   const [assetMenu, setAssetMenu] = useState<{ anchor: HTMLElement; asset: AssetRow } | null>(null);
   const [packMenu, setPackMenu] = useState<{ anchor: HTMLElement; pack: PackRow } | null>(null);
+  // Which of the assets shown here is open in the viewer. Clicking a file should show the file.
+  const [viewing, setViewing] = useState<number | null>(null);
 
   const packs = useQuery({ queryKey: ['search-packs', lib, version, q], queryFn: () => call('browse:packs', query, 'name', 0, SHOWN), enabled: !!lib && !!q }).data;
   const assets = useQuery({ queryKey: ['search-assets', lib, version, q], queryFn: () => call('browse:assets', query, 'relevance', 0, SHOWN), enabled: !!lib && !!q }).data;
@@ -70,6 +74,9 @@ export function SearchPage({ text }: { text: string }) {
     s.setText(q);
     go({ to: 'browse' });
   };
+
+  const shownAssets = assets?.rows ?? [];
+  const viewed = viewing !== null ? shownAssets[viewing] : undefined;
 
   const nothing = !packs?.total && !assets?.total && !collections.length && !projects.length && !tags.length;
 
@@ -144,14 +151,14 @@ export function SearchPage({ text }: { text: string }) {
             <section>
               <Heading title="Assets" count={assets.total} onAll={() => inBrowse('assets')} />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {assets.rows.map((a) => (
+                {assets.rows.map((a, i) => (
                   <div key={a.id} style={{ width: 132 }}>
                     <AssetTile
                       asset={a}
                       width={132}
                       selected={false}
-                      onClick={() => go({ to: 'pack', id: a.packId })}
-                      onOpen={() => go({ to: 'pack', id: a.packId })}
+                      onClick={() => setViewing(i)}
+                      onOpen={() => setViewing(i)}
                       onMenu={(anchor, x) => setAssetMenu({ anchor, asset: x })}
                       dragItems={(x) => [{ packId: x.packId, ref: x.ref }]}
                     />
@@ -183,6 +190,18 @@ export function SearchPage({ text }: { text: string }) {
             </section>
           )}
         </div>
+      )}
+      {viewed && viewing !== null && (
+        <Suspense fallback={null}>
+          <Viewer
+            asset={viewed}
+            position={{ index: viewing, total: shownAssets.length }}
+            {...(viewing > 0 ? { onPrev: () => setViewing(viewing - 1) } : {})}
+            {...(viewing < shownAssets.length - 1 ? { onNext: () => setViewing(viewing + 1) } : {})}
+            onClose={() => setViewing(null)}
+            strip={{ items: shownAssets, onPick: (i) => setViewing(i) }}
+          />
+        </Suspense>
       )}
       {assetMenu && <AssetMenu anchor={assetMenu.anchor} asset={assetMenu.asset} onClose={() => setAssetMenu(null)} onOpen={() => go({ to: 'pack', id: assetMenu.asset.packId })} />}
       {packMenu && <PackMenu anchor={packMenu.anchor} pack={packMenu.pack} onClose={() => setPackMenu(null)} onOpen={() => go({ to: 'pack', id: packMenu.pack.id })} />}

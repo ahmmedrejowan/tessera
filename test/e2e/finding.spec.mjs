@@ -39,6 +39,29 @@ export async function run(ok) {
     await t.page.keyboard.press('Escape');
     await t.page.getByText('THIS FILE', { exact: false }).first().waitFor({ state: 'hidden', timeout: 20000 });
     ok('and closes again with Escape', true);
+
+    // The search results page: clicking a file there should show the file, not the pack it
+    // happens to live in. It used to navigate to the pack, which lost the file you asked for.
+    const search = t.page.locator('#global-search');
+    await search.waitFor({ state: 'visible', timeout: 30000 });
+    await search.click({ force: true });
+    await search.fill('arcade');
+    await t.page.keyboard.press('Enter');
+    // Packs are listed above assets and use the same role, so reach into the Assets section.
+    const assetsSection = t.page.locator('section').filter({ hasText: /^Assets/ }).first();
+    await assetsSection.waitFor({ state: 'visible', timeout: 30000 });
+    const hit = assetsSection.locator('[role="option"]').first();
+    await hit.waitFor({ state: 'visible', timeout: 30000 });
+    await hit.click({ force: true });
+    const opened = await t.page
+      .getByText('THIS FILE', { exact: false })
+      .first()
+      .waitFor({ state: 'visible', timeout: 20000 })
+      .then(() => true)
+      .catch(() => false);
+    ok('a search result opens the file, not its pack', opened);
+    if (opened) await t.page.keyboard.press('Escape');
+
     ok('nothing went wrong in the window', t.errors.length === 0, t.errors.join(' | '));
   } finally {
     await t.stop();
