@@ -193,12 +193,13 @@ function chocoNuspec() {
     <owners>ahmmedrejowan</owners>
     <title>Tessera</title>
     <authors>K M Rejowan Ahmmed</authors>
-    <projectUrl>${HOME}</projectUrl>
-    <iconUrl>https://raw.githubusercontent.com/${REPO}/main/build/icon.png</iconUrl>
+    <projectUrl>https://tessera.rejowan.com</projectUrl>
+    <!-- Chocolatey asks for an icon on a CDN, pinned to the tag rather than to a moving branch. -->
+    <iconUrl>https://cdn.jsdelivr.net/gh/${REPO}@${tag}/build/icon.png</iconUrl>
     <licenseUrl>${HOME}/blob/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <projectSourceUrl>${HOME}</projectSourceUrl>
-    <docsUrl>${HOME}/wiki</docsUrl>
+    <docsUrl>https://tessera.rejowan.com/docs</docsUrl>
     <bugTrackerUrl>${HOME}/issues</bugTrackerUrl>
     <tags>gamedev assets unity godot unreal electron</tags>
     <summary>${DESC}</summary>
