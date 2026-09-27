@@ -81,9 +81,11 @@ export function SideSections({ prefix, sections, groups, current }: { prefix: st
   return (
     <nav aria-label="Sections" style={{ padding: '0 16px 32px 32px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto', scrollbarGutter: 'stable' }}>
       {groups?.length
-        ? groups.map((g) => (
+        ? groups.map((g, i) => (
             <div key={g.id} style={{ display: 'contents' }}>
-              <div style={{ padding: '18px 12px 6px' }}>
+              {/* A rule between the groups: the list reads as two lists, because it is. */}
+              {i > 0 && <div style={{ height: 1, margin: '20px 12px 0', background: md('outlineVariant') }} />}
+              <div style={{ padding: '16px 12px 8px' }}>
                 <Typography variant="labelLarge" noWrap sx={{ color: md('onSurface'), display: 'flex', alignItems: 'center', gap: 0.75 }}>
                   {g.icon}
                   {g.label}

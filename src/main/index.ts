@@ -51,7 +51,8 @@ import { Updates } from './updates';
 import { DownloadService, linksInFiles } from './downloads/service';
 import { linksIn } from '@shared/links';
 import { defaultSize, loadWindowState, trackWindowState } from './windowState';
-import { evictOver } from './thumbs/cache';
+import { clearFor, evictOver, previewCost } from './thumbs/cache';
+import { PreviewBuilder } from './thumbs/build';
 import { readBlendThumbnail } from './thumbs/blend';
 
 const platform = (['darwin', 'win32'].includes(process.platform) ? process.platform : 'linux') as Platform;
@@ -148,6 +149,8 @@ const updates = new Updates({
   onChanged: () => broadcast(windows, 'updates:changed', updates.get()),
 });
 let indexVersion = 0;
+/** Which library the once-per-library work below has already been done for. */
+let openedId: string | null = null;
 const library = new LibraryService({
   dataDir,
   jobs,
@@ -155,8 +158,20 @@ const library = new LibraryService({
   binKeepDays: () => settings.get().binKeepDays,
   onState: (state) => {
     broadcast(windows, 'library:changed', state);
-    if (state.status === 'ready') void usage.open(libraryDataDir(dataDir, state.library.id)).catch((e: unknown) => log.warn('usage', 'could not read how packs are used', e));
-    else void usage.close();
+    // Only when the library itself changes: this fires again for every reindex and problem
+    // report, and neither wants the use record re-read or the preview folder swept again.
+    if (state.status === 'ready' && state.library.id !== openedId) {
+      openedId = state.library.id;
+      void usage.open(libraryDataDir(dataDir, state.library.id)).catch((e: unknown) => log.warn('usage', 'could not read how packs are used', e));
+      // Previews drawn by an older version are named differently and will never be asked for
+      // again. Swept on the way in, so they are not counted as something the person chose to keep.
+      void clearFor(join(dataDir, 'libraries', state.library.id, 'thumbs'), { staleOnly: true })
+        .then((n) => n && log.info('thumbs', `swept ${n} previews left by an older version`))
+        .catch(() => undefined);
+    } else if (state.status !== 'ready' && openedId) {
+      openedId = null;
+      void usage.close();
+    }
     if (state.status === 'ready') {
       // Note the library (name, folder, when) before anything reads its settings.
       void touchLibrary(settings, dataDir, state.library)
@@ -207,6 +222,18 @@ const thumbs = new ThumbService({
   publish: (states) => broadcast(windows, 'thumbs:ready', states),
 });
 
+/** Drawing a pack's or the library's previews on purpose, rather than as tiles come into view. */
+const previewBuilder = new PreviewBuilder({
+  queries: () => (library.getState().status === 'ready' ? library.require().queries : null),
+  thumbs,
+});
+/** Start a build as a job. Shared by the window and by agents, so both show the same thing. */
+const buildPreviews = (packs: string[] | null): void => {
+  if (previewBuilder.busy) return;
+  const what = packs?.length === 1 ? 'a pack' : packs?.length ? `${packs.length} packs` : 'the library';
+  void jobs.run(`Drawing previews for ${what}`, (job) => previewBuilder.run(packs, job));
+};
+
 const projects = new ProjectService(dataDir, jobs);
 const mcpHistory = new McpHistory(dataDir);
 const mcp = new McpService({
@@ -236,6 +263,18 @@ const mcp = new McpService({
       },
       reindex: () => library.reindex(),
       keeping: async () => ({ backup: await backups.status(), sync: await sync.status() }),
+      previews: {
+        cost: () => previewCost(thumbDir()),
+        build: (packs) => buildPreviews(packs),
+        stop: () => previewBuilder.stop(),
+        building: () => previewBuilder.busy,
+        clear: async (opts) => {
+          const n = await clearFor(thumbDir(), opts);
+          thumbs.reset();
+          broadcast(windows, 'index:changed', ++indexVersion);
+          return n;
+        },
+      },
       libraryPrefs: () => {
         const record = openRecord();
         return record ? { name: record.name, path: record.path, skipInboxWhenSure: record.skipInboxWhenSure } : null;
@@ -544,6 +583,9 @@ function context(): IpcContext {
     copySource,
     openRecord,
     thumbDir,
+    buildPreviews,
+    stopPreviews: () => previewBuilder.stop(),
+    previewsBuilding: () => previewBuilder.busy,
     readDocument,
     recordPage: (id, what) => {
       // One at a time, and never in the way of the answer to the window.

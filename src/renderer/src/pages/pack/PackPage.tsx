@@ -318,6 +318,20 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
             manage: true,
             onClick: () => void setPreviews(!previews),
           },
+          // Only worth offering while previews are wanted for this pack at all.
+          ...(previews
+            ? [
+                {
+                  label: 'Draw its previews now',
+                  icon: ImageOutlined,
+                  manage: true,
+                  onClick: () => {
+                    void call('thumbs:build', [id]).catch(() => undefined);
+                    notify.success('Drawing this pack’s previews. The bar at the bottom shows how it is going.');
+                  },
+                },
+              ]
+            : []),
           {
             label: 'Delete',
             icon: DeleteOutlined,

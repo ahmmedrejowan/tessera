@@ -58,12 +58,21 @@ export interface Invokes {
     bytes: number;
     count: number;
     failed: number;
+    stale: { bytes: number; count: number };
   };
   /** Throw away the previews for these packs, or only the ones that failed to draw. */
-  'thumbs:clearSome': (opts: { packs?: string[]; failedOnly?: boolean }) => number;
+  'thumbs:clearSome': (opts: { packs?: string[]; failedOnly?: boolean; staleOnly?: boolean }) => number;
   /** Whether previews are drawn for a pack. Turning them off clears the ones it already has. */
   'thumbs:forPack': (packId: string) => boolean;
   'thumbs:setForPack': (packId: string, on: boolean) => void;
+  /**
+   * Draw everything that is missing, for these packs or for the whole library. Runs as a job, so
+   * it shows in the activity bar; `thumbs:stopBuild` asks it to give up.
+   */
+  'thumbs:build': (packs: string[] | null) => void;
+  'thumbs:stopBuild': () => void;
+  /** Whether a build is in flight, for the button that offers to stop it. */
+  'thumbs:building': () => boolean;
   /** Show the app's log folder. */
   'app:showLogs': () => void;
   /** Words already used for a pack field, most used first. */

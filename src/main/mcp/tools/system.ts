@@ -139,7 +139,15 @@ export const SYSTEM: Tool[] = [
     input: z.object({}),
     run: async (_args, ctx) => {
       const { backup, sync } = await ctx.app.keeping();
+      const previews = await ctx.app.previews.cost();
       return {
+        previews: {
+          bytes: previews.bytes,
+          count: previews.count,
+          byKind: previews.byKind,
+          couldNotBeDrawn: previews.failed,
+          drawingNow: ctx.app.previews.building(),
+        },
         backup: {
           setUp: !!backup.target,
           where: backup.target?.provider ?? null,
@@ -175,6 +183,44 @@ export const SYSTEM: Tool[] = [
       await ctx.app.reindex();
       ctx.note('An agent read the library again');
       return { done: true };
+    },
+  }),
+  define({
+    name: 'draw_previews',
+    group: 'organise',
+    title: 'Draw previews',
+    summary:
+      'Draw the small pictures Tessera shows for files, for named packs or for the whole library. Normally they are drawn as tiles come into view; do this before going offline, or after clearing them. It runs in the background and can be stopped.',
+    input: z.object({
+      packIds: z.array(z.string()).optional().describe('Only these packs. Leave out for every pack in the library.'),
+      stop: z.boolean().optional().describe('Stop the drawing that is in flight instead of starting one.'),
+    }),
+    run: async (args, ctx) => {
+      if (args.stop) {
+        ctx.app.previews.stop();
+        return { stopping: true };
+      }
+      if (ctx.app.previews.building()) return { alreadyRunning: true };
+      ctx.app.previews.build(args.packIds?.length ? args.packIds : null);
+      ctx.note(args.packIds?.length ? `An agent asked for previews of ${args.packIds.length} pack(s)` : 'An agent asked for every preview to be drawn');
+      return { started: true };
+    },
+  }),
+  define({
+    name: 'clear_previews',
+    group: 'organise',
+    title: 'Clear previews',
+    summary:
+      'Throw away the drawn previews, for named packs or the ones that would not draw. Nothing in the library is touched: previews are drawn again when they are next needed.',
+    input: z.object({
+      packIds: z.array(z.string()).optional().describe('Only these packs. Leave out with failedOnly to clear the markers for files that would not draw.'),
+      failedOnly: z.boolean().optional().describe('Only the markers left where drawing failed, so those files are tried once more.'),
+    }),
+    run: async (args, ctx) => {
+      if (!args.packIds?.length && !args.failedOnly) throw new Error('Say which packs, or failedOnly. Clearing every preview is done in the window.');
+      const removed = await ctx.app.previews.clear({ packs: args.packIds, failedOnly: args.failedOnly });
+      ctx.note(`An agent cleared ${removed} preview(s)`);
+      return { removed };
     },
   }),
   define({

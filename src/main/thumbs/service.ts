@@ -47,10 +47,21 @@ export function plan(a: Pick<Info, 'ext' | 'size'>): RenderJob['kind'] | 'direct
 export const thumbName = (a: Pick<Info, 'packId' | 'ref' | 'size' | 'mtime'>, kind: RenderJob['kind']) =>
   `${a.packId.slice(0, 8)}.${kind}.${createHash('sha1').update(`${a.packId}|${a.ref}|${a.size}|${a.mtime}|v${THUMB_VERSION}`).digest('hex').slice(0, 20)}`;
 
-/** The pack and kind back out of a thumbnail's name, for counting and clearing. */
+/** Every kind a thumbnail can be drawn from, for reading a name back. */
+const KINDS = new Set<string>(['model', 'image', 'hdr', 'audio', 'font', 'pixels']);
+
+/**
+ * The pack and kind back out of a thumbnail's name.
+ *
+ * Null for anything that is not one of ours, which includes thumbnails drawn by an older version:
+ * those are named differently, can never be found again, and are only taking up room.
+ */
 export function readThumbName(file: string): { pack: string; kind: string } | null {
-  const [pack, kind] = file.split('.');
-  return pack && kind ? { pack, kind } : null;
+  const [pack, kind, hash, ext] = file.split('.');
+  if (!pack || !kind || !hash || !ext) return null;
+  if (!/^[0-9a-f]{8}$/.test(pack) || !KINDS.has(kind)) return null;
+  if (ext !== 'webp' && ext !== 'fail') return null;
+  return { pack, kind };
 }
 
 interface Queued {

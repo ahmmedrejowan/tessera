@@ -45,6 +45,14 @@ export interface ToolContext {
       backup: import('@shared/types').BackupStatus;
       sync: import('@shared/types').SyncStatus;
     }>;
+    /** The pictures Tessera draws of files: what they cost, and drawing or clearing them. */
+    previews: {
+      cost: () => Promise<import('../../thumbs/cache').PreviewCost>;
+      build: (packs: string[] | null) => void;
+      stop: () => void;
+      building: () => boolean;
+      clear: (opts: { packs?: string[]; failedOnly?: boolean; staleOnly?: boolean }) => Promise<number>;
+    };
   };
 }
 

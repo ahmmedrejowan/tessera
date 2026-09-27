@@ -34,15 +34,31 @@ describe('what previews cost, and what goes when there is too much', () => {
 
   it('lets go of the packs nobody reaches for, and keeps the ones they do', async () => {
     const dir = folder([
-      { pack: 'loved000', kind: 'model', bytes: 1000 },
-      { pack: 'ignored0', kind: 'model', bytes: 1000 },
-      { pack: 'ignored0', kind: 'model', bytes: 1000 },
+      { pack: 'aaaa0001', kind: 'model', bytes: 1000 },
+      { pack: 'bbbb0002', kind: 'model', bytes: 1000 },
+      { pack: 'bbbb0002', kind: 'model', bytes: 1000 },
     ]);
-    const score = (pack: string) => (pack === 'loved000' ? 100 : 0);
+    const score = (pack: string) => (pack === 'aaaa0001' ? 100 : 0);
     const gone = await evictOver(dir, 1200, score);
     expect(gone.removed).toBe(2);
     const left = await previewCost(dir);
-    expect(Object.keys(left.byPack)).toEqual(['loved000']);
+    expect(Object.keys(left.byPack)).toEqual(['aaaa0001']);
+  });
+
+  it('counts what an older version left behind, and lets go of it first', async () => {
+    const dir = folder([{ pack: 'aaaaaaaa', kind: 'model', bytes: 1000 }]);
+    // The shape previews had before: a bare hash, which nothing asks for any more.
+    writeFileSync(join(dir, 'd4fc90ab1234567890abcdef.webp'), Buffer.alloc(4000));
+    const cost = await previewCost(dir);
+    expect(cost.stale).toEqual({ bytes: 4000, count: 1 });
+    // Not counted as a model: it is not anything any more.
+    expect(cost.byKind.model).toEqual({ bytes: 1000, count: 1 });
+    expect(cost.bytes).toBe(1000);
+
+    const gone = await evictOver(dir, 2000, () => 5);
+    expect(gone.removed).toBe(1);
+    expect((await previewCost(dir)).stale.count).toBe(0);
+    expect((await previewCost(dir)).byKind.model).toEqual({ bytes: 1000, count: 1 });
   });
 
   it('does nothing when it is under the limit, or when there is no limit', async () => {

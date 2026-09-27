@@ -65,6 +65,10 @@ export interface IpcContext {
   openRecord: () => LibraryRecord | null;
   /** Where the thumbnails of the open library are kept. */
   thumbDir: () => string | null;
+  /** Draw every missing preview for these packs, or for the whole library, as a job. */
+  buildPreviews: (packs: string[] | null) => void;
+  stopPreviews: () => void;
+  previewsBuilding: () => boolean;
   /** One of the documents the app ships: the licence, the changelog, the privacy page. */
   readDocument: (name: 'licence' | 'changelog' | 'privacy') => Promise<string>;
   /** Keep a copy of the page a pack came from, in the background. */

@@ -222,6 +222,8 @@ export const ANSWERS: Record<string, ToolAnswer> = {
   },
   set_library_settings: { returns: 'Which of them were changed.', example: { changed: ['skipInboxWhenSure'] } },
   read_library_again: { returns: 'That it is done.', example: { done: true } },
+  draw_previews: { returns: 'Whether a drawing was started, or one was already running, or the one in flight is stopping.', example: { started: true } },
+  clear_previews: { returns: 'How many previews were thrown away.', example: { removed: 42 } },
   back_up_now: { returns: 'That it is done.', example: { done: true } },
   empty_bin: { returns: 'How many things went from the disk for good.', example: { gone: 3 } },
   discard_review_pack: { returns: 'That it is done.', example: { done: true } },

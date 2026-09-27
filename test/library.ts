@@ -26,6 +26,8 @@ export interface Running {
   context: () => ToolContext;
   /** What was written into the library's activity, newest last. */
   notes: string[];
+  /** What was asked of the preview drawing: the packs each time, or 'stop'. */
+  built: (string[] | null | 'stop')[];
 }
 
 /** A real one-pixel PNG, for tests that need a file the app will treat as a picture. */
@@ -74,6 +76,8 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
   await library.create(root, 'Test library');
   opened.push(library);
   const notes: string[] = [];
+  /** What was asked of the preview drawing, for the tools that ask for it. */
+  const built: (string[] | null | 'stop')[] = [];
   const projects = new ProjectService(dataDir, jobs);
 
   for (const pack of packs) {
@@ -157,10 +161,17 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
       }),
       libraryPrefs: () => ({ name: 'Test library', path: root, skipInboxWhenSure: true }),
       setLibraryPrefs: async () => undefined,
+      previews: {
+        cost: async () => ({ byKind: {}, byPack: {}, bytes: 0, count: 0, failed: 0, stale: { bytes: 0, count: 0 } }),
+        build: (packs) => void built.push(packs),
+        stop: () => void built.push('stop'),
+        building: () => false,
+        clear: async () => 0,
+      },
     },
   });
 
-  return { root, dataDir, library, projects, jobs, changes: () => changed, context, notes };
+  return { root, dataDir, library, projects, jobs, changes: () => changed, context, notes, built };
 }
 
 /** Call a tool the way the server would: parse the arguments, run it, give back what it said. */

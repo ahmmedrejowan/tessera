@@ -1,15 +1,100 @@
+import AutoStoriesOutlined from '@mui/icons-material/AutoStoriesOutlined';
+import TuneRounded from '@mui/icons-material/TuneRounded';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import type { ReactNode } from 'react';
-import { md, SHAPE } from '../../theme';
+import { md, mdAlpha, SHAPE } from '../../theme';
+
+/**
+ * Which half of Settings something belongs to.
+ *
+ * Settings that follow the library are not the same as settings that follow Tessera: change a
+ * backup and it goes with the library to another computer; change the theme and it stays here.
+ * Mixing the two up is the one mistake this page invites, so the halves are told apart wherever
+ * they appear, not only in a heading you may have scrolled past.
+ */
+export type Part = 'library' | 'app';
+
+const TAG: Record<Part, string> = { library: 'This library', app: 'Every library' };
+
+/** The badge each group wears, so no group has to be traced back to a heading. */
+export function PartTag({ part }: { part: Part }) {
+  const library = part === 'library';
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        flexShrink: 0,
+        height: 22,
+        padding: '0 9px',
+        borderRadius: SHAPE.full,
+        border: `1px solid ${library ? mdAlpha('secondary', 0.45) : md('outlineVariant')}`,
+        background: library ? md('secondaryContainer') : 'transparent',
+        color: library ? md('onSecondaryContainer') : md('onSurfaceVariant'),
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: 0.2,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {library ? <AutoStoriesOutlined sx={{ fontSize: 13 }} /> : <TuneRounded sx={{ fontSize: 13 }} />}
+      {TAG[part]}
+    </span>
+  );
+}
+
+/**
+ * The line that starts a half of the page: whose settings follow, and what that means for them.
+ * It sits in the scroll rather than clinging to the top, so the change of half is a place you
+ * pass through and not a label that quietly swaps over.
+ */
+export function PartHeading({ part, name }: { part: Part; name: string }) {
+  const library = part === 'library';
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            display: 'grid',
+            placeItems: 'center',
+            flexShrink: 0,
+            background: library ? md('secondaryContainer') : md('surfaceContainerHigh'),
+            color: library ? md('onSecondaryContainer') : md('onSurface'),
+          }}
+        >
+          {library ? <AutoStoriesOutlined sx={{ fontSize: 22 }} /> : <TuneRounded sx={{ fontSize: 22 }} />}
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <Typography variant="titleLarge" component="h2" noWrap sx={{ color: md('onSurface') }}>
+            {library ? name : 'Tessera'}
+          </Typography>
+          <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
+            {library ? 'Kept inside this library, and travels with it to your other computers' : 'Kept on this computer, and the same whichever library is open'}
+          </Typography>
+        </div>
+      </div>
+      <div style={{ height: 3, marginTop: 14, borderRadius: 2, background: library ? md('secondary') : md('outlineVariant') }} />
+    </div>
+  );
+}
 
 /** A titled group of settings rows, with a line saying what the group is for. */
-export function Group({ title, note, children }: { title: string; note?: ReactNode; children: ReactNode }) {
+export function Group({ title, note, part, children }: { title: string; note?: ReactNode; part?: Part; children: ReactNode }) {
+  const library = part === 'library';
   return (
     <section style={{ marginBottom: 36 }}>
-      <Typography variant="titleMedium" component="h3" sx={{ color: md('onSurface') }}>
-        {title}
-      </Typography>
+      {/* No badge where there are no halves to tell apart, as on the About page. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Typography variant="titleMedium" component="h3" sx={{ color: md('onSurface') }}>
+          {title}
+        </Typography>
+        {part && <PartTag part={part} />}
+      </div>
       {note && (
         <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5, maxWidth: 680 }}>
           {note}
@@ -19,7 +104,10 @@ export function Group({ title, note, children }: { title: string; note?: ReactNo
         sx={{
           mt: 1.5,
           borderRadius: `${SHAPE.lg}px`,
-          backgroundColor: md('surfaceContainerLow'),
+          // The library's own settings are tinted, so a glance says which half you are in
+          // without reading a word of it.
+          backgroundColor: library ? mdAlpha('secondaryContainer', 0.65) : md('surfaceContainerLow'),
+          borderLeft: `4px solid ${library ? md('secondary') : 'transparent'}`,
           px: 3,
           // The last row in a group needs no line under it.
           '& > *:last-child': { borderBottom: 'none' },

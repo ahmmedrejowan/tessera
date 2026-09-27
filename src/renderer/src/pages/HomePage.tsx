@@ -384,6 +384,9 @@ export function HomePage() {
       return top.flatMap((t) => { const row = by.get(t.packId); return row ? [row] : []; });
     },
     enabled: !!lib,
+    // Use is recorded as you go and never changes the index, so this is asked again each time
+    // Home is opened rather than waiting for something else to move.
+    staleTime: 0,
   }).data ?? [];
 
   // What was starred, first thing: the whole point of a star is that it comes to hand.

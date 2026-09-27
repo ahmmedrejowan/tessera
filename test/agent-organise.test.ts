@@ -184,6 +184,26 @@ describe('what a pack says about itself', () => {
     expect(app.library.require().queries.pack(waiting.id)?.status).toBe('library');
   });
 
+  it('asks for previews to be drawn, and for a stop', async () => {
+    const { app, arcade } = await ready();
+    expect(await callTool(app, 'draw_previews', { packIds: [arcade.id] })).toEqual({ started: true });
+    expect(app.built).toEqual([[arcade.id]]);
+
+    // No packs means the whole library, which is a different ask, not an empty one.
+    await callTool(app, 'draw_previews', {});
+    expect(app.built[1]).toBeNull();
+
+    expect(await callTool(app, 'draw_previews', { stop: true })).toEqual({ stopping: true });
+    expect(app.built[2]).toBe('stop');
+  });
+
+  it('will not clear every preview at once', async () => {
+    const { app, arcade } = await ready();
+    // Clearing the lot is a big enough thing to be done in the window, where it can be seen.
+    await expect(callTool(app, 'clear_previews', {})).rejects.toThrow();
+    expect(await callTool(app, 'clear_previews', { packIds: [arcade.id] })).toEqual({ removed: 0 });
+  });
+
   it('refuses over a pack that is not there', async () => {
     const { app } = await ready();
     await expect(callTool(app, 'set_pack_details', { packId: 'nope', name: 'x' })).rejects.toThrow();

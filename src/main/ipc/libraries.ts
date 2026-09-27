@@ -12,10 +12,13 @@ import { locateLibrary } from '../library/locate';
 import type { IpcContext } from './context';
 import { clearFor, previewCost } from '../thumbs/cache';
 
-type Deps = Pick<IpcContext, 'indexChanged' | 'librariesChanged' | 'library' | 'librarySummaries' | 'openRecord' | 'settings' | 'sync' | 'thumbDir' | 'thumbs' | 'usage'>;
+type Deps = Pick<
+  IpcContext,
+  'buildPreviews' | 'indexChanged' | 'librariesChanged' | 'library' | 'librarySummaries' | 'openRecord' | 'previewsBuilding' | 'settings' | 'stopPreviews' | 'sync' | 'thumbDir' | 'thumbs' | 'usage'
+>;
 
 export function registerLibraryIpc(c: Deps): void {
-  const { indexChanged, librariesChanged, library, librarySummaries, openRecord, settings, sync, thumbDir, thumbs, usage } = c;
+  const { buildPreviews, indexChanged, librariesChanged, library, librarySummaries, openRecord, previewsBuilding, settings, stopPreviews, sync, thumbDir, thumbs, usage } = c;
   handle('library:locate', (path) => locateLibrary(path));
   handle('library:state', () => library.getState());
   handle('library:inspect', (path) => library.inspect(path));
@@ -79,6 +82,10 @@ export function registerLibraryIpc(c: Deps): void {
     thumbs.reset();
     indexChanged();
   });
+  // Not awaited anywhere: the job is the answer, and the window watches the activity bar.
+  handle('thumbs:build', (packs) => buildPreviews(packs));
+  handle('thumbs:stopBuild', () => stopPreviews());
+  handle('thumbs:building', () => previewsBuilding());
   handle('thumbs:get', (keys) => thumbs.get(keys.slice(0, 500)));
 
 }

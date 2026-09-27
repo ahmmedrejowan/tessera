@@ -17,7 +17,7 @@ import { failed, notify } from '../notices/store';
 import { useReportProblem } from '../reports/ReportProblem';
 import { useLibraryRecord, useLibraryState } from '../state/library';
 import { useAppInfo, useSettings, useUpdateSettings } from '../state/queries';
-import { md, mdAlpha, SHAPE } from '../theme';
+import { md } from '../theme';
 import { schemeFromSeed } from '../theme/m3';
 import { PAGE, Page } from './Placeholder';
 import { BackupSettings } from './settings/BackupSettings';
@@ -28,7 +28,7 @@ import { SiteRules } from './settings/SiteRules';
 import { AgentSettings } from './settings/AgentSettings';
 import { RenameLibrary } from './library/RenameLibrary';
 import { tidyPath } from './library/Location';
-import { Group, Row } from './settings/parts';
+import { Group, PartHeading, Row } from './settings/parts';
 import { SideSections, sectionAnchor, useSectionSpy, type SideSection } from './settings/SideSections';
 
 
@@ -54,42 +54,6 @@ const SECTIONS: Section[] = [
 ];
 
 /**
- * Which half of Settings you are reading, kept at the top as you scroll: this library's own
- * settings, or Tessera's, which every library on this computer shares.
- */
-function PartBar({ part, libraryName }: { part: Section['part']; libraryName: string }) {
-  const library = part === 'library';
-  return (
-    <div
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 2,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '10px 16px',
-        marginBottom: 24,
-        borderRadius: SHAPE.lg,
-        background: library ? md('secondaryContainer') : md('surfaceContainerHigh'),
-        color: library ? md('onSecondaryContainer') : md('onSurface'),
-        boxShadow: `0 1px 2px ${mdAlpha('shadow', 0.2)}`,
-      }}
-    >
-      <span style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', background: mdAlpha(library ? 'onSecondaryContainer' : 'onSurface', 0.1), flexShrink: 0 }}>{library ? <AutoStoriesOutlined sx={{ fontSize: 20 }} /> : <TuneRounded sx={{ fontSize: 20 }} />}</span>
-      <div style={{ minWidth: 0 }}>
-        <Typography variant="titleSmall" noWrap>
-          {library ? libraryName : 'Tessera'}
-        </Typography>
-        <Typography variant="bodySmall" component="div" noWrap sx={{ opacity: 0.8 }}>
-          {library ? 'These settings belong to this library alone' : 'The same for every library on this computer'}
-        </Typography>
-      </div>
-    </div>
-  );
-}
-
-/**
  * Settings in two parts: this library's own (general, adding packs, backups, sync, previews), and
  * Tessera's, the same for every library (appearance, paired computers, helpers, privacy, about).
  * A list at the side jumps between sections and shows where you are.
@@ -102,7 +66,11 @@ export function SettingsPage({ section }: { section?: string } = {}) {
   const library = useLibraryState().data;
   const client = useQueryClient();
   const thumbs = useQuery({ queryKey: ['thumbs-size'], queryFn: () => call('thumbs:size') });
-  const cost = useQuery({ queryKey: ['thumbs-cost'], queryFn: () => call('thumbs:cost') });
+  // Polled while it runs so the button turns into Stop and back again without a separate channel.
+  const building = useQuery({ queryKey: ['thumbs-building'], queryFn: () => call('thumbs:building'), refetchInterval: (q) => (q.state.data ? 1500 : false) });
+  // Counted again while previews are being drawn, and once more at the end: otherwise the line
+  // above the button keeps reporting what the folder held before any of it was drawn.
+  const cost = useQuery({ queryKey: ['thumbs-cost'], queryFn: () => call('thumbs:cost'), refetchInterval: building.data ? 2000 : false });
   const reports = useQuery({ queryKey: ['reports-status'], queryFn: () => call('reports:status'), staleTime: 0 }).data;
   const [busy, setBusy] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
@@ -115,6 +83,13 @@ export function SettingsPage({ section }: { section?: string } = {}) {
     const t = setTimeout(() => document.getElementById(`settings-${section}`)?.scrollIntoView({ block: 'start' }), 50);
     return () => clearTimeout(t);
   }, [section, !!settings]);
+
+  useEffect(() => {
+    if (building.data === false) {
+      void client.invalidateQueries({ queryKey: ['thumbs-cost'] });
+      void client.invalidateQueries({ queryKey: ['thumbs-size'] });
+    }
+  }, [building.data]);
 
   if (!settings) return null;
   const lib = library?.status === 'ready' ? library.library : null;
@@ -147,9 +122,9 @@ export function SettingsPage({ section }: { section?: string } = {}) {
 
         <div ref={scroller} style={{ overflowY: 'auto', scrollbarGutter: 'stable', minHeight: 0 }}>
           <div style={{ maxWidth: PAGE.column, padding: '0 32px 64px' }}>
-            <PartBar part={SECTIONS.find((x) => x.id === current)?.part ?? 'library'} libraryName={lib?.name ?? 'This library'} />
+            <PartHeading part="library" name={lib?.name ?? 'This library'} />
             <div {...at('general')}>
-              <Group title="General" note="What this library is called, where it lives, and closing it.">
+              <Group part="library" title="General" note="What this library is called, where it lives, and closing it.">
                 <Row title="Name" body={lib?.name}>
                   <Button onClick={() => setRenaming(true)}>Rename…</Button>
                 </Row>
@@ -168,25 +143,25 @@ export function SettingsPage({ section }: { section?: string } = {}) {
             </div>
 
             <div {...at('backups')}>
-              <Group title="Backups" note="Encrypted copies of this library, kept somewhere else. Each library is backed up on its own.">
+              <Group part="library" title="Backups" note="Encrypted copies of this library, kept somewhere else. Each library is backed up on its own.">
                 <BackupSettings />
               </Group>
             </div>
 
             <div {...at('sync')}>
-              <Group title="Sync" note="Keep this library the same on your other computers, over your own network.">
+              <Group part="library" title="Sync" note="Keep this library the same on your other computers, over your own network.">
                 <SyncSettings />
               </Group>
             </div>
 
             <div {...at('bin')}>
-              <Group title="Bin" note="What you deleted from this library, waiting to be put back. It lives inside the library, so it travels with it.">
+              <Group part="library" title="Bin" note="What you deleted from this library, waiting to be put back. It lives inside the library, so it travels with it.">
                 <BinSettings />
               </Group>
             </div>
 
             <div {...at('storage')}>
-              <Group title="Previews and index" note="What Tessera keeps to show and search this library quickly. Both can be made again.">
+              <Group part="library" title="Previews and index" note="What Tessera keeps to show and search this library quickly. Both can be made again.">
                 <Row title="Read the library again" body="Reads every pack from scratch. Useful after moving or editing files by hand; Tessera normally notices on its own.">
                   <Button disabled={busy === 'reindex'} onClick={() => void run('reindex', () => call('library:reindex'), 'The library has been read again.')}>
                     {busy === 'reindex' ? 'Reading…' : 'Read again'}
@@ -209,6 +184,21 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                   >
                     Clear
                   </Button>
+                </Row>
+                <Row title="Draw them all now" body="Goes through every pack and draws whatever is missing, so browsing is instant afterwards and works offline. It runs in the background; carry on using Tessera while it does.">
+                  {building.data ? (
+                    <Button onClick={() => void call('thumbs:stopBuild').then(() => building.refetch())}>Stop</Button>
+                  ) : (
+                    <Button
+                      onClick={() =>
+                        void call('thumbs:build', null)
+                          .then(() => building.refetch())
+                          .then(() => notify.success('Drawing previews. The bar at the bottom shows how it is going.'))
+                      }
+                    >
+                      Draw all
+                    </Button>
+                  )}
                 </Row>
                 {!!cost.data?.failed && (
                   <Row title="Previews that would not draw" body={`${formatCount(cost.data.failed)} file${cost.data.failed === 1 ? '' : 's'} could not be drawn and are not tried again. Clearing the markers makes Tessera try once more.`}>
@@ -254,8 +244,9 @@ export function SettingsPage({ section }: { section?: string } = {}) {
               </Group>
             </div>
 
+            <PartHeading part="app" name="Tessera" />
             <div {...at('appearance')}>
-              <Group title="Appearance" note="How Tessera looks, whichever library is open.">
+              <Group part="app" title="Appearance" note="How Tessera looks, whichever library is open.">
                 <Row title="Theme" body="Follow the system, or always light or dark.">
                   <SegmentedButton<ThemeMode>
                     label="Theme"
@@ -297,13 +288,13 @@ export function SettingsPage({ section }: { section?: string } = {}) {
             </div>
 
             <div {...at('sites')}>
-              <Group title="Sites" note="Licences Tessera should assume for the sites you download from.">
+              <Group part="app" title="Sites" note="Licences Tessera should assume for the sites you download from.">
                 <SiteRules />
               </Group>
             </div>
 
             <div {...at('downloads')}>
-              <Group title="Downloads" note="What Tessera does with the links you bring, whichever library is open.">
+              <Group part="app" title="Downloads" note="What Tessera does with the links you bring, whichever library is open.">
                 <Row title="When a download finishes" body={settings.afterDownload === 'ask' ? 'They wait in Downloads with an Add button.' : settings.afterDownload === 'review' ? 'Every one goes to Review, whatever its licence says.' : 'A clear licence goes into the library; anything unclear waits in Review.'}>
                   <SegmentedButton<AfterDownload>
                     label="When a download finishes"
@@ -328,7 +319,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
             </div>
 
             <div {...at('adding')}>
-              <Group title="Adding and copying" note="What happens to your own files when they go into a library, and into a game.">
+              <Group part="app" title="Adding and copying" note="What happens to your own files when they go into a library, and into a game.">
                 <Row
                   title="Move files into the library"
                   body={
@@ -361,25 +352,25 @@ export function SettingsPage({ section }: { section?: string } = {}) {
             </div>
 
             <div {...at('agents')}>
-              <Group title="AI agents" note="Let an agent work in this library while Tessera is open. It answers on this computer only.">
+              <Group part="app" title="AI agents" note="Let an agent work in this library while Tessera is open. It answers on this computer only.">
                 <AgentSettings />
               </Group>
             </div>
 
             <div {...at('computers')}>
-              <Group title="Paired computers" note="The computers Tessera can sync libraries with.">
+              <Group part="app" title="Paired computers" note="The computers Tessera can sync libraries with.">
                 <PairedComputers />
               </Group>
             </div>
 
             <div {...at('helpers')}>
-              <Group title="Helpers" note="Small official programs Tessera fetches for backups, cloud storage and sync.">
+              <Group part="app" title="Helpers" note="Small official programs Tessera fetches for backups, cloud storage and sync.">
                 <Helpers />
               </Group>
             </div>
 
             <div {...at('privacy')}>
-              <Group title="Privacy and problems" note="What leaves this computer, and what to do when something goes wrong.">
+              <Group part="app" title="Privacy and problems" note="What leaves this computer, and what to do when something goes wrong.">
                 {reports?.available ? (
                   <Row title="Error reports" body="Errors are always kept on this computer. Sending them helps fix problems; names of files, packs and folders are taken out first, and nothing says who you are.">
                     <SegmentedButton<ReportConsent>
@@ -421,7 +412,7 @@ function PreviewCost({ cost }: { cost: { byKind: Record<string, { bytes: number;
   const NAME: Record<string, string> = { model: '3D models', image: 'images', hdr: 'HDRIs', audio: 'sounds', font: 'fonts', pixels: 'Blender files' };
   return (
     <>
-      {formatBytes(cost.bytes)} across {formatCount(cost.count)} picture{cost.count === 1 ? '' : 's'}, drawn as you browsed. They can always be made again.
+      {formatBytes(cost.bytes)} across {formatCount(cost.count)} picture{cost.count === 1 ? '' : 's'}. They can always be made again.
       <span style={{ display: 'block', marginTop: 4 }}>{kinds.map(([k, v]) => `${NAME[k] ?? k} ${formatBytes(v.bytes)}`).join(' · ')}</span>
     </>
   );

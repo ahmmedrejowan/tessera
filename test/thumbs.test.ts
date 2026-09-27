@@ -6,6 +6,8 @@ import { LibraryIndex } from '../src/main/index/indexer';
 import { LibraryQueries } from '../src/main/index/query';
 import { createLibrary } from '../src/main/library/layout';
 import { createPack } from '../src/main/library/packs';
+import { PreviewBuilder } from '../src/main/thumbs/build';
+import type { JobHandle } from '../src/main/jobs';
 import { plan, ThumbService } from '../src/main/thumbs/service';
 import { assetKey } from '@shared/urls';
 import { tempDir } from './helpers';
@@ -79,5 +81,54 @@ describe('thumbnail service', () => {
     expect(again[byName('a.glb')]).toMatch(/^tessera:\/\/thumb\/[0-9a-f]{8}\.[a-z]+\.[0-9a-f]+\.webp$/);
     expect(again[byName('c.glb')]).toBe('failed');
     expect(existsSync(thumbDir)).toBe(true);
+  });
+});
+
+describe('drawing previews on purpose', () => {
+  it('goes through the library and stops when asked', async () => {
+    const { queries, thumbDir } = await setup();
+    const drawn: string[] = [];
+    const svc = new ThumbService({
+      queries: () => queries,
+      thumbDir: () => thumbDir,
+      render: async (job: RenderJob) => {
+        drawn.push(job.url.split('/').pop()!);
+        return new Uint8Array([1, 2, 3]);
+      },
+      publish: () => undefined,
+    });
+    const builder = new PreviewBuilder({ queries: () => queries, thumbs: svc });
+    const job = { update: () => undefined } as unknown as JobHandle;
+    let release!: () => void;
+
+    // No packs named: every pack in the library.
+    const all = await builder.run(null, job);
+    expect(all.stopped).toBe(false);
+    expect(drawn.sort()).toEqual(['a.glb', 'b.glb', 'c.glb']);
+    expect(builder.busy).toBe(false);
+
+    // Asked again, there is nothing left to draw: what exists is never drawn twice.
+    drawn.length = 0;
+    await builder.run(null, job);
+    expect(drawn).toEqual([]);
+
+    // Asked to stop while it is waiting for the queue, it gives up rather than seeing it through.
+    const { queries: q2, thumbDir: dir2 } = await setup();
+    const held = new Promise<void>((r) => (release = r));
+    const slow = new ThumbService({
+      queries: () => q2,
+      thumbDir: () => dir2,
+      render: async () => {
+        await held;
+        return new Uint8Array([1]);
+      },
+      publish: () => undefined,
+    });
+    const second = new PreviewBuilder({ queries: () => q2, thumbs: slow });
+    const running = second.run(null, job);
+    await vi.waitFor(() => expect(slow.pending).toBeGreaterThan(0));
+    second.stop();
+    expect((await running).stopped).toBe(true);
+    release();
   });
 });
