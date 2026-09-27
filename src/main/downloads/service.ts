@@ -24,10 +24,14 @@ interface Deps {
   onChanged: () => void;
   /** A download finished. */
   onReady: (item: DownloadItem) => void;
+  /** How long a download may say nothing before it counts as dead. Shortened by the tests. */
+  stall?: number;
 }
 
 /** Enough at once to keep a connection busy, few enough to stay polite to a site. */
 const AT_ONCE = 3;
+/** How long a download may say nothing at all before it is treated as dead. */
+const STALL = 60_000;
 const UA = 'Tessera asset library';
 /** Links pasted in one go; more than this is a mistake, not a batch. */
 export const MOST_AT_ONCE = 500;
@@ -376,11 +380,20 @@ export class DownloadService {
       const reader = res.body.getReader();
       let mark = Date.now();
       let at = from;
+      // A server that keeps the connection open and sends nothing would otherwise sit at 0 B/s for
+      // ever. Treated as a failure, it goes back through the ordinary retry instead.
+      let stall: NodeJS.Timeout | undefined;
+      const patience = () => {
+        clearTimeout(stall);
+        stall = setTimeout(() => stop.abort(new Error('The download stopped part way through.')), this.d.stall ?? STALL);
+      };
       try {
+        patience();
         for (;;) {
           if (broke) throw broke;
           const { done, value } = await reader.read();
           if (done) break;
+          patience();
           if (!out.write(value)) await new Promise<void>((r) => out.once('drain', () => r()));
           item.received += value.byteLength;
           const since = Date.now() - mark;
@@ -395,6 +408,7 @@ export class DownloadService {
           }
         }
       } finally {
+        clearTimeout(stall);
         // A stream that has already failed will not call back, so the error ends the wait too.
         await new Promise<void>((resolve) => {
           out.once('error', () => resolve());

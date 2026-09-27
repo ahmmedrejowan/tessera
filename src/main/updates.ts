@@ -34,6 +34,8 @@ interface Deps {
 }
 
 /** Once a day is plenty for a desktop app. */
+/** How long a download may say nothing at all before it is treated as dead. */
+const STALL = 60_000;
 const EVERY = 24 * 60 * 60 * 1000;
 
 /** "v1.2.3" and "1.2.3" are the same version; newer wins. */
@@ -128,16 +130,30 @@ export class Updates {
       // Already fetched and whole: nothing to do.
       const there = await stat(file).then((s) => s.size).catch(() => 0);
       if (there !== asset.size) {
-        const res = await this.d.fetch(asset.url, { headers: { 'User-Agent': 'Tessera', Accept: 'application/octet-stream' } });
-        if (!res.ok || !res.body) throw new Error(`The installer couldn’t be fetched (${res.status}).`);
-        const out = createWriteStream(file);
-        const reader = res.body.getReader();
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (!out.write(value)) await new Promise<void>((r) => out.once('drain', () => r()));
+        // A connection that opens and then says nothing would otherwise leave this waiting for
+        // ever, with the window showing a download that never finishes and no way to stop it.
+        const stop = new AbortController();
+        let stall: NodeJS.Timeout | undefined;
+        const patience = () => {
+          clearTimeout(stall);
+          stall = setTimeout(() => stop.abort(new Error('The download stopped part way through.')), STALL);
+        };
+        try {
+          patience();
+          const res = await this.d.fetch(asset.url, { headers: { 'User-Agent': 'Tessera', Accept: 'application/octet-stream' }, signal: stop.signal });
+          if (!res.ok || !res.body) throw new Error(`The installer couldn’t be fetched (${res.status}).`);
+          const out = createWriteStream(file);
+          const reader = res.body.getReader();
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            patience();
+            if (!out.write(value)) await new Promise<void>((r) => out.once('drain', () => r()));
+          }
+          await new Promise<void>((resolve) => out.end(() => resolve()));
+        } finally {
+          clearTimeout(stall);
         }
-        await new Promise<void>((resolve) => out.end(() => resolve()));
       }
       this.set({ downloading: false, installer: file });
     } catch (e) {

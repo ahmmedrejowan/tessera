@@ -26,7 +26,7 @@ const tempDir = () => {
 };
 
 /** A stand-in for the network, which can be told to be slow, to fail, or to refuse outright. */
-function net(options: { fail?: number; permanent?: boolean; hold?: boolean; body?: string; status?: number; statusTimes?: number; disposition?: string; slow?: boolean } = {}) {
+function net(options: { fail?: number; permanent?: boolean; hold?: boolean; body?: string; status?: number; statusTimes?: number; disposition?: string; slow?: boolean; stall?: boolean } = {}) {
   let attempts = 0;
   const started: string[] = [];
   let release: (() => void) | null = null;
@@ -59,6 +59,12 @@ function net(options: { fail?: number; permanent?: boolean; hold?: boolean; body
       }),
       body: new ReadableStream<Uint8Array>({
         async start(c) {
+          if (options.stall) {
+            // Opens, sends one piece, then nothing ever again: the shape of a dead connection
+            // that has not been closed.
+            c.enqueue(bytes.subarray(0, 1));
+            return;
+          }
           if (options.slow) {
             // Handed over in pieces, with a gap, so the queue has something to measure a speed from.
             for (let i = 0; i < bytes.byteLength; i += 1024) {
@@ -93,7 +99,7 @@ afterAll(() => {
   for (const dir of mine.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-async function queue(options: Parameters<typeof net>[0] = {}, atOnce = 3) {
+async function queue(options: Parameters<typeof net>[0] = {}, atOnce = 3, stall?: number) {
   const dir = tempDir();
   const ready: string[] = [];
   let changes = 0;
@@ -104,6 +110,7 @@ async function queue(options: Parameters<typeof net>[0] = {}, atOnce = 3) {
     atOnce: () => atOnce,
     onChanged: () => void (changes += 1),
     onReady: (item) => void ready.push(item.url),
+    ...(stall === undefined ? {} : { stall }),
   });
   await downloads.load();
   started.push(downloads);
@@ -381,6 +388,20 @@ describe('naming what arrives', () => {
 });
 
 describe('links brought in bulk', () => {
+  it('gives up on a connection that opens and then says nothing', async () => {
+    // A server that accepts, sends a byte and never speaks again. Without a limit on how long it
+    // is given, the download sits at 0 B/s for ever and nothing ever tells the person why.
+    const q = await queue({ stall: true }, 1, 300);
+    q.downloads.add(['https://example.test/packs/dead.zip']);
+    await until(() => {
+      const d = q.downloads.list()[0];
+      return !!d && (d.state === 'failed' || (d.error ?? '') !== '' || d.tries > 0);
+    }, `the dead download was never given up on: ${JSON.stringify(q.downloads.list()[0] ?? null)}`);
+    const item = q.downloads.list()[0]!;
+    expect(item.state === 'failed' || item.tries > 0 || (item.error ?? '') !== '').toBe(true);
+    q.downloads.pauseAll();
+  });
+
   it('takes only so many at once, however many are pasted', async () => {
     const q = await queue();
     const many = Array.from({ length: 600 }, (_, i) => `https://example.test/packs/${i}.zip`);
