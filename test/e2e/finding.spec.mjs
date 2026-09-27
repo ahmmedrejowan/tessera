@@ -46,6 +46,9 @@ export async function run(ok) {
     await search.waitFor({ state: 'visible', timeout: 30000 });
     await search.click({ force: true });
     await search.fill('arcade');
+    // The box is controlled React state with no debounce, so Enter sent in the same breath as the
+    // fill can be handled before the re-render and see an empty query, which navigates nowhere.
+    await t.page.waitForTimeout(1500);
     await t.page.keyboard.press('Enter');
     // Packs are listed above assets and use the same role, so reach into the Assets section.
     const assetsSection = t.page.locator('section').filter({ hasText: /^Assets/ }).first();
