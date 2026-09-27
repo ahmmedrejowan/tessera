@@ -52,9 +52,22 @@ export async function run(ok) {
     await t.page.keyboard.press('Enter');
     // Packs are listed above assets and use the same role, so reach into the Assets section.
     const assetsSection = t.page.locator('section').filter({ hasText: /^Assets/ }).first();
-    await assetsSection.waitFor({ state: 'visible', timeout: 30000 });
+    const reached = await assetsSection
+      .waitFor({ state: 'visible', timeout: 30000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!reached) {
+      // Say what the window actually shows, so a failure here is diagnosable from the CI log.
+      const seen = await t.page.locator('body').innerText().catch(() => '(no text)');
+      console.log('  DEBUG search page never appeared. Window shows:', seen.replace(/\s+/g, ' ').slice(0, 400));
+      console.log('  DEBUG sections:', await t.page.locator('section').count(), 'options:', await t.page.locator('[role="option"]').count());
+    }
     const hit = assetsSection.locator('[role="option"]').first();
-    await hit.waitFor({ state: 'visible', timeout: 30000 });
+    const gotTile = await hit
+      .waitFor({ state: 'visible', timeout: 30000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!gotTile) console.log('  DEBUG no asset tile in the Assets section; options on page:', await t.page.locator('[role="option"]').count());
     // Opened the way the viewer test above opens one. A plain click is the same code path, but a
     // press that lasts 400 ms is "pick this one" rather than "open it", and the gap between a
     // synthetic press and release on a loaded runner is long enough to trip that.
@@ -65,6 +78,10 @@ export async function run(ok) {
       .waitFor({ state: 'visible', timeout: 30000 })
       .then(() => true)
       .catch(() => false);
+    if (!opened) {
+      const seen = await t.page.locator('body').innerText().catch(() => '(no text)');
+      console.log('  DEBUG viewer did not open. Window shows:', seen.replace(/\s+/g, ' ').slice(0, 400));
+    }
     ok('a search result opens the file, not its pack', opened);
     if (opened) await t.page.keyboard.press('Escape');
 
