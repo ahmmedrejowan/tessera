@@ -1,6 +1,6 @@
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdir, readdir, rm, stat, utimes } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { basename, isAbsolute, join, relative, resolve } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { isIgnored } from '@shared/assets';
@@ -44,6 +44,19 @@ export interface ImportDeps {
   siteRules?: SiteRule[];
   /** Being added through the add page: every pack waits (unfinished) until the user decides. */
   stage?: boolean;
+  /**
+   * Remove each original once its copy is safely in the library.
+   *
+   * Never a rename: the copy is made and read back first, so a failure at any point leaves the
+   * person with the file they started with. This is the only thing in the app that takes something
+   * away, so it is deliberately the slow way round.
+   */
+  move?: boolean;
+  /**
+   * Tessera's own downloads folder. Anything fetched by the app lives here, and is always taken
+   * rather than copied: leaving it would be two copies inside the app's own storage.
+   */
+  fetchedDir?: string;
   /** Bytes copied so far out of the total, and the pack being added. */
   onProgress: (done: number, total: number, current: string) => void;
   signal?: AbortSignal;
@@ -87,6 +100,8 @@ export async function runImport(items: ImportItem[], d: ImportDeps): Promise<Imp
         licence: { ...pack.meta.licence, id: found.licence, notes: found.licenceFrom ? `Licence found in ${found.licenceFrom}.` : '' },
       });
       await d.index.syncPack({ ...pack, meta });
+      // Only now, with the copy in place and read back as a pack, is the original let go of.
+      if (movable(item, d)) await takeAway(item.sources);
       result.added.push({ id: meta.id, item: item.id, name: meta.name, status });
     } catch (e) {
       log.error('import', `could not add ${item.name}`, e);
@@ -98,4 +113,35 @@ export async function runImport(items: ImportItem[], d: ImportDeps): Promise<Imp
   }
   d.onProgress(total, total, '');
   return result;
+}
+
+/**
+ * Whether this item's originals may be removed once it is in.
+ *
+ * Anything Tessera fetched itself is always taken, whatever the setting says: it is sitting in the
+ * app's own downloads folder and nobody wants two copies of it. Everything else is only taken when
+ * asked for, and only when it is a download rather than a folder someone lives in. A whole folder
+ * that was picked by hand is left alone: "add my art folder" must never mean "empty my art folder".
+ */
+export function movable(item: ImportItem, d: ImportDeps): boolean {
+  // While a pack is only staged the person can still cancel, and cancelling throws the copy away.
+  // Nothing is taken until they keep it.
+  if (d.stage) return false;
+  const fetched = !!d.fetchedDir && item.sources.every((p) => isInside(d.fetchedDir!, p));
+  if (fetched) return true;
+  if (!d.move) return false;
+  return item.kind !== 'folder';
+}
+
+/** Is `p` inside `dir`? Compared as paths, so a name that merely starts the same does not count. */
+export function isInside(dir: string, p: string): boolean {
+  const rel = relative(resolve(dir), resolve(p));
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+}
+
+/** Remove the originals, one at a time. A file that will not go is left, and not worth failing over. */
+async function takeAway(sources: string[]): Promise<void> {
+  for (const src of sources) {
+    await rm(src, { recursive: true, force: true }).catch((e: unknown) => log.warn('import', `could not remove ${src} after moving it in`, e));
+  }
 }

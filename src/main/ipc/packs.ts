@@ -50,7 +50,12 @@ export function registerPackIpc(c: Deps): void {
   handle('pack:detect', (id) => library.detect(id));
   handle('pack:partLicences', (id) => library.partLicences(id));
   handle('pack:details', (id) => library.details(id));
-  handle('pack:discard', (id) => library.discardPack(id));
+  handle('pack:discard', (id) => {
+    // Thrown away, so whatever it was made from stays where it is.
+    library.forgetOriginals(id);
+    return library.discardPack(id);
+  });
+  handle('import:takeOriginals', (packId) => library.takeOriginals(packId));
   handle('pack:recordPage', (id, what) => {
     // In the background, one page at a time: the add page doesn't wait for it.
     recordPage(id, what);

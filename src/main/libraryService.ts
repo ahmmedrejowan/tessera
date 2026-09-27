@@ -11,7 +11,7 @@ import { UserError } from './errors';
 import { listPackFiles, parseRef } from './index/files';
 import { LibraryIndex } from './index/indexer';
 import { planImport } from './import/plan';
-import { copyTree, runImport } from './import/run';
+import { copyTree, movable, runImport, type ImportDeps } from './import/run';
 import { LibraryQueries } from './index/query';
 import type { Jobs } from './jobs';
 import { createCollection, deleteCollection, favourites, listCollections, updateCollection, withItems, withoutItems, withPacks, withoutPacks } from './library/collections';
@@ -34,6 +34,8 @@ interface Deps {
   siteRules: () => SiteRule[];
   /** How long deleted things wait in the library's bin before they go for good; 0 keeps them. */
   binKeepDays: () => number;
+  /** Tessera's own downloads folder: anything fetched there is taken in, not copied. */
+  fetchedDir?: string;
   /** Watch the library folder for changes made outside the app. Off in tests. */
   watchFiles?: boolean;
 }
@@ -57,6 +59,13 @@ export class LibraryService {
   /** Checks that the folder being watched is still there. */
   private rootCheck: NodeJS.Timeout | null = null;
   private syncing: Promise<void> | null = null;
+  /**
+   * Where a staged pack's files came from, for packs whose originals are to be let go of.
+   *
+   * Held here rather than passed back to the window, so nothing outside this process can ask for a
+   * path of its own choosing to be removed.
+   */
+  private readonly stagedFrom = new Map<string, string[]>();
   private syncAgain = false;
   private watchTimer: NodeJS.Timeout | null = null;
   /** While the app itself is adding packs, file-change syncs wait until it's done. */
@@ -521,19 +530,50 @@ export class LibraryService {
     return items;
   }
 
-  async import(items: ImportItem[], skipInboxWhenSure: boolean, stage = false): Promise<ImportResult> {
+  /**
+   * Let go of the original files a staged pack was made from, now that the pack has been kept.
+   *
+   * Only packs this process staged in this session are known, and only the paths it copied from,
+   * so the window can ask for this and nothing else.
+   */
+  async takeOriginals(packId: string): Promise<void> {
+    const sources = this.stagedFrom.get(packId);
+    if (!sources) return;
+    this.stagedFrom.delete(packId);
+    for (const src of sources) {
+      await rm(src, { recursive: true, force: true }).catch((e: unknown) => log.warn('import', `could not remove ${src} after moving it in`, e));
+    }
+  }
+
+  /** A staged pack that was thrown away keeps its original, whatever was asked for. */
+  forgetOriginals(packId: string): void {
+    this.stagedFrom.delete(packId);
+  }
+
+  async import(items: ImportItem[], skipInboxWhenSure: boolean, stage = false, move = false): Promise<ImportResult> {
     const lib = this.require();
     this.busyWriting++;
     const job = this.d.jobs.start(items.length === 1 ? `Adding ${items[0]!.name}` : `Adding ${items.length} packs`);
     try {
-      const result = await runImport(items, {
+      const deps: ImportDeps = {
         root: lib.root,
         index: lib.index,
         skipInboxWhenSure,
         siteRules: this.d.siteRules(),
         stage,
+        move,
+        ...(this.d.fetchedDir ? { fetchedDir: this.d.fetchedDir } : {}),
         onProgress: (done, total, current) => job.update(total ? done / total : null, current),
-      });
+      };
+      const result = await runImport(items, deps);
+      // A staged pack has not been kept yet, so its original is remembered rather than removed.
+      // `takeOriginals` lets go of it if and when the person finishes adding the pack.
+      if (stage) {
+        for (const added of result.added) {
+          const item = items.find((i) => i.id === added.item);
+          if (item && movable(item, { ...deps, stage: false })) this.stagedFrom.set(added.id, item.sources);
+        }
+      }
       const inbox = result.added.filter((a) => a.status === 'inbox').length;
       job.done(`${result.added.length} added${inbox ? `, ${inbox} to review` : ''}${result.failed.length ? `, ${result.failed.length} failed` : ''}`);
       return result;

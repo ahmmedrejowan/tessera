@@ -64,6 +64,10 @@ const schema = z.object({
     .catch({ enabled: true, port: DEFAULT_MCP_PORT, off: [], groupsOff: [], groupsOn: [] }),
   updateCheck: z.boolean().catch(true),
   autoInstallUpdates: z.boolean().catch(false),
+  /** Adding a pack removes the original once the copy is safely in. Off, and the original stays. */
+  moveIntoLibrary: z.boolean().catch(false),
+  /** Show what is about to be written into a game before writing it. Turned off from the dialog. */
+  confirmCopyToGame: z.boolean().catch(true),
 });
 
 export const DEFAULT_SETTINGS: Settings = schema.parse({});

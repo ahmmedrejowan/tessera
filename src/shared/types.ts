@@ -73,6 +73,10 @@ export interface Settings {
   updateCheck: boolean;
   /** Fetch a newer version's installer as soon as one is found (it still waits to be opened). */
   autoInstallUpdates: boolean;
+  /** Adding a pack removes the original once the copy is safely in the library. */
+  moveIntoLibrary: boolean;
+  /** Show what is about to be written into a game before writing it. */
+  confirmCopyToGame: boolean;
 }
 
 /** A site the user has set the licence for, so packs from it fill themselves in. */

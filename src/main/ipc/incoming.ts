@@ -12,10 +12,10 @@ import { linksInFiles } from '../downloads/service';
 import { UserError, handle } from '../ipc';
 import type { IpcContext } from './context';
 
-type Deps = Pick<IpcContext, 'activity' | 'downloads' | 'library' | 'openRecord' | 'windows'>;
+type Deps = Pick<IpcContext, 'activity' | 'downloads' | 'library' | 'openRecord' | 'settings' | 'windows'>;
 
 export function registerIncomingIpc(c: Deps): void {
-  const { activity, downloads, library, openRecord, windows } = c;
+  const { activity, downloads, library, openRecord, settings, windows } = c;
   handle('import:samples', async () => {
     const dir = app.isPackaged ? join(process.resourcesPath, 'samples') : join(app.getAppPath(), 'resources', 'samples');
     const files = (await readdir(dir).catch(() => [] as string[])).filter((f) => f.endsWith('.zip')).sort();
@@ -52,7 +52,9 @@ export function registerIncomingIpc(c: Deps): void {
 
   handle('import:plan', (paths, eachInside) => library.planImport(paths, eachInside));
   handle('import:run', async (items, opts) => {
-    const result = await library.import(items, openRecord()?.skipInboxWhenSure ?? true, !!opts?.stage);
+    // The tick on the Add page wins over the setting, so one pack can go either way.
+    const move = opts?.move ?? settings.get().moveIntoLibrary;
+    const result = await library.import(items, openRecord()?.skipInboxWhenSure ?? true, !!opts?.stage, move);
     const added = result.added.filter((a) => a.status === 'library');
     const waiting = result.added.filter((a) => a.status === 'inbox');
     if (added.length) activity.add('added', added.length === 1 ? `Added “${added[0]!.name}”` : `Added ${added.length} packs`, added.map((a) => a.name).slice(0, 6).join(', '));

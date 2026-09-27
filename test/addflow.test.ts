@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { isFolderOfPacks, planImport } from '../src/main/import/plan';
@@ -71,5 +71,77 @@ describe('adding through the add page', () => {
     expect(staged.added).toEqual([{ id: expect.any(String), item: items[0]!.id, name: 'Tiny', status: 'inbox' }]);
     const direct = await runImport(await planImport([join(d, 'kenney_tiny.zip')]), { root, index, skipInboxWhenSure: true, onProgress: () => undefined });
     expect(direct.added[0]!.status).toBe('library');
+  });
+});
+
+describe('moving a download in rather than copying it', () => {
+  const pack = async (dir: string, name: string) => {
+    await writeZip(join(dir, name), { 'License.txt': 'Tiny (1.0)\nCreated/distributed by Kenney\nLicense: (Creative Commons Zero, CC0)', 'a.png': 'x' });
+    return join(dir, name);
+  };
+
+  it('leaves the original alone unless it is asked not to', async () => {
+    const root = join(tempDir(), 'lib');
+    await createLibrary(root, 'lib');
+    const d = tempDir('tessera-dl-');
+    const src = await pack(d, 'kenney_tiny.zip');
+    const index = new LibraryIndex(':memory:');
+    await runImport(await planImport([src]), { root, index, skipInboxWhenSure: true, onProgress: () => undefined });
+    expect(existsSync(src)).toBe(true);
+  });
+
+  it('takes the original away once the copy is in', async () => {
+    const root = join(tempDir(), 'lib');
+    await createLibrary(root, 'lib');
+    const d = tempDir('tessera-dl-');
+    const src = await pack(d, 'kenney_tiny.zip');
+    const index = new LibraryIndex(':memory:');
+    const result = await runImport(await planImport([src]), { root, index, skipInboxWhenSure: true, move: true, onProgress: () => undefined });
+    expect(result.added).toHaveLength(1);
+    expect(existsSync(src)).toBe(false);
+    // The copy is the point: taking the original away is only safe because this is here.
+    expect(existsSync(join(root, 'packs', 'Tiny', 'original', 'kenney_tiny.zip'))).toBe(true);
+  });
+
+  it('keeps the original when the pack could not be added', async () => {
+    const root = join(tempDir(), 'lib');
+    await createLibrary(root, 'lib');
+    const d = tempDir('tessera-dl-');
+    const src = await pack(d, 'kenney_tiny.zip');
+    const items = await planImport([src]);
+    // The library is made read-only between planning and running, so the copy cannot be written.
+    chmodSync(join(root, 'packs'), 0o500);
+    const index = new LibraryIndex(':memory:');
+    const result = await runImport(items, { root, index, skipInboxWhenSure: true, move: true, onProgress: () => undefined });
+    chmodSync(join(root, 'packs'), 0o700);
+    expect(result.failed).toHaveLength(1);
+    // Nothing was copied, so nothing may be taken away.
+    expect(existsSync(src)).toBe(true);
+  });
+
+  it('never empties a folder someone pointed at', async () => {
+    const root = join(tempDir(), 'lib');
+    await createLibrary(root, 'lib');
+    const d = tempDir('tessera-art-');
+    const folder = join(d, 'My Art');
+    mkdirSync(join(folder, 'models'), { recursive: true });
+    writeFileSync(join(folder, 'models', 'thing.obj'), 'o thing\n');
+    const items = await planImport([folder]);
+    expect(items[0]!.kind).toBe('folder');
+    const index = new LibraryIndex(':memory:');
+    await runImport(items, { root, index, skipInboxWhenSure: true, move: true, onProgress: () => undefined });
+    // "Add my art folder" must never mean "empty my art folder".
+    expect(existsSync(join(folder, 'models', 'thing.obj'))).toBe(true);
+  });
+
+  it('always takes what Tessera fetched itself, whatever the setting says', async () => {
+    const root = join(tempDir(), 'lib');
+    await createLibrary(root, 'lib');
+    const fetchedDir = tempDir('tessera-fetched-');
+    const src = await pack(fetchedDir, 'kenney_tiny.zip');
+    const index = new LibraryIndex(':memory:');
+    await runImport(await planImport([src]), { root, index, skipInboxWhenSure: true, move: false, fetchedDir, onProgress: () => undefined });
+    // Leaving it would be two copies inside the app's own storage.
+    expect(existsSync(src)).toBe(false);
   });
 });

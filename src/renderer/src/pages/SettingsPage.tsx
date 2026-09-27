@@ -44,6 +44,7 @@ const SECTIONS: Section[] = [
   { id: 'appearance', title: 'Appearance', part: 'app', group: 'app' },
   { id: 'sites', title: 'Sites', part: 'app', group: 'app' },
   { id: 'downloads', title: 'Downloads', part: 'app', group: 'app' },
+  { id: 'adding', title: 'Adding and copying', part: 'app', group: 'app' },
   { id: 'agents', title: 'AI agents', part: 'app', group: 'app' },
   { id: 'computers', title: 'Paired computers', part: 'app', group: 'app' },
   { id: 'helpers', title: 'Helpers', part: 'app', group: 'app' },
@@ -276,6 +277,39 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                     value={String(settings.downloadsAtOnce)}
                     onChange={(n) => update.mutate({ downloadsAtOnce: Number(n) })}
                     options={['1', '2', '3', '4', '5'].map((n) => ({ value: n, label: n }))}
+                  />
+                </Row>
+              </Group>
+            </div>
+
+            <div {...at('adding')}>
+              <Group title="Adding and copying" note="What happens to your own files when they go into a library, and into a game.">
+                <Row
+                  title="Move files into the library"
+                  body={
+                    settings.moveIntoLibrary
+                      ? 'The original is removed once the copy is safely in. The copy is always made and checked first, so a failure leaves you with the file you started with. Folders you point at are never emptied.'
+                      : 'Your download stays where it is and Tessera works on its own copy. You can change this for one pack on the Add page.'
+                  }
+                >
+                  <Switch
+                    checked={settings.moveIntoLibrary}
+                    onChange={(_, moveIntoLibrary) => update.mutate({ moveIntoLibrary })}
+                    slotProps={{ input: { 'aria-label': 'Move files into the library' } }}
+                  />
+                </Row>
+                <Row
+                  title="Ask before copying into a game"
+                  body={
+                    settings.confirmCopyToGame
+                      ? 'Shows how much is going and where it will land before anything is written.'
+                      : 'Assets go straight into the game. Anything wrong with a licence still stops for an answer.'
+                  }
+                >
+                  <Switch
+                    checked={settings.confirmCopyToGame}
+                    onChange={(_, confirmCopyToGame) => update.mutate({ confirmCopyToGame })}
+                    slotProps={{ input: { 'aria-label': 'Ask before copying into a game' } }}
                   />
                 </Row>
               </Group>

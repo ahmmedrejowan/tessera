@@ -75,6 +75,8 @@ export interface Invokes {
   'pack:details': (id: string) => { detected: Detected; suggestions: PackSuggestions };
   /** Delete a pack that was only just added and isn't in the library yet (the add page's Cancel). */
   'pack:discard': (id: string) => void;
+  /** The pack is kept, so the files it was made from may go. Only staged packs are known. */
+  'import:takeOriginals': (packId: string) => void;
   /** Keep a record of the pack's download page, in the background: a snapshot, an archive.org copy. */
   'pack:recordPage': (id: string, what: { snapshot: boolean; archive: boolean }) => void;
   /** Move a pack between the Inbox and the library; joining the library needs a licence and a source. */
@@ -291,7 +293,7 @@ export interface Invokes {
 
   'import:plan': (paths: string[], eachInside: boolean | 'auto') => ImportItem[];
   /** `stage`: for the add page, where every pack waits until the user decides. */
-  'import:run': (items: ImportItem[], opts?: { stage?: boolean }) => ImportResult;
+  'import:run': (items: ImportItem[], opts?: { stage?: boolean; move?: boolean }) => ImportResult;
 
   /** An unexpected error caught in the window, to keep (and send, with consent). */
   'reports:capture': (input: ErrorInput) => void;

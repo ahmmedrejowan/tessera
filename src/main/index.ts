@@ -149,6 +149,7 @@ const library = new LibraryService({
   jobs,
   siteRules: () => settings.get().siteRules,
   binKeepDays: () => settings.get().binKeepDays,
+  fetchedDir: join(dataDir, 'downloads'),
   onState: (state) => {
     broadcast(windows, 'library:changed', state);
     if (state.status === 'ready') {

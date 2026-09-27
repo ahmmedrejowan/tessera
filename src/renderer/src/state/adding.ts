@@ -96,6 +96,14 @@ interface AddingState {
   busy: boolean;
   /** The user picked in the list: the page stops choosing for them. */
   touched: boolean;
+  /**
+   * Let go of the files these packs were made from, once they are kept.
+   *
+   * Starts from the setting and can be changed for this batch alone. Nothing is removed until a
+   * pack is actually saved, so cancelling always leaves the originals where they are.
+   */
+  move: boolean;
+  setMove(on: boolean): void;
   /** `urls`: where each path was downloaded from, when Tessera fetched it. */
   start(paths: string[], eachInside: boolean | 'auto', urls?: Record<string, string>): Promise<void>;
   addAnyway(item: ImportItem): Promise<void>;
@@ -143,7 +151,7 @@ async function stage(items: ImportItem[], set: (fn: (s: AddingState) => Partial<
 }
 
 /** Write the form to the pack, and move it into the library when asked and complete. */
-async function write(d: Draft, toLibrary: boolean): Promise<'library' | 'review'> {
+async function write(d: Draft, toLibrary: boolean, move: boolean): Promise<'library' | 'review'> {
   if (!d.packId || !d.meta) return 'review';
   const f = d.form;
   const site = f.site ?? (f.url ? (sourceFromUrl(f.url)?.id ?? null) : null);
@@ -158,6 +166,9 @@ async function write(d: Draft, toLibrary: boolean): Promise<'library' | 'review'
   });
   const complete = !missingForLibrary({ licence: { ...d.meta.licence, id: f.licence }, source: { ...d.meta.source, site, url: f.url.trim() || null, name: f.sourceName } }).length;
   if (f.url.trim() && (f.snapshot || f.archive)) void call('pack:recordPage', d.packId, { snapshot: f.snapshot, archive: f.archive }).catch(() => undefined);
+  // Kept, either in the library or in Review, so whatever it was made from may go now. It could
+  // not go earlier: until this point the person could still cancel and get nothing.
+  if (move) await call('import:takeOriginals', d.packId).catch(() => undefined);
   if (toLibrary && complete) {
     await call('pack:status', d.packId, 'library');
     return 'library';
@@ -175,6 +186,9 @@ export const useAdding = create<AddingState>((set, get) => ({
   folder: null,
   busy: false,
   touched: false,
+  // Starts from the app setting; the tick on the page wins for this batch.
+  move: false,
+  setMove: (on) => set({ move: on }),
 
   async start(paths, eachInside, urls) {
     if (!paths.length) return;
@@ -249,7 +263,7 @@ export const useAdding = create<AddingState>((set, get) => ({
     let review = 0;
     try {
       for (const d of going) {
-        if ((await write(d, !opts.later)) === 'library') library++;
+        if ((await write(d, !opts.later, get().move)) === 'library') library++;
         else review++;
       }
       const left = get().drafts.filter((d) => !going.some((g) => g.item.id === d.item.id));
@@ -272,7 +286,7 @@ export const useAdding = create<AddingState>((set, get) => ({
     let n = 0;
     for (const d of left) {
       try {
-        await write(d, false);
+        await write(d, false, get().move);
         n++;
       } catch {
         // It's in Review with what it had.

@@ -27,11 +27,13 @@ import MenuItem from '@mui/material/MenuItem';
 import Popover from '@mui/material/Popover';
 import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
+import Checkbox from '@mui/material/Checkbox';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { LICENCES, licenceInfo, OWN_WORK } from '@shared/licences';
 import { hostOf, ruleFor } from '@shared/siteRules';
 import { SOURCES, sourceFromUrl, sourceInfo } from '@shared/sources';
@@ -43,6 +45,7 @@ import { I_DONT_KNOW, I_MADE_IT, isReady, useAdding, type AddForm, type Draft, t
 import { useJobs } from '../../state/library';
 import { useNav } from '../../state/nav';
 import { useNotices } from '../../notices/store';
+import { useLibraryRecord } from '../../state/library';
 import { useSettings, useUpdateSettings } from '../../state/queries';
 import { md, mdAlpha, SHAPE } from '../../theme';
 
@@ -470,6 +473,7 @@ function SinglePage({ d }: { d: Draft }) {
         <Details d={d} onEdit={onEdit} />
       </div>
       <Footer tone={ready ? 'ok' : 'warn'} note={d.state === 'copying' ? 'Reading the pack…' : ready ? 'Everything needed is filled in' : 'Add a licence and source now, or finish later from Review.'}>
+        <WhereItGoes />
         <Button onClick={() => void cancel()} disabled={busy}>
           Cancel
         </Button>
@@ -478,9 +482,7 @@ function SinglePage({ d }: { d: Draft }) {
             Finish later
           </Button>
         )}
-        <Button variant="contained" startIcon={<CheckRounded />} disabled={busy || !ready || d.state !== 'ready'} onClick={() => void save([d.item.id])}>
-          Add to library
-        </Button>
+        <AddButton onClick={() => void save([d.item.id])} disabled={busy || !ready || d.state !== 'ready'} />
       </Footer>
     </div>
   );
@@ -697,4 +699,66 @@ export function AddPage() {
   }, [drafts.length, goBack]);
   if (!drafts.length) return null;
   return drafts.length === 1 ? <SinglePage d={drafts[0]!} /> : <BatchPage />;
+}
+
+
+/**
+ * Where these files are going, and whether the originals stay.
+ *
+ * Said here rather than in a settings page nobody reads, because this is the moment the person is
+ * deciding. Moving is never the quiet default: it is off unless the setting or this tick says so,
+ * and nothing is removed until a pack is actually kept.
+ */
+function WhereItGoes() {
+  const library = useLibraryRecord();
+  const settings = useSettings().data;
+  const move = useAdding((s) => s.move);
+  const setMove = useAdding((s) => s.setMove);
+  const drafts = useAdding((s) => s.drafts);
+  const started = useRef(false);
+
+  // The setting decides where the tick starts; after that the person's choice stands.
+  useEffect(() => {
+    if (started.current || !settings) return;
+    started.current = true;
+    setMove(settings.moveIntoLibrary);
+  }, [settings, setMove]);
+
+  // A folder someone pointed at is never emptied, so there is nothing to offer for one.
+  const folders = drafts.filter((d) => d.item.kind === 'folder').length;
+  const all = drafts.length > 0 && folders === drafts.length;
+  const name = library?.name ?? 'your library';
+
+  return (
+    <div style={{ marginRight: 'auto', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+      <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+        {move && !all ? 'Moved into' : 'Copied into'} <b>{name}</b>
+      </Typography>
+      <Tooltip title={all ? 'A folder you chose is left as it is: adding it never empties it.' : 'The copy is made and checked first, so the original can only go once the pack is safely in.'}>
+        <FormControlLabel
+          sx={{ ml: 0, gap: 0.5 }}
+          control={<Checkbox size="small" checked={move && !all} disabled={all} onChange={(_, on) => setMove(on)} sx={{ p: 0.5 }} />}
+          label={
+            <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+              {all ? 'Folders are always left where they are' : 'Remove the originals once they are in'}
+            </Typography>
+          }
+        />
+      </Tooltip>
+    </div>
+  );
+}
+
+/** The one that commits, saying what it will do rather than only that it will do something. */
+function AddButton({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
+  const library = useLibraryRecord();
+  const move = useAdding((s) => s.move);
+  const drafts = useAdding((s) => s.drafts);
+  const all = drafts.length > 0 && drafts.every((d) => d.item.kind === 'folder');
+  const verb = move && !all ? 'Move into' : 'Copy into';
+  return (
+    <Button variant="contained" startIcon={<CheckRounded />} disabled={disabled} onClick={onClick}>
+      {verb} {library?.name ?? 'the library'}
+    </Button>
+  );
 }

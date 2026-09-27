@@ -62,7 +62,10 @@ export async function copyToProject(project: { id: string; name: string } | null
   if (!items.length) return;
   try {
     const plan = await call('projects:plan', project.id, items);
-    if (plan.warnings.length) useCopy.setState({ pending: { projectId: project.id, projectName: project.name, items, plan } });
+    // Warnings always stop for an answer. Otherwise the person still sees what is about to be
+    // written into their game, unless they have said they would rather not be asked.
+    const ask = plan.warnings.length > 0 || (await call('settings:get')).confirmCopyToGame;
+    if (ask) useCopy.setState({ pending: { projectId: project.id, projectName: project.name, items, plan } });
     else await doCopy(project.id, project.name, items);
   } catch (e) {
     failed(e);
