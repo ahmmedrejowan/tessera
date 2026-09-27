@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { isFolderOfPacks, planImport } from '../src/main/import/plan';
@@ -109,11 +109,12 @@ describe('moving a download in rather than copying it', () => {
     const d = tempDir('tessera-dl-');
     const src = await pack(d, 'kenney_tiny.zip');
     const items = await planImport([src]);
-    // The library is made read-only between planning and running, so the copy cannot be written.
-    chmodSync(join(root, 'packs'), 0o500);
+    // The pack folder cannot be made, so the copy never happens. Done by putting a file where the
+    // folder has to go, which fails the same way on every system; read-only bits do not.
+    rmSync(join(root, 'packs'), { recursive: true, force: true });
+    writeFileSync(join(root, 'packs'), 'not a folder');
     const index = new LibraryIndex(':memory:');
     const result = await runImport(items, { root, index, skipInboxWhenSure: true, move: true, onProgress: () => undefined });
-    chmodSync(join(root, 'packs'), 0o700);
     expect(result.failed).toHaveLength(1);
     // Nothing was copied, so nothing may be taken away.
     expect(existsSync(src)).toBe(true);
