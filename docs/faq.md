@@ -94,9 +94,11 @@ unpacked. What Tessera adds is a small `pack.json` beside each pack.
 
 **Is my download moved or copied?**
 Copied, by default. The file you dropped in stays exactly where it was, and Tessera works on its
-own copy inside the library. If you would rather not keep two, tick **Move the files in** on the
-Add page and the original is removed once the copy is safely in place. Never the other way round:
-the copy is made and checked first, so a failure can only ever leave you with the original.
+own copy inside the library. If you would rather not keep two, tick **Remove the originals once
+they are in** on the Add page and the original goes once the copy is safely in place. Never the
+other way round: the copy is made and checked first, so a failure can only ever leave you with the
+original. A download Tessera fetched for you is treated the same way: it stays in Downloads until
+you add it, and then goes or stays by the same answer.
 
 You can make that the default in Settings, App, **Move files into the library**. The tick on the
 Add page always wins, so you can change your mind for one pack without changing the setting.

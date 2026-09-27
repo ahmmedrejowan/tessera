@@ -149,7 +149,6 @@ const library = new LibraryService({
   jobs,
   siteRules: () => settings.get().siteRules,
   binKeepDays: () => settings.get().binKeepDays,
-  fetchedDir: join(dataDir, 'downloads'),
   onState: (state) => {
     broadcast(windows, 'library:changed', state);
     if (state.status === 'ready') {
@@ -266,7 +265,7 @@ async function addDownloaded(item: DownloadItem): Promise<void> {
       return;
     }
     const straightIn = after === 'add' && record.skipInboxWhenSure;
-    const result = await library.import(planned.map((i) => ({ ...i, url: item.url })), straightIn, false);
+    const result = await library.import(planned.map((i) => ({ ...i, url: item.url })), straightIn, false, settings.get().moveIntoLibrary);
     const made = result.added[0];
     downloads.done(item.id, made?.name ?? null);
     if (made) activity.add('downloaded', `Downloaded “${made.name}” from ${item.host}`, made.status === 'inbox' ? 'Waiting in Review for a licence' : undefined);

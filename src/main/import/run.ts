@@ -1,6 +1,6 @@
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdir, readdir, rm, stat, utimes } from 'node:fs/promises';
-import { basename, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, join } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { isIgnored } from '@shared/assets';
@@ -52,11 +52,6 @@ export interface ImportDeps {
    * away, so it is deliberately the slow way round.
    */
   move?: boolean;
-  /**
-   * Tessera's own downloads folder. Anything fetched by the app lives here, and is always taken
-   * rather than copied: leaving it would be two copies inside the app's own storage.
-   */
-  fetchedDir?: string;
   /** Bytes copied so far out of the total, and the pack being added. */
   onProgress: (done: number, total: number, current: string) => void;
   signal?: AbortSignal;
@@ -118,25 +113,17 @@ export async function runImport(items: ImportItem[], d: ImportDeps): Promise<Imp
 /**
  * Whether this item's originals may be removed once it is in.
  *
- * Anything Tessera fetched itself is always taken, whatever the setting says: it is sitting in the
- * app's own downloads folder and nobody wants two copies of it. Everything else is only taken when
- * asked for, and only when it is a download rather than a folder someone lives in. A whole folder
- * that was picked by hand is left alone: "add my art folder" must never mean "empty my art folder".
+ * Only when asked for, and only when it is a download rather than a folder someone lives in. A
+ * whole folder that was picked by hand is left alone: "add my art folder" must never mean "empty
+ * my art folder". A download Tessera fetched is treated like any other file, so it stays in
+ * Downloads until it is added, and then goes or stays by the same answer as everything else.
  */
 export function movable(item: ImportItem, d: ImportDeps): boolean {
   // While a pack is only staged the person can still cancel, and cancelling throws the copy away.
   // Nothing is taken until they keep it.
   if (d.stage) return false;
-  const fetched = !!d.fetchedDir && item.sources.every((p) => isInside(d.fetchedDir!, p));
-  if (fetched) return true;
   if (!d.move) return false;
   return item.kind !== 'folder';
-}
-
-/** Is `p` inside `dir`? Compared as paths, so a name that merely starts the same does not count. */
-export function isInside(dir: string, p: string): boolean {
-  const rel = relative(resolve(dir), resolve(p));
-  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
 }
 
 /** Remove the originals, one at a time. A file that will not go is left, and not worth failing over. */

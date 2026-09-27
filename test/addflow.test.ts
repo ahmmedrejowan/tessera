@@ -135,14 +135,14 @@ describe('moving a download in rather than copying it', () => {
     expect(existsSync(join(folder, 'models', 'thing.obj'))).toBe(true);
   });
 
-  it('always takes what Tessera fetched itself, whatever the setting says', async () => {
+  it('treats a download Tessera fetched like any other file', async () => {
     const root = join(tempDir(), 'lib');
     await createLibrary(root, 'lib');
-    const fetchedDir = tempDir('tessera-fetched-');
-    const src = await pack(fetchedDir, 'kenney_tiny.zip');
+    const fetched = tempDir('tessera-fetched-');
+    const src = await pack(fetched, 'kenney_tiny.zip');
     const index = new LibraryIndex(':memory:');
-    await runImport(await planImport([src]), { root, index, skipInboxWhenSure: true, move: false, fetchedDir, onProgress: () => undefined });
-    // Leaving it would be two copies inside the app's own storage.
-    expect(existsSync(src)).toBe(false);
+    await runImport(await planImport([src]), { root, index, skipInboxWhenSure: true, move: false, onProgress: () => undefined });
+    // It stays in Downloads until the answer says otherwise, the same as a file from anywhere else.
+    expect(existsSync(src)).toBe(true);
   });
 });

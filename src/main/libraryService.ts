@@ -34,8 +34,6 @@ interface Deps {
   siteRules: () => SiteRule[];
   /** How long deleted things wait in the library's bin before they go for good; 0 keeps them. */
   binKeepDays: () => number;
-  /** Tessera's own downloads folder: anything fetched there is taken in, not copied. */
-  fetchedDir?: string;
   /** Watch the library folder for changes made outside the app. Off in tests. */
   watchFiles?: boolean;
 }
@@ -567,7 +565,6 @@ export class LibraryService {
         siteRules: this.d.siteRules(),
         stage,
         move,
-        ...(this.d.fetchedDir ? { fetchedDir: this.d.fetchedDir } : {}),
         onProgress: (done, total, current) => job.update(total ? done / total : null, current),
       };
       const result = await runImport(items, deps);

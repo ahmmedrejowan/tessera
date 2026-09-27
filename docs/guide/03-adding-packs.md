@@ -7,8 +7,8 @@ Your own file stays where it is: the library works on its own copy. The Add page
 library the pack is going into, and offers to remove the original once the copy is safely in.
 That copy is always made and read back first, so nothing can be taken until the pack is there,
 and cancelling always leaves your file alone. A folder you pointed at is never emptied, and an
-agent never moves anything. Downloads Tessera fetched itself are always taken in, since leaving
-them means two copies inside the app's own folder.
+agent never moves anything. A download Tessera fetched for you stays in Downloads until you add
+it, and then follows the same answer as anything else.
 
 ## The ways in
 
