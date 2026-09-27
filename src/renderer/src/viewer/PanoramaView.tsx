@@ -17,7 +17,15 @@ export function PanoramaView({ url, ext, onInfo }: { url: string; ext: string; o
 
   useEffect(() => {
     const el = host.current!;
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // As in the model view: no WebGL means no panorama, not a broken page.
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+    } catch {
+      setState('error');
+      onInfo?.(null);
+      return;
+    }
     rendererRef.current = renderer;
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;

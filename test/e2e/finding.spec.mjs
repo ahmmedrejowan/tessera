@@ -72,6 +72,8 @@ export async function run(ok) {
     // press that lasts 400 ms is "pick this one" rather than "open it", and the gap between a
     // synthetic press and release on a loaded runner is long enough to trip that.
     await hit.dblclick({ force: true });
+    // "THIS FILE" is the viewer's own licence heading, so it appears whether or not the machine
+    // can draw the model: a runner with no WebGL shows the panel's "can't be shown here" instead.
     const opened = await t.page
       .getByText('THIS FILE', { exact: false })
       .first()

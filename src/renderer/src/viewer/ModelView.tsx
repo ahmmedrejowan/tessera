@@ -67,7 +67,18 @@ export function ModelView({ url, ext, textures, dark, onStats }: { url: string; 
   // One renderer for the life of the viewer.
   useEffect(() => {
     const el = host.current!;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    // A machine that cannot give us WebGL is a machine that cannot show a model, not a reason to
+    // take the whole page down: driver trouble, a remote desktop, a virtual machine, or hardware
+    // acceleration turned off all end up here.
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setState('error');
+      onStats?.(null);
+      return;
+    }
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NeutralToneMapping;
