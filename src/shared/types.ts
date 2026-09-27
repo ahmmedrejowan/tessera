@@ -423,7 +423,8 @@ export interface DownloadItem {
 export interface ImportResult {
   /** `item` is the ImportItem's id. */
   added: { id: string; item: string; name: string; status: 'inbox' | 'library' }[];
-  failed: { name: string; error: string }[];
+  /** `item` is the ImportItem's id. Names repeat, so a failure is matched by id like an addition. */
+  failed: { item: string; name: string; error: string }[];
 }
 
 /** A change to a collection: rename, describe, add or remove items, or delete it. */

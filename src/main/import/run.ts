@@ -90,7 +90,7 @@ export async function runImport(items: ImportItem[], d: ImportDeps): Promise<Imp
       result.added.push({ id: meta.id, item: item.id, name: meta.name, status });
     } catch (e) {
       log.error('import', `could not add ${item.name}`, e);
-      result.failed.push({ name: item.name, error: e instanceof Error ? e.message : String(e) });
+      result.failed.push({ item: item.id, name: item.name, error: e instanceof Error ? e.message : String(e) });
       // Nothing half-copied is left behind.
       if (packDir) await rm(packDir, { recursive: true, force: true }).catch(() => undefined);
       done = before + item.size;

@@ -1,4 +1,5 @@
 import { app, BrowserWindow, crashReporter, dialog, nativeTheme, net, session, shell, systemPreferences } from 'electron';
+import { TITLE_BAR_OVERLAY_HEIGHT } from '@shared/chrome';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { release, tmpdir } from 'node:os';
 import { readdir, readFile, rm, stat } from 'node:fs/promises';
@@ -514,10 +515,15 @@ async function createWindow(): Promise<void> {
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#111418' : '#f7f9fc',
     // The app bar is the title bar: macOS keeps its traffic lights inset in it, Windows and Linux
     // draw their window buttons over its right end.
+    //
+    // The overlay is not as tall as the app bar. Windows draws the caption buttons stretched to
+    // fill whatever height it is given, so matching the bar's 64 made them twice the size they are
+    // in every other window on the machine. 40 keeps a comfortable target and sits flush with the
+    // top, which is where Windows puts them.
     titleBarStyle: 'hidden',
     ...(platform === 'darwin'
       ? { trafficLightPosition: { x: 20, y: 22 } }
-      : { titleBarOverlay: { color: '#00000000', symbolColor: '#888888', height: 64 } }),
+      : { titleBarOverlay: { color: '#00000000', symbolColor: '#888888', height: TITLE_BAR_OVERLAY_HEIGHT } }),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       sandbox: true,

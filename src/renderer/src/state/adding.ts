@@ -116,8 +116,9 @@ async function stage(items: ImportItem[], set: (fn: (s: AddingState) => Partial<
   try {
     const result = await call('import:run', items, { stage: true });
     for (const f of result.failed) {
-      const item = items.find((i) => i.name === f.name);
-      if (item) set((s) => ({ drafts: s.drafts.map((d) => (d.item.id === item.id ? { ...d, state: 'failed', error: f.error } : d)) }));
+      // By id, not by name: two downloads can land on the same name, and marking the wrong draft
+      // left the one that really failed stuck on "Copying into the library" for ever.
+      set((s) => ({ drafts: s.drafts.map((d) => (d.item.id === f.item ? { ...d, state: 'failed', error: f.error } : d)) }));
     }
     await Promise.all(
       result.added.map(async (a) => {

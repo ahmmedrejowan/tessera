@@ -53,7 +53,7 @@ export function SearchPage({ text }: { text: string }) {
   const go = useNav((s) => s.go);
   const q = text.trim();
   const query = { scope: 'library' as const, text: q, filters: {} };
-  const [assetMenu, setAssetMenu] = useState<{ anchor: HTMLElement; asset: AssetRow } | null>(null);
+  const [assetMenu, setAssetMenu] = useState<{ anchor: HTMLElement; asset: AssetRow; index: number } | null>(null);
   const [packMenu, setPackMenu] = useState<{ anchor: HTMLElement; pack: PackRow } | null>(null);
   // Which of the assets shown here is open in the viewer. Clicking a file should show the file.
   const [viewing, setViewing] = useState<number | null>(null);
@@ -159,7 +159,7 @@ export function SearchPage({ text }: { text: string }) {
                       selected={false}
                       onClick={() => setViewing(i)}
                       onOpen={() => setViewing(i)}
-                      onMenu={(anchor, x) => setAssetMenu({ anchor, asset: x })}
+                      onMenu={(anchor, x) => setAssetMenu({ anchor, asset: x, index: i })}
                       dragItems={(x) => [{ packId: x.packId, ref: x.ref }]}
                     />
                   </div>
@@ -203,7 +203,7 @@ export function SearchPage({ text }: { text: string }) {
           />
         </Suspense>
       )}
-      {assetMenu && <AssetMenu anchor={assetMenu.anchor} asset={assetMenu.asset} onClose={() => setAssetMenu(null)} onOpen={() => go({ to: 'pack', id: assetMenu.asset.packId })} />}
+      {assetMenu && <AssetMenu anchor={assetMenu.anchor} asset={assetMenu.asset} onClose={() => setAssetMenu(null)} onOpen={() => setViewing(assetMenu.index)} />}
       {packMenu && <PackMenu anchor={packMenu.anchor} pack={packMenu.pack} onClose={() => setPackMenu(null)} onOpen={() => go({ to: 'pack', id: packMenu.pack.id })} />}
     </Page>
   );

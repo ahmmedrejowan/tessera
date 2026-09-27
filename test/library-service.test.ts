@@ -229,6 +229,22 @@ describe('the bin', () => {
     close();
   });
 
+  it('never reports a negative count when a file cannot be moved', async () => {
+    const { library, root, close } = await opened();
+    const id = only(library).id;
+    const ref = 'original/Models/arcade.obj';
+
+    // The file is gone from disk before the delete, the way one removed outside Tessera is.
+    rmSync(join(root, 'packs', 'Mini Arcade', ...ref.split('/')), { force: true });
+
+    const answer = await library.removeFiles([{ packId: id, ref }]);
+    expect(answer.failed).toBe(1);
+    // Nothing moved, so nothing is what it says. The failure used to be subtracted twice, which
+    // returned -1 and made the window show a success toast reading "-1 things are in the bin".
+    expect(answer.removed).toBe(0);
+    close();
+  });
+
   it('cannot take a file out of an archive on its own, and says so', async () => {
     const dataDir = tempDir();
     const root = join(tempDir(), 'Library');

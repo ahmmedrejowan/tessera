@@ -114,10 +114,21 @@ export class SettingsStore {
 
   async update(patch: Partial<Settings>): Promise<Settings> {
     const next = schema.parse({ ...this.current, ...patch });
+    const before = this.current;
     this.current = next;
-    // Writes are chained so two quick updates can't land out of order.
-    this.writing = this.writing.then(() => writeJson(this.file, next)).catch((e: unknown) => log.error('settings', 'could not save settings', e));
-    await this.writing;
+    // Writes are chained so two quick updates can't land out of order. The chain must survive a
+    // failed write, but the caller has to hear about it: a change the window shows as applied and
+    // that is gone at the next start is worse than an error.
+    const write = this.writing.then(() => writeJson(this.file, next));
+    this.writing = write.catch(() => undefined);
+    try {
+      await write;
+    } catch (e) {
+      // Only step back if nothing newer has landed in the meantime.
+      if (this.current === next) this.current = before;
+      log.error('settings', 'could not save settings', e);
+      throw e;
+    }
     for (const l of this.listeners) l(next);
     return next;
   }

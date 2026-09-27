@@ -12,6 +12,7 @@ import { UserError, handle } from '../ipc';
 import { describeFolder } from '../library/locate';
 import type { Settings } from '@shared/types';
 import type { IpcContext } from './context';
+import { TITLE_BAR_OVERLAY_HEIGHT } from '@shared/chrome';
 
 type Deps = Pick<IpcContext, 'activity' | 'dataDir' | 'jobs' | 'platform' | 'readDocument' | 'reports' | 'settings' | 'updates' | 'windows'>;
 
@@ -31,7 +32,7 @@ export function registerAppIpc(c: Deps): void {
   });
   handle('window:chrome', ({ background, foreground }) => {
     if (platform === 'darwin') return;
-    for (const w of windows()) w.setTitleBarOverlay({ color: background, symbolColor: foreground, height: 64 });
+    for (const w of windows()) w.setTitleBarOverlay({ color: background, symbolColor: foreground, height: TITLE_BAR_OVERLAY_HEIGHT });
   });
 
   handle('dialog:folder', async (title, extra = {}) => {

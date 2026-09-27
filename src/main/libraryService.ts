@@ -666,16 +666,17 @@ export class LibraryService {
   async removeFiles(items: { packId: string; ref: string }[]): Promise<{ removed: number; inArchive: number; failed: number }> {
     const lib = this.require();
     const byPack = new Map<string, { ref: string; size: number; inArchive: boolean }[]>();
-    let inArchive = 0;
     for (const { packId, ref } of items) {
       const inside = parseRef(ref).inside.length > 0;
-      if (inside) inArchive++;
       const list = byPack.get(packId) ?? [];
       // A file inside an archive is recorded by its own ref; a loose one by the file on disk.
       list.push({ ref: inside ? ref : parseRef(ref).file, size: lib.queries.assetByRef(packId, ref)?.size ?? 0, inArchive: inside });
       byPack.set(packId, list);
     }
-    let removed = 0;
+    // Counted as they succeed, not worked out afterwards: a loose file that failed used to be
+    // subtracted twice, which could return a negative count.
+    let moved = 0;
+    let hidden = 0;
     let failed = 0;
     this.busyWriting++;
     try {
@@ -687,7 +688,8 @@ export class LibraryService {
             // Moving happens one at a time so one unreadable file doesn't stop the rest.
             await binFiles(lib.root, pack.dir, packId, pack.meta.name, [r]);
             done.push(r);
-            if (!r.inArchive) removed++;
+            if (r.inArchive) hidden++;
+            else moved++;
           } catch {
             failed++;
           }
@@ -698,7 +700,7 @@ export class LibraryService {
       this.busyWriting--;
     }
     await this.binChanged();
-    return { removed: removed + inArchive - failed, inArchive, failed };
+    return { removed: moved + hidden, inArchive: hidden, failed };
   }
 
   /** What is waiting in the library's bin, newest first. */
