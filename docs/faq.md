@@ -92,6 +92,24 @@ exactly as it came. Ordinary files: open the folder any time.
 No. A download is copied in as it is. Archives are kept as archives and read inside rather than
 unpacked. What Tessera adds is a small `pack.json` beside each pack.
 
+**Is my download moved or copied?**
+Copied, by default. The file you dropped in stays exactly where it was, and Tessera works on its
+own copy inside the library. If you would rather not keep two, tick **Move the files in** on the
+Add page and the original is removed once the copy is safely in place. Never the other way round:
+the copy is made and checked first, so a failure can only ever leave you with the original.
+
+You can make that the default in Settings, App, **Move files into the library**. The tick on the
+Add page always wins, so you can change your mind for one pack without changing the setting.
+
+**So the same file can exist more than once?**
+Yes, and on purpose. Your original download, the copy in the library, and a copy in each game you
+send it to. The library copy is what your licence record is attached to; the copies in your games
+are what make a project build on a computer that has never heard of Tessera. Moving instead of
+copying removes the first of those three.
+
+**Do I lose anything by letting Tessera copy?**
+Disk space, and nothing else. Nothing is renamed, re-encoded or reorganised on the way in.
+
 **Can I move my library?**
 Yes. Close Tessera, move the folder, then open it from the switcher at the top right. The index is
 rebuilt on its own.
@@ -161,6 +179,18 @@ or `assets`, and you can change that per game.
 Only by writing the files you asked for, a `CREDITS.md`, and a small `.tessera/manifest.json` that
 records what was copied and under what terms. It never touches your scenes, your settings or your
 code.
+
+**Are assets moved into my game, or copied?**
+Always copied. There is no move option for a game, because the library has to keep the pack whole
+for the licence record to mean anything. Tessera tells you where the files are about to go before
+it writes anything.
+
+**Which file do I get when a pack ships several formats?**
+The one your engine reads best, chosen from the formats the pack already contains. A model that
+comes as FBX, GLB, OBJ and DAE is one thing in Browse; Unity that can import glTF gets the GLB,
+Unity that cannot gets the FBX, Godot gets the GLB, Unreal gets the FBX. Nothing is converted, so
+what lands in your project is the pack's own file, byte for byte. If a pack only ships OBJ, you get
+OBJ. Files that live inside a zip are read out of it on the way.
 
 **What if I move my game folder?**
 Tell Tessera where it went on the Projects page. Nothing in the project itself depends on Tessera:
