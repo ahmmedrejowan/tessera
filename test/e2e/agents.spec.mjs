@@ -8,6 +8,9 @@ export async function run(ok) {
     await withSamples(t);
     const status = await t.call('mcp:status');
     ok('the door is open while the app is', status.enabled && status.running, status.url);
+    // Everything below talks to that URL. If nothing of ours is listening there, whatever is
+    // must not be asked to do things: it could be the person's own copy of Tessera.
+    if (!status.running) throw new Error(`the app is not answering agents: ${status.error ?? 'no reason given'}`);
     ok('and the tools that cannot be undone are not offered', status.tools.on < status.tools.all, `${status.tools.on} of ${status.tools.all}`);
 
     let id = 0;

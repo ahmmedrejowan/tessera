@@ -93,11 +93,16 @@ export class McpService {
   status(): McpStatus {
     const s = this.o.settings();
     const on = toolsOn(s).length;
+    // While it is listening, the port is read off the socket rather than the setting. They are
+    // normally the same, but when they are not, saying the setting would point whoever reads this
+    // at whatever else is on that port: another copy of Tessera, or something else entirely.
+    const live = this.http?.listening ? (this.http.address() as { port: number } | null)?.port : 0;
+    const port = live || s.port || DEFAULT_MCP_PORT;
     return {
       enabled: s.enabled,
       running: !!this.http?.listening,
-      port: s.port || DEFAULT_MCP_PORT,
-      url: `http://127.0.0.1:${s.port || DEFAULT_MCP_PORT}/mcp`,
+      port,
+      url: `http://127.0.0.1:${port}/mcp`,
       error: this.error,
       tools: { on, all: TOOLS.length },
       calls: this.calls,

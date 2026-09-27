@@ -145,7 +145,7 @@ export function ToolSetup({ tool, available, bundled, compact }: { tool: ToolNam
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: SHAPE.lg, background: md('secondaryContainer'), color: md('onSecondaryContainer') }}>
         <CheckCircleRounded />
         <Typography variant="bodyMedium" sx={{ flex: 1 }}>
-          {info.title} is ready{bundled ? ' (Tessera’s own copy)' : ''}. Nothing else to set up.
+          {info.title} is ready{bundled ? ', downloaded by Tessera' : ', already on this computer'}.
         </Typography>
       </div>
     );
@@ -161,9 +161,9 @@ export function ToolSetup({ tool, available, bundled, compact }: { tool: ToolNam
             <DownloadRounded />
           </span>
           <div style={{ flex: 1 }}>
-            <Typography variant="titleMedium">Set it up for me</Typography>
+            <Typography variant="titleMedium">Download {info.title}</Typography>
             <Typography variant="bodySmall" component="div" sx={{ opacity: 0.85, mt: 0.25 }}>
-              The official build for {OS_NAMES[platform]}, about {info.size}. No installer, no admin password.
+              The official build for {OS_NAMES[platform]}, about {info.size}. No installer, and no admin password.
             </Typography>
           </div>
         </div>
@@ -178,7 +178,7 @@ export function ToolSetup({ tool, available, bundled, compact }: { tool: ToolNam
         ) : (
           <div style={{ height: 40, display: 'flex', alignItems: 'center', gap: 12 }}>
             <Button variant="contained" startIcon={<DownloadRounded />} disabled={busy} onClick={() => void install()}>
-              Download and set up
+              Download
             </Button>
             <Typography variant="bodySmall" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, opacity: 0.8 }}>
               <VerifiedUserOutlined sx={{ fontSize: 16 }} /> Checksum verified
@@ -191,7 +191,7 @@ export function ToolSetup({ tool, available, bundled, compact }: { tool: ToolNam
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <TerminalRounded sx={{ fontSize: 20, color: md('onSurfaceVariant') }} />
           <Typography variant="titleSmall" sx={{ color: md('onSurface'), flex: 1 }}>
-            Or install it yourself
+            Or install it with your package manager
           </Typography>
           <Button size="small" startIcon={<RefreshRounded />} onClick={() => void client.invalidateQueries({ queryKey: [tool === 'syncthing' ? 'sync' : 'backup'] })}>
             Check again

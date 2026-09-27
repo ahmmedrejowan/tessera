@@ -84,14 +84,16 @@ export function SideSections({ prefix, sections, groups, current }: { prefix: st
         ? groups.map((g, i) => (
             <div key={g.id} style={{ display: 'contents' }}>
               {/* A rule between the groups: the list reads as two lists, because it is. */}
-              {i > 0 && <div style={{ height: 1, margin: '20px 12px 0', background: md('outlineVariant') }} />}
-              <div style={{ padding: '16px 12px 8px' }}>
-                <Typography variant="labelLarge" noWrap sx={{ color: md('onSurface'), display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              {i > 0 && <div style={{ height: 1, margin: '22px 12px 0', background: md('outlineVariant') }} />}
+              {/* The group's own name carries the weight, so the two halves are told apart here
+                  before anything in the page has to. */}
+              <div style={{ padding: '18px 12px 10px' }}>
+                <Typography variant="titleMedium" noWrap component="div" sx={{ color: md('onSurface'), fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
                   {g.icon}
                   {g.label}
                 </Typography>
                 {g.sub && (
-                  <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant'), pl: g.icon ? 2.5 : 0 }}>
+                  <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.25, pl: g.icon ? 3.5 : 0 }}>
                     {g.sub}
                   </Typography>
                 )}

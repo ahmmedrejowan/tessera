@@ -15,7 +15,7 @@ import { md, mdAlpha, SHAPE } from '../../theme';
  */
 export type Part = 'library' | 'app';
 
-const TAG: Record<Part, string> = { library: 'This library', app: 'Every library' };
+const TAG: Record<Part, string> = { library: 'Library Settings', app: 'App Settings' };
 
 /** The badge each group wears, so no group has to be traced back to a heading. */
 export function PartTag({ part }: { part: Part }) {
@@ -30,8 +30,8 @@ export function PartTag({ part }: { part: Part }) {
         height: 22,
         padding: '0 9px',
         borderRadius: SHAPE.full,
-        border: `1px solid ${library ? mdAlpha('secondary', 0.45) : md('outlineVariant')}`,
-        background: library ? md('secondaryContainer') : 'transparent',
+        border: `1px solid ${library ? mdAlpha('secondary', 0.4) : md('outlineVariant')}`,
+        background: library ? mdAlpha('secondaryContainer', 0.5) : 'transparent',
         color: library ? md('onSecondaryContainer') : md('onSurfaceVariant'),
         fontSize: 11,
         fontWeight: 600,
@@ -71,14 +71,14 @@ export function PartHeading({ part, name }: { part: Part; name: string }) {
         </span>
         <div style={{ minWidth: 0 }}>
           <Typography variant="titleLarge" component="h2" noWrap sx={{ color: md('onSurface') }}>
-            {library ? name : 'Tessera'}
+            {library ? name : 'App Settings'}
           </Typography>
           <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
             {library ? 'Kept inside this library, and travels with it to your other computers' : 'Kept on this computer, and the same whichever library is open'}
           </Typography>
         </div>
       </div>
-      <div style={{ height: 3, marginTop: 14, borderRadius: 2, background: library ? md('secondary') : md('outlineVariant') }} />
+      <div style={{ height: 2, marginTop: 14, borderRadius: 2, background: library ? mdAlpha('secondary', 0.7) : md('outlineVariant') }} />
     </div>
   );
 }
@@ -106,8 +106,8 @@ export function Group({ title, note, part, children }: { title: string; note?: R
           borderRadius: `${SHAPE.lg}px`,
           // The library's own settings are tinted, so a glance says which half you are in
           // without reading a word of it.
-          backgroundColor: library ? mdAlpha('secondaryContainer', 0.65) : md('surfaceContainerLow'),
-          borderLeft: `4px solid ${library ? md('secondary') : 'transparent'}`,
+          backgroundColor: library ? mdAlpha('secondaryContainer', 0.22) : md('surfaceContainerLow'),
+          borderLeft: `3px solid ${library ? mdAlpha('secondary', 0.7) : 'transparent'}`,
           px: 3,
           // The last row in a group needs no line under it.
           '& > *:last-child': { borderBottom: 'none' },

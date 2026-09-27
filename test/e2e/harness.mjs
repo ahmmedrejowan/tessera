@@ -6,7 +6,20 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createServer } from 'node:net';
 import { _electron as electron } from 'playwright';
+
+/** A port nothing is on, asked of the system rather than guessed. */
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const probe = createServer();
+    probe.on('error', reject);
+    probe.listen(0, '127.0.0.1', () => {
+      const { port } = probe.address();
+      probe.close(() => resolve(port));
+    });
+  });
+}
 
 export const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -14,7 +27,9 @@ export const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export async function startApp({ size = [1360, 900], dataDir: reuse } = {}) {
   const dataDir = reuse ?? mkdtempSync(join(tmpdir(), 'tessera-e2e-'));
   if (!reuse) {
-    writeFileSync(join(dataDir, 'settings.json'), JSON.stringify({ theme: 'light', errorReports: 'never', updateCheck: false }));
+    // A port of its own. Sharing the usual one means a test talks to whatever Tessera the person
+    // happens to have open, which has damaged a real library more than once.
+    writeFileSync(join(dataDir, 'settings.json'), JSON.stringify({ theme: 'light', errorReports: 'never', updateCheck: false, mcp: { port: await freePort() } }));
     writeFileSync(join(dataDir, 'window.json'), JSON.stringify({ x: 30, y: 30, width: size[0], height: size[1], maximized: false }));
   }
   const app = await electron.launch({

@@ -108,26 +108,58 @@ function useAct() {
   return { busy, act };
 }
 
+/**
+ * Getting Syncthing, as a step of its own.
+ *
+ * It is a download with a progress bar and a page of commands for three systems, which is far
+ * more than a settings row should hold. Backups put the same thing behind a step; this matches,
+ * so the section stays a few rows whichever tools happen to be on the computer.
+ */
+function SyncSetup({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const status = useSyncStatus().data;
+  // The moment it is there, the step has done its job.
+  useEffect(() => {
+    if (open && status?.available) onClose();
+  }, [open, status?.available]);
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Syncing needs Syncthing</DialogTitle>
+      <DialogContent>
+        <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant'), mb: 2 }}>
+          Syncthing does the syncing itself, computer to computer, with nothing in between. Tessera can download it for you, or you can install it your own way.
+        </Typography>
+        <ToolSetup tool="syncthing" available={false} bundled={false} compact />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 /** This library's syncing: on or off, which way, while not open, and how it's going. */
 export function SyncSettings() {
   const status = useSyncStatus().data;
   const [adding, setAdding] = useState(false);
+  const [setup, setSetup] = useState(false);
   const { busy, act } = useAct();
   if (!status) return null;
 
   if (!status.available) {
     return (
-      <div style={{ padding: '16px 0' }}>
-        <Typography variant="bodyMedium" sx={{ color: md('onSurface'), mb: 2 }}>
-          Keep this library the same on your other computers.
-        </Typography>
-        <ToolSetup tool="syncthing" available={false} bundled={false} compact />
-      </div>
+      <>
+        <Row title="Sync is off for this library" body="It needs Syncthing, which is not on this computer yet. It is a small download, and Tessera can fetch it for you.">
+          <Button variant="contained" onClick={() => setSetup(true)}>
+            Set up
+          </Button>
+        </Row>
+        <SyncSetup open={setup} onClose={() => setSetup(false)} />
+      </>
     );
   }
   if (!status.enabled) {
     return (
-      <Row title="Sync is off for this library" body="Keep this library the same on your other computers.">
+      <Row title="Sync is off for this library" body="Syncthing is ready. Turning it on starts with this computer sending only; you can change that after.">
         <Button variant="contained" disabled={busy} onClick={() => void act(() => call('sync:enable', 'push'))}>
           Turn on
         </Button>

@@ -74,6 +74,19 @@ export function registerLibraryIpc(c: Deps): void {
     indexChanged();
     return n;
   });
+  handle('thumbs:packs', async () => {
+    const queries = library.require().queries;
+    const cost = await previewCost(thumbDir());
+    // Thumbnail names carry only the first eight characters of the pack id, which is what makes
+    // the folder readable on its own. Matching happens here, where the real ids are.
+    const packs = queries.packs({ scope: 'all', text: '', filters: {} }, 'name', 0, 5000).rows;
+    return packs
+      .map((p) => {
+        const had = cost.byPack[p.id.slice(0, 8)];
+        return { packId: p.id, name: p.name, bytes: had?.bytes ?? 0, count: had?.count ?? 0, on: usage.previewsOn(p.id), assets: p.assetCount };
+      })
+      .sort((a, b) => b.bytes - a.bytes || a.name.localeCompare(b.name));
+  });
   handle('thumbs:forPack', (packId) => usage.previewsOn(packId));
   handle('thumbs:setForPack', async (packId, on) => {
     usage.setPreviews(packId, on);

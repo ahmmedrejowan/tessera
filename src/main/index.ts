@@ -474,7 +474,11 @@ const sync = new SyncService({
 
 registerSchemePrivileges();
 
-if (!app.requestSingleInstanceLock()) {
+// One copy at a time, except under test: every test has a data folder of its own, and the lock is
+// held per program rather than per folder, so without this the whole suite quits the moment
+// somebody has Tessera open. Asked for either way, because Electron wants it asked for early.
+const onlyCopy = app.requestSingleInstanceLock();
+if (!onlyCopy && process.env.TESSERA_E2E !== '1') {
   app.quit();
 } else {
   app.on('second-instance', () => {

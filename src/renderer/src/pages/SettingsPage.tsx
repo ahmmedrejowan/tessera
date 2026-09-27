@@ -29,6 +29,7 @@ import { AgentSettings } from './settings/AgentSettings';
 import { RenameLibrary } from './library/RenameLibrary';
 import { tidyPath } from './library/Location';
 import { Group, PartHeading, Row } from './settings/parts';
+import { PreviewPacks } from './settings/PreviewPacks';
 import { SideSections, sectionAnchor, useSectionSpy, type SideSection } from './settings/SideSections';
 
 
@@ -74,6 +75,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
   const reports = useQuery({ queryKey: ['reports-status'], queryFn: () => call('reports:status'), staleTime: 0 }).data;
   const [busy, setBusy] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
+  const [perPack, setPerPack] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const current = useSectionSpy(scroller, 'settings', SECTIONS, !!settings);
 
@@ -109,14 +111,14 @@ export function SettingsPage({ section }: { section?: string } = {}) {
 
   return (
     <Page title="Settings" flush>
-      <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', height: '100%' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '248px minmax(0, 1fr)', height: '100%' }}>
         <SideSections
           prefix="settings"
           sections={SECTIONS}
           current={current}
           groups={[
-            { id: 'library', label: 'This library', sub: lib?.name ?? 'None open', icon: <AutoStoriesOutlined sx={{ fontSize: 15 }} /> },
-            { id: 'app', label: 'Tessera', sub: 'Every library', icon: <TuneRounded sx={{ fontSize: 15 }} /> },
+            { id: 'library', label: 'Library Settings', sub: lib?.name ?? 'None open', icon: <AutoStoriesOutlined sx={{ fontSize: 19 }} /> },
+            { id: 'app', label: 'App Settings', sub: 'Every library', icon: <TuneRounded sx={{ fontSize: 19 }} /> },
           ]}
         />
 
@@ -184,6 +186,9 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                   >
                     Clear
                   </Button>
+                </Row>
+                <Row title="Previews, pack by pack" body="Which packs the room went to, and what to do about each: draw the ones worth having on hand, clear the ones that are not, or turn a pack off for good.">
+                  <Button onClick={() => setPerPack(true)}>Open</Button>
                 </Row>
                 <Row title="Draw them all now" body="Goes through every pack and draws whatever is missing, so browsing is instant afterwards and works offline. It runs in the background; carry on using Tessera while it does.">
                   {building.data ? (
@@ -399,6 +404,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
           </div>
         </div>
       </div>
+      <PreviewPacks open={perPack} onClose={() => setPerPack(false)} />
       {lib && <RenameLibrary open={renaming} name={lib.name} onClose={() => setRenaming(false)} />}
     </Page>
   );
