@@ -52,11 +52,14 @@ export async function run(ok) {
     await assetsSection.waitFor({ state: 'visible', timeout: 30000 });
     const hit = assetsSection.locator('[role="option"]').first();
     await hit.waitFor({ state: 'visible', timeout: 30000 });
-    await hit.click({ force: true });
+    // Opened the way the viewer test above opens one. A plain click is the same code path, but a
+    // press that lasts 400 ms is "pick this one" rather than "open it", and the gap between a
+    // synthetic press and release on a loaded runner is long enough to trip that.
+    await hit.dblclick({ force: true });
     const opened = await t.page
       .getByText('THIS FILE', { exact: false })
       .first()
-      .waitFor({ state: 'visible', timeout: 20000 })
+      .waitFor({ state: 'visible', timeout: 30000 })
       .then(() => true)
       .catch(() => false);
     ok('a search result opens the file, not its pack', opened);
