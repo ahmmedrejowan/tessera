@@ -15,6 +15,12 @@ engine prefers and the credits written for you.
 
 You can change the folder assets go into, and where the credits file is written, at any time.
 
+Before anything is written, Tessera shows what is going: how many assets and files, how big, and
+the exact folder they will land in. Turn that off from the dialog or in Settings if you would
+rather not be asked; a licence problem still stops for an answer. Assets are only ever copied into
+a game, never moved, because the library has to keep the pack whole for the record to mean
+anything.
+
 ## What a copy does
 
 - **A real copy**, not a link: the file is written into your project, so the project builds on a

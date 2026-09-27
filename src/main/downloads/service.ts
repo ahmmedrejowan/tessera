@@ -3,6 +3,7 @@
  * library like any other pack. A few at a time, each one resumable, and nothing is ever run: 
  * a download is a file on disk until the user (or the library's own rule) adds it.
  */
+import { existsSync } from 'node:fs';
 import { createWriteStream } from 'node:fs';
 import { mkdir, readFile, rename, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -208,6 +209,9 @@ export class DownloadService {
     if (!item) return;
     item.state = 'added';
     item.packName = packName;
+    // Adding takes the fetched file into the library rather than leaving a second copy here, so
+    // the list stops offering to show it or to add it again once it has gone.
+    if (item.file && !existsSync(item.file)) item.file = null;
     item.speed = 0;
     item.eta = null;
     this.changed();

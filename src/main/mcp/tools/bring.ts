@@ -20,7 +20,10 @@ export const BRING: Tool[] = [
     }),
     run: async (args, ctx) => {
       const items = await ctx.library.planImport(absolute(args.paths), args.eachInside);
-      const result = await ctx.library.import(items, false);
+      // Always a copy, whatever "Move files into the library" is set to. That setting is the
+      // person's answer for their own hands; removing their files is not something an agent
+      // should do as a side effect of adding one.
+      const result = await ctx.library.import(items, false, false, false);
       ctx.note(`An agent added ${result.added.length} pack${result.added.length === 1 ? '' : 's'}`, args.paths.join(', '));
       return { added: result.added.map((p) => ({ id: p.id, name: p.name, status: p.status })), failed: result.failed };
     },

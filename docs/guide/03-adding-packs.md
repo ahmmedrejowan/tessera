@@ -3,6 +3,13 @@
 A pack is one download: a zip, a folder, or a few files you got together. Tessera copies it in
 exactly as it arrived and reads inside to list what it holds. Archives stay archives.
 
+Your own file stays where it is: the library works on its own copy. The Add page says which
+library the pack is going into, and offers to remove the original once the copy is safely in.
+That copy is always made and read back first, so nothing can be taken until the pack is there,
+and cancelling always leaves your file alone. A folder you pointed at is never emptied, and an
+agent never moves anything. Downloads Tessera fetched itself are always taken in, since leaving
+them means two copies inside the app's own folder.
+
 ## The ways in
 
 - **Drag and drop.** Drop zips, folders or loose files anywhere on the window.

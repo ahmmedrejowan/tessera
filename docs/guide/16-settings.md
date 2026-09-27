@@ -41,6 +41,12 @@ Editing or removing one changes what happens to the next pack from that site.
 - **When a download finishes**: add it straight away or hold it.
 - **How many at once**.
 
+**Adding and copying**
+- **Move files into the library**: remove the original once its copy is safely in. Off by default,
+  and the tick on the Add page decides for one pack whatever this says.
+- **Ask before copying into a game**: show how much is going and where it will land first. A
+  licence problem stops for an answer either way.
+
 **AI agents** — see [AI agents](/docs/agents).
 
 **Paired computers**: the computers this one syncs libraries with.

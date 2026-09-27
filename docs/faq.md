@@ -101,6 +101,10 @@ the copy is made and checked first, so a failure can only ever leave you with th
 You can make that the default in Settings, App, **Move files into the library**. The tick on the
 Add page always wins, so you can change your mind for one pack without changing the setting.
 
+**Does an AI agent move my files too?**
+No. An agent adding a pack always copies, whatever the setting says. Removing your originals is
+your decision to make by hand, not something an assistant should do while doing something else.
+
 **So the same file can exist more than once?**
 Yes, and on purpose. Your original download, the copy in the library, and a copy in each game you
 send it to. The library copy is what your licence record is attached to; the copies in your games
