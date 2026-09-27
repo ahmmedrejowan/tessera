@@ -245,8 +245,11 @@ describe('the bin', () => {
     // A folder that is not there is not an emptied library: nothing is thrown away, and the
     // window is told which it is. Reading it as "every pack was deleted" cost the whole index.
     expect(queries.stats().packs).toBe(before);
-    // The service says the folder is gone rather than pretending the library emptied itself.
-    expect(states.at(-1)?.status).toBe('error');
+    // The library stays open, because a drive that comes back should simply work again, and it
+    // says what is wrong rather than pretending the library emptied itself.
+    const last = states.at(-1);
+    expect(last?.status).toBe('ready');
+    expect(last?.status === 'ready' && last.problems.some((p) => /could not be read/.test(p.message))).toBe(true);
     renameSync(`${root}-unplugged`, root);
     close();
   });

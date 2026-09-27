@@ -158,8 +158,13 @@ export class LibraryService {
         // renamed folder is not the same thing as an emptied library, so nothing is touched and
         // the window is told instead.
         if (!existsSync(join(lib.root, DIRS.packs))) {
-          job.fail(new Error('The library folder is not there. It may have been moved, or its drive disconnected.'));
-          this.setState({ status: 'error', path: lib.root, code: 'library-gone', message: 'The library folder is not there. It may have been moved, renamed, or its drive disconnected. Nothing has been changed.' });
+          // Reported, not fatal. A drive that comes back should just work again, and a library put
+          // into an error state can only be got out of by opening it afresh. What matters is that
+          // nothing is taken out of the index, and the indexer refuses that on its own account too.
+          job.fail(new Error('The library folder could not be read. It may have been moved, or its drive disconnected. Nothing has been changed.'));
+          if (this.state.status === 'ready') {
+            this.setState({ ...this.state, problems: [{ folder: '', message: 'the library folder could not be read, so nothing was changed. Reconnect it, then read the library again.' }] });
+          }
           return;
         }
         const result = await lib.index.sync(lib.root, (done, total, current) => job.update(total ? done / total : null, current));
