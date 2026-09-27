@@ -7,6 +7,19 @@ import { readJson, writeJson } from '../fsx';
 import { DIRS, PACK_DIRS, PACK_FILE } from './layout';
 import { safeFolderName, uniqueName } from './names';
 
+/**
+ * Where a pack's files actually are.
+ *
+ * Refs are relative to the *files root*, and for an ordinary pack that is the pack's own folder,
+ * so its refs start `original/`. For a pack indexed where it lies there is no `original/` and no
+ * prefix: the refs are the paths inside the folder its owner keeps it in. Everything downstream
+ * works on refs, so this pair of functions is the whole of the difference.
+ */
+export const filesRootOf = (meta: PackMeta, packDir: string): string => meta.kept?.where ?? packDir;
+
+/** The folder to walk when reading a pack's files. */
+export const walkRootOf = (meta: PackMeta, packDir: string): string => (meta.kept ? meta.kept.where : join(packDir, PACK_DIRS.original));
+
 /** A pack as found on disk. */
 export interface PackRecord {
   /** Absolute path of the pack's folder. */

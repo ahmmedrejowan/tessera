@@ -48,8 +48,15 @@ async function walk(dir: string, out: string[] = []): Promise<string[]> {
   return out;
 }
 
-/** Every file in a pack's `original/` folder, looking inside zip archives. Problems (a damaged zip) are reported, not thrown. */
-export async function listPackFiles(packDir: string): Promise<{ files: PackFile[]; problems: string[] }> {
+/**
+ * Every file of a pack, looking inside zip archives. Problems (a damaged zip) are reported, not
+ * thrown.
+ *
+ * `filesRoot` is what refs are relative to and `walkRoot` is what is read. For an ordinary pack
+ * they are the pack's folder and its `original/`; for a pack indexed where it lies they are both
+ * the folder its owner keeps it in.
+ */
+export async function listPackFiles(filesRoot: string, walkRoot: string = join(filesRoot, PACK_DIRS.original)): Promise<{ files: PackFile[]; problems: string[] }> {
   const files: PackFile[] = [];
   const problems: string[] = [];
 
@@ -75,8 +82,8 @@ export async function listPackFiles(packDir: string): Promise<{ files: PackFile[
     }
   };
 
-  for (const abs of await walk(join(packDir, PACK_DIRS.original))) {
-    const ref = relative(packDir, abs).split(sep).join('/');
+  for (const abs of await walk(walkRoot)) {
+    const ref = relative(filesRoot, abs).split(sep).join('/');
     if (isIgnored(ref)) continue;
     const s = await stat(abs);
     files.push({ ref, size: s.size, mtimeMs: s.mtimeMs });

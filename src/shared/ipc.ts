@@ -122,6 +122,17 @@ export interface Invokes {
   'pack:addFiles': (id: string, paths: string[], into?: string) => { added: number; names: string[] };
   /** The folders inside a pack, so added files can be put where they belong. */
   'pack:folders': (id: string) => string[];
+  /**
+   * Point a pack indexed where it lies at the folder again, after it moved or its drive changed
+   * letter. Refuses a folder that holds none of the files the pack is recorded as having, so a
+   * wrong pick does not quietly replace one pack's contents with another's.
+   */
+  'pack:findAgain': (id: string, path: string) => { matched: number; of: number };
+  /**
+   * Copy the files of a pack indexed where it lies into the library, so the library holds them
+   * and they are backed up and synced with everything else. The originals are left alone.
+   */
+  'pack:takeIn': (id: string) => void;
   'pack:openProof': (id: string, name: string) => void;
   'asset:get': (id: number) => AssetRow | null;
   'asset:variants': (id: number) => AssetRow[];
@@ -204,6 +215,17 @@ export interface Invokes {
   'projects:plan': (id: string, items: { packId: string; ref: string }[]) => CopyPlan;
   'projects:copy': (id: string, items: { packId: string; ref: string }[]) => number;
   'projects:remove': (id: string, items: { packId: string; ref: string; libraryId?: string }[]) => number;
+  /**
+   * Look through a folder of the game for assets the library already knows. Reads only: nothing
+   * is written, moved or recorded until `projects:adopt` is called with what it found.
+   */
+  'projects:findAlreadyHere': (id: string, folder: string) => {
+    matches: { packId: string; packName: string; ref: string; path: string; size: number }[];
+    looked: number;
+    packs: { id: string; name: string; files: number }[];
+  };
+  /** Record those assets at the paths the game already uses. Nothing is copied. */
+  'projects:adopt': (id: string, matches: { packId: string; packName: string; ref: string; path: string; size: number }[]) => number;
   /** Show the project folder, or a file in it, in Finder / Explorer. */
   'projects:reveal': (id: string, rel?: string) => void;
 
@@ -324,7 +346,11 @@ export interface Invokes {
 
   'import:plan': (paths: string[], eachInside: boolean | 'auto') => ImportItem[];
   /** `stage`: for the add page, where every pack waits until the user decides. */
-  'import:run': (items: ImportItem[], opts?: { stage?: boolean; move?: boolean }) => ImportResult;
+  /**
+   * Add packs. `keep` reads them where they are instead of copying: the library gets the record,
+   * the files stay put, and nothing is ever written into the folder they came from.
+   */
+  'import:run': (items: ImportItem[], opts?: { stage?: boolean; move?: boolean; keep?: boolean }) => ImportResult;
 
   /** An unexpected error caught in the window, to keep (and send, with consent). */
   'reports:capture': (input: ErrorInput) => void;

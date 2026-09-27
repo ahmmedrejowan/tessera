@@ -445,11 +445,18 @@ async function recordPage(id: string, what: { snapshot: boolean; archive: boolea
   });
 }
 
-/** Where a pack's files are, or null when no library is open or it does not know the pack. */
+/**
+ * Where a pack's files are read from: its folder in the library, or, for a pack indexed where it
+ * lies, the folder its owner keeps it in. Null when no library is open or it does not know the
+ * pack. Refs are relative to whatever this returns.
+ */
 function packDirOf(packId: string): string | null {
   const state = library.getState();
   if (state.status !== 'ready') return null;
-  const folder = library.require().index.known(packId)?.folder;
+  const { index } = library.require();
+  const kept = index.keptWhere(packId);
+  if (kept) return kept;
+  const folder = index.known(packId)?.folder;
   return folder ? join(state.library.path, DIRS.packs, folder) : null;
 }
 
@@ -461,7 +468,7 @@ function copySource(): CopySource {
   return {
     libraryId: state.library.id,
     libraryName: state.library.name,
-    packDir: (id) => join(state.library.path, DIRS.packs, index.known(id)?.folder ?? ''),
+    packDir: (id) => index.keptWhere(id) ?? join(state.library.path, DIRS.packs, index.known(id)?.folder ?? ''),
     pack: (id) => {
       const row = queries.pack(id);
       return row ? { meta: row.meta, folder: row.folder } : null;
@@ -524,18 +531,10 @@ async function start(): Promise<void> {
       const state = library.getState();
       return state.status === 'ready' ? join(dataDir, 'libraries', state.library.id, 'drag') : null;
     },
-    packDir: (id) => {
-      const state = library.getState();
-      const folder = state.status === 'ready' ? library.require().index.known(id)?.folder : undefined;
-      return state.status === 'ready' && folder ? join(state.library.path, DIRS.packs, folder) : null;
-    },
+    packDir: (id) => packDirOf(id),
   });
   handleProtocol({
-    packDir: (id) => {
-      const state = library.getState();
-      const folder = state.status === 'ready' ? library.require().index.known(id)?.folder : undefined;
-      return state.status === 'ready' && folder ? join(state.library.path, DIRS.packs, folder) : null;
-    },
+    packDir: (id) => packDirOf(id),
     thumbDir,
   });
   await downloads.load();

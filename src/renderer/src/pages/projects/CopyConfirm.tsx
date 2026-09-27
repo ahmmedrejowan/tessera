@@ -1,6 +1,8 @@
+import FindInPageOutlined from '@mui/icons-material/FindInPageOutlined';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
 import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
 import Button from '@mui/material/Button';
+import ButtonBase from '@mui/material/ButtonBase';
 import Checkbox from '@mui/material/Checkbox';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -9,7 +11,9 @@ import DialogTitle from '@mui/material/DialogTitle';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Typography from '@mui/material/Typography';
 import { formatBytes, formatCount } from '../../components/labels';
+import { useState } from 'react';
 import { useCopy, useProjects } from '../../state/projects';
+import { AlreadyHere } from './AlreadyHere';
 import { useUpdateSettings } from '../../state/queries';
 import { md, SHAPE } from '../../theme';
 
@@ -22,6 +26,7 @@ import { md, SHAPE } from '../../theme';
  */
 export function CopyConfirm() {
   const { pending, confirm, cancel } = useCopy();
+  const [finding, setFinding] = useState(false);
   const projects = useProjects().data ?? [];
   const update = useUpdateSettings();
   const project = projects.find((p) => p.id === pending?.projectId);
@@ -29,12 +34,37 @@ export function CopyConfirm() {
   const warnings = plan?.warnings ?? [];
 
   return (
+    <>
+    <AlreadyHere project={project ?? null} open={finding} onClose={() => setFinding(false)} />
     <Dialog open={!!pending} onClose={cancel} maxWidth="sm" fullWidth>
       <DialogTitle>Copy into {pending?.projectName}?</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
           The files are copied into your game. Your library keeps its own copy, and nothing there changes.
         </Typography>
+
+        {/* The other answer, for a game that is not new: it may already have these files, and a
+            second copy at a new path is worse than useless. Offered here because this is the
+            moment somebody would otherwise make that second copy. */}
+        <ButtonBase
+          onClick={() => {
+            cancel();
+            setFinding(true);
+          }}
+          sx={{ display: 'block', textAlign: 'left', width: '100%', p: 1.5, borderRadius: `${SHAPE.md}px`, border: `1px solid ${md('outlineVariant')}`, '&:hover': { backgroundColor: md('surfaceContainerHigh') } }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <FindInPageOutlined sx={{ fontSize: 20, color: md('onSurfaceVariant') }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="bodyMedium" sx={{ color: md('onSurface') }}>
+                They may already be in this game
+              </Typography>
+              <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
+                Look for them where the game already keeps its assets and record those instead, so nothing is copied twice.
+              </Typography>
+            </div>
+          </div>
+        </ButtonBase>
 
         {plan && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: 14, borderRadius: `${SHAPE.md}px`, background: md('surfaceContainerHigh') }}>
@@ -95,5 +125,6 @@ export function CopyConfirm() {
         </div>
       </DialogActions>
     </Dialog>
+    </>
   );
 }

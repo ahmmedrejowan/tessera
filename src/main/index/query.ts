@@ -96,6 +96,7 @@ export class LibraryQueries {
     if (q.scope !== 'all') out.push({ sql: 'p.status = ?', params: [q.scope] });
     // Put-away packs are out of the way of browsing, but still in their collections and on their
     // own pages, so nothing filed by hand goes missing.
+    if (q.kept) out.push({ sql: 'p.kept_where IS NOT NULL', params: [] });
     if (q.archived === 'only') out.push({ sql: 'p.archived = 1', params: [] });
     else if (q.scope === 'library') out.push({ sql: 'p.archived = 0', params: [] });
     if (q.packIds) out.push(inList('p.id', q.packIds.length ? q.packIds : ['']));
@@ -293,6 +294,17 @@ export class LibraryQueries {
     return this.all<{ ref: string }>('SELECT ref FROM assets WHERE pack_id = ?', [packId]).map((r) => r.ref);
   }
 
+  /**
+   * Library assets of exactly this size, for recognising a file a game already has. Size throws
+   * away almost everything for nothing, so only what survives it is ever opened and hashed.
+   */
+  bySize(size: number): (AssetRow & { packName: string })[] {
+    return this.all<RawAsset>(
+      `SELECT ${ASSET_FIELDS} FROM assets a JOIN packs p ON p.id = a.pack_id WHERE a.size = ? AND p.status = 'library'`,
+      [size],
+    ).map((r) => toAsset(r) as AssetRow & { packName: string });
+  }
+
   refs(ids: number[]): { packId: string; ref: string }[] {
     const out: { packId: string; ref: string }[] = [];
     // SQLite takes only so many values in one statement, and a whole library can be picked out.
@@ -370,9 +382,11 @@ export class LibraryQueries {
   }
 
   stats(): LibraryStats {
-    const packs = this.get<{ packs: number; inbox: number; archived: number; size: number }>(
+    const packs = this.get<{ packs: number; inbox: number; archived: number; size: number; kept: number; keptAway: number }>(
       `SELECT count(*) FILTER (WHERE status = 'library' AND archived = 0) AS packs, count(*) FILTER (WHERE status = 'inbox') AS inbox,
-         count(*) FILTER (WHERE status = 'library' AND archived = 1) AS archived, coalesce(sum(size), 0) AS size FROM packs`,
+         count(*) FILTER (WHERE status = 'library' AND archived = 1) AS archived, coalesce(sum(size), 0) AS size,
+         count(*) FILTER (WHERE kept_where IS NOT NULL) AS kept,
+         count(*) FILTER (WHERE kept_where IS NOT NULL AND away = 1) AS keptAway FROM packs`,
     )!;
     const byType: Partial<Record<AssetType, number>> = {};
     let assets = 0;
@@ -441,6 +455,8 @@ export class LibraryQueries {
       coverRef: r.coverRef,
       fav: !!r.fav,
       archived: !!r.archived,
+      keptWhere: r.keptWhere,
+      away: !!r.away,
       samples: samples.get(r.id) ?? [],
       types: types.get(r.id) ?? {},
       genres: terms.get(r.id)?.genre ?? [],
@@ -467,8 +483,11 @@ interface RawPack {
   problems: string;
   fav: number;
   archived: number;
+  keptWhere: string | null;
+  away: number;
 }
 
 const PACK_FIELDS = `p.id, p.name, p.folder, p.status, p.source, p.creator, p.licence, p.added_at AS addedAt,
   p.file_count AS fileCount, p.asset_count AS assetCount, p.size, p.cover_ref AS coverRef, p.problems, p.archived,
+  p.kept_where AS keptWhere, p.away,
   EXISTS (SELECT 1 FROM collection_packs f WHERE f.collection_id = '${FAVOURITES}' AND f.pack_id = p.id) AS fav`;

@@ -9,10 +9,10 @@ import { join } from 'node:path';
 import { handle } from '../ipc';
 import type { IpcContext } from './context';
 
-type Deps = Pick<IpcContext, 'activity' | 'copySource' | 'libraryId' | 'libraryNameOf' | 'projects' | 'projectsChanged' | 'settings' | 'usage' | 'windows'>;
+type Deps = Pick<IpcContext, 'activity' | 'copySource' | 'library' | 'libraryId' | 'libraryNameOf' | 'projects' | 'projectsChanged' | 'settings' | 'usage' | 'windows'>;
 
 export function registerProjectIpc(c: Deps): void {
-  const { activity, copySource, libraryId, libraryNameOf, projects, projectsChanged, settings, usage, windows } = c;
+  const { activity, copySource, library, libraryId, libraryNameOf, projects, projectsChanged, settings, usage, windows } = c;
   handle('projects:list', () => projects.list(libraryId(), libraryNameOf));
   handle('projects:choose', async () => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
@@ -50,6 +50,13 @@ export function registerProjectIpc(c: Deps): void {
   });
   handle('projects:remove', async (id, items) => {
     const n = await projects.remove(id, items, libraryId());
+    projectsChanged();
+    return n;
+  });
+  handle('projects:findAlreadyHere', (id, folder) => projects.findAlreadyHere(id, folder, copySource(), (size) => library.require().queries.bySize(size)));
+  handle('projects:adopt', async (id, matches) => {
+    const n = await projects.adopt(id, matches, copySource());
+    if (n) activity.add('project', `Found ${n} asset${n === 1 ? '' : 's'} already in a game`, 'Recorded where the game already keeps them; nothing was copied');
     projectsChanged();
     return n;
   });

@@ -10,6 +10,33 @@ and cancelling always leaves your file alone. A folder you pointed at is never e
 agent never moves anything. A download Tessera fetched for you stays in Downloads until you add
 it, and then follows the same answer as anything else.
 
+## Copy, move, or index where they are
+
+Adding asks one question before it writes anything, and the three answers do very different
+things to your disk:
+
+- **Copy into the library.** The library holds its own copy, backed up and synced with everything
+  else. Your originals stay exactly where they are. This is the right answer for a download, and
+  it is the default.
+- **Move into the library.** The same, but the originals are removed once the copy is safely in
+  and has been read back. Not offered for a folder you pointed at: adding a folder never empties
+  it.
+- **Index where they are.** Nothing is copied and nothing moves. Tessera reads the files where
+  they sit and keeps the record here: the licence, the tags, the collections, all of it. It never
+  writes in that folder, ever, so it works on a read-only drive or a network share.
+
+That third answer is for somebody who already has a lot of assets arranged the way they like
+them, or more of them than they want a second copy of. It comes with one real cost, said on the
+card and again on the pack: **the files are not backed up and not synced**, because they are not
+in the library. The record is. If you change your mind, a pack's page has "Take it into the
+library", which copies the files in and leaves the folder they came from untouched.
+
+Only a whole folder can be indexed where it lies. An archive or a handful of loose files has no
+folder of its own to stand for the pack, so those are copied in.
+
+If the drive is not plugged in, the pack says so, keeps everything it knows about its files, and
+offers to find the folder again. Nothing is deleted because a drive was away.
+
 ## The ways in
 
 - **Drag and drop.** Drop zips, folders or loose files anywhere on the window.

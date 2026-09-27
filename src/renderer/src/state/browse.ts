@@ -16,6 +16,8 @@ interface BrowseState {
   includeSupport: boolean;
   /** Show only what has been starred. */
   favourites: boolean;
+  /** Show only packs read from a folder outside the library. */
+  kept: boolean;
   /** Tile edge in pixels. */
   tileSize: number;
   filtersOpen: boolean;
@@ -39,6 +41,7 @@ interface BrowseState {
   setPackSort(sort: PackSort): void;
   setIncludeSupport(v: boolean): void;
   setFavourites(v: boolean): void;
+  setKept(v: boolean): void;
   setTileSize(v: number): void;
   setFiltersOpen(v: boolean): void;
   setTileBackground(v: 'checker' | 'dark' | 'light'): void;
@@ -69,6 +72,7 @@ export const useBrowse = create<BrowseState>((set, get) => ({
   packSort: 'name',
   includeSupport: false,
   favourites: false,
+  kept: false,
   tileSize: 160,
   filtersOpen: true,
   tileBackground: 'checker',
@@ -91,6 +95,7 @@ export const useBrowse = create<BrowseState>((set, get) => ({
   setPackSort: (packSort) => set({ packSort }),
   setIncludeSupport: (includeSupport) => set({ includeSupport }),
   setFavourites: (favourites) => set({ favourites, selection: new Set(), anchor: null }),
+  setKept: (kept) => set({ kept, selection: new Set(), anchor: null }),
   setTileSize: (tileSize) => set({ tileSize: Math.max(TILE_MIN, Math.min(TILE_MAX, Math.round(tileSize))) }),
   setFiltersOpen: (filtersOpen) => set({ filtersOpen }),
   setTileBackground: (tileBackground) => set({ tileBackground }),
@@ -116,7 +121,7 @@ useBrowse.subscribe((s) => {
 });
 
 /** The query the current browse state describes. */
-export function browseQuery(s: Pick<BrowseState, 'text' | 'filters' | 'includeSupport' | 'favourites'>): BrowseQuery {
+export function browseQuery(s: Pick<BrowseState, 'text' | 'filters' | 'includeSupport' | 'favourites'> & { kept?: boolean }): BrowseQuery {
   const filters: Filters = {};
   for (const [k, v] of Object.entries(s.filters)) if (v?.length) filters[k as Facet] = v;
   return {
@@ -125,6 +130,7 @@ export function browseQuery(s: Pick<BrowseState, 'text' | 'filters' | 'includeSu
     filters,
     includeSupport: s.includeSupport,
     ...(s.favourites ? { favourites: true } : {}),
+    ...(s.kept ? { kept: true as const } : {}),
   };
 }
 

@@ -33,6 +33,15 @@ export interface AddForm {
   archive: boolean;
 }
 
+/**
+ * What adding does with the files.
+ *
+ * `copy` is the default and the right answer for a download. `move` frees the disk. `keep` is for
+ * somebody who already has hundreds of gigabytes where they want them: the library takes the
+ * record and reads the files where they are, and never writes in that folder.
+ */
+export type AddMode = 'copy' | 'move' | 'keep';
+
 export type FoundField = 'name' | 'licence' | 'source' | 'creator' | 'description' | 'version' | 'styles' | 'tags';
 
 export interface Draft {
@@ -104,6 +113,12 @@ interface AddingState {
    */
   move: boolean;
   setMove(on: boolean): void;
+  /**
+   * What happens to the files: the library takes a copy, takes them over, or reads them where
+   * they are. Chosen before anything is written, because it decides what writing even happens.
+   */
+  mode: AddMode;
+  setMode(mode: AddMode): Promise<void>;
   /** `urls`: where each path was downloaded from, when Tessera fetched it. */
   start(paths: string[], eachInside: boolean | 'auto', urls?: Record<string, string>): Promise<void>;
   addAnyway(item: ImportItem): Promise<void>;
@@ -117,12 +132,14 @@ interface AddingState {
   finishLater(): Promise<void>;
   cancel(): Promise<void>;
   treatAsOnePack(): Promise<void>;
+  /** What `start` was last given, kept so the mode can be changed after staging. */
+  staged: { paths: string[]; eachInside: boolean | 'auto'; urls?: Record<string, string> } | null;
 }
 
 /** Copy the items in (waiting, unfinished), then fill each form from what was found. */
-async function stage(items: ImportItem[], set: (fn: (s: AddingState) => Partial<AddingState>) => void) {
+async function stage(items: ImportItem[], set: (fn: (s: AddingState) => Partial<AddingState>) => void, mode: AddMode = 'copy') {
   try {
-    const result = await call('import:run', items, { stage: true });
+    const result = await call('import:run', items, { stage: true, keep: mode === 'keep' });
     for (const f of result.failed) {
       // By id, not by name: two downloads can land on the same name, and marking the wrong draft
       // left the one that really failed stuck on "Copying into the library" for ever.
@@ -186,9 +203,22 @@ export const useAdding = create<AddingState>((set, get) => ({
   folder: null,
   busy: false,
   touched: false,
-  // Starts from the app setting; the tick on the page wins for this batch.
+  // Starts from the app setting; the choice on the page wins for this batch.
   move: false,
-  setMove: (on) => set({ move: on }),
+  setMove: (on) => set({ move: on, mode: on ? 'move' : 'copy' }),
+  mode: 'copy',
+  async setMode(mode) {
+    if (get().mode === mode) return;
+    set({ mode, move: mode === 'move' });
+    // Staging already wrote something for every pack, so changing the answer means doing it
+    // again. Cheap: cancelling a staged pack takes the copy back out and leaves the original.
+    const paths = get().staged;
+    if (!paths) return;
+    await get().cancel();
+    await get().start(paths.paths, paths.eachInside, paths.urls);
+  },
+  /** What `start` was given, so changing the mode can do the whole thing again. */
+  staged: null,
 
   async start(paths, eachInside, urls) {
     if (!paths.length) return;
@@ -231,8 +261,9 @@ export const useAdding = create<AddingState>((set, get) => ({
       folder: folders.size === 1 && fresh[0]?.folder ? fresh[0].folder : null,
       touched: false,
     });
+    set({ staged: { paths, eachInside, urls } });
     useNav.getState().go({ to: 'adding' });
-    if (fresh.length) await stage(fresh, set);
+    if (fresh.length) await stage(fresh, set, get().mode);
     // Start with the first pack that needs something, unless the user already picked one.
     const first = get().drafts.find((d) => d.state === 'ready' && !isReady(d.form));
     if (first && !get().touched) set({ selected: [first.item.id] });

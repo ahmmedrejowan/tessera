@@ -17,15 +17,21 @@ export const BRING: Tool[] = [
     input: z.object({
       paths: z.array(z.string()).min(1).describe('Absolute paths to folders or archive files.'),
       eachInside: z.union([z.boolean(), z.literal('auto')]).default('auto').describe('true: treat a folder as many packs, one per thing inside. auto decides from what is in it.'),
+      keep: z
+        .boolean()
+        .default(false)
+        .describe(
+          'true: index the folders where they are instead of copying them in. Nothing is copied or moved and Tessera never writes in them, but their files are not backed up or synced, because they are not in the library. Only works for whole folders. Use it when somebody has a lot of assets already arranged and does not want a second copy.',
+        ),
     }),
     run: async (args, ctx) => {
       const items = await ctx.library.planImport(absolute(args.paths), args.eachInside);
-      // Always a copy, whatever "Move files into the library" is set to. That setting is the
+      // Never a move, whatever "Move files into the library" is set to. That setting is the
       // person's answer for their own hands; removing their files is not something an agent
-      // should do as a side effect of adding one.
-      const result = await ctx.library.import(items, false, false, false);
-      ctx.note(`An agent added ${result.added.length} pack${result.added.length === 1 ? '' : 's'}`, args.paths.join(', '));
-      return { added: result.added.map((p) => ({ id: p.id, name: p.name, status: p.status })), failed: result.failed };
+      // should do as a side effect of adding one. Indexing in place removes nothing either.
+      const result = await ctx.library.import(items, false, false, false, args.keep);
+      ctx.note(`An agent ${args.keep ? 'indexed' : 'added'} ${result.added.length} pack${result.added.length === 1 ? '' : 's'}`, args.paths.join(', '));
+      return { added: result.added.map((p) => ({ id: p.id, name: p.name, status: p.status })), failed: result.failed, keptWhereTheyAre: args.keep };
     },
   }),
   define({

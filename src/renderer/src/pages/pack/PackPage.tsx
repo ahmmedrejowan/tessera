@@ -48,6 +48,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import { HEADER_SIZE, ItemHeader } from '../../components/ItemHeader';
 import { Scrolling } from '../../components/Scrolling';
 import { CollectionMenu } from '../collections/CollectionMenu';
+import { KeptNotice } from './KeptNotice';
 import { ProjectMenu } from '../projects/ProjectMenu';
 import { useActiveProject } from '../../state/projects';
 import { CollectionIcon, LinkToGameIcon } from '../../components/icons';
@@ -359,6 +360,9 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
         </Alert>
       )}
 
+      <div style={{ padding: '0 24px' }}>
+        <KeptNotice pack={pack} />
+      </div>
       <Tabs value={tab} onChange={(_, v: TabId) => setTab(v)} sx={{ px: 3, borderBottom: `1px solid ${md('outlineVariant')}`, minHeight: 44, '& .MuiTab-root': { minHeight: 44, textTransform: 'none', typography: 'titleSmall' } }}>
         <Tab value="assets" label={`Assets · ${formatCount(pack.assetCount)}`} />
         <Tab value="files" label={`Files · ${formatCount(pack.fileCount)}`} />
@@ -530,6 +534,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
                   {pack.problems.join(' · ')}
                 </Alert>
               )}
+
             </div>
           </div>
         )}

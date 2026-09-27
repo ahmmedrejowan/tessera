@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, watch, type Dirent, type FSWatcher } from 'node:fs';
-import { copyFile, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { isIgnored } from '@shared/assets';
 import { missingForLibrary, type PackEdit, type PackStatus } from '@shared/pack';
@@ -20,7 +20,7 @@ import { suggestDetails } from './import/suggest';
 import { createLibrary, DIRS, inspectFolder, MARKER, PACK_DIRS, readLibraryInfo } from './library/layout';
 import { safeFolderName, uniqueName } from './library/names';
 import { binFiles, binPack, emptyBin, readBin, restoreFromBin, sweepBin } from './library/bin';
-import { editPack, readPack, writePack, type PackRecord } from './library/packs';
+import { editPack, filesRootOf, readPack, walkRootOf, writePack, type PackRecord } from './library/packs';
 import { writeJson } from './fsx';
 import { log } from './log';
 
@@ -293,9 +293,10 @@ export class LibraryService {
    */
   async details(id: string): Promise<{ detected: Detected; suggestions: PackSuggestions }> {
     const pack = await this.packRecord(id);
-    const { files } = await listPackFiles(pack.dir);
-    const download = (await readdir(join(pack.dir, PACK_DIRS.original)).catch(() => [] as string[])).find((n) => !n.startsWith('.')) ?? pack.meta.name;
-    const [detected, texts] = await Promise.all([detectPack(pack.dir, files, { downloadName: download, rules: this.d.siteRules(), url: pack.meta.source.url }), packTexts(pack.dir, files)]);
+    const root = filesRootOf(pack.meta, pack.dir);
+    const { files } = await listPackFiles(root, walkRootOf(pack.meta, pack.dir));
+    const download = (await readdir(walkRootOf(pack.meta, pack.dir)).catch(() => [] as string[])).find((n) => !n.startsWith('.')) ?? pack.meta.name;
+    const [detected, texts] = await Promise.all([detectPack(root, files, { downloadName: download, rules: this.d.siteRules(), url: pack.meta.source.url }), packTexts(root, files)]);
     return { detected, suggestions: suggestDetails({ files, texts, downloadName: download }) };
   }
 
@@ -553,7 +554,7 @@ export class LibraryService {
     this.stagedFrom.delete(packId);
   }
 
-  async import(items: ImportItem[], skipInboxWhenSure: boolean, stage = false, move = false): Promise<ImportResult> {
+  async import(items: ImportItem[], skipInboxWhenSure: boolean, stage = false, move = false, keep = false): Promise<ImportResult> {
     const lib = this.require();
     this.busyWriting++;
     const job = this.d.jobs.start(items.length === 1 ? `Adding ${items[0]!.name}` : `Adding ${items.length} packs`);
@@ -565,6 +566,7 @@ export class LibraryService {
         siteRules: this.d.siteRules(),
         stage,
         move,
+        keep,
         onProgress: (done, total, current) => job.update(total ? done / total : null, current),
       };
       const result = await runImport(items, deps);
@@ -643,6 +645,7 @@ export class LibraryService {
     const lib = this.require();
     const pack = await this.packRecord(id);
     if (!paths.length) return { added: 0, names: [] };
+    if (pack.meta.kept) throw new UserError('pack-kept-elsewhere', 'This pack is indexed where it lies, and Tessera never writes in that folder. Put the files there yourself, or turn it into a pack the library holds.');
     const folder = (into ?? '').split('/').filter((p) => p && p !== '.' && p !== '..').map(safeFolderName).join('/');
     const dir = join(pack.dir, PACK_DIRS.original, folder);
     await mkdir(dir, { recursive: true });
@@ -672,7 +675,7 @@ export class LibraryService {
   /** The folders inside a pack, so files can be put where they belong. */
   async packFolders(id: string): Promise<string[]> {
     const pack = await this.packRecord(id);
-    const root = join(pack.dir, PACK_DIRS.original);
+    const root = walkRootOf(pack.meta, pack.dir);
     const out: string[] = [];
     const walk = async (dir: string, prefix: string, depth: number): Promise<void> => {
       if (depth > 3) return;
@@ -691,6 +694,73 @@ export class LibraryService {
     const pack = await this.packRecord(id);
     if (name.includes('/') || name.includes('\\') || name.startsWith('.')) throw new UserError('bad-name', 'That file is not in the pack.');
     return join(pack.dir, PACK_DIRS.licence, name);
+  }
+
+  /**
+   * Point a pack indexed where it lies at its folder again.
+   *
+   * Checked before it is accepted: the new folder has to hold a good share of the files the pack
+   * is recorded as having. Picking the wrong folder would otherwise replace one pack's contents
+   * with another's, quietly, and the licence on the record would then be describing the wrong
+   * files, which is the one mistake this app exists to prevent.
+   */
+  async findPackAgain(id: string, path: string): Promise<{ matched: number; of: number }> {
+    const lib = this.require();
+    const pack = await this.packRecord(id);
+    if (!pack.meta.kept) throw new UserError('pack-not-kept', 'This pack’s files are in the library, so there is nothing to find.');
+    if (!existsSync(path)) throw new UserError('folder-missing', 'That folder is not there.');
+    const wanted = lib.queries.packRefs(id).filter((r) => !r.includes('!'));
+    const of = wanted.length;
+    const matched = wanted.filter((ref) => existsSync(join(path, ...ref.split('/')))).length;
+    // Half is a deliberate compromise: files do get added and removed while a drive is away, so
+    // demanding all of them would refuse folders that are plainly right.
+    if (of > 0 && matched * 2 < of) throw new UserError('folder-wrong', `That folder holds ${matched} of this pack’s ${of} files. If it is the right one, its contents have changed too much to be sure; add it again instead.`);
+    const meta = await writePack(pack.dir, { ...pack.meta, kept: { ...pack.meta.kept, where: path } });
+    await lib.index.syncPack({ ...pack, meta }, lib.index.known(id));
+    this.d.onIndexChanged();
+    return { matched, of };
+  }
+
+  /**
+   * Copy a pack's files into the library, so it stops being read from somebody's own folder and
+   * becomes an ordinary pack: backed up, synced, and no longer at the mercy of a drive.
+   *
+   * Their folder is left exactly as it was. This only ever adds.
+   */
+  async takePackIn(id: string): Promise<void> {
+    const lib = this.require();
+    const pack = await this.packRecord(id);
+    const kept = pack.meta.kept;
+    if (!kept) throw new UserError('pack-not-kept', 'This pack is already held by the library.');
+    if (!existsSync(kept.where)) throw new UserError('folder-missing', `${kept.where} is not there${kept.volume ? `. Connect ${kept.volume} and try again` : ''}.`);
+    const original = join(pack.dir, PACK_DIRS.original);
+    const job = this.d.jobs.start(`Taking ${pack.meta.name} into the library`);
+    this.busyWriting++;
+    try {
+      // Into a folder beside the real one, so a failure half way through leaves the pack exactly
+      // as it was: still read from its own folder, still whole.
+      const staging = `${original}.incoming`;
+      await rm(staging, { recursive: true, force: true });
+      await mkdir(staging, { recursive: true });
+      let copied = 0;
+      const size = lib.queries.pack(id)?.size ?? 0;
+      await copyTree(kept.where, join(staging, basename(kept.where)), (n) => {
+        copied += n;
+        job.update(size ? copied / size : null);
+      });
+      await rm(original, { recursive: true, force: true });
+      await rename(staging, original);
+      const meta = await writePack(pack.dir, { ...pack.meta, kept: null });
+      await lib.index.syncPack({ ...pack, meta });
+      job.done();
+    } catch (e) {
+      await rm(`${original}.incoming`, { recursive: true, force: true }).catch(() => undefined);
+      job.fail(e);
+      throw e;
+    } finally {
+      this.busyWriting--;
+    }
+    this.d.onIndexChanged();
   }
 
   /** Take a pack out of the library, into the library's own bin, where it waits to be put back. */
@@ -733,6 +803,12 @@ export class LibraryService {
     try {
       for (const [packId, refs] of byPack) {
         const pack = await this.packRecord(packId);
+        // Deleting a file of a pack indexed where it lies would reach into somebody's own folder
+        // and take their file away. Nothing in the app is allowed to do that, so it does not.
+        if (pack.meta.kept) {
+          failed += refs.length;
+          continue;
+        }
         const done: typeof refs = [];
         for (const r of refs) {
           try {

@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
  * deleted and rebuilt; a schema change simply rebuilds it.
  */
 
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 const SCHEMA = `
 CREATE TABLE packs (
@@ -30,7 +30,11 @@ CREATE TABLE packs (
   size        INTEGER NOT NULL DEFAULT 0,
   cover_ref   TEXT,
   problems    TEXT NOT NULL DEFAULT '[]',
-  archived    INTEGER NOT NULL DEFAULT 0
+  archived    INTEGER NOT NULL DEFAULT 0,
+  -- Set when the pack's files were never brought into the library: the folder they are read from.
+  kept_where  TEXT,
+  -- Set when that folder could not be read on the last look: an unplugged drive, usually.
+  away        INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE pack_terms (

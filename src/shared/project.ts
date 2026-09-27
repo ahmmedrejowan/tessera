@@ -61,6 +61,11 @@ export interface ManifestEntry {
   creator: string | null;
   sourceUrl: string | null;
   copiedAt: string;
+  /**
+   * The files were already in the game and Tessera only recognised them. It never wrote them, so
+   * it must never delete them: taking this out of the game forgets the record and nothing else.
+   */
+  adopted?: boolean;
 }
 
 export interface Manifest {

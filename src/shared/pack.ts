@@ -56,6 +56,23 @@ export const PackPurchase = z.object({
   date: z.string().nullable().default(null),
 });
 
+/**
+ * A pack whose files were never brought into the library: they stay where their owner keeps them
+ * and Tessera only reads them. The record, the licence proof and everything else still live in
+ * the library, so they are backed up and synced; the files are not, because they are not here.
+ *
+ * Tessera never writes inside `where`. Not a preview, not a licence file, not a note. That is
+ * what makes this safe to point at a read-only drive, a network share, or a game somebody ships.
+ */
+export const PackKept = z.object({
+  /** Absolute path of the folder the files are read from, as its owner chose it. */
+  where: z.string().min(1),
+  since: z.string(),
+  /** The volume it was on, so "plug in Samsung T7" beats "the folder could not be found". */
+  volume: z.string().nullable().default(null),
+});
+export type PackKept = z.infer<typeof PackKept>;
+
 export const PackMeta = z
   .object({
     format: z.literal(PACK_FORMAT).default(PACK_FORMAT),
@@ -79,6 +96,8 @@ export const PackMeta = z
     cover: z.string().nullable().default(null),
     /** Put away: kept in full, but out of the way of browsing until it is brought back. */
     archived: z.boolean().default(false),
+    /** Set when the files live outside the library and Tessera only reads them. */
+    kept: PackKept.nullable().default(null),
   })
   .passthrough();
 export type PackMeta = z.infer<typeof PackMeta>;

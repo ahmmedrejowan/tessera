@@ -52,9 +52,11 @@ export function registerIncomingIpc(c: Deps): void {
 
   handle('import:plan', (paths, eachInside) => library.planImport(paths, eachInside));
   handle('import:run', async (items, opts) => {
-    // The tick on the Add page wins over the setting, so one pack can go either way.
-    const move = opts?.move ?? settings.get().moveIntoLibrary;
-    const result = await library.import(items, openRecord()?.skipInboxWhenSure ?? true, !!opts?.stage, move);
+    // The choice on the Add page wins over the setting, so one batch can go either way. Indexing
+    // where they are and moving are opposites, so asking for both is asking for the safer one.
+    const keep = !!opts?.keep;
+    const move = !keep && (opts?.move ?? settings.get().moveIntoLibrary);
+    const result = await library.import(items, openRecord()?.skipInboxWhenSure ?? true, !!opts?.stage, move, keep);
     const added = result.added.filter((a) => a.status === 'library');
     const waiting = result.added.filter((a) => a.status === 'inbox');
     if (added.length) activity.add('added', added.length === 1 ? `Added “${added[0]!.name}”` : `Added ${added.length} packs`, added.map((a) => a.name).slice(0, 6).join(', '));

@@ -232,6 +232,11 @@ export const ANSWERS: Record<string, ToolAnswer> = {
   accept_shared_library: { returns: 'That it was taken, and where it went.', example: { accepted: true, into: '/Users/you/Documents/Toy Town' } },
   change_sync: { returns: 'What was changed.', example: { changed: ['mode full'] } },
   show_my_device_id: { returns: 'This computer’s device ID.', example: { thisComputer: 'ABCDEFG-HIJKLMN-OPQRSTU' } },
+  find_assets_already_in_game: {
+    returns: 'What it found, and the matches to hand back. Nothing was changed.',
+    example: { looked: 1840, found: 96, packs: [{ id: 'p1', name: 'Nature Kit', files: 96 }], matches: [{ packId: 'p1', packName: 'Nature Kit', ref: 'original/Models/tree.glb', path: 'Assets/Art/Nature/big-tree.glb', size: 20480 }] },
+  },
+  record_assets_already_in_game: { returns: 'How many were written into the game’s record.', example: { recorded: 96 } },
   draw_previews: { returns: 'Whether a drawing was started, or one was already running, or the one in flight is stopping.', example: { started: true } },
   clear_previews: { returns: 'How many previews were thrown away.', example: { removed: 42 } },
   back_up_now: { returns: 'That it is done.', example: { done: true } },

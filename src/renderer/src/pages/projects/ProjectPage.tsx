@@ -7,6 +7,7 @@ import LinkOffOutlined from '@mui/icons-material/LinkOffOutlined';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 import RefreshOutlined from '@mui/icons-material/RefreshOutlined';
 import SportsEsportsOutlined from '@mui/icons-material/SportsEsportsOutlined';
+import FindInPageOutlined from '@mui/icons-material/FindInPageOutlined';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -33,6 +34,7 @@ import { useNav } from '../../state/nav';
 import { copyToProject, useActiveProject, useProjects } from '../../state/projects';
 import { useUpdateSettings } from '../../state/queries';
 import { md, SHAPE } from '../../theme';
+import { AlreadyHere } from './AlreadyHere';
 import { EngineBadge } from './EngineBadge';
 
 const TYPE_OF: Record<string, AssetType> = { model: 'model', image: 'sprite', audio: 'sfx', font: 'font' };
@@ -68,6 +70,7 @@ export function ProjectPage({ id }: { id: string }) {
   const entries = useQuery({ queryKey: ['projects', 'entries', id, project?.assets, project?.lastCopy], queryFn: () => call('projects:entries', id), enabled: !!project?.exists }).data ?? [];
   const [editingTarget, setEditingTarget] = useState<string | null>(null);
   const [unlinking, setUnlinking] = useState(false);
+  const [finding, setFinding] = useState(false);
   /** Packs whose every file is being shown, rather than the first screenful. */
   const [open, setOpen] = useState<Set<string>>(new Set());
 
@@ -137,6 +140,9 @@ export function ProjectPage({ id }: { id: string }) {
             Copy here from now on
           </Button>
         )}
+        <Button startIcon={<FindInPageOutlined />} onClick={() => setFinding(true)} disabled={!project.exists}>
+          Find assets already here
+        </Button>
         <Tooltip title="Open the project folder">
           <IconButton onClick={() => void call('projects:reveal', id)} aria-label="Open folder">
             <FolderOpenOutlined />
@@ -280,6 +286,7 @@ export function ProjectPage({ id }: { id: string }) {
           </Button>
         </DialogActions>
       </Dialog>
+      <AlreadyHere project={project} open={finding} onClose={() => setFinding(false)} />
       <Dialog open={unlinking} onClose={() => setUnlinking(false)}>
         <DialogTitle>Unlink {project.name}?</DialogTitle>
         <DialogContent>

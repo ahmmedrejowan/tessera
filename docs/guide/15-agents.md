@@ -17,14 +17,14 @@ teaches an assistant how this library works.
 
 ## The tools, and what is allowed
 
-There are 61 tools in seven groups. Each group has a switch:
+There are 63 tools in seven groups. Each group has a switch:
 
 | Group | What it can do | At first |
 |-------|----------------|----------|
 | Looking | Search the library, read packs, files, collections and games, read the settings, and see how the library is backed up and synced. Changes nothing. | On |
 | Filing | Star things, make and fill collections, record licenses and tags, archive a pack, read the library again. | On |
-| Linking to a game | Copy assets into a game folder, with their licenses and credits. | On |
-| Bringing things in | Add packs from this computer and fetch links from the web. Always a copy: an agent never removes your originals. | On |
+| Linking to a game | Copy assets into a game folder, with their licenses and credits, and recognise assets the game already has so they are not copied twice. | On |
+| Bringing things in | Add packs from this computer and fetch links from the web, either copied in or indexed where they are. Never a move: an agent does not remove your originals. | On |
 | Deleting to the bin | Move packs or files to the bin, and put them back. Nothing permanent. | On |
 | The app itself | Open, make and close libraries, change Tessera's settings or this library's, run a backup, set syncing up and pair computers, draw or clear previews. | Off |
 | Deleting for good | Empty the bin, throw away a pack waiting in Review. Cannot be undone. | Off |

@@ -74,6 +74,47 @@ export const LINK: Tool[] = [
     },
   }),
   define({
+    name: 'find_assets_already_in_game',
+    group: 'link',
+    title: 'Find assets a game already has',
+    summary:
+      'Look through a folder of a game for assets this library already knows, matching by content rather than by name. Reads only: nothing is copied, moved or recorded. Use it before linking into a game that is not new, so the same asset is not copied in a second time under a different path.',
+    input: z.object({
+      projectId: z.string(),
+      folder: z.string().default('').describe('A folder inside the project, e.g. "Assets" or "Content". Leave out for the folder copies normally go to.'),
+    }),
+    run: async (args, ctx) => {
+      const scan = await ctx.projects.findAlreadyHere(args.projectId, args.folder, ctx.copySource(), (size) => ctx.library.require().queries.bySize(size));
+      return {
+        looked: scan.looked,
+        found: scan.matches.length,
+        packs: scan.packs,
+        // The paths are what `record_assets_already_in_game` takes back, so they come out whole.
+        matches: scan.matches,
+        note: 'Nothing has been recorded. Call record_assets_already_in_game with these matches to write them into the game’s record and its credits.',
+      };
+    },
+  }),
+  define({
+    name: 'record_assets_already_in_game',
+    group: 'link',
+    title: 'Record assets a game already has',
+    summary:
+      'Write what find_assets_already_in_game found into the game’s record, pointing at the paths the game already uses. Nothing is copied and no file moves; the credits file is written again so it covers them.',
+    input: z.object({
+      projectId: z.string(),
+      matches: z
+        .array(z.object({ packId: z.string(), packName: z.string().default(''), ref: z.string(), path: z.string(), size: z.number().int().nonnegative().default(0) }))
+        .min(1)
+        .describe('Straight from find_assets_already_in_game.'),
+    }),
+    run: async (args, ctx) => {
+      const n = await ctx.projects.adopt(args.projectId, args.matches, ctx.copySource());
+      ctx.note(`An agent recorded ${n} asset${n === 1 ? '' : 's'} a game already had`);
+      return { recorded: n };
+    },
+  }),
+  define({
     name: 'forget_game',
     group: 'link',
     title: 'Forget a game',

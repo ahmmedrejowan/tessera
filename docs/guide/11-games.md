@@ -3,6 +3,29 @@
 Linking a game tells Tessera where your project is, so assets can be copied in with the format that
 engine prefers and the credits written for you.
 
+## A game you have been making for years
+
+Most projects are not new. `Assets/Art` is already full, your scenes already point at those
+paths, and Unity has already assigned GUIDs. Copying the same assets in from the library would
+give you a second copy at a new path that nothing references, and leave the first lot as
+unlicensed as they were.
+
+So Tessera can recognise what is already there instead. Open the game and choose **Find assets
+already here**, name a folder (`Assets` works, it just takes longer), and Tessera matches what it
+finds against your library **by content, not by name**. What matches is recorded at the path the
+game already uses. Nothing is copied, nothing moves, no path changes, and your credits file then
+covers what the game actually ships.
+
+Two things worth knowing:
+
+- An asset you re-exported, edited or converted will not match, because it is no longer the file
+  the licence was recorded against. That is deliberate.
+- Taking a recognised asset back out of the game forgets the record and leaves the file alone.
+  Tessera never wrote it, so it never deletes it.
+
+The same offer appears when you link a pack into a game, because that is the moment you would
+otherwise make the second copy.
+
 ## Linking one
 
 **Projects**, then **Link a game**, and choose the folder. Tessera recognises:

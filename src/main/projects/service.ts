@@ -6,7 +6,8 @@ import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary, Pr
 import { UserError } from '../errors';
 import { readJson, writeJson } from '../fsx';
 import type { Jobs } from '../jobs';
-import { entryLibrary, MANIFEST, planCopy, readManifest, removeFromProject, runCopy, writePackLicence, type CopySource } from './copy';
+import { adoptEntries, scanForAdoption, type AdoptDeps, type AdoptMatch, type AdoptScan } from './adopt';
+import { entryLibrary, MANIFEST, planCopy, readManifest, removeFromProject, runCopy, writeAdopted, writePackLicence, type CopySource } from './copy';
 import { writeCredits } from './credits';
 import { probeProject } from './engines';
 
@@ -149,6 +150,30 @@ export class ProjectService {
 
   async remove(id: string, items: { packId: string; ref: string; libraryId?: string }[], libraryId: string): Promise<number> {
     return removeFromProject(await this.get(id), libraryId, items);
+  }
+
+  /**
+   * Look through a folder of the game for assets the library already knows, without changing a
+   * thing. The answer is shown before anything is recorded, because "I found 400 of your files"
+   * is a claim somebody should get to look at first.
+   */
+  async findAlreadyHere(id: string, folder: string, src: CopySource, bySize: AdoptDeps['bySize']): Promise<AdoptScan> {
+    const project = await this.get(id);
+    const where = checkRelative(folder || project.target, 'folder to look in');
+    return this.jobs.run(`Looking through ${project.name}`, (job) =>
+      scanForAdoption(project.path, where, { src, bySize, onProgress: (done, total) => job.update(total ? done / total : null, `${done} of ${total} files`) }),
+    );
+  }
+
+  /** Record what the scan found: the paths the game already uses, and not one byte moved. */
+  async adopt(id: string, matches: AdoptMatch[], src: CopySource): Promise<number> {
+    const project = await this.get(id);
+    const manifest = await readManifest(project.path, src.libraryId);
+    const entries = adoptEntries(project, matches, src, manifest.entries);
+    const written = await writeAdopted(project, src.libraryId, entries);
+    // The credits are the point of adopting: they now cover what the game actually ships.
+    if (written) await this.refreshCredits(id, src.libraryId);
+    return written;
   }
 
   /**

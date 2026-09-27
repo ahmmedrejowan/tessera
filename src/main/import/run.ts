@@ -52,6 +52,11 @@ export interface ImportDeps {
    * away, so it is deliberately the slow way round.
    */
   move?: boolean;
+  /**
+   * Read the files where they are instead of copying them in. The library gets the record and
+   * nothing else; not one byte is written into the folder they came from, then or ever.
+   */
+  keep?: boolean;
   /** Bytes copied so far out of the total, and the pack being added. */
   onProgress: (done: number, total: number, current: string) => void;
   signal?: AbortSignal;
@@ -74,29 +79,40 @@ export async function runImport(items: ImportItem[], d: ImportDeps): Promise<Imp
     const before = done;
     let packDir: string | null = null;
     try {
+      const where = d.keep ? keptRoot(item) : null;
       const pack = await createPack(d.root, item.name);
       packDir = pack.dir;
-      const original = join(pack.dir, PACK_DIRS.original);
-      for (const src of item.sources) {
-        await copyTree(src, join(original, basename(src)), (n) => {
-          done += n;
-          d.onProgress(done, total, item.name);
-        }, d.signal);
+      if (where) {
+        // Nothing is copied. The pack folder holds the record and the licence proof; the files
+        // stay where their owner put them, and are only ever read.
+        await rm(join(pack.dir, PACK_DIRS.original), { recursive: true, force: true }).catch(() => undefined);
+        done += item.size;
+        d.onProgress(done, total, item.name);
+      } else {
+        const original = join(pack.dir, PACK_DIRS.original);
+        for (const src of item.sources) {
+          await copyTree(src, join(original, basename(src)), (n) => {
+            done += n;
+            d.onProgress(done, total, item.name);
+          }, d.signal);
+        }
       }
-      const { files } = await listPackFiles(pack.dir);
-      const found = await detectPack(pack.dir, files, { downloadName: basename(item.sources[0]!), rules: d.siteRules ?? [], url: item.url });
+      const filesRoot = where ?? pack.dir;
+      const { files } = await listPackFiles(filesRoot, where ?? join(pack.dir, PACK_DIRS.original));
+      const found = await detectPack(filesRoot, files, { downloadName: basename(item.sources[0]!), rules: d.siteRules ?? [], url: item.url });
       // Sure: the licence was read in the pack or set by the user's rule, and where it came from is known.
       const sure = !!found.licence && !!found.licenceSure && (!!found.site || !!found.url);
       const status = sure && d.skipInboxWhenSure && !d.stage ? 'library' : 'inbox';
       const meta = await writePack(pack.dir, {
         ...pack.meta,
         status,
+        kept: where ? { where, since: new Date().toISOString(), volume: volumeOf(where) } : null,
         source: { ...pack.meta.source, site: found.site, url: found.url, creator: found.creator },
         licence: { ...pack.meta.licence, id: found.licence, notes: found.licenceFrom ? `Licence found in ${found.licenceFrom}.` : '' },
       });
       await d.index.syncPack({ ...pack, meta });
       // Only now, with the copy in place and read back as a pack, is the original let go of.
-      if (movable(item, d)) await takeAway(item.sources);
+      if (!where && movable(item, d)) await takeAway(item.sources);
       result.added.push({ id: meta.id, item: item.id, name: meta.name, status });
     } catch (e) {
       log.error('import', `could not add ${item.name}`, e);
@@ -108,6 +124,29 @@ export async function runImport(items: ImportItem[], d: ImportDeps): Promise<Imp
   }
   d.onProgress(total, total, '');
   return result;
+}
+
+/**
+ * The folder a pack indexed where it lies is read from.
+ *
+ * One folder, always: a pack is a folder of files, and a set of loose files picked out of a
+ * folder would leave the pack meaning "these seven files" with nothing on disk to say so. So
+ * loose files and archives are not offered this way, and the Add page does not show the choice
+ * for them.
+ */
+export function keptRoot(item: ImportItem): string | null {
+  if (item.kind !== 'folder') return null;
+  return item.sources[0] ?? null;
+}
+
+/** Whether a pack could be indexed where it lies, for the Add page to know what to offer. */
+export const canKeep = (item: ImportItem): boolean => keptRoot(item) !== null;
+
+/** The volume a path is on, for a better message than "the folder could not be found". */
+function volumeOf(path: string): string | null {
+  // macOS mounts other drives under /Volumes/<name>; elsewhere the drive letter or the root.
+  const m = /^\/Volumes\/([^/]+)/.exec(path) ?? /^([A-Za-z]:)\\/.exec(path);
+  return m?.[1] ?? null;
 }
 
 /**

@@ -92,6 +92,27 @@ exactly as it came. Ordinary files: open the folder any time.
 No. A download is copied in as it is. Archives are kept as archives and read inside rather than
 unpacked. What Tessera adds is a small `pack.json` beside each pack.
 
+**I already have hundreds of gigabytes of assets. Do I have to copy them all in?**
+No. On the Add page, choose **Index where they are**. Tessera reads the files where they already
+sit and keeps the record in the library: the licence, the tags, the collections, all of it. Not a
+byte is copied or moved, and Tessera never writes in that folder, so a read-only drive or a
+network share is fine. The one cost, and it is a real one: those files are not backed up or
+synced, because they are not in the library. The record is. A pack's page has **Take it into the
+library** whenever you change your mind, which copies the files in and leaves your folder alone.
+Only whole folders can be indexed this way; archives and loose files are copied in.
+
+**What happens if the drive is not plugged in?**
+The pack says its folder is not there, keeps everything it knows about its files, and offers to
+find the folder again. Nothing is deleted because a drive was away, and nothing is re-read until
+it comes back.
+
+**My game already has assets in it. Will Tessera make a second copy?**
+Not if you tell it what is there. Open the game and choose **Find assets already here**: Tessera
+matches what is in a folder against your library by content, and records what matches at the path
+the game already uses. Nothing is copied, no path changes, and your credits file then covers what
+the game actually ships. An asset you re-exported or edited will not match, because it is no
+longer the file the licence was recorded against.
+
 **Is my download moved or copied?**
 Copied, by default. The file you dropped in stays exactly where it was, and Tessera works on its
 own copy inside the library. If you would rather not keep two, tick **Remove the originals once

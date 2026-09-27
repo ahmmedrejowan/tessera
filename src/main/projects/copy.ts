@@ -283,6 +283,19 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
 }
 
 /** Remove assets from a project: their files (if still there), their entries, then empty folders. */
+/** Write adopted entries into the manifest. Nothing is copied; this only records. */
+export async function writeAdopted(project: Project, libraryId: string, entries: ManifestEntry[]): Promise<number> {
+  if (!entries.length) return 0;
+  const manifest = await readManifest(project.path, libraryId);
+  const already = new Set(manifest.entries.map((e) => `${entryLibrary(e, manifest)}|${e.packId}|${e.ref}`));
+  const fresh = entries.filter((e) => !already.has(`${entryLibrary(e, manifest)}|${e.packId}|${e.ref}`));
+  if (!fresh.length) return 0;
+  manifest.entries.push(...fresh);
+  await mkdir(dirname(join(project.path, MANIFEST)), { recursive: true });
+  await writeJson(join(project.path, MANIFEST), manifest);
+  return fresh.length;
+}
+
 export async function removeFromProject(project: Project, libraryId: string, items: { packId: string; ref: string; libraryId?: string }[]): Promise<number> {
   const manifest = await readManifest(project.path, libraryId);
   const going = manifest.entries.filter((e) => items.some((i) => same(e, manifest, i.libraryId ?? libraryId, i.packId, i.ref)));
@@ -291,6 +304,9 @@ export async function removeFromProject(project: Project, libraryId: string, ite
   const stillUsed = new Set(keep.flatMap((e) => e.files));
   const dirs = new Set<string>();
   for (const e of going) {
+    // An adopted entry points at files the game already had. Tessera never wrote them, so it
+    // never takes them away: forgetting the record is the whole of the job.
+    if (e.adopted) continue;
     for (const f of e.files) {
       if (stillUsed.has(f)) continue;
       const p = join(project.path, ...f.split('/'));

@@ -27,6 +27,8 @@ import type { BackupStatus } from '@shared/types';
 import { md } from '../../theme';
 import { Row } from './parts';
 import { ToolSetup } from '../setup/ToolSetup';
+import { useBrowse } from '../../state/browse';
+import { useNav } from '../../state/nav';
 import { BackupGuide } from '../setup/BackupGuide';
 import { RestoreCopy } from '../setup/RestoreCopy';
 
@@ -210,6 +212,7 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
   if (!status.repoPath) {
     return (
       <>
+        <KeptWarning />
         <Row title="Backups are off for this library" body={`Kopia ${status.version ?? ''} is ready. Encrypted backups to a drive, a cloud drive, cloud storage or a server.`}>
           <Button variant={status.others.length ? 'outlined' : 'contained'} onClick={onSetup}>
             Set up
@@ -223,6 +226,7 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
   }
   return (
     <>
+      <KeptWarning />
       <Row
         title={status.running ? 'Backing up…' : status.lastBackupAt ? `Last backup ${ago(status.lastBackupAt)}` : 'No backup yet'}
         body={
@@ -255,5 +259,26 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
       </Row>
       <RestoreCopy open={restoring} onClose={() => setRestoring(false)} />
     </>
+  );
+}
+
+/**
+ * Packs whose files are not in the library are not in its backups either.
+ *
+ * Shown here, on the page about keeping things safe, because that is where somebody forms the
+ * belief this warning has to correct. The way out is offered with it, rather than left to be
+ * found on each pack in turn.
+ */
+function KeptWarning() {
+  const stats = useQuery({ queryKey: ['library-stats-kept'], queryFn: () => call('library:stats'), staleTime: 0 }).data;
+  const go = useNav((s) => s.go);
+  if (!stats?.kept) return null;
+  return (
+    <Row
+      title={`${stats.kept} pack${stats.kept === 1 ? ' is' : 's are'} indexed where they lie`}
+      body={`Their records, licences and tags are backed up with everything else. Their files are not, because they were never brought into the library. Take one into the library from its own page to have it backed up too.`}
+    >
+      <Button onClick={() => (useBrowse.getState().setMode('packs'), useBrowse.getState().setKept(true), go({ to: 'browse' }))}>Show them</Button>
+    </Row>
   );
 }

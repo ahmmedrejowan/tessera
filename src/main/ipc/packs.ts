@@ -139,6 +139,15 @@ export function registerPackIpc(c: Deps): void {
     return done;
   });
   handle('pack:folders', (id) => library.packFolders(id));
+  handle('pack:findAgain', async (id, path) => {
+    const found = await library.findPackAgain(id, path);
+    activity.add('library', 'Found the folder for a pack again', path);
+    return found;
+  });
+  handle('pack:takeIn', async (id) => {
+    await library.takePackIn(id);
+    activity.add('added', 'Took a pack into the library', 'Its files were copied in; the folder they came from is untouched');
+  });
   handle('favourites:assets', (items, on) => library.favouriteAssets(items, on));
   handle('favourites:pack', (id, on) => library.favouritePack(id, on));
   handle('pack:archive', async (id, on) => {

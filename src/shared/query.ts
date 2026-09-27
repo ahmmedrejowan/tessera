@@ -42,6 +42,8 @@ export interface BrowseQuery {
    * a pack's own page still show everything, so nothing goes missing where it was put by hand.
    */
   archived?: 'only';
+  /** Only packs read from a folder outside the library, for "what is not backed up". */
+  kept?: true;
 }
 
 export interface AssetRow {
@@ -85,6 +87,10 @@ export interface PackRow {
   fav: boolean;
   /** Put away, out of the way of browsing. */
   archived: boolean;
+  /** The folder its files are read from, when they were never brought into the library. */
+  keptWhere: string | null;
+  /** That folder could not be read when the library was last looked at: an unplugged drive. */
+  away: boolean;
   /** A few of its assets (images first), for a cover mosaic when the pack ships no preview. */
   samples: Pick<AssetRow, 'id' | 'ref' | 'ext' | 'kind' | 'type'>[];
   /** Main assets by type, for the pack card's summary line. */
@@ -115,6 +121,10 @@ export interface LibraryStats {
   assets: number;
   size: number;
   byType: Partial<Record<AssetType, number>>;
+  /** Packs read from a folder outside the library, so backups and sync do not carry their files. */
+  kept: number;
+  /** Of those, ones whose folder could not be read when the library was last looked at. */
+  keptAway: number;
 }
 
 /** Packs in the library whose licence needs attention before shipping. */

@@ -17,6 +17,10 @@ import SelectAllRounded from '@mui/icons-material/SelectAllRounded';
 import UnfoldLessRounded from '@mui/icons-material/UnfoldLessRounded';
 import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import ButtonBase from '@mui/material/ButtonBase';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -41,13 +45,14 @@ import { call } from '../../api';
 import { AssetThumb } from '../../components/AssetThumb';
 import { countOf, formatBytes, TYPE_ICONS } from '../../components/labels';
 import type { AssetType } from '@shared/assets';
-import { I_DONT_KNOW, I_MADE_IT, isReady, useAdding, type AddForm, type Draft, type Found } from '../../state/adding';
+import { I_DONT_KNOW, I_MADE_IT, isReady, useAdding, type AddForm, type Draft, type Found, type AddMode } from '../../state/adding';
 import { useJobs } from '../../state/library';
 import { useNav } from '../../state/nav';
 import { useNotices } from '../../notices/store';
 import { useLibraryRecord } from '../../state/library';
 import { useSettings, useUpdateSettings } from '../../state/queries';
 import { md, mdAlpha, SHAPE } from '../../theme';
+import { HowKept, KEPT_ICONS, type KeptChoice } from './HowKept';
 
 /** Changing a form, saying where a filled-in value came from when Tessera filled it in. */
 type Edit = (p: Partial<AddForm>, found?: Draft['found']) => void;
@@ -703,48 +708,85 @@ export function AddPage() {
 
 
 /**
- * Where these files are going, and whether the originals stay.
+ * What adding does with the files: a copy, a move, or read them where they are.
  *
  * Said here rather than in a settings page nobody reads, because this is the moment the person is
- * deciding. Moving is never the quiet default: it is off unless the setting or this tick says so,
- * and nothing is removed until a pack is actually kept.
+ * deciding, and the three answers do very different things to their disk. Moving is never the
+ * quiet default, and nothing is removed until a pack is actually kept.
  */
 function WhereItGoes() {
   const library = useLibraryRecord();
   const settings = useSettings().data;
-  const move = useAdding((s) => s.move);
+  const mode = useAdding((s) => s.mode);
+  const setMode = useAdding((s) => s.setMode);
   const setMove = useAdding((s) => s.setMove);
   const drafts = useAdding((s) => s.drafts);
+  const busy = useAdding((s) => s.busy);
+  const [open, setOpen] = useState(false);
   const started = useRef(false);
 
-  // The setting decides where the tick starts; after that the person's choice stands.
+  // The setting decides where the choice starts; after that the person's choice stands.
   useEffect(() => {
     if (started.current || !settings) return;
     started.current = true;
     setMove(settings.moveIntoLibrary);
   }, [settings, setMove]);
 
-  // A folder someone pointed at is never emptied, so there is nothing to offer for one.
-  const folders = drafts.filter((d) => d.item.kind === 'folder').length;
-  const all = drafts.length > 0 && folders === drafts.length;
+  const folders = drafts.filter((d) => d.item.kind === 'folder');
+  // A folder someone pointed at is never emptied, and only a folder can be read where it lies:
+  // a handful of loose files has no folder of its own to stand for the pack.
+  const allFolders = drafts.length > 0 && folders.length === drafts.length;
+  const bytes = drafts.reduce((n, d) => n + d.item.size, 0);
   const name = library?.name ?? 'your library';
+  const where = folders.length === 1 ? folders[0]!.item.sources[0] : `${folders.length} folders`;
+
+  const choices: KeptChoice<AddMode>[] = [
+    {
+      value: 'copy',
+      title: `Copy into ${name}`,
+      body: 'The library holds its own copy, backed up and synced with everything else. Your originals stay exactly where they are.',
+      icon: KEPT_ICONS.copy,
+      adds: bytes,
+      recommended: true,
+    },
+    {
+      value: 'move',
+      title: `Move into ${name}`,
+      body: 'The same, but the originals are removed once the copy is safely in and has been read back.',
+      icon: KEPT_ICONS.move,
+      adds: 0,
+      disabled: allFolders ? 'Not for folders. Adding a folder you chose never empties it.' : undefined,
+    },
+    {
+      value: 'keep',
+      title: 'Index where they are',
+      body: 'Nothing is copied or moved. Tessera reads the files where they sit and keeps the record here. It never writes in that folder.',
+      icon: KEPT_ICONS.keep,
+      adds: 0,
+      detail: allFolders ? `Read from ${where}` : undefined,
+      warning: 'Their files are not backed up or synced, because they are not in the library.',
+      disabled: allFolders ? undefined : 'Only for whole folders. Archives and loose files are copied in.',
+    },
+  ];
+
+  const label = mode === 'keep' ? 'Indexed where they are' : mode === 'move' ? `Moved into ${name}` : `Copied into ${name}`;
 
   return (
-    <div style={{ marginRight: 'auto', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-      <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-        {move && !all ? 'Moved into' : 'Copied into'} <b>{name}</b>
-      </Typography>
-      <Tooltip title={all ? 'A folder you chose is left as it is: adding it never empties it.' : 'The copy is made and checked first, so the original can only go once the pack is safely in.'}>
-        <FormControlLabel
-          sx={{ ml: 0, gap: 0.5 }}
-          control={<Checkbox size="small" checked={move && !all} disabled={all} onChange={(_, on) => setMove(on)} sx={{ p: 0.5 }} />}
-          label={
-            <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-              {all ? 'Folders are always left where they are' : 'Remove the originals once they are in'}
-            </Typography>
-          }
-        />
-      </Tooltip>
+    <div style={{ marginRight: 'auto', minWidth: 0 }}>
+      <Button size="small" onClick={() => setOpen(true)} disabled={busy} sx={{ textTransform: 'none', px: 1, color: md('onSurfaceVariant') }}>
+        {label} · change
+      </Button>
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>How should these be kept?</DialogTitle>
+        <DialogContent>
+          <HowKept<AddMode> label="" value={mode} choices={choices} onChange={(m) => void setMode(m)} />
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={() => setOpen(false)}>
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }
@@ -752,13 +794,11 @@ function WhereItGoes() {
 /** The one that commits, saying what it will do rather than only that it will do something. */
 function AddButton({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
   const library = useLibraryRecord();
-  const move = useAdding((s) => s.move);
-  const drafts = useAdding((s) => s.drafts);
-  const all = drafts.length > 0 && drafts.every((d) => d.item.kind === 'folder');
-  const verb = move && !all ? 'Move into' : 'Copy into';
+  const mode = useAdding((s) => s.mode);
+  const name = library?.name ?? 'the library';
   return (
     <Button variant="contained" startIcon={<CheckRounded />} disabled={disabled} onClick={onClick}>
-      {verb} {library?.name ?? 'the library'}
+      {mode === 'keep' ? `Add to ${name}` : mode === 'move' ? `Move into ${name}` : `Copy into ${name}`}
     </Button>
   );
 }

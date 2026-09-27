@@ -8,11 +8,20 @@ import { licenceInfo } from '@shared/licences';
 import { licenceForPath, type PackMeta } from '@shared/pack';
 import { sourceInfo } from '@shared/sources';
 import { DIRS, PACK_DIRS } from '../library/layout';
-import { listPacks, type PackProblem, type PackRecord } from '../library/packs';
+import { filesRootOf, listPacks, walkRootOf, type PackProblem, type PackRecord } from '../library/packs';
 import { openIndexDb, transaction } from './db';
 import { displayPath, listPackFiles, type PackFile } from './files';
 
 const sha1 = (s: string) => createHash('sha1').update(s).digest('hex');
+
+/** What the index already holds for a pack, enough to tell what has changed since. */
+export interface Known {
+  folder: string;
+  metaSig: string;
+  filesSig: string | null;
+  /** The folder its files are read from could not be read on the last look. */
+  away: boolean;
+}
 
 /**
  * Bump when classification or variant grouping changes: every pack's files are read again on the
@@ -20,9 +29,14 @@ const sha1 = (s: string) => createHash('sha1').update(s).digest('hex');
  */
 export const CLASSIFY_VERSION = 4;
 
-/** A quick fingerprint of a pack's files from sizes and times alone, so unchanged packs are skipped without opening archives. */
-async function filesSignature(packDir: string): Promise<string> {
-  const root = join(packDir, PACK_DIRS.original);
+/**
+ * A quick fingerprint of a pack's files from sizes and times alone, so unchanged packs are
+ * skipped without opening archives. Null when the folder cannot be read at all, which for a pack
+ * indexed where it lies means the drive is not there: that is not the same as an empty pack, and
+ * the caller must not treat it as one.
+ */
+async function filesSignature(root: string): Promise<string | null> {
+  if (!existsSync(root)) return null;
   const parts: string[] = [];
   const walk = async (dir: string) => {
     for (const e of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
@@ -83,12 +97,13 @@ export class LibraryIndex {
     this.db = openIndexDb(path);
     const p = (sql: string) => this.db.prepare(sql);
     this.st = {
-      known: p('SELECT id, folder, meta_sig AS metaSig, files_sig AS filesSig FROM packs'),
-      upsertPack: p(`INSERT INTO packs (id, folder, name, status, source, creator, licence, added_at, updated_at, meta_json, meta_sig, archived)
-        VALUES ($id, $folder, $name, $status, $source, $creator, $licence, $addedAt, $updatedAt, $metaJson, $metaSig, $archived)
+      known: p('SELECT id, folder, meta_sig AS metaSig, files_sig AS filesSig, away FROM packs'),
+      upsertPack: p(`INSERT INTO packs (id, folder, name, status, source, creator, licence, added_at, updated_at, meta_json, meta_sig, archived, kept_where)
+        VALUES ($id, $folder, $name, $status, $source, $creator, $licence, $addedAt, $updatedAt, $metaJson, $metaSig, $archived, $keptWhere)
         ON CONFLICT(id) DO UPDATE SET folder = excluded.folder, name = excluded.name, status = excluded.status, source = excluded.source,
           creator = excluded.creator, licence = excluded.licence, added_at = excluded.added_at, updated_at = excluded.updated_at,
-          meta_json = excluded.meta_json, meta_sig = excluded.meta_sig, archived = excluded.archived`),
+          meta_json = excluded.meta_json, meta_sig = excluded.meta_sig, archived = excluded.archived, kept_where = excluded.kept_where`),
+      setAway: p('UPDATE packs SET away = ? WHERE id = ?'),
       deleteTerms: p('DELETE FROM pack_terms WHERE pack_id = ?'),
       insertTerm: p('INSERT OR IGNORE INTO pack_terms (pack_id, facet, value) VALUES (?, ?, ?)'),
       deletePackFts: p('DELETE FROM packs_fts WHERE pack_id = ?'),
@@ -118,16 +133,32 @@ export class LibraryIndex {
   }
 
   /** What the index last recorded for a pack, so a sync can tell what changed. */
-  known(id: string): { folder: string; metaSig: string; filesSig: string | null } | undefined {
-    return this.db.prepare('SELECT folder, meta_sig AS metaSig, files_sig AS filesSig FROM packs WHERE id = ?').get(id) as
-      | { folder: string; metaSig: string; filesSig: string | null }
+  known(id: string): Known | undefined {
+    const row = this.db.prepare('SELECT folder, meta_sig AS metaSig, files_sig AS filesSig, away FROM packs WHERE id = ?').get(id) as
+      | { folder: string; metaSig: string; filesSig: string | null; away: number }
       | undefined;
+    return row && { ...row, away: !!row.away };
+  }
+
+  /**
+   * Where a pack's files are read from, without going back to disk for its record. Everything
+   * that turns a ref into a path asks this, so a pack indexed where it lies is read from its
+   * owner's folder and every other pack from the library, with no caller knowing the difference.
+   */
+  keptWhere(id: string): string | null {
+    const row = this.db.prepare('SELECT meta_json FROM packs WHERE id = ?').get(id) as { meta_json: string } | undefined;
+    if (!row) return null;
+    try {
+      return (JSON.parse(row.meta_json) as PackMeta).kept?.where ?? null;
+    } catch {
+      return null;
+    }
   }
 
   /** Bring the index in line with the library folder. Only packs whose record or files changed are re-read. */
   async sync(root: string, onProgress?: SyncProgress): Promise<SyncResult> {
     const { packs, problems } = await listPacks(root);
-    const known = new Map((this.st.known!.all() as { id: string; folder: string; metaSig: string; filesSig: string | null }[]).map((r) => [r.id, r]));
+    const known = new Map((this.st.known!.all() as ({ id: string; away: number } & Omit<Known, 'away'>)[]).map((r) => [r.id, { ...r, away: !!r.away }]));
     const seen = new Set<string>();
     let changed = 0;
     let done = 0;
@@ -154,16 +185,27 @@ export class LibraryIndex {
   }
 
   /** Update one pack. Returns true when anything changed. */
-  async syncPack(pack: PackRecord, known?: { folder: string; metaSig: string; filesSig: string | null }): Promise<boolean> {
+  async syncPack(pack: PackRecord, known?: Known): Promise<boolean> {
     const metaSig = sha1(`${pack.folder}\n${JSON.stringify(pack.meta)}`);
-    const filesSig = await filesSignature(pack.dir);
+    const filesRoot = filesRootOf(pack.meta, pack.dir);
+    const walkRoot = walkRootOf(pack.meta, pack.dir);
+    const filesSig = await filesSignature(walkRoot);
     const metaChanged = known?.metaSig !== metaSig;
-    const filesChanged = known?.filesSig !== filesSig;
-    if (!metaChanged && !filesChanged) return false;
-    const listing = filesChanged ? await listPackFiles(pack.dir) : null;
+    // A folder that cannot be read is not a pack that lost its files. Its record is brought up to
+    // date and the files it had are left in the index, so unplugging a drive does not empty the
+    // library and plugging it back in costs nothing.
+    const away = filesSig === null;
+    const filesChanged = !away && known?.filesSig !== filesSig;
+    // Whether the folder is reachable is checked before anything else can return early: a drive
+    // being unplugged changes neither the record nor the files, and is exactly what wants saying.
+    const awayChanged = (known?.away ?? false) !== away;
+    if (awayChanged) this.st.setAway!.run(away ? 1 : 0, pack.meta.id);
+    if (!metaChanged && !filesChanged) return awayChanged;
+    const listing = filesChanged ? await listPackFiles(filesRoot, walkRoot) : null;
     transaction(this.db, () => {
       if (metaChanged || !known) this.writePackMeta(pack, metaSig);
-      if (listing) this.writePackFiles(pack.meta.id, filesSig, listing.files, listing.problems);
+      this.st.setAway!.run(away ? 1 : 0, pack.meta.id);
+      if (listing) this.writePackFiles(pack.meta.id, filesSig!, listing.files, listing.problems);
       // Each file carries the licence covering it, so a pack whose parts differ can be browsed by licence.
       this.relicence(pack.meta);
     });
@@ -185,6 +227,7 @@ export class LibraryIndex {
       $metaJson: JSON.stringify(m),
       $metaSig: metaSig,
       $archived: m.archived ? 1 : 0,
+      $keptWhere: m.kept?.where ?? null,
     });
     this.st.deleteTerms!.run(m.id);
     for (const [facet, values] of [['genre', m.genres], ['style', m.styles], ['tag', m.tags]] as const) {
