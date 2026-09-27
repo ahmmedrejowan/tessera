@@ -45,6 +45,24 @@ export interface ToolContext {
       backup: import('@shared/types').BackupStatus;
       sync: import('@shared/types').SyncStatus;
     }>;
+    /**
+     * Syncing this library to the person's other computers. Setting it up is several steps that
+     * have to happen in order, which is exactly the sort of thing worth handing to an agent.
+     */
+    sync: {
+      install: () => Promise<string>;
+      enable: (mode: import('@shared/types').SyncMode) => Promise<void>;
+      setMode: (mode: import('@shared/types').SyncMode) => Promise<void>;
+      setWhileClosed: (on: boolean) => Promise<void>;
+      disable: () => Promise<void>;
+      pair: (deviceId: string, name: string) => Promise<void>;
+      unpair: (deviceId: string) => Promise<void>;
+      /** Bring Syncthing up without turning syncing on, so this computer has an ID to give out. */
+      receive: () => Promise<void>;
+      /** Take a library another computer is offering, into a folder here. */
+      acceptFolder: (folderId: string, offeredBy: string, label: string, path: string, mode: import('@shared/types').SyncMode) => Promise<void>;
+      status: () => Promise<import('@shared/types').SyncStatus>;
+    };
     /** The pictures Tessera draws of files: what they cost, and drawing or clearing them. */
     previews: {
       cost: () => Promise<import('../../thumbs/cache').PreviewCost>;

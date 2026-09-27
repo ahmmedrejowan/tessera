@@ -28,6 +28,8 @@ export interface Running {
   notes: string[];
   /** What was asked of the preview drawing: the packs each time, or 'stop'. */
   built: (string[] | null | 'stop')[];
+  /** What was asked of syncing, in order. */
+  syncCalls: string[];
 }
 
 /** A real one-pixel PNG, for tests that need a file the app will treat as a picture. */
@@ -78,6 +80,8 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
   const notes: string[] = [];
   /** What was asked of the preview drawing, for the tools that ask for it. */
   const built: (string[] | null | 'stop')[] = [];
+  /** What was asked of syncing, in order. */
+  const syncCalls: string[] = [];
   const projects = new ProjectService(dataDir, jobs);
 
   for (const pack of packs) {
@@ -161,6 +165,19 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
       }),
       libraryPrefs: () => ({ name: 'Test library', path: root, skipInboxWhenSure: true }),
       setLibraryPrefs: async () => undefined,
+      sync: {
+        install: async () => { syncCalls.push('install'); return '1.0.0'; },
+        enable: async (mode) => void syncCalls.push(`enable:${mode}`),
+        setMode: async (mode) => void syncCalls.push(`mode:${mode}`),
+        setWhileClosed: async (on) => void syncCalls.push(`whileClosed:${on}`),
+        disable: async () => void syncCalls.push('disable'),
+        pair: async (id, name) => void syncCalls.push(`pair:${id}:${name}`),
+        unpair: async (id) => void syncCalls.push(`unpair:${id}`),
+        receive: async () => void syncCalls.push('receive'),
+        acceptFolder: async (folderId) => void syncCalls.push(`accept:${folderId}`),
+        status: async () =>
+          ({ available: true, bundled: false, enabled: false, mode: 'full' as const, whileClosed: true, running: false, myId: 'ABCDEFG-HIJKLMN', devices: [], folder: null, pendingDevices: [], pendingFolders: [] }),
+      },
       previews: {
         cost: async () => ({ byKind: {}, byPack: {}, bytes: 0, count: 0, failed: 0, stale: { bytes: 0, count: 0 } }),
         build: (packs) => void built.push(packs),
@@ -171,7 +188,7 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
     },
   });
 
-  return { root, dataDir, library, projects, jobs, changes: () => changed, context, notes, built };
+  return { root, dataDir, library, projects, jobs, changes: () => changed, context, notes, built, syncCalls };
 }
 
 /** Call a tool the way the server would: parse the arguments, run it, give back what it said. */

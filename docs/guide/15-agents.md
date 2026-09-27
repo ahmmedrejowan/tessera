@@ -17,7 +17,7 @@ teaches an assistant how this library works.
 
 ## The tools, and what is allowed
 
-There are 52 tools in seven groups. Each group has a switch:
+There are 61 tools in seven groups. Each group has a switch:
 
 | Group | What it can do | At first |
 |-------|----------------|----------|
@@ -26,7 +26,7 @@ There are 52 tools in seven groups. Each group has a switch:
 | Linking to a game | Copy assets into a game folder, with their licenses and credits. | On |
 | Bringing things in | Add packs from this computer and fetch links from the web. Always a copy: an agent never removes your originals. | On |
 | Deleting to the bin | Move packs or files to the bin, and put them back. Nothing permanent. | On |
-| The app itself | Open, make and close libraries, change Tessera's settings or this library's, run a backup. | Off |
+| The app itself | Open, make and close libraries, change Tessera's settings or this library's, run a backup, set syncing up and pair computers, draw or clear previews. | Off |
 | Deleting for good | Empty the bin, throw away a pack waiting in Review. Cannot be undone. | Off |
 
 Reading a setting is under Looking and needs no permission; changing one is under The app itself
@@ -34,6 +34,15 @@ and does.
 
 The two that reach past the library, or cannot be undone, start switched off. Turn them on only
 for as long as you need them.
+
+## Setting syncing up with an agent
+
+Syncing is the one job that has to be done twice, on two computers, in the right order, with the
+same person sitting at both. That makes it the thing most worth handing to an agent. Settings →
+Sync → Set up has the words to copy, and the app's own tools do the rest: `set_up_sync`,
+`show_my_device_id`, `pair_computer`, `share_library_with` and `accept_shared_library`. They are
+in The app itself, which is off until you turn it on, and everything an agent does appears in the
+activity list like anything else.
 
 ## What it can be asked
 

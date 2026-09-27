@@ -186,6 +186,151 @@ export const SYSTEM: Tool[] = [
     },
   }),
   define({
+    name: 'sync_status',
+    group: 'read',
+    title: 'How syncing stands',
+    summary:
+      'Whether Syncthing is here, whether this library syncs, which way, this computer’s device ID, the computers it is paired with and whether each is connected, and anything waiting to be accepted.',
+    input: z.object({}),
+    run: async (_args, ctx) => {
+      const s = await ctx.app.sync.status();
+      return {
+        syncthing: s.available ? (s.bundled ? 'fetched by Tessera' : 'already on this computer') : 'not installed',
+        on: s.enabled,
+        mode: s.mode,
+        keepsGoingWhileAnotherLibraryIsOpen: s.whileClosed,
+        runningNow: s.running,
+        thisComputer: s.myId,
+        computers: s.devices.map((d) => ({ id: d.id, name: d.name, connected: d.connected, hasThisLibrary: d.shared, caughtUp: d.completion })),
+        thisLibrary: s.folder,
+        waitingToBeAccepted: { computers: s.pendingDevices, libraries: s.pendingFolders },
+      };
+    },
+  }),
+  define({
+    name: 'set_up_sync',
+    group: 'system',
+    title: 'Set up syncing',
+    summary:
+      'Get Syncthing if it is not here, then turn syncing on for this library. Gives back this computer’s device ID, which is what the other computer needs. Do this on both computers, then pair them and share the library.',
+    input: z.object({
+      mode: z
+        .enum(['push', 'pull', 'full'])
+        .default('push')
+        .describe('push: this computer only sends. pull: it only receives. full: both ways. Start with push on the computer that holds the library.'),
+    }),
+    run: async (args, ctx) => {
+      const before = await ctx.app.sync.status();
+      const fetched = before.available ? null : await ctx.app.sync.install();
+      await ctx.app.sync.enable(args.mode);
+      const after = await ctx.app.sync.status();
+      ctx.note(`An agent turned syncing on (${args.mode})`);
+      return {
+        syncthing: fetched ? `fetched ${fetched}` : 'already here',
+        on: after.enabled,
+        mode: after.mode,
+        thisComputer: after.myId,
+        next: 'Give thisComputer to the other computer and run pair_computer there with it, then pair_computer here with theirs. Then share_library_with on the computer that holds the library.',
+      };
+    },
+  }),
+  define({
+    name: 'pair_computer',
+    group: 'system',
+    title: 'Pair a computer',
+    summary:
+      'Tell this computer about another one, by the device ID that computer shows. Pairing alone shares nothing: it only lets the two find each other. Run it on both computers, each with the other’s ID.',
+    input: z.object({
+      deviceId: z.string().min(1).describe('The other computer’s device ID, as sync_status there gives it (XXXXXXX-XXXXXXX-…).'),
+      name: z.string().default('').describe('What to call it, for the person reading the list.'),
+    }),
+    run: async (args, ctx) => {
+      await ctx.app.sync.pair(args.deviceId, args.name);
+      ctx.note(`An agent paired with ${args.name || 'a computer'}`);
+      return { paired: true, name: args.name || null };
+    },
+  }),
+  define({
+    name: 'share_library_with',
+    group: 'system',
+    title: 'Share this library with a computer',
+    summary:
+      'Offer the open library to a computer that is already paired. It waits there until somebody on that computer accepts it. Run this on the computer that holds the library.',
+    input: z.object({
+      deviceId: z.string().min(1).describe('A paired computer’s device ID, from sync_status.'),
+    }),
+    run: async (args, ctx) => {
+      const s = await ctx.app.sync.status();
+      const known = s.devices.find((d) => d.id === args.deviceId);
+      if (!known) throw new Error('That computer is not paired yet. Run pair_computer with its device ID first.');
+      if (known.shared) return { alreadyShared: true, name: known.name };
+      await ctx.app.sync.pair(args.deviceId, known.name);
+      ctx.note(`An agent shared this library with ${known.name || 'a computer'}`);
+      return { offered: true, name: known.name, next: 'Somebody on that computer has to accept it, in its window or with accept_shared_library.' };
+    },
+  }),
+  define({
+    name: 'accept_shared_library',
+    group: 'system',
+    title: 'Accept a library another computer is offering',
+    summary: 'Take a library that a paired computer has offered, into a folder on this computer. sync_status lists what is waiting.',
+    input: z.object({
+      folderId: z.string().min(1).describe('From waitingToBeAccepted.libraries in sync_status.'),
+      offeredBy: z.string().min(1).describe('The device ID that offered it.'),
+      label: z.string().default('').describe('What that library is called.'),
+      path: z.string().min(1).describe('An empty folder on this computer to put it in.'),
+      mode: z.enum(['push', 'pull', 'full']).default('pull').describe('pull is the usual choice on a second computer.'),
+    }),
+    run: async (args, ctx) => {
+      await ctx.app.sync.acceptFolder(args.folderId, args.offeredBy, args.label, args.path, args.mode);
+      ctx.note(`An agent accepted the library ${args.label || ''} from another computer`);
+      return { accepted: true, into: args.path };
+    },
+  }),
+  define({
+    name: 'change_sync',
+    group: 'system',
+    title: 'Change or stop syncing',
+    summary: 'Which way this library syncs, whether it keeps going while another library is open, and turning it off. Turning it off leaves paired computers paired for your other libraries.',
+    input: z.object({
+      mode: z.enum(['push', 'pull', 'full']).optional().describe('push: send only. pull: receive only. full: both ways.'),
+      whileClosed: z.boolean().optional().describe('Keep syncing while another library is open, as long as Tessera is running.'),
+      off: z.boolean().optional().describe('Turn syncing off for this library.'),
+      unpair: z.string().optional().describe('A device ID to forget entirely, for every library.'),
+    }),
+    run: async (args, ctx) => {
+      const did: string[] = [];
+      if (args.mode) { await ctx.app.sync.setMode(args.mode); did.push(`mode ${args.mode}`); }
+      if (args.whileClosed !== undefined) { await ctx.app.sync.setWhileClosed(args.whileClosed); did.push(`while another library is open: ${args.whileClosed}`); }
+      if (args.off) { await ctx.app.sync.disable(); did.push('off'); }
+      if (args.unpair) { await ctx.app.sync.unpair(args.unpair); did.push('unpaired a computer'); }
+      if (!did.length) throw new Error('Say what to change: mode, whileClosed, off or unpair.');
+      ctx.note(`An agent changed syncing: ${did.join(', ')}`);
+      return { changed: did };
+    },
+  }),
+  define({
+    name: 'show_my_device_id',
+    group: 'system',
+    title: 'Show this computer’s device ID',
+    summary: 'Start Syncthing far enough to have an ID, without turning syncing on for any library. This is the ID the other computer needs to pair with.',
+    input: z.object({}),
+    run: async (_args, ctx) => {
+      let s = await ctx.app.sync.status();
+      if (!s.available) await ctx.app.sync.install();
+      if (!s.myId) {
+        await ctx.app.sync.receive();
+        // Syncthing takes a moment to come up and tell us who it is.
+        for (let i = 0; i < 20 && !s.myId; i++) {
+          await new Promise((r) => setTimeout(r, 500));
+          s = await ctx.app.sync.status();
+        }
+      }
+      if (!s.myId) throw new Error('Syncthing has not started yet. Try again in a moment.');
+      return { thisComputer: s.myId };
+    },
+  }),
+  define({
     name: 'draw_previews',
     group: 'organise',
     title: 'Draw previews',

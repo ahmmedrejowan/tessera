@@ -36,7 +36,7 @@
 - **Games** - link assets into Unity, Godot, Unreal or any folder, in the format that engine prefers, with a CREDITS.md kept up to date
 - **Add to a pack later** - drop more files into a pack you already have, in the folder of your choosing
 - **Starred, archived, binned** - keep what matters to hand, put the rest out of the way, and never lose anything to a mis-click
-- **AI agents** - 49 tools over MCP, on this computer only, with what they may do in your hands
+- **AI agents** - 61 tools over MCP, on this computer only, with what they may do in your hands
 - **Backups and sync** - encrypted backups with Kopia, sync between your own computers with Syncthing, both optional
 - **Yours, offline** - no accounts, no telemetry, no analytics. Your library is ordinary folders you can open at any time
 

@@ -204,6 +204,24 @@ describe('what a pack says about itself', () => {
     expect(await callTool(app, 'clear_previews', { packIds: [arcade.id] })).toEqual({ removed: 0 });
   });
 
+  it('sets syncing up, pairs and shares, in that order', async () => {
+    const { app } = await ready();
+    const set = (await callTool(app, 'set_up_sync', { mode: 'push' })) as { on: boolean; thisComputer: string };
+    expect(set.thisComputer).toBeTruthy();
+    expect(app.syncCalls).toEqual(['enable:push']);
+
+    await callTool(app, 'pair_computer', { deviceId: 'AAA-BBB', name: 'Desktop PC' });
+    expect(app.syncCalls).toContain('pair:AAA-BBB:Desktop PC');
+
+    // Sharing before pairing is the mistake worth catching, so it says so rather than half doing it.
+    await expect(callTool(app, 'share_library_with', { deviceId: 'AAA-BBB' })).rejects.toThrow(/not paired/);
+
+    await callTool(app, 'change_sync', { mode: 'full', whileClosed: false });
+    expect(app.syncCalls).toContain('mode:full');
+    expect(app.syncCalls).toContain('whileClosed:false');
+    await expect(callTool(app, 'change_sync', {})).rejects.toThrow();
+  });
+
   it('refuses over a pack that is not there', async () => {
     const { app } = await ready();
     await expect(callTool(app, 'set_pack_details', { packId: 'nope', name: 'x' })).rejects.toThrow();

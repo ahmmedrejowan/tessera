@@ -263,6 +263,21 @@ const mcp = new McpService({
       },
       reindex: () => library.reindex(),
       keeping: async () => ({ backup: await backups.status(), sync: await sync.status() }),
+      sync: {
+        install: () => installTool('syncthing', dataDir, (url, init) => net.fetch(url, init), () => undefined),
+        enable: async (mode) => sync.enable(mode),
+        setMode: async (mode) => sync.setMode(mode),
+        setWhileClosed: async (on) => {
+          await sync.setWhileClosed(on);
+          librariesChanged();
+        },
+        disable: async () => sync.disable(),
+        pair: async (deviceId, name) => sync.addDevice(deviceId, name),
+        unpair: async (deviceId) => sync.removeDevice(deviceId),
+        receive: async () => sync.startForReceiving(),
+        acceptFolder: async (folderId, offeredBy, label, path, mode) => sync.acceptFolder(folderId, offeredBy, label, path, mode),
+        status: () => sync.status(),
+      },
       previews: {
         cost: () => previewCost(thumbDir()),
         build: (packs) => buildPreviews(packs),
