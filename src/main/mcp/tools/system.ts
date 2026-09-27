@@ -11,7 +11,7 @@ export const SYSTEM: Tool[] = [
   // ---- The app itself ----
   define({
     name: 'list_libraries',
-    group: 'system',
+    group: 'read',
     title: 'Every library',
     summary: 'The libraries this computer knows, most recently opened first, and which one is open now.',
     input: z.object({}),
@@ -63,7 +63,7 @@ export const SYSTEM: Tool[] = [
   }),
   define({
     name: 'get_settings',
-    group: 'system',
+    group: 'read',
     title: 'Read Tessera’s settings',
     summary: 'Everything in Settings that is not a secret: theme, what happens to downloads, the rules for sites, the bin, and what agents may do.',
     input: z.object({}),
@@ -81,13 +81,15 @@ export const SYSTEM: Tool[] = [
     input: z.object({
       theme: z.enum(['system', 'light', 'dark']).optional(),
       seedColor: z.string().optional().describe('A hex colour, like #3f6f8f.'),
-      afterDownload: z.enum(['ask', 'review', 'sure']).optional(),
+      afterDownload: z.enum(['add', 'review', 'ask']).optional().describe('add: straight into the library when the licence is clear. review: always to Review. ask: leave it in Downloads.'),
       binKeepDays: z.number().int().min(0).max(3650).optional().describe('0 keeps things until you empty the bin.'),
       updateCheck: z.boolean().optional(),
       siteRules: z
-        .array(z.object({ host: z.string(), licence: z.string().nullable(), creditLine: z.string().nullable().default(null), note: z.string().default('') }))
+        .array(z.object({ host: z.string(), licence: z.string().nullable(), creator: z.string().nullable().default(null) }))
         .optional()
         .describe('What to assume for a site you download from. Replaces the list.'),
+      moveIntoLibrary: z.boolean().optional().describe('Whether adding a pack removes the original once its copy is in.'),
+      confirmCopyToGame: z.boolean().optional().describe('Whether the window asks before writing into a game.'),
     }),
     run: async (args, ctx) => {
       const patch = Object.fromEntries(Object.entries(args).filter(([, v]) => v !== undefined));
@@ -98,8 +100,37 @@ export const SYSTEM: Tool[] = [
     },
   }),
   define({
-    name: 'read_library_again',
+    name: 'get_library_settings',
+    group: 'read',
+    title: 'This library’s own settings',
+    summary: 'The preferences that belong to the open library rather than to the app: its name, its folder, and whether a pack with a clear licence skips Review.',
+    input: z.object({}),
+    run: async (_args, ctx) => {
+      const prefs = ctx.app.libraryPrefs();
+      if (!prefs) throw new Error('No library is open.');
+      return prefs;
+    },
+  }),
+  define({
+    name: 'set_library_settings',
     group: 'system',
+    title: 'Change this library’s settings',
+    summary: 'Rename the open library, or change whether a pack whose licence is certain goes straight in rather than waiting in Review. Say what you changed.',
+    input: z.object({
+      name: z.string().min(1).optional(),
+      skipInboxWhenSure: z.boolean().optional().describe('true: a pack with a clear licence and a known source goes straight into the library.'),
+    }),
+    run: async (args, ctx) => {
+      const patch = Object.fromEntries(Object.entries(args).filter(([, v]) => v !== undefined));
+      if (!Object.keys(patch).length) throw new Error('Nothing to change.');
+      await ctx.app.setLibraryPrefs(patch);
+      ctx.note('An agent changed this library’s settings', Object.keys(patch).join(', '));
+      return { changed: Object.keys(patch) };
+    },
+  }),
+  define({
+    name: 'read_library_again',
+    group: 'organise',
     title: 'Read the library again',
     summary: 'Read every pack from scratch. Worth it after files have been moved about by hand; Tessera normally notices on its own.',
     input: z.object({}),

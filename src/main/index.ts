@@ -210,6 +210,16 @@ const mcp = new McpService({
         return done;
       },
       reindex: () => library.reindex(),
+      libraryPrefs: () => {
+        const record = openRecord();
+        return record ? { name: record.name, path: record.path, skipInboxWhenSure: record.skipInboxWhenSure } : null;
+      },
+      setLibraryPrefs: async (patch) => {
+        const record = openRecord();
+        if (!record) throw new Error('No library is open.');
+        if (patch.name !== undefined) await library.rename(patch.name);
+        if (patch.skipInboxWhenSure !== undefined) await patchRecord(settings, record.id, { skipInboxWhenSure: patch.skipInboxWhenSure });
+      },
     },
   }),
   onChange: () => broadcast(windows, 'mcp:changed', 0),

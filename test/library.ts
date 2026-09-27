@@ -150,6 +150,8 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
       activity: async () => [],
       backUpNow: async () => undefined,
       reindex: () => library.reindex(),
+      libraryPrefs: () => ({ name: 'Test library', path: root, skipInboxWhenSure: true }),
+      setLibraryPrefs: async () => undefined,
     },
   });
 

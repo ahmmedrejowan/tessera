@@ -37,6 +37,9 @@ export interface ToolContext {
     activity: (limit: number) => Promise<import('@shared/types').ActivityEntry[]>;
     backUpNow: () => Promise<unknown>;
     reindex: () => Promise<void>;
+    /** The open library's own preferences, which are kept per library rather than per app. */
+    libraryPrefs: () => { name: string; path: string; skipInboxWhenSure: boolean } | null;
+    setLibraryPrefs: (patch: { name?: string; skipInboxWhenSure?: boolean }) => Promise<void>;
   };
 }
 
