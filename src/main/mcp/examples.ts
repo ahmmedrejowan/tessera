@@ -208,6 +208,14 @@ export const ANSWERS: Record<string, ToolAnswer> = {
     },
   },
   set_settings: { returns: 'Which settings were changed.', example: { changed: ['binKeepDays'] } },
+  how_it_is_kept: {
+    returns: 'Whether this library is backed up and synced, and which helper programs are there.',
+    example: {
+      backup: { setUp: true, where: 'folder', every: '24 hours', lastBackupAt: '2026-09-27T09:00:00.000Z', lastError: null, runningNow: false },
+      sync: { on: false, mode: 'full', runningNow: false, thisComputer: null, computers: [], folder: null },
+      programs: { kopia: 'fetched by Tessera', rclone: 'not installed', syncthing: 'not installed', keychain: true },
+    },
+  },
   get_library_settings: {
     returns: 'The open library’s own preferences.',
     example: { name: 'Toy Town', path: '/Users/you/Documents/Toy Town', skipInboxWhenSure: true },

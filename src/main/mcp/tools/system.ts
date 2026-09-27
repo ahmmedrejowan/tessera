@@ -88,6 +88,8 @@ export const SYSTEM: Tool[] = [
         .array(z.object({ host: z.string(), licence: z.string().nullable(), creator: z.string().nullable().default(null) }))
         .optional()
         .describe('What to assume for a site you download from. Replaces the list.'),
+      downloadsAtOnce: z.number().int().min(1).max(5).optional().describe('How many downloads run at the same time.'),
+      autoInstallUpdates: z.boolean().optional().describe('Whether a new version installs itself when it is ready.'),
       moveIntoLibrary: z.boolean().optional().describe('Whether adding a pack removes the original once its copy is in.'),
       confirmCopyToGame: z.boolean().optional().describe('Whether the window asks before writing into a game.'),
     }),
@@ -126,6 +128,41 @@ export const SYSTEM: Tool[] = [
       await ctx.app.setLibraryPrefs(patch);
       ctx.note('An agent changed this library’s settings', Object.keys(patch).join(', '));
       return { changed: Object.keys(patch) };
+    },
+  }),
+  define({
+    name: 'how_it_is_kept',
+    group: 'read',
+    title: 'Backups, syncing and the programs they need',
+    summary:
+      'Whether this library is backed up and synced, when the last backup ran and whether it failed, which computers are paired, and whether kopia, rclone and Syncthing are installed. Reading only: setting any of it up is done in the window.',
+    input: z.object({}),
+    run: async (_args, ctx) => {
+      const { backup, sync } = await ctx.app.keeping();
+      return {
+        backup: {
+          setUp: !!backup.target,
+          where: backup.target?.provider ?? null,
+          every: backup.intervalHours ? `${backup.intervalHours} hours` : 'only when asked',
+          lastBackupAt: backup.lastBackupAt,
+          lastError: backup.lastError,
+          runningNow: backup.running,
+        },
+        sync: {
+          on: sync.enabled,
+          mode: sync.mode,
+          runningNow: sync.running,
+          thisComputer: sync.myId,
+          computers: sync.devices.map((d) => ({ name: d.name, connected: d.connected, sharing: d.shared, caughtUp: d.completion })),
+          folder: sync.folder,
+        },
+        programs: {
+          kopia: backup.available ? (backup.bundled ? 'fetched by Tessera' : 'already on this computer') : 'not installed',
+          rclone: backup.rclone ? 'installed' : 'not installed',
+          syncthing: sync.available ? (sync.bundled ? 'fetched by Tessera' : 'already on this computer') : 'not installed',
+          keychain: backup.keychain,
+        },
+      };
     },
   }),
   define({

@@ -210,6 +210,7 @@ const mcp = new McpService({
         return done;
       },
       reindex: () => library.reindex(),
+      keeping: async () => ({ backup: await backups.status(), sync: await sync.status() }),
       libraryPrefs: () => {
         const record = openRecord();
         return record ? { name: record.name, path: record.path, skipInboxWhenSure: record.skipInboxWhenSure } : null;

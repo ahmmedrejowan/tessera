@@ -17,11 +17,11 @@ teaches an assistant how this library works.
 
 ## The tools, and what is allowed
 
-There are 51 tools in seven groups. Each group has a switch:
+There are 52 tools in seven groups. Each group has a switch:
 
 | Group | What it can do | At first |
 |-------|----------------|----------|
-| Looking | Search the library, read packs, files, collections and games, and read the settings. Changes nothing. | On |
+| Looking | Search the library, read packs, files, collections and games, read the settings, and see how the library is backed up and synced. Changes nothing. | On |
 | Filing | Star things, make and fill collections, record licenses and tags, archive a pack, read the library again. | On |
 | Linking to a game | Copy assets into a game folder, with their licenses and credits. | On |
 | Bringing things in | Add packs from this computer and fetch links from the web. Always a copy: an agent never removes your originals. | On |

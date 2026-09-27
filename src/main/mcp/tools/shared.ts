@@ -40,6 +40,11 @@ export interface ToolContext {
     /** The open library's own preferences, which are kept per library rather than per app. */
     libraryPrefs: () => { name: string; path: string; skipInboxWhenSure: boolean } | null;
     setLibraryPrefs: (patch: { name?: string; skipInboxWhenSure?: boolean }) => Promise<void>;
+    /** How the library is kept safe: backups, syncing, and the helper programs both need. */
+    keeping: () => Promise<{
+      backup: import('@shared/types').BackupStatus;
+      sync: import('@shared/types').SyncStatus;
+    }>;
   };
 }
 

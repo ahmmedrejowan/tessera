@@ -150,6 +150,10 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
       activity: async () => [],
       backUpNow: async () => undefined,
       reindex: () => library.reindex(),
+      keeping: async () => ({
+        backup: { available: false, bundled: false, rclone: false, keychain: false, target: null, version: null, repoPath: null, intervalHours: 24, lastBackupAt: null, lastError: null, running: false, others: [] },
+        sync: { available: false, bundled: false, enabled: false, mode: 'full' as const, whileClosed: true, running: false, myId: null, devices: [], folder: null, pendingDevices: [], pendingFolders: [] },
+      }),
       libraryPrefs: () => ({ name: 'Test library', path: root, skipInboxWhenSure: true }),
       setLibraryPrefs: async () => undefined,
     },
