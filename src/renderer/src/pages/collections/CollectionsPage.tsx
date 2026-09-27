@@ -163,6 +163,10 @@ export function CollectionCard({ c }: { c: CollectionSummary }) {
 /** Your own groupings of assets across packs, and saved searches. */
 export function CollectionsPage() {
   const collections = useCollections().data;
+  // Favourites is kept as a collection because that is the simplest way to store it, but it is
+  // not one somebody made: it has its own row on Home and its own filter in Browse, and listing
+  // it here among the sets they built only muddles what a collection is.
+  const made = (collections ?? []).filter((c) => c.id !== FAVOURITES);
   const go = useNav((s) => s.go);
   const [naming, setNaming] = useState(false);
   const [sort, setSort] = useState<CollectionSort>('name');
@@ -194,7 +198,7 @@ export function CollectionsPage() {
         </Button>
       }
     >
-      {collections && !collections.length ? (
+      {made && !made.length ? (
         <EmptyState
           icon={CollectionsBookmarkOutlined}
           title="No collections yet"
@@ -207,10 +211,7 @@ export function CollectionsPage() {
         />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, padding: '8px 32px 32px' }}>
-          {/* What you starred comes first, then the rest as they are named. */}
-          {[...(collections ?? [])]
-            .sort((a, b) => (a.id === FAVOURITES ? -1 : b.id === FAVOURITES ? 1 : by[sort](a, b)))
-            .map((c) => <CollectionCard key={c.id} c={c} />)}
+          {[...made].sort(by[sort]).map((c) => <CollectionCard key={c.id} c={c} />)}
         </div>
       )}
       <CollectionDialog open={naming} title="New collection" action="Create" onClose={() => setNaming(false)} onDone={(draft) => void create(draft)} />
