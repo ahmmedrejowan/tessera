@@ -8,7 +8,7 @@ import { log } from '../log';
 import { assetKey, packFileUrl, splitAssetKey, thumbUrl } from '@shared/urls';
 
 /** Bump when thumbnails should be redrawn (a better renderer, a new size). */
-export const THUMB_VERSION = 4;
+export const THUMB_VERSION = 5;
 const SIZE = 384;
 
 /** Web images up to this size are drawn straight from the file; bigger ones get a small copy. */
@@ -34,8 +34,21 @@ export function plan(a: Pick<Info, 'ext' | 'size'>): RenderJob['kind'] | 'direct
   return 'none';
 }
 
-export const thumbName = (a: Pick<Info, 'packId' | 'ref' | 'size' | 'mtime'>) =>
-  createHash('sha1').update(`${a.packId}|${a.ref}|${a.size}|${a.mtime}|v${THUMB_VERSION}`).digest('hex').slice(0, 24);
+/**
+ * What a thumbnail is called: `<pack>.<kind>.<hash>`.
+ *
+ * The hash alone would do for caching, but then the folder is opaque: working out what previews
+ * cost, or clearing the ones for a pack nobody opens, would mean reading the whole index first.
+ * With the pack and the kind in the name, the folder answers both on its own.
+ */
+export const thumbName = (a: Pick<Info, 'packId' | 'ref' | 'size' | 'mtime'>, kind: RenderJob['kind']) =>
+  `${a.packId.slice(0, 8)}.${kind}.${createHash('sha1').update(`${a.packId}|${a.ref}|${a.size}|${a.mtime}|v${THUMB_VERSION}`).digest('hex').slice(0, 20)}`;
+
+/** The pack and kind back out of a thumbnail's name, for counting and clearing. */
+export function readThumbName(file: string): { pack: string; kind: string } | null {
+  const [pack, kind] = file.split('.');
+  return pack && kind ? { pack, kind } : null;
+}
 
 interface Queued {
   name: string;
@@ -52,6 +65,8 @@ export interface ThumbDeps {
   render: (job: RenderJob) => Promise<Uint8Array>;
   /** Push finished states to the window. */
   publish: (states: Record<string, ThumbState>) => void;
+  /** Bring the folder back under its limit once a batch is drawn. Optional: no limit without it. */
+  tidy?: () => Promise<void>;
 }
 
 /**
@@ -63,6 +78,8 @@ export class ThumbService {
   private readonly queue = new Map<string, Queued>();
   private counter = 0;
   private running = 0;
+  /** Thumbnails drawn since the folder was last brought back under its limit. */
+  private sinceTidy = 0;
   private readonly concurrency = 2;
   private ready: Record<string, ThumbState> = {};
   private made = 0;
@@ -93,7 +110,7 @@ export class ThumbService {
         out[key] = how;
         continue;
       }
-      const name = thumbName(a);
+      const name = thumbName(a, how);
       if (existsSync(join(dir, `${name}.webp`))) out[key] = thumbUrl(`${name}.webp`);
       else if (existsSync(join(dir, `${name}.fail`))) out[key] = 'failed';
       else {
@@ -160,6 +177,12 @@ export class ThumbService {
     }
     for (const key of q.keys) this.ready[key] = state;
     this.flush();
+    // Checked every so often rather than on every thumbnail: reading the folder to add up a few
+    // hundred kilobytes each time would cost more than the limit saves.
+    if (++this.sinceTidy >= 200) {
+      this.sinceTidy = 0;
+      await this.d.tidy?.().catch(() => undefined);
+    }
   }
 
   /** Finished thumbnails are sent in batches, a few times a second. */

@@ -75,6 +75,8 @@ export interface Settings {
   autoInstallUpdates: boolean;
   /** Adding a pack removes the original once the copy is safely in the library. */
   moveIntoLibrary: boolean;
+  /** How much disk previews may use, in MB. 0 is no limit. */
+  previewCapMB: number;
   /** Show what is about to be written into a game before writing it. */
   confirmCopyToGame: boolean;
 }

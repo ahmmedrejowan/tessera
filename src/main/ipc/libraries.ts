@@ -10,6 +10,7 @@ import { UserError, handle } from '../ipc';
 import { patchRecord } from '../libraries';
 import { locateLibrary } from '../library/locate';
 import type { IpcContext } from './context';
+import { clearFor, previewCost } from '../thumbs/cache';
 
 type Deps = Pick<IpcContext, 'indexChanged' | 'librariesChanged' | 'library' | 'librarySummaries' | 'openRecord' | 'settings' | 'sync' | 'thumbDir' | 'thumbs'>;
 
@@ -62,6 +63,13 @@ export function registerLibraryIpc(c: Deps): void {
     if (dir) await rm(dir, { recursive: true, force: true });
     thumbs.reset();
     indexChanged();
+  });
+  handle('thumbs:cost', () => previewCost(thumbDir()));
+  handle('thumbs:clearSome', async (opts) => {
+    const n = await clearFor(thumbDir(), opts);
+    thumbs.reset();
+    indexChanged();
+    return n;
   });
   handle('thumbs:get', (keys) => thumbs.get(keys.slice(0, 500)));
 

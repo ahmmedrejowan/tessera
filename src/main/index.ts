@@ -51,6 +51,7 @@ import { Updates } from './updates';
 import { DownloadService, linksInFiles } from './downloads/service';
 import { linksIn } from '@shared/links';
 import { defaultSize, loadWindowState, trackWindowState } from './windowState';
+import { evictOver } from './thumbs/cache';
 
 const platform = (['darwin', 'win32'].includes(process.platform) ? process.platform : 'linux') as Platform;
 
@@ -182,6 +183,15 @@ let renderWindow: RenderWindow | null = null;
 const thumbs = new ThumbService({
   queries: () => (library.getState().status === 'ready' ? library.require().queries : null),
   thumbDir,
+  // Previews are worth keeping only while they are wanted. What goes first is whatever belongs to
+  // the packs this person reaches for least, then whatever was drawn longest ago.
+  tidy: async () => {
+    const cap = settings.get().previewCapMB;
+    if (!cap) return;
+    const ranked = new Map(usage.ranked().map((r) => [r.packId.slice(0, 8), r.score]));
+    const gone = await evictOver(thumbDir(), cap * 1024 * 1024, (pack) => ranked.get(pack) ?? 0);
+    if (gone.removed) log.info('thumbs', `let go of ${gone.removed} previews to stay under ${cap} MB`);
+  },
   render: (job) => (renderWindow ??= new RenderWindow()).render(job),
   publish: (states) => broadcast(windows, 'thumbs:ready', states),
 });

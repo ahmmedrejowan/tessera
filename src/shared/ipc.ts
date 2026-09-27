@@ -51,6 +51,16 @@ export interface Invokes {
   /** Size of the thumbnail cache, and throw it away (thumbnails are drawn again as needed). */
   'thumbs:size': () => number;
   'thumbs:clear': () => void;
+  /** What previews cost, by kind and by pack, so "previews are big" can be acted on. */
+  'thumbs:cost': () => {
+    byKind: Record<string, { bytes: number; count: number }>;
+    byPack: Record<string, { bytes: number; count: number }>;
+    bytes: number;
+    count: number;
+    failed: number;
+  };
+  /** Throw away the previews for these packs, or only the ones that failed to draw. */
+  'thumbs:clearSome': (opts: { packs?: string[]; failedOnly?: boolean }) => number;
   /** Show the app's log folder. */
   'app:showLogs': () => void;
   /** Words already used for a pack field, most used first. */

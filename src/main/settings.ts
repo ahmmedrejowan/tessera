@@ -66,6 +66,8 @@ const schema = z.object({
   autoInstallUpdates: z.boolean().catch(false),
   /** Adding a pack removes the original once the copy is safely in. Off, and the original stays. */
   moveIntoLibrary: z.boolean().catch(false),
+  /** How much disk previews may use, in MB. 0 is no limit. */
+  previewCapMB: z.number().int().min(0).max(200_000).catch(2048),
   /** Show what is about to be written into a game before writing it. Turned off from the dialog. */
   confirmCopyToGame: z.boolean().catch(true),
 });

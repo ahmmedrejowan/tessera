@@ -76,7 +76,7 @@ describe('thumbnail service', () => {
     expect(order[2]).toBe('c.glb');
     expect(published[byName('c.glb')]).toBe('failed');
     const again = await svc.get([byName('a.glb'), byName('c.glb')]);
-    expect(again[byName('a.glb')]).toMatch(/^tessera:\/\/thumb\/[0-9a-f]+\.webp$/);
+    expect(again[byName('a.glb')]).toMatch(/^tessera:\/\/thumb\/[0-9a-f]{8}\.[a-z]+\.[0-9a-f]+\.webp$/);
     expect(again[byName('c.glb')]).toBe('failed');
     expect(existsSync(thumbDir)).toBe(true);
   });
