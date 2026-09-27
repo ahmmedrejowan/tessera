@@ -24,6 +24,7 @@ import { registerIpc, type IpcContext } from '../src/main/ipc/index';
 import { asked, forget, handlers } from './fake-electron';
 import { PIXEL } from './library';
 import { writeZip } from './zipfixture';
+import { UsageStore } from '../src/main/usage';
 
 /** A folder that lasts as long as this file does, rather than as long as one test. */
 const mine: string[] = [];
@@ -112,6 +113,7 @@ beforeAll(async () => {
     windows: () => [],
     settings,
     library,
+    usage: new UsageStore(),
     projects,
     activity,
     jobs,

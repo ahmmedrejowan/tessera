@@ -75,6 +75,10 @@ export interface Invokes {
   'pack:details': (id: string) => { detected: Detected; suggestions: PackSuggestions };
   /** Delete a pack that was only just added and isn't in the library yet (the add page's Cancel). */
   'pack:discard': (id: string) => void;
+  /** Note that a pack was used, so Home and Browse can show what someone actually reaches for. */
+  'usage:record': (packId: string, kind: 'opened' | 'viewed' | 'linked') => void;
+  /** The packs used most, best first. */
+  'usage:top': (limit?: number) => { packId: string; score: number; opened: number; viewed: number; linked: number; lastAt: string }[];
   /** The pack is kept, so the files it was made from may go. Only staged packs are known. */
   'import:takeOriginals': (packId: string) => void;
   /** Keep a record of the pack's download page, in the background: a snapshot, an archive.org copy. */

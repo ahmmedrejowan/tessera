@@ -21,7 +21,7 @@ import Tabs from '@mui/material/Tabs';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { TYPE_LABELS, type AssetType } from '@shared/assets';
 import { licenceInfo } from '@shared/licences';
 import { missingForLibrary } from '@shared/pack';
@@ -122,6 +122,10 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   const [editing, setEditing] = useState(edit);
   const [type, setType] = useState<AssetType | null>(null);
   const [find, setFind] = useState('');
+  // Opening a pack's page is the lightest sign that someone reaches for it; Home and Browse use it.
+  useEffect(() => {
+    void call('usage:record', id, 'opened').catch(() => undefined);
+  }, [id]);
   const [sort, setSort] = useState<PackSort>('folder');
   const [viewing, setViewing] = useState<{ list: AssetRow[]; index: number } | null>(null);
 

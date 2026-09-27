@@ -22,6 +22,7 @@ import type { SyncService } from '../sync/service';
 import type { ThumbService } from '../thumbs/service';
 import type { Updates } from '../updates';
 import type { LibrarySummary } from '@shared/types';
+import type { UsageStore } from '../usage';
 
 export interface IpcContext {
   /** Where the app keeps its own data. */
@@ -32,6 +33,7 @@ export interface IpcContext {
 
   settings: SettingsStore;
   library: LibraryService;
+  usage: UsageStore;
   projects: ProjectService;
   downloads: DownloadService;
   thumbs: ThumbService;

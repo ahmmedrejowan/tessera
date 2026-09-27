@@ -20,6 +20,7 @@ import { registerIpc, type IpcContext } from '../src/main/ipc/index';
 import { asked, forget, handlers } from './fake-electron';
 import { PIXEL } from './library';
 import { writeZip } from './zipfixture';
+import { UsageStore } from '../src/main/usage';
 
 async function invoke<K extends InvokeChannel>(channel: K, ...args: Parameters<Invokes[K]>): Promise<Wire<Awaited<ReturnType<Invokes[K]>>>> {
   const fn = handlers.get(channel);
@@ -91,6 +92,7 @@ beforeAll(async () => {
     windows: () => [],
     settings,
     library,
+    usage: new UsageStore(),
     projects: new ProjectService(dataDir, jobs),
     activity: new Activity(dataDir, () => 'packs-library', nothing),
     jobs,

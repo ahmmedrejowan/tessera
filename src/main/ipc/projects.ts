@@ -9,10 +9,10 @@ import { join } from 'node:path';
 import { handle } from '../ipc';
 import type { IpcContext } from './context';
 
-type Deps = Pick<IpcContext, 'activity' | 'copySource' | 'libraryId' | 'libraryNameOf' | 'projects' | 'projectsChanged' | 'settings' | 'windows'>;
+type Deps = Pick<IpcContext, 'activity' | 'copySource' | 'libraryId' | 'libraryNameOf' | 'projects' | 'projectsChanged' | 'settings' | 'usage' | 'windows'>;
 
 export function registerProjectIpc(c: Deps): void {
-  const { activity, copySource, libraryId, libraryNameOf, projects, projectsChanged, settings, windows } = c;
+  const { activity, copySource, libraryId, libraryNameOf, projects, projectsChanged, settings, usage, windows } = c;
   handle('projects:list', () => projects.list(libraryId(), libraryNameOf));
   handle('projects:choose', async () => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
@@ -41,6 +41,8 @@ export function registerProjectIpc(c: Deps): void {
   handle('projects:plan', (id, items) => projects.plan(id, items, copySource()));
   handle('projects:copy', async (id, items) => {
     const n = await projects.copy(id, items, copySource());
+    // Putting a pack in a game is the strongest sign that it matters to someone.
+    for (const packId of new Set(items.map((i) => i.packId))) usage.record(packId, 'linked');
     projectsChanged();
     const project = await projects.get(id).catch(() => null);
     if (n) activity.add('project', `Copied ${n} asset${n === 1 ? '' : 's'} to ${project?.name ?? 'a project'}`);

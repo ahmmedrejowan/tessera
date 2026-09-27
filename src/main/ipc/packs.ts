@@ -12,7 +12,7 @@ import { UserError, handle } from '../ipc';
 import { log } from '../log';
 import type { IpcContext } from './context';
 
-type Deps = Pick<IpcContext, 'activity' | 'copySource' | 'library' | 'libraryId' | 'projects' | 'recordPage' | 'windows'>;
+type Deps = Pick<IpcContext, 'activity' | 'copySource' | 'library' | 'libraryId' | 'projects' | 'recordPage' | 'usage' | 'windows'>;
 
 /**
  * Where a file of a pack actually is. Every ref the window sends comes from the index, so it is
@@ -27,7 +27,7 @@ function withinPack(dir: string, rel: string): string {
 }
 
 export function registerPackIpc(c: Deps): void {
-  const { activity, copySource, library, libraryId, projects, recordPage, windows } = c;
+  const { activity, copySource, library, libraryId, projects, recordPage, usage, windows } = c;
   handle('browse:assets', (q, sort, offset, limit) => library.require().queries.assets(q, sort, offset, Math.min(limit, 1000)));
   handle('browse:packs', (q, sort, offset, limit) => library.require().queries.packs(q, sort, offset, Math.min(limit, 1000)));
   handle('browse:facets', (q, mode) => library.require().queries.facets(q, mode));
@@ -35,6 +35,13 @@ export function registerPackIpc(c: Deps): void {
   handle('browse:sum', (mode, ids) => library.require().queries.sum(mode, ids));
 
   handle('pack:get', (id) => library.require().queries.pack(id));
+  handle('usage:record', (packId, kind) => usage.record(packId, kind));
+  handle('usage:top', (limit = 12) =>
+    usage
+      .ranked()
+      .slice(0, limit)
+      .map((r) => ({ packId: r.packId, score: Math.round(r.score * 10) / 10, ...r.use })),
+  );
   handle('pack:files', (id) => library.require().queries.packFiles(id));
   handle('pack:edit', async (id, edit) => {
     await library.editPack(id, edit);

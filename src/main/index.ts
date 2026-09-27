@@ -5,7 +5,7 @@ import { release, tmpdir } from 'node:os';
 import { readdir, readFile, rm, stat } from 'node:fs/promises';
 import { basename, join, sep } from 'node:path';
 import type { DownloadItem, LibrarySummary, Platform, Settings } from '@shared/types';
-import { byRecent, patchRecord, recordOf, touchLibrary } from './libraries';
+import { byRecent, libraryDataDir, patchRecord, recordOf, touchLibrary } from './libraries';
 import { broadcast, onInternalError, UserError } from './ipc';
 import { registerIpc, type IpcContext } from './ipc/index';
 import { parseRef } from './index/files';
@@ -37,6 +37,7 @@ import { packFileUrl } from '@shared/urls';
 import { ProjectService } from './projects/service';
 import type { CopySource } from './projects/copy';
 import { SettingsStore } from './settings';
+import { UsageStore } from './usage';
 import { RenderWindow } from './thumbs/renderWindow';
 import { ThumbService } from './thumbs/service';
 import { Activity } from './activity';
@@ -117,6 +118,7 @@ onInternalError((channel, e) => {
   const err = e instanceof Error ? e : new Error(String(e));
   reports.record({ source: 'main', kind: 'ipc', name: err.name, message: err.message, ...(err.stack ? { stack: err.stack } : {}), context: { channel } });
 });
+const usage = new UsageStore();
 const jobs = new Jobs((list) => broadcast(windows, 'jobs:changed', list));
 let activityVersion = 0;
 const activity = new Activity(
@@ -151,6 +153,8 @@ const library = new LibraryService({
   binKeepDays: () => settings.get().binKeepDays,
   onState: (state) => {
     broadcast(windows, 'library:changed', state);
+    if (state.status === 'ready') void usage.open(libraryDataDir(dataDir, state.library.id)).catch((e: unknown) => log.warn('usage', 'could not read how packs are used', e));
+    else void usage.close();
     if (state.status === 'ready') {
       // Note the library (name, folder, when) before anything reads its settings.
       void touchLibrary(settings, dataDir, state.library)
@@ -486,6 +490,7 @@ function context(): IpcContext {
     windows,
     settings,
     library,
+    usage,
     projects,
     downloads,
     thumbs,

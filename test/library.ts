@@ -10,6 +10,7 @@ import { Jobs } from '../src/main/jobs';
 import { LibraryService } from '../src/main/libraryService';
 import { ProjectService } from '../src/main/projects/service';
 import { tempDir } from './helpers';
+import { UsageStore } from '../src/main/usage';
 
 export interface Running {
   /** The library's folder. */

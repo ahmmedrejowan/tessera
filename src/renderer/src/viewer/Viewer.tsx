@@ -147,6 +147,10 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
   const surface = useRef<HTMLDivElement>(null);
   const [infoOpen, setInfoOpen] = useState(() => { try { return localStorage.getItem('tessera.viewer.info') !== '0'; } catch { return true; } });
   const [fileId, setFileId] = useState(asset.id);
+  // Looking at a file counts for its pack: a better sign of use than merely opening a page.
+  useEffect(() => {
+    if (asset.packId) void call('usage:record', asset.packId, 'viewed').catch(() => undefined);
+  }, [asset.packId]);
   const [command, setCommand] = useState<{ kind: 'fit' | 'actual'; n: number }>();
   const [imageInfo, setImageInfo] = useState<ImageInfo | null>(null);
   const [audioInfo, setAudioInfo] = useState<AudioInfo | null>(null);
