@@ -29,7 +29,16 @@ function withinPack(dir: string, rel: string): string {
 export function registerPackIpc(c: Deps): void {
   const { activity, copySource, library, libraryId, projects, recordPage, usage, windows } = c;
   handle('browse:assets', (q, sort, offset, limit) => library.require().queries.assets(q, sort, offset, Math.min(limit, 1000)));
-  handle('browse:packs', (q, sort, offset, limit) => library.require().queries.packs(q, sort, offset, Math.min(limit, 1000)));
+  handle('browse:packs', (q, sort, offset, limit) => {
+    const queries = library.require().queries;
+    if (sort !== 'used') return queries.packs(q, sort, offset, Math.min(limit, 1000));
+    // Which packs someone reaches for is kept outside the index, so the ordering happens here.
+    // Packs are in the hundreds, not the hundred thousands, so reading them all is cheap.
+    const all = queries.packs(q, 'name', 0, 1000);
+    const score = new Map(usage.ranked().map((r) => [r.packId, r.score]));
+    const rows = [...all.rows].sort((a, b) => (score.get(b.id) ?? 0) - (score.get(a.id) ?? 0) || a.name.localeCompare(b.name));
+    return { ...all, rows: rows.slice(offset, offset + Math.min(limit, 1000)) };
+  });
   handle('browse:facets', (q, mode) => library.require().queries.facets(q, mode));
   handle('browse:allIds', (q, mode) => library.require().queries.allIds(q, mode));
   handle('browse:sum', (mode, ids) => library.require().queries.sum(mode, ids));

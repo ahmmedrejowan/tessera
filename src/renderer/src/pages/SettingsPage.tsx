@@ -3,13 +3,15 @@ import Check from '@mui/icons-material/Check';
 import TuneRounded from '@mui/icons-material/TuneRounded';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AfterDownload, ReportConsent, ThemeMode } from '@shared/types';
 import { call } from '../api';
-import { formatBytes } from '../components/labels';
+import { formatBytes, formatCount } from '../components/labels';
 import { SegmentedButton } from '../components/SegmentedButton';
 import { failed, notify } from '../notices/store';
 import { useReportProblem } from '../reports/ReportProblem';
@@ -100,6 +102,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
   const library = useLibraryState().data;
   const client = useQueryClient();
   const thumbs = useQuery({ queryKey: ['thumbs-size'], queryFn: () => call('thumbs:size') });
+  const cost = useQuery({ queryKey: ['thumbs-cost'], queryFn: () => call('thumbs:cost') });
   const reports = useQuery({ queryKey: ['reports-status'], queryFn: () => call('reports:status'), staleTime: 0 }).data;
   const [busy, setBusy] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
@@ -189,7 +192,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                     {busy === 'reindex' ? 'Reading…' : 'Read again'}
                   </Button>
                 </Row>
-                <Row title="Thumbnails" body={`${formatBytes(thumbs.data ?? 0)} of pictures, drawn from the packs. Clearing them frees the space; they’re drawn again as you browse.`}>
+                <Row title="Previews" body={<PreviewCost cost={cost.data} />}>
                   <Button
                     disabled={busy === 'thumbs'}
                     onClick={() =>
@@ -198,13 +201,55 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                         async () => {
                           await call('thumbs:clear');
                           await client.invalidateQueries({ queryKey: ['thumbs-size'] });
+                          await client.invalidateQueries({ queryKey: ['thumbs-cost'] });
                         },
-                        'Thumbnails cleared.',
+                        'Previews cleared.',
                       )
                     }
                   >
                     Clear
                   </Button>
+                </Row>
+                {!!cost.data?.failed && (
+                  <Row title="Previews that would not draw" body={`${formatCount(cost.data.failed)} file${cost.data.failed === 1 ? '' : 's'} could not be drawn and are not tried again. Clearing the markers makes Tessera try once more.`}>
+                    <Button
+                      disabled={busy === 'failed'}
+                      onClick={() =>
+                        void run(
+                          'failed',
+                          async () => {
+                            await call('thumbs:clearSome', { failedOnly: true });
+                            await client.invalidateQueries({ queryKey: ['thumbs-cost'] });
+                          },
+                          'They will be tried again.',
+                        )
+                      }
+                    >
+                      Try again
+                    </Button>
+                  </Row>
+                )}
+                <Row
+                  title="Keep previews under"
+                  body={
+                    settings.previewCapMB
+                      ? 'When they pass this, the ones for the packs you reach for least go first, then whatever was drawn longest ago. They are drawn again if you go back.'
+                      : 'No limit: previews are kept for everything you have browsed.'
+                  }
+                >
+                  <Select
+                    size="small"
+                    value={settings.previewCapMB}
+                    onChange={(e) => update.mutate({ previewCapMB: Number(e.target.value) })}
+                    sx={{ minWidth: 160 }}
+                  >
+                    <MenuItem value={0}>No limit</MenuItem>
+                    <MenuItem value={256}>256 MB</MenuItem>
+                    <MenuItem value={512}>512 MB</MenuItem>
+                    <MenuItem value={1024}>1 GB</MenuItem>
+                    <MenuItem value={2048}>2 GB</MenuItem>
+                    <MenuItem value={5120}>5 GB</MenuItem>
+                  </Select>
                 </Row>
               </Group>
             </div>
@@ -365,5 +410,19 @@ export function SettingsPage({ section }: { section?: string } = {}) {
       </div>
       {lib && <RenameLibrary open={renaming} name={lib.name} onClose={() => setRenaming(false)} />}
     </Page>
+  );
+}
+
+
+/** What previews cost, said in the terms that let someone do something about it. */
+function PreviewCost({ cost }: { cost: { byKind: Record<string, { bytes: number; count: number }>; bytes: number; count: number } | undefined }) {
+  if (!cost || !cost.count) return <>Nothing drawn yet. Pictures are made as you browse, and can always be made again.</>;
+  const kinds = Object.entries(cost.byKind).sort((a, b) => b[1].bytes - a[1].bytes);
+  const NAME: Record<string, string> = { model: '3D models', image: 'images', hdr: 'HDRIs', audio: 'sounds', font: 'fonts', pixels: 'Blender files' };
+  return (
+    <>
+      {formatBytes(cost.bytes)} across {formatCount(cost.count)} picture{cost.count === 1 ? '' : 's'}, drawn as you browsed. They can always be made again.
+      <span style={{ display: 'block', marginTop: 4 }}>{kinds.map(([k, v]) => `${NAME[k] ?? k} ${formatBytes(v.bytes)}`).join(' · ')}</span>
+    </>
   );
 }

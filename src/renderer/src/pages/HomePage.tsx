@@ -372,6 +372,20 @@ export function HomePage() {
     queryFn: () => call('browse:packs', { scope: 'library', text: '', filters: {} }, 'added', 0, 6),
     enabled: !!lib,
   }).data?.rows;
+  // What this person actually reaches for, which is not the same as what they starred or what
+  // arrived last. Ordered by opening, looking and putting in a game, recent use counting for more.
+  const mostUsed = useQuery({
+    queryKey: ['most-used-packs', lib, version],
+    queryFn: async () => {
+      const top = await call('usage:top', 6);
+      if (!top.length) return [];
+      const rows = (await call('browse:packs', { scope: 'library', text: '', filters: {} }, 'name', 0, 500)).rows;
+      const by = new Map(rows.map((r) => [r.id, r]));
+      return top.flatMap((t) => { const row = by.get(t.packId); return row ? [row] : []; });
+    },
+    enabled: !!lib,
+  }).data ?? [];
+
   // What was starred, first thing: the whole point of a star is that it comes to hand.
   const starredPacks = useQuery({
     queryKey: ['starred-packs', lib, version],
@@ -427,6 +441,18 @@ export function HomePage() {
           <Section title="Recent" action={<SeeAll onClick={() => (useBrowse.getState().setMode('packs'), useBrowse.getState().setPackSort('added'), go({ to: 'browse' }))} />}>
             <Row>
               {recent.map((p) => (
+                <div key={p.id} style={CARD}>
+                  <PackCard pack={p} width={CARD_WIDTH} selected={false} onClick={() => go({ to: 'pack', id: p.id })} onOpen={() => go({ to: 'pack', id: p.id })} onMenu={(anchor, x) => setPackMenu({ anchor, pack: x })} />
+                </div>
+              ))}
+            </Row>
+          </Section>
+        )}
+
+        {mostUsed.length > 2 && (
+          <Section title="Most used" action={<SeeAll onClick={() => (useBrowse.getState().setMode('packs'), useBrowse.getState().setPackSort('used'), go({ to: 'browse' }))} />}>
+            <Row>
+              {mostUsed.map((p) => (
                 <div key={p.id} style={CARD}>
                   <PackCard pack={p} width={CARD_WIDTH} selected={false} onClick={() => go({ to: 'pack', id: p.id })} onOpen={() => go({ to: 'pack', id: p.id })} onMenu={(anchor, x) => setPackMenu({ anchor, pack: x })} />
                 </div>

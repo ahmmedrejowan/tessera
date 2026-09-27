@@ -12,10 +12,10 @@ import { locateLibrary } from '../library/locate';
 import type { IpcContext } from './context';
 import { clearFor, previewCost } from '../thumbs/cache';
 
-type Deps = Pick<IpcContext, 'indexChanged' | 'librariesChanged' | 'library' | 'librarySummaries' | 'openRecord' | 'settings' | 'sync' | 'thumbDir' | 'thumbs'>;
+type Deps = Pick<IpcContext, 'indexChanged' | 'librariesChanged' | 'library' | 'librarySummaries' | 'openRecord' | 'settings' | 'sync' | 'thumbDir' | 'thumbs' | 'usage'>;
 
 export function registerLibraryIpc(c: Deps): void {
-  const { indexChanged, librariesChanged, library, librarySummaries, openRecord, settings, sync, thumbDir, thumbs } = c;
+  const { indexChanged, librariesChanged, library, librarySummaries, openRecord, settings, sync, thumbDir, thumbs, usage } = c;
   handle('library:locate', (path) => locateLibrary(path));
   handle('library:state', () => library.getState());
   handle('library:inspect', (path) => library.inspect(path));
@@ -70,6 +70,14 @@ export function registerLibraryIpc(c: Deps): void {
     thumbs.reset();
     indexChanged();
     return n;
+  });
+  handle('thumbs:forPack', (packId) => usage.previewsOn(packId));
+  handle('thumbs:setForPack', async (packId, on) => {
+    usage.setPreviews(packId, on);
+    // Turning them off frees what this pack was using at once, rather than waiting for the cap.
+    if (!on) await clearFor(thumbDir(), { packs: [packId] });
+    thumbs.reset();
+    indexChanged();
   });
   handle('thumbs:get', (keys) => thumbs.get(keys.slice(0, 500)));
 

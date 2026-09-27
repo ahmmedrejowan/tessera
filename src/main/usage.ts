@@ -25,7 +25,19 @@ export interface PackUse {
   lastAt: string;
 }
 
-type Store = Record<string, PackUse>;
+interface File {
+  uses: Record<string, PackUse>;
+  /** Packs whose previews are not wanted: nothing is drawn for them, and tiles show an icon. */
+  previewsOff: string[];
+}
+
+/** The first version of this file was the uses alone. Read either shape. */
+function readFile(raw: unknown): File {
+  if (!raw || typeof raw !== 'object') return { uses: {}, previewsOff: [] };
+  const o = raw as Partial<File> & Record<string, unknown>;
+  if (o.uses && typeof o.uses === 'object') return { uses: o.uses as File['uses'], previewsOff: Array.isArray(o.previewsOff) ? o.previewsOff : [] };
+  return { uses: raw as File['uses'], previewsOff: [] };
+}
 
 const empty = (): PackUse => ({ opened: 0, viewed: 0, linked: 0, lastAt: new Date(0).toISOString() });
 
@@ -39,7 +51,8 @@ export function scoreOf(use: PackUse, now = Date.now()): number {
 }
 
 export class UsageStore {
-  private uses: Store = {};
+  private uses: File['uses'] = {};
+  private off = new Set<string>();
   private file = '';
   private writing: Promise<void> = Promise.resolve();
   private timer: NodeJS.Timeout | null = null;
@@ -48,8 +61,9 @@ export class UsageStore {
   async open(libraryDir: string): Promise<void> {
     await this.flush();
     this.file = join(libraryDir, 'usage.json');
-    const raw = await readJson(this.file).catch(() => null);
-    this.uses = raw && typeof raw === 'object' ? (raw as Store) : {};
+    const read = readFile(await readJson(this.file).catch(() => null));
+    this.uses = read.uses;
+    this.off = new Set(read.previewsOff);
   }
 
   /** Write what is pending and let go. Awaited by anything that needs the file on disk now. */
@@ -57,6 +71,7 @@ export class UsageStore {
     await this.flush();
     this.file = '';
     this.uses = {};
+    this.off.clear();
   }
 
   /** Write anything waiting, and wait for it. */
@@ -97,8 +112,28 @@ export class UsageStore {
   /** Packs are forgotten with their pack, so the file does not grow for ever. */
   forget(packIds: string[]): void {
     let went = false;
-    for (const id of packIds) if (this.uses[id]) { delete this.uses[id]; went = true; }
+    for (const id of packIds) {
+      if (this.uses[id]) { delete this.uses[id]; went = true; }
+      if (this.off.delete(id)) went = true;
+    }
     if (went) this.later();
+  }
+
+  /** Whether previews are wanted for a pack. On unless someone said otherwise. */
+  previewsOn(packId: string): boolean {
+    return !this.off.has(packId);
+  }
+
+  setPreviews(packId: string, on: boolean): void {
+    if (!this.file) return;
+    if (on) this.off.delete(packId);
+    else this.off.add(packId);
+    this.later();
+  }
+
+  /** Every pack whose previews are turned off. */
+  previewsOffList(): string[] {
+    return [...this.off];
   }
 
   private later(): void {
@@ -112,7 +147,7 @@ export class UsageStore {
   private flushNow(): void {
     if (!this.file) return;
     const file = this.file;
-    const data = { ...this.uses };
+    const data: File = { uses: { ...this.uses }, previewsOff: [...this.off] };
     this.writing = this.writing.then(() => writeJson(file, data)).catch((e: unknown) => log.warn('usage', 'could not save how packs are used', e));
   }
 }

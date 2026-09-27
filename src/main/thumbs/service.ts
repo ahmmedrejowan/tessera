@@ -74,6 +74,8 @@ export interface ThumbDeps {
   tidy?: () => Promise<void>;
   /** A picture found inside the file itself, for kinds that carry one (.blend does). */
   pixelsIn?: (packId: string, ref: string) => Promise<{ width: number; height: number; rgba: Buffer } | null>;
+  /** Whether previews are wanted for a pack at all. Nothing is drawn for one turned off. */
+  wanted?: (packId: string) => boolean;
 }
 
 /**
@@ -115,6 +117,11 @@ export class ThumbService {
       const how = plan(a);
       if (how === 'direct' || how === 'none') {
         out[key] = how;
+        continue;
+      }
+      // Turned off for this pack: the tile shows what kind of thing it is and nothing is drawn.
+      if (this.d.wanted && !this.d.wanted(a.packId)) {
+        out[key] = 'none';
         continue;
       }
       const name = thumbName(a, how);

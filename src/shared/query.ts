@@ -23,7 +23,7 @@ export type Scope = 'library' | 'inbox' | 'all';
 
 /** `relevance` puts whole-word matches of the search first; without search text it sorts by name. */
 export type AssetSort = 'relevance' | 'name' | 'added' | 'size' | 'pack' | 'type';
-export type PackSort = 'name' | 'added' | 'size' | 'count';
+export type PackSort = 'name' | 'added' | 'size' | 'count' | 'used';
 
 export interface BrowseQuery {
   scope: Scope;

@@ -68,6 +68,8 @@ const PACK_SORT: Record<PackSort, string> = {
   added: 'p.added_at DESC, p.id',
   size: 'p.size DESC, p.id',
   count: 'p.asset_count DESC, p.id',
+  // How much a pack is used is not in this database: the handler puts them in order after.
+  used: 'p.name COLLATE NOCASE',
 };
 
 const FACET_LIMIT = 300;

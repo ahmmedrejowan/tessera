@@ -34,6 +34,7 @@ const ASSET_SORTS: { value: AssetSort; label: string }[] = [
 const PACK_SORTS: { value: PackSort; label: string }[] = [
   { value: 'name', label: 'Name' },
   { value: 'added', label: 'Recently added' },
+  { value: 'used', label: 'Most used' },
   { value: 'count', label: 'Most assets' },
   { value: 'size', label: 'Largest' },
 ];

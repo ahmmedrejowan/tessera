@@ -1,5 +1,7 @@
 import AddRounded from '@mui/icons-material/AddRounded';
 import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
+import HideImageOutlined from '@mui/icons-material/HideImageOutlined';
+import ImageOutlined from '@mui/icons-material/ImageOutlined';
 import ArrowBack from '@mui/icons-material/ArrowBack';
 import UnarchiveOutlined from '@mui/icons-material/UnarchiveOutlined';
 import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined';
@@ -126,6 +128,18 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   useEffect(() => {
     void call('usage:record', id, 'opened').catch(() => undefined);
   }, [id]);
+
+  // Previews cost disk, and some packs are never looked at. Turning them off for one frees what
+  // it was using at once.
+  const [previews, setPreviewsState] = useState(true);
+  useEffect(() => {
+    void call('thumbs:forPack', id).then(setPreviewsState).catch(() => undefined);
+  }, [id]);
+  const setPreviews = async (on: boolean) => {
+    setPreviewsState(on);
+    await call('thumbs:setForPack', id, on).catch(() => undefined);
+    notify.success(on ? 'Previews will be made for this pack.' : 'Previews for this pack are off, and the ones it had are gone.');
+  };
   const [sort, setSort] = useState<PackSort>('folder');
   const [viewing, setViewing] = useState<{ list: AssetRow[]; index: number } | null>(null);
 
@@ -298,6 +312,12 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
           { label: 'Add files', icon: AddRounded, onClick: () => void addToThisPack(id) },
           { label: 'Edit details', icon: EditOutlined, manage: true, onClick: () => setEditing(true) },
           { label: pack.meta.archived ? 'Bring it back' : 'Archive', icon: pack.meta.archived ? UnarchiveOutlined : ArchiveOutlined, manage: true, onClick: () => void archivePack(id, !pack.meta.archived) },
+          {
+            label: previews ? 'Stop making previews' : 'Make previews',
+            icon: previews ? HideImageOutlined : ImageOutlined,
+            manage: true,
+            onClick: () => void setPreviews(!previews),
+          },
           {
             label: 'Delete',
             icon: DeleteOutlined,

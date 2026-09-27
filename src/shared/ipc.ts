@@ -61,6 +61,9 @@ export interface Invokes {
   };
   /** Throw away the previews for these packs, or only the ones that failed to draw. */
   'thumbs:clearSome': (opts: { packs?: string[]; failedOnly?: boolean }) => number;
+  /** Whether previews are drawn for a pack. Turning them off clears the ones it already has. */
+  'thumbs:forPack': (packId: string) => boolean;
+  'thumbs:setForPack': (packId: string, on: boolean) => void;
   /** Show the app's log folder. */
   'app:showLogs': () => void;
   /** Words already used for a pack field, most used first. */

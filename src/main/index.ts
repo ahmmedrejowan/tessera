@@ -184,6 +184,7 @@ let renderWindow: RenderWindow | null = null;
 const thumbs = new ThumbService({
   queries: () => (library.getState().status === 'ready' ? library.require().queries : null),
   thumbDir,
+  wanted: (packId) => usage.previewsOn(packId),
   // A .blend is not read as a model: Blender already saved a picture of it inside the file.
   pixelsIn: async (packId, ref) => {
     const dir = packDirOf(packId);
