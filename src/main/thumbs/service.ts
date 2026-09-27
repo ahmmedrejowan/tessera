@@ -140,10 +140,12 @@ export class ThumbService {
   private async run(q: Queued): Promise<void> {
     const dir = this.d.thumbDir();
     if (!dir) return;
-    await mkdir(dir, { recursive: true });
     let state: ThumbState;
     const started = Date.now();
     try {
+      // Inside the try: the caller does not handle a rejection, so a folder that cannot be made
+      // used to raise one of these for every thumbnail the grid asked for.
+      await mkdir(dir, { recursive: true });
       const data = await this.d.render(q.job);
       this.made++;
       this.spent += Date.now() - started;

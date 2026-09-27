@@ -144,6 +144,15 @@ export class LibraryService {
     this.syncing = (async () => {
       const job = this.d.jobs.start('Reading the library');
       try {
+        // A folder that is not there reads as a folder with nothing in it, and the index would
+        // take that at its word and throw away every pack it knows. An unplugged drive or a
+        // renamed folder is not the same thing as an emptied library, so nothing is touched and
+        // the window is told instead.
+        if (!existsSync(join(lib.root, DIRS.packs))) {
+          job.fail(new Error('The library folder is not there. It may have been moved, or its drive disconnected.'));
+          this.setState({ status: 'error', path: lib.root, code: 'library-gone', message: 'The library folder is not there. It may have been moved, renamed, or its drive disconnected. Nothing has been changed.' });
+          return;
+        }
         const result = await lib.index.sync(lib.root, (done, total, current) => job.update(total ? done / total : null, current));
         if (this.current !== lib) return;
         // Collections may have changed on disk too (edited on another computer and synced).

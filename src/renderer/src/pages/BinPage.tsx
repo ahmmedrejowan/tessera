@@ -12,7 +12,7 @@ import { useState } from 'react';
 import type { BinEntry } from '@shared/types';
 import { call } from '../api';
 import { EmptyState } from '../components/EmptyState';
-import { formatBytes } from '../components/labels';
+import { dateText, formatBytes, timeText } from '../components/labels';
 import { SortButton } from '../components/SortButton';
 import { ask } from '../notices/dialogs';
 import { failed, notify } from '../notices/store';
@@ -32,10 +32,10 @@ export const KEEP = [
 function when(at: string): string {
   const then = new Date(at);
   const days = Math.floor((Date.now() - then.getTime()) / 86_400_000);
-  if (days < 1) return `Today, ${then.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  if (days < 1) return `Today, ${timeText(then)}`;
   if (days === 1) return 'Yesterday';
   if (days < 7) return `${days} days ago`;
-  return then.toLocaleDateString([], { dateStyle: 'medium' });
+  return dateText(then);
 }
 
 function Entry({ entry, onDone }: { entry: BinEntry; onDone: () => void }) {

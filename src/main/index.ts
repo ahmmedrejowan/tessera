@@ -60,7 +60,12 @@ else if (!app.isPackaged) app.setPath('userData', `${app.getPath('userData')}-de
 const dataDir = app.getPath('userData');
 initLog(join(dataDir, 'logs'));
 // Native crashes leave a dump on this computer; nothing is uploaded unless the user agrees later.
-crashReporter.start({ uploadToServer: false, compress: true });
+// Like the log above, this is not worth failing to start over.
+try {
+  crashReporter.start({ uploadToServer: false, compress: true });
+} catch (e) {
+  log.warn('app', 'could not start the crash reporter', e);
+}
 const settings = new SettingsStore(dataDir);
 /** The app's own windows; the hidden render window isn't one of them. */
 const appWindows = new Set<BrowserWindow>();

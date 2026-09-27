@@ -20,7 +20,7 @@ import { assetPath, TYPE_LABELS } from '@shared/assets';
 import { licenceForPath } from '@shared/pack';
 import type { AssetRow } from '@shared/query';
 import { call } from '../api';
-import { displayName, formatBytes, formatCount, sourceName } from '../components/labels';
+import { dateText, displayName, formatBytes, formatCount, sourceName } from '../components/labels';
 import { LicenceChip, licenceSummary } from '../components/LicenceChip';
 import { CollectionIcon } from '../components/icons';
 import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined';
@@ -145,7 +145,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
   const dark = useIsDark();
   const go = useNav((s) => s.go);
   const surface = useRef<HTMLDivElement>(null);
-  const [infoOpen, setInfoOpen] = useState(() => localStorage.getItem('tessera.viewer.info') !== '0');
+  const [infoOpen, setInfoOpen] = useState(() => { try { return localStorage.getItem('tessera.viewer.info') !== '0'; } catch { return true; } });
   const [fileId, setFileId] = useState(asset.id);
   const [command, setCommand] = useState<{ kind: 'fit' | 'actual'; n: number }>();
   const [imageInfo, setImageInfo] = useState<ImageInfo | null>(null);
@@ -472,7 +472,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
                   {pack.genres.length > 0 && <InfoRow label="Genre">{pack.genres.join(', ')}</InfoRow>}
                   {pack.styles.length > 0 && <InfoRow label="Style">{pack.styles.join(', ')}</InfoRow>}
                   {pack.tags.length > 0 && <InfoRow label="Tags">{pack.tags.join(', ')}</InfoRow>}
-                  <InfoRow label="Added">{new Date(pack.addedAt).toLocaleDateString([], { dateStyle: 'medium' })}</InfoRow>
+                  <InfoRow label="Added">{dateText(pack.addedAt)}</InfoRow>
                   {pack.meta.description && <InfoRow label="About">{pack.meta.description}</InfoRow>}
                 </Group>
 

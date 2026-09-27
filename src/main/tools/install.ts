@@ -80,7 +80,7 @@ export function expectedHash(sums: string, file: string): string | null {
 /** Where Tessera keeps its own copy of a tool. */
 export const bundledTool = (dataDir: string, tool: ToolName) => join(dataDir, 'tools', tool, process.platform === 'win32' ? `${tool}.exe` : tool);
 
-type Fetch = (url: string, init?: { headers?: Record<string, string> }) => Promise<Response>;
+type Fetch = (url: string, init?: { headers?: Record<string, string>; signal?: AbortSignal }) => Promise<Response>;
 
 export interface InstallProgress {
   stage: 'finding' | 'downloading' | 'checking' | 'unpacking' | 'done';
@@ -131,6 +131,11 @@ async function findFile(dir: string, name: string): Promise<string | null> {
   return null;
 }
 
+/** How long a request may take to answer at all. */
+const ASK = 20_000;
+/** How long a download may say nothing before it counts as dead. */
+const STALL = 60_000;
+
 const TITLE: Record<ToolName, string> = { syncthing: 'Syncthing', kopia: 'Kopia', rclone: 'rclone' };
 
 /** Download, check and unpack a tool into `dataDir/tools/<tool>`; returns its version. */
@@ -139,7 +144,12 @@ export async function installTool(tool: ToolName, dataDir: string, fetcher: Fetc
   const title = TITLE[tool];
   onProgress({ stage: 'finding', received: 0, total: 0 });
   const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'Tessera' };
-  const release = (await (await fetcher(`https://api.github.com/repos/${spec.repo}/releases/latest`, { headers })).json()) as { tag_name?: string; assets?: { name: string; size: number; browser_download_url: string }[] };
+  // Every request here has a limit on it. This is the first-run backup path, and captive wifi or a
+  // company proxy that accepts the connection and then says nothing would otherwise leave the
+  // dialog on "Finding the right build" with no error and nothing to press.
+  const found = await fetcher(`https://api.github.com/repos/${spec.repo}/releases/latest`, { headers, signal: AbortSignal.timeout(ASK) });
+  if (!found.ok) throw new UserError('tool-no-download', `Couldn’t reach ${title}’s downloads (${found.status}). Try again later, or install it yourself.`);
+  const release = (await found.json()) as { tag_name?: string; assets?: { name: string; size: number; browser_download_url: string }[] };
   const version = release.tag_name;
   const name = version ? spec.asset(process.platform, process.arch, version) : null;
   const asset = release.assets?.find((a) => a.name === name);
@@ -147,13 +157,23 @@ export async function installTool(tool: ToolName, dataDir: string, fetcher: Fetc
   if (!version || !name) throw new UserError('tool-unsupported', `There’s no ${title} download for this system. Install it with your package manager instead.`);
   if (!asset || !sums) throw new UserError('tool-no-download', `Couldn’t find ${title}’s download. Try again later, or install it yourself.`);
 
-  const expected = expectedHash(await (await fetcher(sums.browser_download_url, { headers })).text(), name);
+  const sumsRes = await fetcher(sums.browser_download_url, { headers, signal: AbortSignal.timeout(ASK) });
+  if (!sumsRes.ok) throw new UserError('tool-no-checksum', `${title}’s download couldn’t be checked, so it wasn’t used.`);
+  const expected = expectedHash(await sumsRes.text(), name);
   if (!expected) throw new UserError('tool-no-checksum', `${title}’s download couldn’t be checked, so it wasn’t used.`);
 
   const work = await mkdtemp(join(tmpdir(), `tessera-${tool}-`));
   try {
     const archive = join(work, name);
-    const res = await fetcher(asset.browser_download_url, { headers: { 'User-Agent': 'Tessera' } });
+    const stop = new AbortController();
+    let stall: NodeJS.Timeout | undefined;
+    const patience = () => {
+      clearTimeout(stall);
+      stall = setTimeout(() => stop.abort(new Error('The download stopped part way through.')), STALL);
+    };
+    patience();
+    try {
+    const res = await fetcher(asset.browser_download_url, { headers: { 'User-Agent': 'Tessera' }, signal: stop.signal });
     if (!res.ok || !res.body) throw new UserError('tool-download-failed', `The download failed (${res.status}). Check the connection and try again.`);
     const hash = createHash('sha256');
     const out = createWriteStream(archive);
@@ -162,6 +182,7 @@ export async function installTool(tool: ToolName, dataDir: string, fetcher: Fetc
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+      patience();
       hash.update(value);
       received += value.byteLength;
       if (!out.write(value)) await new Promise<void>((r) => out.once('drain', () => r()));
@@ -194,6 +215,9 @@ export async function installTool(tool: ToolName, dataDir: string, fetcher: Fetc
     await writeFile(join(target, '..', 'VERSION'), version);
     onProgress({ stage: 'done', received, total: asset.size, version });
     return version;
+    } finally {
+      clearTimeout(stall);
+    }
   } finally {
     await rm(work, { recursive: true, force: true });
   }

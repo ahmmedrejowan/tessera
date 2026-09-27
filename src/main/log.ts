@@ -8,7 +8,15 @@ let file: string | null = null;
 
 /** Start writing to <dir>/main.log as well as the console. The previous log is kept as main.old.log. */
 export function initLog(dir: string): void {
-  mkdirSync(dir, { recursive: true });
+  // This runs before there is a window, a dialog or a handler for an uncaught throw, so a home
+  // folder that cannot be written would mean double-clicking the app and nothing happening at
+  // all. Without a file the console is enough.
+  try {
+    mkdirSync(dir, { recursive: true });
+  } catch {
+    file = null;
+    return;
+  }
   file = join(dir, 'main.log');
   try {
     if (statSync(file).size > MAX_BYTES) renameSync(file, join(dir, 'main.old.log'));

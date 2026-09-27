@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
@@ -6,7 +7,7 @@ import { assetPath, baseName, classify, extOf, kindOf, pathWords, preference, va
 import { licenceInfo } from '@shared/licences';
 import { licenceForPath, type PackMeta } from '@shared/pack';
 import { sourceInfo } from '@shared/sources';
-import { PACK_DIRS } from '../library/layout';
+import { DIRS, PACK_DIRS } from '../library/layout';
 import { listPacks, type PackProblem, type PackRecord } from '../library/packs';
 import { openIndexDb, transaction } from './db';
 import { displayPath, listPackFiles, type PackFile } from './files';
@@ -140,6 +141,13 @@ export class LibraryIndex {
       if (await this.syncPack(pack, known.get(pack.meta.id))) changed++;
     }
     const removed = [...known.keys()].filter((id) => !seen.has(id));
+    // A pack is only forgotten when the folder it should be in was actually readable. Checked here
+    // rather than only up front, because a drive can go away part way through the walk above, and
+    // an unreadable folder looks exactly like an empty one from here.
+    if (removed.length && !existsSync(join(root, DIRS.packs))) {
+      problems.push({ folder: '', message: 'the library folder could not be read, so nothing was taken out of the index. Reconnect it and try again.' });
+      return { packs: packs.length, changed, removed: 0, problems };
+    }
     if (removed.length) transaction(this.db, () => removed.forEach((id) => this.removePack(id)));
     onProgress?.(packs.length, packs.length, '');
     return { packs: packs.length, changed, removed: removed.length, problems };

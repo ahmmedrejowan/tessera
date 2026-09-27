@@ -99,7 +99,8 @@ describe('taking a folder as a game', () => {
     // None of these can do anything about a folder that is not there, and none of them may throw.
     await projects.packChanged(libraryId, pack.id, { packName: 'Renamed', licence: 'CC0-1.0', attribution: null, creator: null, sourceUrl: null });
     expect(await projects.usage(libraryId, [pack.id])).toEqual([]);
-    expect(await projects.keepLicences(libraryId, [pack.id], app.context().copySource())).toBe(0);
+    // A folder that is not there is skipped, so nothing is written and nothing is blamed.
+    expect(await projects.keepLicences(libraryId, [pack.id], app.context().copySource())).toEqual({ done: 0, failed: [] });
   });
 
   it('refuses clearly over a game it has never heard of', async () => {

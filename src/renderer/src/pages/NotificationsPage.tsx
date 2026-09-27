@@ -12,17 +12,18 @@ import { isArchived, useNotices, type Notice } from '../notices/store';
 import { SegmentedButton } from '../components/SegmentedButton';
 import { md, SHAPE } from '../theme';
 import { Page } from './Placeholder';
+import { dateText, timeText } from '../components/labels';
 
 /** When it arrived, in words: the time today, the day this week, the date before that. */
 function when(at: number): string {
   const now = new Date();
   const then = new Date(at);
   const sameDay = then.toDateString() === now.toDateString();
-  if (sameDay) return then.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (sameDay) return timeText(then);
   const days = Math.round((new Date(now.toDateString()).getTime() - new Date(then.toDateString()).getTime()) / 86_400_000);
-  if (days === 1) return `Yesterday, ${then.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  if (days < 7) return then.toLocaleDateString([], { weekday: 'long' });
-  return then.toLocaleDateString([], { dateStyle: 'medium' });
+  if (days === 1) return `Yesterday, ${timeText(then)}`;
+  if (days < 7) return dateText(then, { weekday: 'long' });
+  return dateText(then);
 }
 
 function Row({ n }: { n: Notice }) {

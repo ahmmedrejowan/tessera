@@ -5,7 +5,7 @@
  * afterwards, and what is actually on disk. The two have to agree, because the folder is the truth
  * and the index is only a way of asking it questions quickly.
  */
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -16,16 +16,18 @@ import { LibraryService } from '../src/main/libraryService';
 import { tempDir } from './helpers';
 import { PIXEL } from './library';
 import { writeZip } from './zipfixture';
+import type { LibraryState } from '../src/shared/types';
 
 /** A library with one pack already in it, opened and read. */
 async function opened(packs: Record<string, Record<string, string | Buffer>> = { 'Mini Arcade': { 'Models/arcade.obj': 'o arcade\n' } }) {
   const dataDir = tempDir();
   const root = join(tempDir(), 'Library');
   const changes: number[] = [];
+  const states: LibraryState[] = [];
   const library = new LibraryService({
     dataDir,
     jobs: new Jobs(() => undefined),
-    onState: () => undefined,
+    onState: (s) => void states.push(s),
     onIndexChanged: () => void changes.push(1),
     siteRules: () => [],
     binKeepDays: () => 30,
@@ -57,7 +59,7 @@ async function opened(packs: Record<string, Record<string, string | Buffer>> = {
   }
   await library.sync();
   await library.sync();
-  return { library, root, dataDir, changes, close: () => library.close() };
+  return { library, root, dataDir, changes, close: () => library.close(), states };
 }
 
 const only = (library: LibraryService) => library.require().queries.packs({ scope: 'all', text: '', filters: {} }, 'added', 0, 10).rows[0]!;
@@ -226,6 +228,26 @@ describe('the bin', () => {
     const waiting = await library.bin();
     await library.restoreFromBin(waiting[0]!.id);
     expect(existsSync(join(root, 'packs', 'Mini Arcade', 'original', 'Models', 'arcade.obj'))).toBe(true);
+    close();
+  });
+
+  it('does not empty the index when the library folder goes away', async () => {
+    const { library, root, close, states } = await opened();
+    // Held onto, because once the library reads as gone the service will not hand it out again.
+    const queries = library.require().queries;
+    const before = queries.stats().packs;
+    expect(before).toBeGreaterThan(0);
+
+    // The drive is unplugged, or the folder renamed, while the app is open.
+    renameSync(root, `${root}-unplugged`);
+    await library.sync();
+
+    // A folder that is not there is not an emptied library: nothing is thrown away, and the
+    // window is told which it is. Reading it as "every pack was deleted" cost the whole index.
+    expect(queries.stats().packs).toBe(before);
+    // The service says the folder is gone rather than pretending the library emptied itself.
+    expect(states.at(-1)?.status).toBe('error');
+    renameSync(`${root}-unplugged`, root);
     close();
   });
 

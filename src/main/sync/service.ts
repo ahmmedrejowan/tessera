@@ -18,7 +18,7 @@ import { bundledTool } from '../tools/install';
 export const FOLDER_TYPE: Record<SyncMode, StFolder['type']> = { push: 'sendonly', pull: 'receiveonly', full: 'sendreceive' };
 
 /** Starts Syncthing and says where its API is. Replaced in tests. */
-export type Launcher = (home: string, exe: string) => Promise<{ base: string; key: string; stop: () => void }>;
+export type Launcher = (home: string, exe: string, onExit?: () => void) => Promise<{ base: string; key: string; stop: () => void }>;
 
 const MAC_APP = '/Applications/Syncthing.app/Contents/Resources/syncthing/syncthing';
 
@@ -45,7 +45,7 @@ const freePort = () =>
   });
 
 /** Run Tessera's own Syncthing: its own settings folder, its own identity, API on localhost only. */
-export const launchSyncthing: Launcher = async (home, exe) => {
+export const launchSyncthing: Launcher = async (home, exe, onExit) => {
   await mkdir(home, { recursive: true });
   const env = { ...process.env, STNODEFAULTFOLDER: '1', STNOUPGRADE: '1' };
   if (!existsSync(join(home, 'config.xml'))) {
@@ -58,7 +58,18 @@ export const launchSyncthing: Launcher = async (home, exe) => {
   const port = await freePort();
   const key = randomBytes(24).toString('hex');
   const proc: ChildProcess = spawn(exe, ['serve', `--home=${home}`, '--no-browser', `--gui-address=127.0.0.1:${port}`, `--gui-apikey=${key}`], { env, stdio: 'ignore' });
-  proc.on('exit', (code) => log.info('sync', `Syncthing stopped (${code})`));
+  proc.on('exit', (code) => {
+    log.info('sync', `Syncthing stopped (${code})`);
+    // Whoever started it has to know, or the window goes on saying sync is running against a
+    // process that is not there and nothing ever starts it again.
+    onExit?.();
+  });
+  // Without a listener this is an uncaught exception: the binary deleted between finding it and
+  // running it, or a copy that is not executable.
+  proc.on('error', (e) => {
+    log.warn('sync', 'Syncthing would not start', e);
+    onExit?.();
+  });
   const base = `http://127.0.0.1:${port}`;
   // Wait for the API to answer.
   const api = new SyncthingApi(base, key);
@@ -108,7 +119,11 @@ export class SyncService {
     this.starting ??= (async () => {
       const exe = this.d.launcher ? '' : findSyncthing(this.d.dataDir);
       if (exe === null) throw new UserError('no-syncthing', 'Syncthing isn’t set up on this computer yet.');
-      const { base, key, stop } = await (this.d.launcher ?? launchSyncthing)(this.home, exe);
+      const gone = () => {
+        this.api = null;
+        this.stop = null;
+      };
+      const { base, key, stop } = await (this.d.launcher ?? launchSyncthing)(this.home, exe, gone);
       this.api = new SyncthingApi(base, key);
       this.stop = stop;
       return this.api;

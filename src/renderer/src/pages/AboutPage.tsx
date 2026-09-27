@@ -26,9 +26,10 @@ import { md, SHAPE } from '../theme';
 import { PAGE, Page } from './Placeholder';
 import { Group, Row } from './settings/parts';
 import { SideSections, sectionAnchor, useSectionSpy, type SideSection } from './settings/SideSections';
+import { dateTimeText } from '../components/labels';
 
 const open = (url: string) => void call('app:openExternal', url);
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'never');
+const when = (iso: string | null) => (iso ? dateTimeText(iso) : 'never');
 
 /** A link that opens in the browser, in the app's own colour. */
 function Link({ href, children }: { href: string; children: string }) {

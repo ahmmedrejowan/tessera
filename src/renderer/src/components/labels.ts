@@ -115,3 +115,31 @@ export function timeAgo(iso: string): string {
   if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
   return new Date(iso).toLocaleDateString();
 }
+
+/**
+ * Dates, formatted without trusting them.
+ *
+ * `toLocaleDateString` and friends throw a RangeError when the date is invalid and options are
+ * given, and that throw happens during render, which takes the whole page down. A date that came
+ * out of a hand-edited pack.json, a sync conflict copy or an older version is not worth a broken
+ * page, so an unreadable one shows as a dash.
+ */
+const readable = (at: string | number | Date): Date | null => {
+  const d = at instanceof Date ? at : new Date(at);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+export function dateText(at: string | number | Date, options: Intl.DateTimeFormatOptions = { dateStyle: 'medium' }): string {
+  const d = readable(at);
+  return d ? d.toLocaleDateString([], options) : '—';
+}
+
+export function timeText(at: string | number | Date, options: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' }): string {
+  const d = readable(at);
+  return d ? d.toLocaleTimeString([], options) : '—';
+}
+
+export function dateTimeText(at: string | number | Date, options: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }): string {
+  const d = readable(at);
+  return d ? d.toLocaleString([], options) : '—';
+}

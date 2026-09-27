@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 import { baseName } from '@shared/folders';
 import { call, on } from '../../api';
-import { formatBytes } from '../../components/labels';
+import { dateText, dateTimeText, formatBytes } from '../../components/labels';
 import { StatusSlot } from '../../components/StatusSlot';
 import { failed } from '../../notices/store';
 import { useLibraryState } from '../../state/library';
@@ -29,8 +29,8 @@ const STEPS: { id: Step; title: string }[] = [
   { id: 'done', title: 'Open it' },
 ];
 
-const when = (iso: string) => new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
-const day = (iso: string) => new Date(iso).toLocaleDateString([], { dateStyle: 'medium' });
+const when = (iso: string) => dateTimeText(iso);
+const day = (iso: string) => dateText(iso);
 const parentOf = (path: string) => path.slice(0, path.length - baseName(path).length).replace(/(.)[\\/]+$/, '$1');
 
 /**

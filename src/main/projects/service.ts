@@ -188,17 +188,21 @@ export class ProjectService {
    * Make sure every game using these packs has their licence and proof beside the copied files, so
    * deleting or archiving a pack in the library can never cost a project its record.
    */
-  async keepLicences(libraryId: string, packIds: string[], src: CopySource): Promise<number> {
+  async keepLicences(libraryId: string, packIds: string[], src: CopySource): Promise<{ done: number; failed: string[] }> {
     let done = 0;
+    // Which games could not be given the record. The promise above is the whole point of this
+    // method, so a failure to keep it has to reach the person, not just the log.
+    const failed: string[] = [];
     for (const project of await this.load()) {
       if (!existsSync(project.path)) continue;
       const manifest = await readManifest(project.path, libraryId);
       for (const packId of new Set(packIds)) {
         if (!manifest.entries.some((e) => e.packId === packId && entryLibrary(e, manifest) === libraryId)) continue;
         if (await writePackLicence(project, packId, src).catch(() => false)) done++;
+        else if (!failed.includes(project.name)) failed.push(project.name);
       }
     }
-    return done;
+    return { done, failed };
   }
 
   /** Write the credits file again (after a pack's licence or credit line changed). */

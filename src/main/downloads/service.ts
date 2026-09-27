@@ -353,7 +353,21 @@ export class DownloadService {
       let from = await sizeOf(part);
       const headers: Record<string, string> = { 'User-Agent': UA, Accept: '*/*' };
       if (from) headers.Range = `bytes=${from}-`;
-      const res = await this.d.fetch(found?.url ?? item.url, { headers, signal: stop.signal, redirect: 'follow' });
+      // Armed before the request, not after: a server that accepts the connection and never sends
+      // so much as a header would otherwise hold this, and one of the queue's slots, for ever.
+      let stall: NodeJS.Timeout | undefined;
+      const patience = () => {
+        clearTimeout(stall);
+        stall = setTimeout(() => stop.abort(new Error('The download stopped part way through.')), this.d.stall ?? STALL);
+      };
+      patience();
+      let res: Response;
+      try {
+        res = await this.d.fetch(found?.url ?? item.url, { headers, signal: stop.signal, redirect: 'follow' });
+      } catch (e) {
+        clearTimeout(stall);
+        throw e;
+      }
       if (!res.ok) {
         const message = res.status === 404 ? 'The link doesn’t lead to a file any more (404).' : res.status === 403 ? 'The site wouldn’t hand the file over (403). It may need a sign-in.' : `The site answered ${res.status}.`;
         throw res.status >= 500 || res.status === 429 ? new Error(message) : refuse(message);
@@ -380,15 +394,7 @@ export class DownloadService {
       const reader = res.body.getReader();
       let mark = Date.now();
       let at = from;
-      // A server that keeps the connection open and sends nothing would otherwise sit at 0 B/s for
-      // ever. Treated as a failure, it goes back through the ordinary retry instead.
-      let stall: NodeJS.Timeout | undefined;
-      const patience = () => {
-        clearTimeout(stall);
-        stall = setTimeout(() => stop.abort(new Error('The download stopped part way through.')), this.d.stall ?? STALL);
-      };
       try {
-        patience();
         for (;;) {
           if (broke) throw broke;
           const { done, value } = await reader.read();

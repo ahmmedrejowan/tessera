@@ -15,12 +15,13 @@ import { useNotices, type Notice } from '../notices/store';
 import { useJobs } from '../state/library';
 import { useNav } from '../state/nav';
 import { md, SHAPE } from '../theme';
+import { timeText } from '../components/labels';
 
 const ago = (at: number) => {
   const s = Math.round((Date.now() - at) / 1000);
   if (s < 60) return 'just now';
   if (s < 3600) return `${Math.round(s / 60)} min ago`;
-  return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return timeText(at);
 };
 
 function HistoryItem({ n, onOpen }: { n: Notice; onOpen: () => void }) {

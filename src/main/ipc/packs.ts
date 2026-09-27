@@ -61,11 +61,11 @@ export function registerPackIpc(c: Deps): void {
     if (status === 'library' && name) activity.add('reviewed', `“${name}” passed Review and is in the library`);
   });
   handle('pack:remove', async (id) => {
-    await projects.keepLicences(libraryId(), [id], copySource()).catch((e: unknown) => log.warn('projects', 'could not write a licence into a game', e));
+    await keepTheRecord(projects, activity, libraryId(), [id], copySource());
     return library.removePack(id);
   });
   handle('assets:remove', async (items) => {
-    await projects.keepLicences(libraryId(), [...new Set(items.map((i) => i.packId))], copySource()).catch((e: unknown) => log.warn('projects', 'could not write a licence into a game', e));
+    await keepTheRecord(projects, activity, libraryId(), [...new Set(items.map((i) => i.packId))], copySource());
     return library.removeFiles(items);
   });
   handle('bin:list', () => library.bin());
@@ -121,8 +121,23 @@ export function registerPackIpc(c: Deps): void {
   handle('favourites:assets', (items, on) => library.favouriteAssets(items, on));
   handle('favourites:pack', (id, on) => library.favouritePack(id, on));
   handle('pack:archive', async (id, on) => {
-    if (on) await projects.keepLicences(libraryId(), [id], copySource()).catch((e: unknown) => log.warn('projects', 'could not write a licence into a game', e));
+    if (on) await keepTheRecord(projects, activity, libraryId(), [id], copySource());
     return library.archivePack(id, on);
   });
 
+}
+
+/**
+ * Every game that uses these packs keeps the licence beside the files. Any game that would not
+ * take it is named in the activity log, because the pack is about to leave the library and the
+ * record is the thing that must not be lost quietly.
+ */
+async function keepTheRecord(projects: Deps['projects'], activity: Deps['activity'], libraryId: string, packIds: string[], src: ReturnType<Deps['copySource']>): Promise<void> {
+  try {
+    const { failed } = await projects.keepLicences(libraryId, packIds, src);
+    if (failed.length) activity.add('project', `Could not write the licence into ${failed.join(', ')}. The record there is out of date.`);
+  } catch (e) {
+    log.warn('projects', 'could not write a licence into a game', e);
+    activity.add('project', 'Could not write the licence into the games using this pack. The record there is out of date.');
+  }
 }

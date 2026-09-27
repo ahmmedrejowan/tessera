@@ -69,7 +69,10 @@ export function AudioView({ url, onInfo }: { url: string; onInfo?: (i: AudioInfo
     const h = c.clientHeight;
     c.width = w * dpr;
     c.height = h * dpr;
-    const g = c.getContext('2d')!;
+    // As with the model view's WebGL context: a machine that cannot give us a canvas loses the
+    // waveform, not the page.
+    const g = c.getContext('2d');
+    if (!g) return;
     g.scale(dpr, dpr);
     const styles = getComputedStyle(document.documentElement);
     const played = styles.getPropertyValue('--md-primary');

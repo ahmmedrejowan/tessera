@@ -20,7 +20,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { FoundBackup, RestoreSource } from '@shared/types';
 import { baseName } from '@shared/folders';
 import { call, on } from '../../api';
-import { formatBytes } from '../../components/labels';
+import { dateTimeText, formatBytes } from '../../components/labels';
 import { StatusSlot, type SlotMessage } from '../../components/StatusSlot';
 import { failed, notify } from '../../notices/store';
 import { md, mdAlpha, SHAPE } from '../../theme';
@@ -113,7 +113,7 @@ export function Choice({ icon, title, sub, selected, onClick, trailing }: { icon
 }
 
 const PLACE_ICON = { cloud: <CloudOutlined />, drive: <UsbRounded />, folder: <FolderRounded /> };
-const when = (iso: string) => new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+const when = (iso: string) => dateTimeText(iso);
 
 /**
  * Start again from a backup, on a new computer or after losing the library: get Kopia, find the
