@@ -52,6 +52,7 @@ import { DownloadService, linksInFiles } from './downloads/service';
 import { linksIn } from '@shared/links';
 import { defaultSize, loadWindowState, trackWindowState } from './windowState';
 import { evictOver } from './thumbs/cache';
+import { readBlendThumbnail } from './thumbs/blend';
 
 const platform = (['darwin', 'win32'].includes(process.platform) ? process.platform : 'linux') as Platform;
 
@@ -183,6 +184,15 @@ let renderWindow: RenderWindow | null = null;
 const thumbs = new ThumbService({
   queries: () => (library.getState().status === 'ready' ? library.require().queries : null),
   thumbDir,
+  // A .blend is not read as a model: Blender already saved a picture of it inside the file.
+  pixelsIn: async (packId, ref) => {
+    const dir = packDirOf(packId);
+    if (!dir) return null;
+    const { file, inside } = parseRef(ref);
+    // Only a .blend on disk, not one inside an archive: it would have to be unpacked twice.
+    if (inside.length) return null;
+    return await readBlendThumbnail(join(dir, ...file.split('/'))).catch(() => null);
+  },
   // Previews are worth keeping only while they are wanted. What goes first is whatever belongs to
   // the packs this person reaches for least, then whatever was drawn longest ago.
   tidy: async () => {
@@ -378,6 +388,14 @@ async function recordPage(id: string, what: { snapshot: boolean; archive: boolea
     if (!done.length) throw new Error(problems.join(' · '));
     job.update(1, [done.join(', '), ...problems].join(' · '));
   });
+}
+
+/** Where a pack's files are, or null when no library is open or it does not know the pack. */
+function packDirOf(packId: string): string | null {
+  const state = library.getState();
+  if (state.status !== 'ready') return null;
+  const folder = library.require().index.known(packId)?.folder;
+  return folder ? join(state.library.path, DIRS.packs, folder) : null;
 }
 
 /** What copying into projects reads from the open library. */

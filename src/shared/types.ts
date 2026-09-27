@@ -292,14 +292,16 @@ export type ThumbState = string | 'direct' | 'pending' | 'failed' | 'none';
 /** Work for the render window. */
 export interface RenderJob {
   id: string;
-  /** What to draw: a model, an image (scaled), an HDR/EXR image (tone-mapped), a waveform, a font sample. */
-  kind: 'model' | 'image' | 'hdr' | 'audio' | 'font';
+  /** What to draw: a model, an image (scaled), an HDR/EXR image (tone-mapped), a waveform, a font sample, or pixels already read out of the file. */
+  kind: 'model' | 'image' | 'hdr' | 'audio' | 'font' | 'pixels';
   ext: string;
   url: string;
   /** Longest edge of the result, in pixels. */
   size: number;
   /** For models: every image in the pack by lower-case file name, to find textures an author's paths no longer point at. */
   textures?: Record<string, string>;
+  /** For `pixels`: a picture the main process already found inside the file, as base64 RGBA. */
+  pixels?: { width: number; height: number; data: string };
 }
 
 export interface RenderResult {

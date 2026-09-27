@@ -16,6 +16,8 @@ const DIRECT_MAX = 160 * 1024;
 // SVGs aren't drawn directly: many have no viewBox, so they won't scale in an <img>.
 const DIRECT = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'avif']);
 const MODEL = new Set(['glb', 'gltf', 'fbx', 'obj', 'dae', 'stl', 'ply', '3ds', 'usdz', 'vox']);
+// Blender's own files: not read as models, but they carry a picture of themselves.
+const BLEND = new Set(['blend']);
 const IMAGE = new Set([...DIRECT, 'tga', 'svg', 'tif', 'tiff', 'psd']);
 const HDR = new Set(['hdr', 'exr']);
 const AUDIO = new Set(['ogg', 'wav', 'mp3', 'flac', 'm4a', 'opus', 'aif', 'aiff']);
@@ -26,6 +28,7 @@ type Info = ReturnType<LibraryQueries['thumbInfo']>[number];
 /** What kind of drawing an asset needs, or a state that needs none. */
 export function plan(a: Pick<Info, 'ext' | 'size'>): RenderJob['kind'] | 'direct' | 'none' {
   if (MODEL.has(a.ext)) return 'model';
+  if (BLEND.has(a.ext)) return 'pixels';
   if (DIRECT.has(a.ext) && a.size <= DIRECT_MAX) return 'direct';
   if (IMAGE.has(a.ext)) return 'image';
   if (HDR.has(a.ext)) return 'hdr';
@@ -56,6 +59,8 @@ interface Queued {
   keys: Set<string>;
   /** Higher runs first: the most recent request wins, so what's on screen now comes first. */
   priority: number;
+  /** Set when the picture has to be read out of the file before the window can draw it. */
+  needsPixels?: { packId: string; ref: string };
 }
 
 export interface ThumbDeps {
@@ -67,6 +72,8 @@ export interface ThumbDeps {
   publish: (states: Record<string, ThumbState>) => void;
   /** Bring the folder back under its limit once a batch is drawn. Optional: no limit without it. */
   tidy?: () => Promise<void>;
+  /** A picture found inside the file itself, for kinds that carry one (.blend does). */
+  pixelsIn?: (packId: string, ref: string) => Promise<{ width: number; height: number; rgba: Buffer } | null>;
 }
 
 /**
@@ -130,6 +137,12 @@ export class ThumbService {
       return;
     }
     const job: RenderJob = { id: name, kind, ext: a.ext, url: packFileUrl(a.packId, a.ref), size: SIZE };
+    if (kind === 'pixels') {
+      // The picture is read here, in the main process, because unpacking the file needs Node.
+      job.pixels = undefined;
+      this.queue.set(name, { name, job, keys: new Set([key]), priority, needsPixels: { packId: a.packId, ref: a.ref } });
+      return;
+    }
     if (kind === 'model') {
       const textures: Record<string, string> = {};
       for (const img of queries.packImages(a.packId)) {
@@ -163,6 +176,11 @@ export class ThumbService {
       // Inside the try: the caller does not handle a rejection, so a folder that cannot be made
       // used to raise one of these for every thumbnail the grid asked for.
       await mkdir(dir, { recursive: true });
+      if (q.needsPixels) {
+        const found = await this.d.pixelsIn?.(q.needsPixels.packId, q.needsPixels.ref);
+        if (!found) throw new Error('This file was saved without a preview image.');
+        q.job.pixels = { width: found.width, height: found.height, data: found.rgba.toString('base64') };
+      }
       const data = await this.d.render(q.job);
       this.made++;
       this.spent += Date.now() - started;

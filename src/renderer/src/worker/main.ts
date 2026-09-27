@@ -224,8 +224,19 @@ async function drawFont(job: RenderJob): Promise<Uint8Array> {
   }
 }
 
+/** A picture the main process already found inside a file, such as a .blend's own thumbnail. */
+async function drawPixels(job: RenderJob): Promise<Uint8Array> {
+  const p = job.pixels;
+  if (!p) throw new Error('No picture came with the job.');
+  const bytes = Uint8Array.from(atob(p.data), (c) => c.charCodeAt(0));
+  const canvas = new OffscreenCanvas(p.width, p.height);
+  canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(bytes), p.width, p.height), 0, 0);
+  return encode(canvas, job.size);
+}
+
 const DRAW: Record<RenderJob['kind'], (job: RenderJob) => Promise<Uint8Array>> = {
   model: drawModel,
+  pixels: drawPixels,
   image: drawImage,
   hdr: drawHdr,
   audio: drawAudio,
