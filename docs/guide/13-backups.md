@@ -40,5 +40,6 @@ key file: exactly what the recovery kit holds.
 
 ## What is backed up
 
-The library folder: packs, their originals, their licenses and proof, collections and the library's
-own settings. Not the search index or the thumbnails, which are made again from the packs.
+The library folder: packs, their originals, their licenses and proof, and collections. Not the
+library's own settings, which are kept on this computer, and not the search index or the
+thumbnails, which are made again from the packs.

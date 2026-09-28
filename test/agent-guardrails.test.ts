@@ -98,3 +98,19 @@ describe('settings an agent changes', () => {
     expect(said.stored.binKeepDays).toBe(90);
   });
 });
+
+describe('a pack whose record two computers disagreed about', () => {
+  it('says so, rather than showing the winner in silence', async () => {
+    // Syncthing keeps the losing version beside the winner and nothing read it. A licence
+    // recorded on the other computer could sit in one of those files, unread and unmentioned,
+    // and the game's credits would be written from the version that happened to win.
+    const { app } = await ready();
+    const pack = app.library.require().queries.packs({ scope: 'library', text: '', filters: {} }, 'added', 0, 5).rows[0]!;
+    const folder = app.library.require().root;
+    const dir = join(folder, 'packs', pack.folder);
+    writeFileSync(join(dir, 'pack.sync-conflict-20260929-101500-ABCDEFG.json'), '{"name":"the other computer\'s version"}');
+    await app.library.reindex();
+    const again = app.library.require().queries.pack(pack.id)!;
+    expect(again.problems.join(' ')).toMatch(/sync-conflict/i);
+  });
+});

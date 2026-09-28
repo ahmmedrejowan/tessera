@@ -41,10 +41,13 @@ offers to find the folder again. Nothing is deleted because a drive was away.
 
 - **Drag and drop.** Drop zips, folders or loose files anywhere on the window.
 - **The + button** (`⌘O` / `Ctrl+O`):
-  - *Add downloads*: every zip you choose becomes its own pack; loose files chosen together become
+  - *Choose files…*: every zip you choose becomes its own pack; loose files chosen together become
     one pack.
-  - *Add a folder*: the folder is one pack.
-  - *Add a folder of packs* (`⌘⇧O` / `Ctrl+Shift+O`): every zip and folder inside becomes a pack.
+  - *Choose a folder…*: one pack, or several if the folder turns out to hold a pack in each
+    subfolder. Tessera looks and decides, and tells you which it did before anything is added.
+  - *Download from a link…*: see [Downloads](/docs/downloads).
+- **A folder of packs** (`⌘⇧O` / `Ctrl+Shift+O`, or the button on Home): every zip and folder
+  inside becomes a pack, without Tessera deciding for you.
 - **Downloads**: paste a link and let Tessera fetch it. See [Downloads](/docs/downloads).
 - **An agent**: an assistant on your computer can add packs through the tools you allow. See
   [AI agents](/docs/agents).

@@ -8,7 +8,7 @@ import { licenceInfo } from '@shared/licences';
 import { licenceForPath, type PackMeta } from '@shared/pack';
 import { sourceInfo } from '@shared/sources';
 import { DIRS, PACK_DIRS } from '../library/layout';
-import { filesRootOf, listPacks, walkRootOf, type PackProblem, type PackRecord } from '../library/packs';
+import { conflictsIn, filesRootOf, listPacks, walkRootOf, type PackProblem, type PackRecord } from '../library/packs';
 import { openIndexDb, transaction } from './db';
 import { displayPath, listPackFiles, type PackFile } from './files';
 
@@ -195,7 +195,10 @@ export class LibraryIndex {
     // date and the files it had are left in the index, so unplugging a drive does not empty the
     // library and plugging it back in costs nothing.
     const away = filesSig === null;
-    const filesChanged = !away && known?.filesSig !== filesSig;
+    // A conflicting record sits beside the pack's own, not among its files, so the files
+    // signature never notices it. Checked here so it is not missed until something else changes.
+    const conflicts = away ? [] : await conflictsIn(pack.dir);
+    const filesChanged = !away && (known?.filesSig !== filesSig || conflicts.length > 0);
     // Whether the folder is reachable is checked before anything else can return early: a drive
     // being unplugged changes neither the record nor the files, and is exactly what wants saying.
     const awayChanged = (known?.away ?? false) !== away;
@@ -205,7 +208,12 @@ export class LibraryIndex {
     transaction(this.db, () => {
       if (metaChanged || !known) this.writePackMeta(pack, metaSig);
       this.st.setAway!.run(away ? 1 : 0, pack.meta.id);
-      if (listing) this.writePackFiles(pack.meta.id, filesSig!, listing.files, listing.problems);
+      if (listing) {
+        const said = conflicts.map(
+          (c) => `two computers changed this pack while they were apart, and sync kept the other version as ${c}. What you see is the version that won, so compare them before trusting the licence.`,
+        );
+        this.writePackFiles(pack.meta.id, filesSig!, listing.files, [...said, ...listing.problems]);
+      }
       // Each file carries the licence covering it, so a pack whose parts differ can be browsed by licence.
       this.relicence(pack.meta);
     });

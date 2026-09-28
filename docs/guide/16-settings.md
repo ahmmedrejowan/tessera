@@ -62,9 +62,9 @@ Editing or removing one changes what happens to the next pack from that site.
 
 **Helpers**: the small official programs Tessera fetches when you ask for a feature that needs
 them: Kopia for backups, rclone for cloud storage, Syncthing for sync. Each shows its version and
-where it came from, and can be removed.
+where it came from.
 
 **Privacy and problems**
-- **Error reports**: never, ask each time, or always. Off by default.
+- **Error reports**: never, ask each time, or always. It asks each time until you choose.
 - **Report a problem**: opens an issue with the details already filled in.
 - **Logs**: show the log folder, or open today's log.

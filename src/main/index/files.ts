@@ -1,5 +1,5 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
-import { join, relative, sep } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
 import { UserError } from '../errors';
 import { assetPath, isIgnored } from '@shared/assets';
 import { PACK_DIRS } from '../library/layout';
@@ -20,6 +20,16 @@ export interface PackFile {
 /** Nested archives up to this size are opened to list what's inside; bigger ones are listed as one file. */
 const NESTED_MAX = 256 * 1024 * 1024;
 const MAX_DEPTH = 3;
+/**
+ * The most files one pack may contribute to the index.
+ *
+ * Each nested archive was bounded, and the number of them was not, so a pack of a hundred small
+ * archives each holding millions of empty entries could put hundreds of millions of rows in front
+ * of the main process and take the whole app down with it, on every launch, because listing runs
+ * again each time the library is read. A real pack is thousands of files; the largest anybody has
+ * is tens of thousands. A quarter of a million is far past honest use and far short of harm.
+ */
+const MAX_FILES = 250_000;
 
 /** Split a ref into the file on disk and the chain of names inside archives. */
 export function parseRef(ref: string): { file: string; inside: string[] } {
@@ -60,6 +70,17 @@ export async function listPackFiles(filesRoot: string, walkRoot: string = join(f
   const files: PackFile[] = [];
   const problems: string[] = [];
 
+  /** Said once, however many archives went over. */
+  let tooMany = false;
+  const room = () => {
+    if (files.length < MAX_FILES) return true;
+    if (!tooMany) {
+      tooMany = true;
+      problems.push(`this pack holds more than ${MAX_FILES.toLocaleString('en-GB')} files, so the rest were left out of the index. If that is a surprise, something in it is not what it looks like.`);
+    }
+    return false;
+  };
+
   const expand = async (ref: string, source: string | Buffer, depth: number) => {
     let entries;
     try {
@@ -69,6 +90,7 @@ export async function listPackFiles(filesRoot: string, walkRoot: string = join(f
       return;
     }
     for (const entry of entries) {
+      if (!room()) return;
       const inner = `${ref}!${entry.name}`;
       if (isIgnored(entry.name)) continue;
       files.push({ ref: inner, size: entry.size, mtimeMs: entry.mtimeMs });
@@ -83,6 +105,7 @@ export async function listPackFiles(filesRoot: string, walkRoot: string = join(f
   };
 
   for (const abs of await walk(walkRoot)) {
+    if (!room()) break;
     const ref = relative(filesRoot, abs).split(sep).join('/');
     if (isIgnored(ref)) continue;
     const s = await stat(abs);
@@ -96,10 +119,28 @@ export async function listPackFiles(filesRoot: string, walkRoot: string = join(f
  * Read a file of a pack into memory, opening archives along its ref. Archives stay open briefly
  * (see zipCache), so reading many files from one pack is cheap.
  */
+/**
+ * The absolute path of a file inside a pack, or null if it is not inside the pack at all.
+ *
+ * Checking for a '..' segment is not enough. The segments arrive from a URL, and on Windows a
+ * backslash is also a separator: '..%5C..%5C' decodes to '..\..\', survives a check that only
+ * splits on '/', and then climbs out of the pack folder when the path is joined. So the answer is
+ * worked out and then checked, rather than the input being guessed at.
+ */
+export function insidePack(packDir: string, file: string): string | null {
+  // A ref never has a reason to climb, whether or not the climb stays inside.
+  if (file.split(/[/\\]/).includes('..')) return null;
+  const root = resolve(packDir);
+  const path = resolve(root, ...file.split('/'));
+  // And then check the answer, because the segments came from a URL and a Windows path has a
+  // second separator that the split above is the only thing standing between us and.
+  return path === root || path.startsWith(root + sep) ? path : null;
+}
+
 export async function readPackFile(packDir: string, ref: string, maxBytes = 512 * 1024 * 1024): Promise<Buffer> {
   const { file, inside } = parseRef(ref);
-  if (file.split('/').includes('..')) throw new Error('invalid path');
-  const path = join(packDir, ...file.split('/'));
+  const path = insidePack(packDir, file);
+  if (!path) throw new Error('invalid path');
   if (!inside.length) {
     // A loose file is capped the same as one inside an archive: a huge video must not be read
     // whole into memory just because something asked for it.

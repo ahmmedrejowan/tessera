@@ -15,8 +15,8 @@ Two things, and only two:
 - **A source.** Paste the page you got it from, or say **I made it**. If you truly do not know,
   **I don't know** records that honestly: the pack stays in Review and nothing pretends otherwise.
 
-Answer both and the pack moves into the library. You can also **discard** a pack from here, which
-throws the download away.
+Answer both and the pack moves into the library. You can also press **Delete** to send a pack to
+the bin instead, where it stays until you empty it.
 
 ## Doing several at once
 

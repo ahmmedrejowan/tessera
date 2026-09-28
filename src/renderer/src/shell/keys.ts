@@ -78,6 +78,7 @@ export function shortcutGroups(platform: Platform): { title: string; items: Shor
       items: [
         { label: 'Previous · next asset', keys: [['←'], ['→']] },
         { label: 'Fit to the window · actual size', keys: [['F'], ['1']] },
+        { label: 'Star or unstar', keys: [['S']] },
         { label: 'Show or hide details', keys: [['I']] },
         { label: 'Close', keys: [['Space'], ['Esc']] },
       ],

@@ -9,7 +9,7 @@ what it needs out of the archive as it is.
   textures, the size in units, and any animations it carries. Every format the asset comes in is
   listed, and you can switch between them.
 - **Images** zoom, with pixel art kept sharp rather than smoothed.
-- **Textures** show the same way, with their size and what map they look like.
+- **Textures** show the same way, with their pixel size.
 - **HDRIs** become a sky you can look around.
 - **Sounds and music** play, with a waveform and the length.
 - **Fonts** type your own sample text, with sliders for every axis a variable font has.
@@ -30,5 +30,5 @@ what it needs out of the archive as it is.
 - **I** hides or shows the details.
 - **Space** or **Esc** closes it.
 
-From here you can star it, add it to a collection, link it into a game, open the file in your own
-tools, or show it in Finder or Explorer.
+From here you can star it, add it to a collection, link it into a game, show the file in Finder or
+Explorer, or open the pack it belongs to.

@@ -247,7 +247,7 @@ export const SYSTEM: Tool[] = [
     group: 'system',
     title: 'Pair a computer',
     summary:
-      'Tell this computer about another one, by the device ID that computer shows. Pairing alone shares nothing: it only lets the two find each other. Run it on both computers, each with the other’s ID.',
+      'Tell this computer about another one, by the device ID that computer shows, AND offer it the open library. This is not only an introduction: the other computer can accept the library straight afterwards, so only pair with a computer the person owns and has asked you to pair with. Run it on both computers, each with the other’s ID.',
     input: z.object({
       deviceId: z.string().min(1).describe('The other computer’s device ID, as sync_status there gives it (XXXXXXX-XXXXXXX-…).'),
       name: z.string().default('').describe('What to call it, for the person reading the list.'),

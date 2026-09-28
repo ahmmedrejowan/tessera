@@ -17,8 +17,9 @@ only computers you approve join.
 
 ## What syncs
 
-The library folder itself: packs, originals, licenses, collections and the library's settings. Each
-computer keeps its own index and thumbnails, which are rebuilt locally.
+The library folder itself: packs, originals, licenses and collections. The library's own settings
+stay on each computer and are not synced, and each computer keeps its own index and thumbnails,
+which are rebuilt locally.
 
 ## While it runs
 

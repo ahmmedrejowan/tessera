@@ -26,3 +26,20 @@ describe('a game’s record of what it took', () => {
     await expect(readManifest(dir, 'lib')).rejects.toBeInstanceOf(ManifestUnreadableError);
   });
 });
+
+describe('a path inside a pack', () => {
+  it('cannot climb out, whichever separator it uses', async () => {
+    const { insidePack } = await import('../src/main/index/files');
+    const dir = '/library/packs/Kit';
+    expect(insidePack(dir, 'models/tree.obj')).toBe(join(dir, 'models', 'tree.obj'));
+    expect(insidePack(dir, '../Other/secret.txt')).toBeNull();
+    expect(insidePack(dir, 'a/../../Other/secret.txt')).toBeNull();
+    // A URL carries these encoded, and on Windows a backslash is a separator too. Checking for a
+    // '..' segment split on '/' alone missed exactly this.
+    expect(insidePack(dir, '..\\..\\Users\\Public\\x.jpg')).toBeNull();
+    // A ref that looks absolute is treated as relative to the pack, which keeps it inside.
+    expect(insidePack(dir, '/etc/passwd')).toBe(join(dir, 'etc', 'passwd'));
+    // And a climb that would have landed back inside is still refused: a ref has no reason to.
+    expect(insidePack(dir, 'original/../pack.json')).toBeNull();
+  });
+});

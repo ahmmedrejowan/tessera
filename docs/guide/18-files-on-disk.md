@@ -5,7 +5,7 @@
 The folder you chose. Inside it:
 
 ```
-tessera-library.json   what this library is, and its preferences
+tessera-library.json   marks the folder as a library, and names it
 packs/<pack>/          one folder per pack
   pack.json            its record: license, source, creator, tags, version
   original/            your download, exactly as it arrived

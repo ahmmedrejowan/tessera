@@ -4,7 +4,7 @@ import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { extOf } from '@shared/assets';
-import { parseRef, readPackFile } from './index/files';
+import { insidePack, parseRef, readPackFile } from './index/files';
 import { log } from './log';
 
 /**
@@ -91,8 +91,9 @@ export function handleProtocol(d: ProtocolDeps): void {
         const dir = packId ? d.packDir(packId) : null;
         if (!dir || !ref) return new Response('Not found', { status: 404 });
         const { file, inside } = parseRef(ref);
-        if (file.split('/').includes('..')) return new Response('Bad path', { status: 400 });
-        if (!inside.length) return await fromFile(join(dir, ...file.split('/')), contentType(file), range);
+        const path = insidePack(dir, file);
+        if (!path) return new Response('Bad path', { status: 400 });
+        if (!inside.length) return await fromFile(path, contentType(file), range);
         return fromBuffer(await readPackFile(dir, ref), contentType(inside.at(-1)!), range);
       }
       if (url.host === 'thumb') {

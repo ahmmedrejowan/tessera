@@ -48,6 +48,19 @@ export async function readPack(dir: string, folder: string): Promise<PackRecord>
  * Every pack in the library. A pack whose record can't be read is reported, not dropped silently,
  * and never stops the others from loading.
  */
+/**
+ * Records a sync tool kept because two computers disagreed about this pack.
+ *
+ * Syncthing keeps the version that lost beside the one that won, and nothing else in Tessera ever
+ * opens those files. A licence somebody recorded on the other computer can be sitting in one,
+ * unread and unmentioned, while the game's credits are written from the version that happened to
+ * win. Rare, and silent, which is the bad combination.
+ */
+export async function conflictsIn(dir: string): Promise<string[]> {
+  const names = await readdir(dir).catch(() => [] as string[]);
+  return names.filter((n) => /\.sync-conflict-.*\.json$/i.test(n)).sort();
+}
+
 export async function listPacks(root: string): Promise<{ packs: PackRecord[]; problems: PackProblem[] }> {
   const packsDir = join(root, DIRS.packs);
   const packs: PackRecord[] = [];
