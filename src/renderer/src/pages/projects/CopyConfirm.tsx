@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
 import { useCopy, useProjects } from '../../state/projects';
 import { AlreadyHere } from './AlreadyHere';
 import { useUpdateSettings } from '../../state/queries';
-import { md } from '../../theme';
+import { md, mdAlpha, SHAPE } from '../../theme';
 import { HowKept } from '../add/HowKept';
 
 /** What to do with these assets: copy them in, or use the ones the game already has. */
@@ -40,6 +40,10 @@ export function CopyConfirm() {
   const project = projects.find((p) => p.id === pending?.projectId);
   const plan = pending?.plan;
   const warnings = plan?.warnings ?? [];
+  // Files already at those paths that Tessera did not write are somebody else's work. Saying so
+  // here is the whole protection: the copy still goes ahead if they want it to, but nobody finds
+  // out afterwards that their own edit is gone.
+  const overwriting = plan?.overwriting ?? [];
 
   return (
     <>
@@ -79,6 +83,24 @@ export function CopyConfirm() {
             },
           ]}
         />
+
+        {overwriting.length > 0 && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: 12, borderRadius: SHAPE.lg, background: mdAlpha('errorContainer', 0.4) }}>
+            <WarningAmberOutlined sx={{ fontSize: 20, color: md('error'), mt: '1px' }} />
+            <div>
+              <Typography variant="bodyMedium" sx={{ color: md('onSurface') }}>
+                {formatCount(overwriting.length)} file{overwriting.length === 1 ? '' : 's'} already there {overwriting.length === 1 ? 'was' : 'were'} not put there by Tessera, and will be written over.
+              </Typography>
+              <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5, wordBreak: 'break-all' }}>
+                {overwriting.slice(0, 6).join(', ')}
+                {overwriting.length > 6 ? ` and ${formatCount(overwriting.length - 6)} more` : ''}
+              </Typography>
+              <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5 }}>
+                Taking this back out later will leave them alone, because Tessera did not create them.
+              </Typography>
+            </div>
+          </div>
+        )}
 
         {warnings.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

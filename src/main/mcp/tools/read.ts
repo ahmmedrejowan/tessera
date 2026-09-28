@@ -5,6 +5,31 @@ import { z } from 'zod';
 import { assetPath } from '@shared/assets';
 import type { AssetSort, BrowseQuery, PackSort } from '@shared/query';
 import { define, scope, filters, packOut, assetOut, ASSET_SORTS, PACK_SORTS, query } from './shared';
+
+/**
+ * Filter values that match nothing in this library.
+ *
+ * Filtering by `licence: ['CC0']` returns an empty list, because the id is `CC0-1.0`. Empty is a
+ * true answer to the question asked and a useless one: an agent reports "you have no CC0 assets"
+ * when the library is full of them. So when a filter narrows to nothing, the values that exist
+ * are named. Only when nothing was found, because that is the only time it can mislead.
+ */
+function unknownFilters(
+  q: { facets: (query: import('@shared/query').BrowseQuery, mode: 'assets' | 'packs') => Record<string, { value: string; count: number }[]> },
+  args: { of: 'assets' | 'packs'; filters?: Record<string, string[]>; text: string; scope: string },
+): { unknownFilterValues?: Record<string, { youAsked: string[]; theseExist: string[] }> } {
+  const given = args.filters ?? {};
+  if (!Object.keys(given).length) return {};
+  // The facets of the library without these filters applied: what could have been asked for.
+  const all = q.facets({ scope: args.scope as never, text: '', filters: {} }, args.of);
+  const out: Record<string, { youAsked: string[]; theseExist: string[] }> = {};
+  for (const [facet, wanted] of Object.entries(given)) {
+    const have = new Set((all[facet] ?? []).map((v) => v.value));
+    const missing = (wanted ?? []).filter((v) => !have.has(v));
+    if (missing.length) out[facet] = { youAsked: missing, theseExist: [...have].slice(0, 40) };
+  }
+  return Object.keys(out).length ? { unknownFilterValues: out } : {};
+}
 import type { Tool } from './shared';
 
 export const READ: Tool[] = [
@@ -55,11 +80,11 @@ export const READ: Tool[] = [
         // "relevance" is the default for assets and means nothing for packs: fall back by name.
         const sort = (PACK_SORTS.includes(args.sort as PackSort) ? args.sort : 'name') as PackSort;
         const page = q.packs(query(args), sort, args.offset, args.limit);
-        return { total: page.total, packs: page.rows.map(packOut) };
+        return { total: page.total, packs: page.rows.map(packOut), ...unknownFilters(q, args) };
       }
       const sort = (ASSET_SORTS.includes(args.sort as AssetSort) ? args.sort : 'relevance') as AssetSort;
       const page = q.assets(query(args), sort, args.offset, args.limit);
-      return { total: page.total, assets: page.rows.map(assetOut) };
+      return { total: page.total, assets: page.rows.map(assetOut), ...unknownFilters(q, args) };
     },
   }),
   define({
@@ -139,7 +164,21 @@ export const READ: Tool[] = [
     title: 'Games',
     summary: 'The games this library links assets into, with how much each has taken.',
     input: z.object({}),
-    run: async (_args, ctx) => (await ctx.projects.list(ctx.libraryId())).map((p) => ({ id: p.id, name: p.name, engine: p.engine, path: p.path, assets: p.assets, packs: p.packs, exists: p.exists })),
+    // `target` and `creditsFile` are here because an agent is asked "what does this game owe
+    // credit for, and where is that written down?" and could set both without being able to read
+    // either back.
+    run: async (_args, ctx) =>
+      (await ctx.projects.list(ctx.libraryId())).map((p) => ({
+        id: p.id,
+        name: p.name,
+        engine: p.engine,
+        path: p.path,
+        assets: p.assets,
+        packs: p.packs,
+        exists: p.exists,
+        target: p.target,
+        creditsFile: p.creditsFile,
+      })),
   }),
   define({
     name: 'usage',

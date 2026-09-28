@@ -82,7 +82,10 @@ export const SYSTEM: Tool[] = [
       theme: z.enum(['system', 'light', 'dark']).optional(),
       seedColor: z.string().optional().describe('A hex colour, like #3f6f8f.'),
       afterDownload: z.enum(['add', 'review', 'ask']).optional().describe('add: straight into the library when the licence is clear. review: always to Review. ask: leave it in Downloads.'),
-      binKeepDays: z.number().int().min(0).max(3650).optional().describe('0 keeps things until you empty the bin.'),
+      // The same bound the setting itself has. It used to accept ten years, which the setting
+      // then threw away and replaced with the default of 30, so asking for a longer bin quietly
+      // made it shorter and the tool still said it had changed it.
+      binKeepDays: z.number().int().min(0).max(365).optional().describe('Days to keep deleted things, up to 365. 0 keeps them until you empty the bin.'),
       updateCheck: z.boolean().optional(),
       siteRules: z
         .array(z.object({ host: z.string(), licence: z.string().nullable(), creator: z.string().nullable().default(null) }))
@@ -98,7 +101,12 @@ export const SYSTEM: Tool[] = [
       if (!Object.keys(patch).length) throw new Error('Nothing to change.');
       await ctx.app.updateSettings(patch as Partial<import('@shared/types').Settings>);
       ctx.note('An agent changed Tessera’s settings', Object.keys(patch).join(', '));
-      return { changed: Object.keys(patch) };
+      // What was stored, not what was asked for. A setting can refuse a value and keep its own,
+      // and an agent that reports "changed" when nothing changed is worse than one that fails.
+      const now = ctx.settings() as unknown as Record<string, unknown>;
+      const stored = Object.fromEntries(Object.keys(patch).map((k) => [k, now[k]]));
+      const refused = Object.keys(patch).filter((k) => JSON.stringify(now[k]) !== JSON.stringify(patch[k]));
+      return { changed: Object.keys(patch), stored, ...(refused.length ? { notStoredAsAsked: refused } : {}) };
     },
   }),
   define({

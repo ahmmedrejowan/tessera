@@ -6,7 +6,7 @@
  * copied in, and taking things back out again without disturbing what shares them.
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('electron', () => import('./fake-electron'));
@@ -101,6 +101,39 @@ describe('taking a folder as a game', () => {
     expect(await projects.usage(libraryId, [pack.id])).toEqual([]);
     // A folder that is not there is skipped, so nothing is written and nothing is blamed.
     expect(await projects.keepLicences(libraryId, [pack.id], app.context().copySource())).toEqual({ done: 0, failed: [] });
+  });
+
+  it('writes over a file somebody else put there, but never deletes it', async () => {
+    // Copying used to claim a file it had written over, so taking the asset back out deleted
+    // work the person had done by hand. Overwriting is still what happens, and is now said out
+    // loud in the plan; deleting is not.
+    const { projects, app, project, path, libraryId, names, packs, aFile } = await withGame();
+    const pack = packs[0]!;
+    const ref = aFile.ref;
+    const src = app.context().copySource();
+
+    // Nothing is in the way to begin with.
+    expect((await projects.plan(project.id, [{ packId: pack.id, ref }], src)).overwriting).toEqual([]);
+
+    // Copy once to learn where it lands, then put something of our own at that very path.
+    await projects.copy(project.id, [{ packId: pack.id, ref }], src);
+    const entry = (await projects.entries(project.id, libraryId, names)).find((e) => e.ref === ref)!;
+    const where = entry.files[0]!;
+    const mine = join(path, ...where.split('/'));
+    await projects.remove(project.id, [{ packId: pack.id, ref }], libraryId);
+    mkdirSync(dirname(mine), { recursive: true });
+    writeFileSync(mine, 'MY OWN WORK');
+
+    // Now the plan says so, before a byte moves.
+    expect((await projects.plan(project.id, [{ packId: pack.id, ref }], src)).overwriting).toContain(where);
+
+    // Copying still writes over it, which is what was asked for.
+    await projects.copy(project.id, [{ packId: pack.id, ref }], src);
+    expect(readFileSync(mine, 'utf8')).not.toBe('MY OWN WORK');
+
+    // But taking the asset back out leaves the file alone, because Tessera did not create it.
+    await projects.remove(project.id, [{ packId: pack.id, ref }], libraryId);
+    expect(existsSync(mine)).toBe(true);
   });
 
   it('refuses clearly over a game it has never heard of', async () => {

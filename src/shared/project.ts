@@ -66,6 +66,15 @@ export interface ManifestEntry {
    * it must never delete them: taking this out of the game forgets the record and nothing else.
    */
   adopted?: boolean;
+  /**
+   * Files of this entry that already existed at that path, put there by somebody other than
+   * Tessera, and were written over.
+   *
+   * The same rule as `adopted` applies to them, for the same reason: what Tessera did not create
+   * it does not destroy. Taking the entry out leaves these files where they are. They are listed
+   * rather than flagged because one entry can write several files and only some of them clash.
+   */
+  wereAlreadyThere?: string[];
 }
 
 export interface Manifest {
@@ -90,4 +99,10 @@ export interface CopyPlan {
   warnings: string[];
   /** Assets already in the project, which will be updated. */
   updating: number;
+  /**
+   * Files that are already at the paths this copy would write to, and that Tessera did not put
+   * there. They are somebody else's work, and copying writes over them, so the person is told
+   * before it happens rather than discovering it afterwards.
+   */
+  overwriting: string[];
 }

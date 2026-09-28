@@ -47,9 +47,31 @@ export const entryLibrary = (e: ManifestEntry, m: Manifest) => e.libraryId ?? m.
 /** Whether an entry is this asset from this library. */
 const same = (e: ManifestEntry, m: Manifest, libraryId: string, packId: string, ref: string) => e.packId === packId && e.ref === ref && entryLibrary(e, m) === libraryId;
 
+/**
+ * Thrown when a game has a record file that cannot be read. Never silently ignored: this file is
+ * the only record of which pack every asset in the game came from, and so of which credits the
+ * game owes. Treating an unreadable one as empty loses that, and the next copy saves the loss.
+ */
+export class ManifestUnreadableError extends Error {
+  constructor(public readonly path: string, cause: unknown) {
+    super(`This game's record of what it took (${MANIFEST}) can't be read, so Tessera has stopped rather than write over it. It is usually a merge conflict. Fix it, or move it aside and use "Find assets already here" to build it again. (${cause instanceof Error ? cause.message : String(cause)})`);
+    this.name = 'ManifestUnreadableError';
+  }
+}
+
 export async function readManifest(projectPath: string, libraryId: string): Promise<Manifest> {
-  const raw = (await readJson(join(projectPath, MANIFEST)).catch(() => null)) as Manifest | null;
-  return raw?.format === 1 && Array.isArray(raw.entries) ? raw : { format: 1, libraryId, entries: [] };
+  const path = join(projectPath, MANIFEST);
+  // A file that isn't there is a game that has taken nothing yet, which is ordinary. A file that
+  // is there and cannot be parsed is damage, and carrying on would turn it into lost credits.
+  if (!existsSync(path)) return { format: 1, libraryId, entries: [] };
+  let raw: Manifest | null;
+  try {
+    raw = (await readJson(path)) as Manifest | null;
+  } catch (e) {
+    throw new ManifestUnreadableError(path, e);
+  }
+  if (raw?.format === 1 && Array.isArray(raw.entries)) return raw;
+  throw new ManifestUnreadableError(path, new Error('it is not in a shape Tessera wrote'));
 }
 
 /** The variant an engine takes best. */
@@ -139,6 +161,13 @@ export async function planCopy(
     });
   }
   const updating = jobs.filter((j) => manifest.entries.some((e) => same(e, manifest, src.libraryId, j.entry.packId, j.entry.ref))).length;
+  // A file at a path this game already records as Tessera's is our own earlier copy, and writing
+  // over it is the refresh being asked for. Anything else at one of these paths belongs to
+  // somebody else, and is worth saying out loud before a single byte moves.
+  const ours = new Set(manifest.entries.flatMap((e) => e.files));
+  const overwriting = [...new Set(jobs.flatMap((j) => j.files.map((f) => f.dest)))]
+    .filter((dest) => !ours.has(dest) && existsSync(join(project.path, ...dest.split('/'))))
+    .sort();
   return {
     plan: {
       assets: jobs.length,
@@ -146,6 +175,7 @@ export async function planCopy(
       bytes: jobs.reduce((n, j) => n + j.files.reduce((s, f) => s + f.size, 0), 0),
       warnings: [...warnings],
       updating,
+      overwriting,
     },
     jobs,
   };
@@ -238,14 +268,23 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
   // been made, and an empty folder left behind is still a trace of a copy that did not happen.
   const fresh: string[] = [];
   const made: string[] = [];
+  // Every path this game already records as Tessera's. A file at one of those is our own earlier
+  // copy, and writing over it is the refresh the person asked for. A file at any other path is
+  // somebody else's work, and we note it so we never delete it later.
+  const ours = new Set(manifest.entries.flatMap((e) => e.files));
   try {
     for (const job of jobs) {
       const packDir = src.packDir(job.entry.packId);
+      const clashed: string[] = [];
       for (const f of job.files) {
         const dest = join(project.path, ...f.dest.split('/'));
         made.push(dirname(dest));
         await mkdir(dirname(dest), { recursive: true });
         if (!existsSync(dest)) fresh.push(dest);
+        else if (!ours.has(f.dest)) clashed.push(f.dest);
+        // Ours from here on, so a texture two assets share is not mistaken for somebody else's
+        // work the second time it is written in this same run.
+        ours.add(f.dest);
         const { file, inside } = parseRef(f.ref);
         if (inside.length) await writeFile(dest, await readPackFile(packDir, f.ref));
         else await copyFile(join(packDir, ...file.split('/')), dest);
@@ -261,7 +300,12 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
         if (!existsSync(licence)) fresh.push(licence);
         await writeFileAtomic(licence, licenceText(pack.meta, proof));
       }
-      const entry: ManifestEntry = { ...job.entry, files: job.files.map((f) => f.dest), copiedAt: new Date().toISOString() };
+      const entry: ManifestEntry = {
+        ...job.entry,
+        files: job.files.map((f) => f.dest),
+        copiedAt: new Date().toISOString(),
+        ...(clashed.length ? { wereAlreadyThere: clashed } : {}),
+      };
       manifest.entries = manifest.entries.filter((e) => !same(e, manifest, src.libraryId, entry.packId, entry.ref));
       manifest.entries.push(entry);
       written.push(entry);
@@ -307,8 +351,11 @@ export async function removeFromProject(project: Project, libraryId: string, ite
     // An adopted entry points at files the game already had. Tessera never wrote them, so it
     // never takes them away: forgetting the record is the whole of the job.
     if (e.adopted) continue;
+    // A file that was already there when we copied is somebody else's, however it got there.
+    // We wrote over it, which was bad enough; deleting it would be worse.
+    const theirs = new Set(e.wereAlreadyThere ?? []);
     for (const f of e.files) {
-      if (stillUsed.has(f)) continue;
+      if (stillUsed.has(f) || theirs.has(f)) continue;
       const p = join(project.path, ...f.split('/'));
       await unlink(p).catch(() => undefined);
       // Engines leave their own sidecars (Unity .meta, Godot .import) beside the file.

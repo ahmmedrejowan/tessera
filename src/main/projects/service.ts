@@ -23,6 +23,30 @@ const ProjectSchema = z.object({
 });
 const StoreSchema = z.object({ projects: z.array(ProjectSchema).catch([]) });
 
+/**
+ * Where the credits may be written.
+ *
+ * The credits file is rewritten in full every time assets are copied, so pointing it at something
+ * else is a way to destroy that thing. It was possible to aim it at `ProjectSettings/ProjectVersion.txt`
+ * and have the next copy overwrite the Unity project with a markdown document. An agent can set
+ * this, and an agent can be talked into things by text it reads, so the rule is enforced here
+ * rather than trusted to the caller.
+ *
+ * Two conditions: it must be a text document by its name, and it must not already exist unless it
+ * is the file already being used. Somebody who really does keep their own CREDITS.md can point at
+ * it only by keeping the name it already has.
+ */
+function checkCreditsFile(p: string, current: { path: string; creditsFile: string | null }): string {
+  const clean = checkRelative(p, 'credits file');
+  if (!/\.(md|txt|markdown)$/i.test(clean)) {
+    throw new UserError('bad-path', 'The credits file has to be a text document, ending in .md or .txt. It is written again in full every time, so it cannot be an existing file of another kind.');
+  }
+  if (clean !== current.creditsFile && existsSync(join(current.path, ...clean.split('/')))) {
+    throw new UserError('bad-path', `There is already a file at ${clean}. The credits file is rewritten in full each time, so Tessera will not point it at something that is already there. Choose a name that is free, or move that file aside first.`);
+  }
+  return clean;
+}
+
 /** Folder paths inside a project must stay inside it. */
 function checkRelative(p: string, what: string): string {
   const clean = p.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
@@ -113,7 +137,7 @@ export class ProjectService {
     if (i < 0) throw new UserError('no-project', 'That project isn’t linked any more.');
     const next = { ...projects[i]!, ...patch };
     if (patch.target !== undefined) next.target = checkRelative(patch.target, 'destination folder');
-    if (patch.creditsFile) next.creditsFile = checkRelative(patch.creditsFile, 'credits file');
+    if (patch.creditsFile) next.creditsFile = checkCreditsFile(patch.creditsFile, projects[i]!);
     projects[i] = next;
     await this.save(projects);
   }

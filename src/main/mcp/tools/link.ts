@@ -22,9 +22,20 @@ export const LINK: Tool[] = [
       const items = args.assetIds.length ? ctx.library.require().queries.refs(args.assetIds) : [];
       for (const packId of args.packIds) items.push(...packAssets(ctx, packId));
       if (!items.length) throw new Error('Nothing to link: give assetIds or packIds.');
-      const n = await ctx.projects.copy(args.projectId, items, ctx.copySource());
+      // The window will not copy without showing what is wrong with the licences first: a pack
+      // with none recorded, one that forbids commercial use, one that needs a credit line, one
+      // still in Review. An agent was told none of it, which is the one thing this application
+      // exists to prevent. The same plan the window uses is read here and handed back.
+      const src = ctx.copySource();
+      const plan = await ctx.projects.plan(args.projectId, items, src);
+      const n = await ctx.projects.copy(args.projectId, items, src);
       ctx.note(`An agent linked ${n} asset${n === 1 ? '' : 's'} to a game`);
-      return { linked: n };
+      return {
+        linked: n,
+        ...(plan.warnings.length ? { licenceWarnings: plan.warnings } : {}),
+        ...(plan.overwriting.length ? { filesWrittenOver: plan.overwriting } : {}),
+        ...(plan.warnings.length ? { tellThePerson: 'Say these out loud. They were copied anyway, and the person may want to undo it.' } : {}),
+      };
     },
   }),
 

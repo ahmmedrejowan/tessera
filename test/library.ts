@@ -80,6 +80,8 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
   await library.create(root, 'Test library');
   opened.push(library);
   const notes: string[] = [];
+  /** Settings a tool has changed, so a later read sees them. */
+  const stored: Record<string, unknown> = { binKeepDays: 30 };
   /** What was asked of the preview drawing, for the tools that ask for it. */
   const built: (string[] | null | 'stop')[] = [];
   /** What was asked of syncing, in order. */
@@ -165,13 +167,18 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
     },
     libraryId: () => 'test-library',
     note: (text: string) => void notes.push(text),
-    settings: () => ({ mcp: { enabled: true, port: 7458, off: [], groupsOff: [], groupsOn: ['system', 'danger'] } }) as unknown as ReturnType<ToolContext['settings']>,
+    // Settings a tool changes have to be readable again afterwards, or a tool that reports what
+    // it stored cannot be tested at all.
+    settings: () => ({ ...stored, mcp: { enabled: true, port: 7458, off: [], groupsOff: [], groupsOn: ['system', 'danger'] } }) as unknown as ReturnType<ToolContext['settings']>,
     app: {
       libraries: async () => [],
       openLibrary: (path: string) => library.open(path),
       createLibrary: (path: string, name: string) => library.create(path, name),
       closeLibrary: async () => library.close(),
-      updateSettings: async (patch) => patch as never,
+      updateSettings: async (patch) => {
+        Object.assign(stored, patch);
+        return patch as never;
+      },
       activity: async () => [],
       backUpNow: async () => undefined,
       reindex: () => library.reindex(),
