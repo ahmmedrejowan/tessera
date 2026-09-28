@@ -230,18 +230,16 @@ export function CollectionPage({ id }: { id: string }) {
             Open in Browse
           </Button>
         )}
+        {/* Labelled, not two bare icons. A pencil and a bin next to each other say nothing about
+            what they act on, and one of them throws a collection away. */}
         {!own && (
           <>
-            <Tooltip title="Rename">
-              <IconButton onClick={() => setRenaming(true)} aria-label="Rename">
-                <EditOutlined />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Delete collection">
-              <IconButton onClick={() => setDeleting(true)} aria-label="Delete collection">
-                <DeleteOutlined />
-              </IconButton>
-            </Tooltip>
+            <Button startIcon={<EditOutlined />} onClick={() => setRenaming(true)}>
+              Rename
+            </Button>
+            <Button color="error" startIcon={<DeleteOutlined />} onClick={() => setDeleting(true)}>
+              Delete
+            </Button>
           </>
         )}
       </header>

@@ -143,16 +143,14 @@ export function ProjectPage({ id }: { id: string }) {
         <Button startIcon={<FindInPageOutlined />} onClick={() => setFinding(true)} disabled={!project.exists}>
           Find assets already here
         </Button>
-        <Tooltip title="Open the project folder">
-          <IconButton onClick={() => void call('projects:reveal', id)} aria-label="Open folder">
-            <FolderOpenOutlined />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Unlink">
-          <IconButton onClick={() => setUnlinking(true)} aria-label="Unlink">
-            <LinkOffOutlined />
-          </IconButton>
-        </Tooltip>
+        {/* Labelled, not bare icons: a folder and a broken chain say nothing about what they do
+            here, and one of them stops Tessera tracking the game. */}
+        <Button startIcon={<FolderOpenOutlined />} onClick={() => void call('projects:reveal', id)}>
+          Open folder
+        </Button>
+        <Button color="error" startIcon={<LinkOffOutlined />} onClick={() => setUnlinking(true)}>
+          Unlink
+        </Button>
       </header>
 
       <div style={{ padding: '0 32px 32px', maxWidth: 1000 }}>
@@ -207,16 +205,20 @@ export function ProjectPage({ id }: { id: string }) {
                     {first.packName}
                   </Typography>
                   <LicenceChip id={first.licence} />
-                  <Tooltip title={here ? 'Copy again, picking up changes' : ''}>
-                    <IconButton aria-label="Copy again" size="small" disabled={!here} sx={{ visibility: here ? 'visible' : 'hidden' }} onClick={() => void copyToProject(project, list.map((e) => ({ packId: e.packId, ref: e.ref })))}>
-                      <RefreshOutlined fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Remove this pack’s assets from the project">
-                    <IconButton aria-label="Take this pack out of the game" size="small" onClick={() => void remove(list)}>
-                      <DeleteOutlined fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
+                  {/* Said, not drawn. A circling arrow and a bin beside a pack name are a guess
+                      at best, and one of them takes files out of somebody's game. */}
+                  <Button
+                    size="small"
+                    startIcon={<RefreshOutlined fontSize="small" />}
+                    disabled={!here}
+                    sx={{ visibility: here ? 'visible' : 'hidden' }}
+                    onClick={() => void copyToProject(project, list.map((e) => ({ packId: e.packId, ref: e.ref })))}
+                  >
+                    Copy again
+                  </Button>
+                  <Button size="small" color="error" startIcon={<DeleteOutlined fontSize="small" />} onClick={() => void remove(list)}>
+                    Take out
+                  </Button>
                 </div>
                 {first.attribution && (
                   <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant'), mb: 1, fontStyle: 'italic' }}>
