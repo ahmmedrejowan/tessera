@@ -80,12 +80,21 @@ export function detectLicence(text: string): string | null {
   // Most restrictive first, and CC0 last of the Creative Commons family. Where a file names more
   // than one, the stricter reading is the safe one to be wrong about: crediting something that
   // needed no credit costs a line of text, and the other way round costs a takedown.
-  if (/by-nc-nd|attribution-noncommercial-noderiv/i.test(t)) return 'CC-BY-NC-ND-4.0';
-  if (/by-nc-sa|attribution-noncommercial-sharealike/i.test(t)) return 'CC-BY-NC-SA-4.0';
+  // The parts may be joined by a hyphen, a space or nothing: the 3.0 texts say "No Derivative
+  // Works" and "Share Alike" in words, and people write "CC BY NC 4.0" with spaces. Matching only
+  // the hyphenated 4.0 spellings meant "CC BY NC" was read as plain CC BY, so a non-commercial
+  // pack was recorded as free to sell, and "Attribution-Noncommercial-No Derivative Works" lost
+  // its no-changes clause.
+  const NC = 'nc|noncommercial|non-commercial';
+  const ND = 'nd|noderivs|noderivatives|no[ -]?derivative(?: works)?';
+  const SA = 'sa|sharealike|share[ -]?alike';
+  const by = (rest: string) => new RegExp(`\\b(?:cc[ -]?)?by[ -]?(?:${rest})\\b|attribution[ -](?:${rest})\\b`, 'i');
+  if (by(`(?:${NC})[ -](?:${ND})`).test(t)) return 'CC-BY-NC-ND-4.0';
+  if (by(`(?:${NC})[ -](?:${SA})`).test(t)) return 'CC-BY-NC-SA-4.0';
   // Only the licence's own wording: "free for commercial and non-commercial use" is not NC.
-  if (/by-nc|attribution-noncommercial/i.test(t)) return 'CC-BY-NC-4.0';
-  if (/by-nd|attribution-noderivs|noderivatives/i.test(t)) return 'CC-BY-ND-4.0';
-  if (/by-sa|attribution-sharealike/i.test(t)) return `CC-BY-SA-${version(/(?:by-sa|sharealike)[ /]*(\d\.\d)/i)}`;
+  if (by(NC).test(t)) return 'CC-BY-NC-4.0';
+  if (by(ND).test(t)) return 'CC-BY-ND-4.0';
+  if (by(SA).test(t)) return `CC-BY-SA-${version(/(?:by[ -]?sa|share[ -]?alike)[ /]*(\d\.\d)/i)}`;
   // The last pattern is the title line of the official file, which says only "Attribution 4.0
   // International" without the words "Creative Commons" anywhere near it. The stricter members of
   // the family are tested above, so by this point "Attribution" on its own means plain BY.

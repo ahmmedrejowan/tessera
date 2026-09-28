@@ -88,3 +88,19 @@ describe('licences that are easy to record too loosely', () => {
     expect(licenceInfo('OFL-1.1')?.attribution).toBe(true);
   });
 });
+
+describe('licence names written the way people write them', () => {
+  it('reads the parts whether they are hyphenated, spaced or run together', () => {
+    // "CC BY NC 4.0" with spaces used to be read as plain CC BY, so a non-commercial pack was
+    // recorded as free to sell. The 3.0 texts spell the clauses out in words, and missed too.
+    expect(detectLicence('Licensed under CC BY NC 4.0')).toBe('CC-BY-NC-4.0');
+    expect(detectLicence('Licensed under CC BY NC ND 4.0')).toBe('CC-BY-NC-ND-4.0');
+    expect(detectLicence('Attribution-No Derivative Works 3.0 United States')).toBe('CC-BY-ND-4.0');
+    expect(detectLicence('Attribution-Share Alike 3.0 Unported')).toBe('CC-BY-SA-3.0');
+    expect(detectLicence('Attribution-Noncommercial-No Derivative Works 3.0')).toBe('CC-BY-NC-ND-4.0');
+  });
+
+  it('still does not read "non-commercial use" in ordinary prose as the NC licence', () => {
+    expect(detectLicence('Free for commercial and non-commercial use.')).toBeNull();
+  });
+});

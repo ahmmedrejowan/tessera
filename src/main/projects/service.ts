@@ -7,7 +7,7 @@ import { UserError } from '../errors';
 import { readJson, writeJson } from '../fsx';
 import type { Jobs } from '../jobs';
 import { adoptEntries, scanForAdoption, type AdoptDeps, type AdoptMatch, type AdoptScan } from './adopt';
-import { entryLibrary, MANIFEST, planCopy, readManifest, removeFromProject, runCopy, writeAdopted, writePackLicence, type CopySource } from './copy';
+import { entryLibrary, MANIFEST, planCopy, readManifest, readManifestIfReadable, removeFromProject, runCopy, writeAdopted, writePackLicence, type CopySource } from './copy';
 import { writeCredits } from './credits';
 import { probeProject } from './engines';
 
@@ -88,7 +88,10 @@ export class ProjectService {
     const out: ProjectSummary[] = [];
     for (const p of await this.load()) {
       const exists = existsSync(p.path);
-      const m = exists ? await readManifest(p.path, libraryId) : null;
+      // A damaged record must not take the other games down with it: one game with a merge
+      // conflict emptied the whole Projects page and stopped anything being linked anywhere.
+      const read = exists ? await readManifestIfReadable(p.path, libraryId) : null;
+      const m = read ? read.manifest : null;
       const entries = m?.entries ?? [];
       const sources = new Map<string, { libraryId: string; libraryName: string; assets: number }>();
       for (const e of entries) {
@@ -218,7 +221,10 @@ export class ProjectService {
   ): Promise<void> {
     for (const project of await this.load()) {
       if (!existsSync(project.path)) continue;
-      const manifest = await readManifest(project.path, libraryId);
+      // Skip a game whose record is damaged rather than abandoning the rest: the games after it
+      // in the list used to be left with stale credits and nobody was told.
+      const { manifest, damaged } = await readManifestIfReadable(project.path, libraryId);
+      if (damaged) continue;
       const mine = (e: ManifestEntry) => e.packId === packId && entryLibrary(e, manifest) === libraryId;
       if (!manifest.entries.some(mine)) continue;
       manifest.entries = manifest.entries.map((e) => (mine(e) ? { ...e, ...info, ...(licenceFor ? licenceFor(e.ref) : {}) } : e));
@@ -235,7 +241,13 @@ export class ProjectService {
     const out: ProjectUse[] = [];
     for (const project of await this.load()) {
       if (!existsSync(project.path)) continue;
-      const manifest = await readManifest(project.path, libraryId);
+      const { manifest, damaged } = await readManifestIfReadable(project.path, libraryId);
+      // A game whose record cannot be read is named anyway, without a count: "no entries" would
+      // read as "this pack is not used here", which is the opposite of what is known.
+      if (damaged) {
+        out.push({ projectId: project.id, name: project.name, files: 0, unknown: true });
+        continue;
+      }
       const mine = manifest.entries.filter(
         (e) => entryLibrary(e, manifest) === libraryId && (packIds.includes(e.packId) || (refs ?? []).some((r) => r.packId === e.packId && r.ref === e.ref)),
       );
@@ -255,7 +267,14 @@ export class ProjectService {
     const failed: string[] = [];
     for (const project of await this.load()) {
       if (!existsSync(project.path)) continue;
-      const manifest = await readManifest(project.path, libraryId);
+      const { manifest, damaged } = await readManifestIfReadable(project.path, libraryId);
+      if (damaged) {
+        // Named as failed, so archiving or deleting the pack still tells the person which game
+        // did not get its licence kept. Throwing here skipped every game after it, and the pack
+        // was archived anyway.
+        if (!failed.includes(project.name)) failed.push(project.name);
+        continue;
+      }
       for (const packId of new Set(packIds)) {
         if (!manifest.entries.some((e) => e.packId === packId && entryLibrary(e, manifest) === libraryId)) continue;
         if (await writePackLicence(project, packId, src).catch(() => false)) done++;

@@ -25,7 +25,9 @@ const confirm = (title: string, body: string, yes: string) =>
 export async function usedIn(packIds: string[], refs?: { packId: string; ref: string }[]): Promise<string> {
   const use = await call('projects:usage', packIds, refs).catch(() => [] as ProjectUse[]);
   if (!use.length) return '';
-  const names = use.map((u) => `${u.name} (${u.files} file${u.files === 1 ? '' : 's'})`).join(', ');
+  // A game whose record could not be read is named without a count, because "0 files" would read
+  // as "this pack is not used there" and that is precisely what is not known.
+  const names = use.map((u) => (u.unknown ? `${u.name} (its record could not be read)` : `${u.name} (${u.files} file${u.files === 1 ? '' : 's'})`)).join(', ');
   return `\n\nIn use by ${names}. Those copies stay where they are, and their licence and proof are kept beside them in the game.`;
 }
 

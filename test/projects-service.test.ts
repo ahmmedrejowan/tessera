@@ -136,6 +136,28 @@ describe('taking a folder as a game', () => {
     expect(existsSync(mine)).toBe(true);
   });
 
+  it('still knows a file is theirs after the asset is copied a second time', async () => {
+    // The clash is recorded on the first copy, which puts the path in the manifest, so a second
+    // copy saw it as ours and the replacement entry forgot. Copy, copy again, take out, and the
+    // person's own file was deleted after all.
+    const { projects, app, project, path, libraryId, names, packs, aFile } = await withGame();
+    const pack = packs[0]!;
+    const ref = aFile.ref;
+    const src = app.context().copySource();
+
+    await projects.copy(project.id, [{ packId: pack.id, ref }], src);
+    const where = (await projects.entries(project.id, libraryId, names)).find((e) => e.ref === ref)!.files[0]!;
+    const mine = join(path, ...where.split('/'));
+    await projects.remove(project.id, [{ packId: pack.id, ref }], libraryId);
+    mkdirSync(dirname(mine), { recursive: true });
+    writeFileSync(mine, 'MY OWN WORK');
+
+    await projects.copy(project.id, [{ packId: pack.id, ref }], src);
+    await projects.copy(project.id, [{ packId: pack.id, ref }], src);
+    await projects.remove(project.id, [{ packId: pack.id, ref }], libraryId);
+    expect(existsSync(mine)).toBe(true);
+  });
+
   it('refuses clearly over a game it has never heard of', async () => {
     const { projects, libraryId, names } = await withGame();
     await expect(projects.get('not-a-game')).rejects.toMatchObject({ code: expect.any(String) });

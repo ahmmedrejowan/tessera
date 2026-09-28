@@ -6,6 +6,7 @@ import { licenceForPath, type PackMeta } from '@shared/pack';
 import { assetPath, baseName } from '@shared/assets';
 import type { CopyPlan, Manifest, ManifestEntry, Project } from '@shared/project';
 import type { AssetRow } from '@shared/query';
+import { UserError } from '../errors';
 import { sourceInfo } from '@shared/sources';
 import { readJson, writeFileAtomic, writeJson } from '../fsx';
 import { displayPath, parseRef, readPackFile } from '../index/files';
@@ -52,10 +53,33 @@ const same = (e: ManifestEntry, m: Manifest, libraryId: string, packId: string, 
  * the only record of which pack every asset in the game came from, and so of which credits the
  * game owes. Treating an unreadable one as empty loses that, and the next copy saves the loss.
  */
-export class ManifestUnreadableError extends Error {
+export class ManifestUnreadableError extends UserError {
   constructor(public readonly path: string, cause: unknown) {
-    super(`This game's record of what it took (${MANIFEST}) can't be read, so Tessera has stopped rather than write over it. It is usually a merge conflict. Fix it, or move it aside and use "Find assets already here" to build it again. (${cause instanceof Error ? cause.message : String(cause)})`);
+    // A UserError, because this is something the person can fix and should be told how to. As a
+    // plain Error it came out as "Something went wrong", and filed an error report every time
+    // anything listed the games.
+    super(
+      'manifest-unreadable',
+      `This game's record of what it took (${MANIFEST}) can't be read, so Tessera has stopped rather than write over it. It is usually a merge conflict. Fix it, or move it aside and use "Find assets already here" to build it again. (${cause instanceof Error ? cause.message : String(cause)})`,
+    );
     this.name = 'ManifestUnreadableError';
+  }
+}
+
+/**
+ * Read a manifest for something that only wants to look.
+ *
+ * Reading refuses on a damaged file, which is right when about to write over it and wrong when
+ * listing games: one game with a merge conflict in it emptied the whole Projects page, stopped
+ * every other game being linked to, and made "what uses this pack?" answer nothing for all of
+ * them. A reader gets an empty manifest and a note that this one is damaged.
+ */
+export async function readManifestIfReadable(projectPath: string, libraryId: string): Promise<{ manifest: Manifest; damaged: boolean }> {
+  try {
+    return { manifest: await readManifest(projectPath, libraryId), damaged: false };
+  } catch (e) {
+    if (!(e instanceof ManifestUnreadableError)) throw e;
+    return { manifest: { format: 1, libraryId, entries: [] }, damaged: true };
   }
 }
 
@@ -272,6 +296,11 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
   // copy, and writing over it is the refresh the person asked for. A file at any other path is
   // somebody else's work, and we note it so we never delete it later.
   const ours = new Set(manifest.entries.flatMap((e) => e.files));
+  // What earlier copies already found was somebody else's. This has to survive a second copy:
+  // once a clash is recorded the file is in `ours`, so a re-copy would not notice it again, and
+  // the replacement entry would forget it. Copy, copy again, take out, and the person's own file
+  // was deleted after all.
+  const knownTheirs = new Set(manifest.entries.flatMap((e) => e.wereAlreadyThere ?? []));
   try {
     for (const job of jobs) {
       const packDir = src.packDir(job.entry.packId);
@@ -281,7 +310,7 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
         made.push(dirname(dest));
         await mkdir(dirname(dest), { recursive: true });
         if (!existsSync(dest)) fresh.push(dest);
-        else if (!ours.has(f.dest)) clashed.push(f.dest);
+        else if (!ours.has(f.dest) || knownTheirs.has(f.dest)) clashed.push(f.dest);
         // Ours from here on, so a texture two assets share is not mistaken for somebody else's
         // work the second time it is written in this same run.
         ours.add(f.dest);
@@ -346,6 +375,9 @@ export async function removeFromProject(project: Project, libraryId: string, ite
   const keep = manifest.entries.filter((e) => !going.includes(e));
   // A file another remaining entry also uses (a shared texture) stays.
   const stillUsed = new Set(keep.flatMap((e) => e.files));
+  // Files somebody else put there, according to every entry in the manifest. A file is theirs or
+  // it is not; which entry happened to notice first does not change that.
+  const theirs = new Set(manifest.entries.flatMap((e) => e.wereAlreadyThere ?? []));
   const dirs = new Set<string>();
   for (const e of going) {
     // An adopted entry points at files the game already had. Tessera never wrote them, so it
@@ -353,8 +385,10 @@ export async function removeFromProject(project: Project, libraryId: string, ite
     if (e.adopted) continue;
     // A file that was already there when we copied is somebody else's, however it got there.
     // We wrote over it, which was bad enough; deleting it would be worse.
-    const theirs = new Set(e.wereAlreadyThere ?? []);
     for (const f of e.files) {
+      // Theirs according to any entry, not only this one. Two assets sharing a texture the person
+      // already had recorded it once, on whichever was copied first, so removing the other one
+      // deleted it.
       if (stillUsed.has(f) || theirs.has(f)) continue;
       const p = join(project.path, ...f.split('/'));
       await unlink(p).catch(() => undefined);

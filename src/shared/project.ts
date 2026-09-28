@@ -87,6 +87,13 @@ export interface Manifest {
 export interface ProjectUse {
   projectId: string;
   name: string;
+  /**
+   * The game's record could not be read, so whether it uses this pack is not known.
+   *
+   * Named rather than left out: "no entries" would read as "this pack is not used here", which is
+   * the opposite of what is known about it.
+   */
+  unknown?: boolean;
   files: number;
 }
 

@@ -58,3 +58,21 @@ describe('a credit line that carries the creator’s own words', () => {
     expect(text).toMatch(/Art by John Smith/);
   });
 });
+
+describe('one game with a damaged record', () => {
+  it('does not take the other games down with it', async () => {
+    // Making readManifest refuse a damaged file was right for writing and wrong for looking: one
+    // merge conflict emptied the whole Projects page, stopped anything being linked to any game,
+    // and made "what uses this pack?" answer nothing for all of them.
+    const { readManifestIfReadable } = await import('../src/main/projects/copy');
+    const dir = tempDir('tessera-manifest-');
+    mkdirSync(join(dir, '.tessera'), { recursive: true });
+    writeFileSync(join(dir, '.tessera', 'manifest.json'), '<<<<<<< HEAD\n{}\n=======\n>>>>>>> theirs\n');
+    const read = await readManifestIfReadable(dir, 'lib');
+    expect(read.damaged).toBe(true);
+    expect(read.manifest.entries).toEqual([]);
+
+    const fine = tempDir('tessera-manifest-');
+    expect((await readManifestIfReadable(fine, 'lib')).damaged).toBe(false);
+  });
+});
