@@ -120,11 +120,20 @@ export class ReportService {
   }
 
   /** The window's answer to "Send an error report?". */
-  async respond(answer: Answer): Promise<void> {
+  /**
+   * Returns how many reports actually left this computer, and how many are still waiting.
+   *
+   * Sending can fail quietly, because failures are kept for later rather than thrown, and there
+   * may be nowhere to send to at all. The window used to say "the report was sent" in both cases,
+   * which is a small lie about the one subject where the app promises never to tell one.
+   */
+  async respond(answer: Answer): Promise<{ sent: number; waiting: number }> {
     this.asked = true;
     if (answer === 'always' || answer === 'never') await this.d.settings.update({ errorReports: answer });
+    const before = this.sent;
     if (answer === 'once' || answer === 'always') await this.flush();
     this.d.onChange();
+    return { sent: this.sent - before, waiting: this.unsent.size };
   }
 
   private events(fingerprints: Iterable<string>) {

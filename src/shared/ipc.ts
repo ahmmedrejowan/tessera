@@ -359,7 +359,8 @@ export interface Invokes {
   'reports:pending': () => { recovered: boolean; ask: boolean };
   /** Exactly what would be sent for the errors waiting, as JSON. */
   'reports:preview': () => string;
-  'reports:respond': (answer: 'once' | 'always' | 'never' | 'not-now') => void;
+  /** How many reports actually left this computer, and how many are still waiting to. */
+  'reports:respond': (answer: 'once' | 'always' | 'never' | 'not-now') => { sent: number; waiting: number };
   /** Send crash reports from earlier sessions, or not; they're cleared either way. */
   'reports:crashes': (send: boolean) => void;
   /** A report the user asked for, as text: their words, this session's errors, the recent log. */

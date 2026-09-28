@@ -46,9 +46,13 @@ async function askToSend(): Promise<void> {
       { label: 'Always send', value: 'always' as const, kind: 'primary' },
     ],
   });
-  await call('reports:respond', answer ?? 'not-now');
+  const outcome = await call('reports:respond', answer ?? 'not-now');
   if (answer === 'never') notify.info('Error reports won’t be sent.', { body: 'You can change this in Settings › Privacy.' });
-  if (answer === 'once' || answer === 'always') notify.success('Thanks, the report was sent.');
+  if (answer === 'once' || answer === 'always') {
+    // Only say it went if it went. Sending can fail quietly and the report is kept for later.
+    if (outcome.sent > 0) notify.success('Thanks, the report was sent.');
+    else notify.info('Thanks. It could not be sent just now, so it is kept and will go later.');
+  }
 }
 
 async function askAboutCrashes(count: number): Promise<void> {
