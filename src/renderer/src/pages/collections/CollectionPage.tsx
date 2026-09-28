@@ -24,7 +24,7 @@ import { licenceInfo } from '@shared/licences';
 import type { AssetRow, BrowseQuery, Filters, PackRow } from '@shared/query';
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
-import { formatBytes, formatCount } from '../../components/labels';
+import { formatBytes, formatCount, mainAssetsOf } from '../../components/labels';
 import { failed, notify, useNotices } from '../../notices/store';
 import { VirtualGrid } from '../../components/VirtualGrid';
 import { useBrowse } from '../../state/browse';
@@ -149,7 +149,7 @@ export function CollectionPage({ id }: { id: string }) {
   /** Everything in the collection as files: the loose assets and every file of its packs. */
   const everything = async () => {
     const out = await call('assets:refs', (await call('browse:assets', query, 'relevance', 0, 5000)).rows.map((r) => r.id));
-    for (const p of inPacks) for (const f of await call('pack:files', p.id)) out.push({ packId: f.packId, ref: f.ref });
+    for (const p of inPacks) out.push(...mainAssetsOf(await call('pack:files', p.id)));
     return out;
   };
   const smart = collection.kind === 'smart';

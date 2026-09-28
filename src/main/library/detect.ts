@@ -149,7 +149,20 @@ export function nameFromDownload(fileName: string): string {
   let n = fileName.replace(/\.(zip|7z|rar|tar\.gz|tgz|unitypackage)$/i, '');
   n = n.replace(/^(kenney|kaykit|quaternius)[_\- ]+/i, '');
   n = n.replace(/[_\- ]\(?(free|lite|demo)\)?$/i, '').replace(/[_\- ]v?\d+(\.\d+)+$/i, '').replace(/[_\- ]\(\d+\)$/, '');
-  const words = pathWords(n.replace(/[_-]+/g, ' ')).split(' ').filter(Boolean);
+  const spaced = n.replace(/[_-]+/g, ' ');
+  // Short runs of capitals were meant that way: a folder called UI should not come back as "Ui",
+  // nor PBR as "Pbr". Anything longer is a shout, and gets tidied like the rest.
+  const shouted = new Set(
+    spaced
+      .split(/\s+/)
+      .filter((w) => /^[A-Z0-9]{2,5}$/.test(w) && /[A-Z]/.test(w))
+      .map((w) => w.toLowerCase()),
+  );
+  const words = pathWords(spaced).split(' ').filter(Boolean);
   const small = new Set(['a', 'an', 'and', 'of', 'the', 'in', 'on', 'for', 'to']);
-  return words.map((w, i) => (i > 0 && small.has(w) ? w : /^\d/.test(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1))).join(' ') || fileName;
+  return (
+    words
+      .map((w, i) => (shouted.has(w) ? w.toUpperCase() : i > 0 && small.has(w) ? w : /^\d/.test(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+      .join(' ') || fileName
+  );
 }

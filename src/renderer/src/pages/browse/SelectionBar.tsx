@@ -7,7 +7,7 @@ import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { useEffect, useState } from 'react';
-import { formatBytes, formatCount } from '../../components/labels';
+import { formatBytes, formatCount, mainAssetsOf } from '../../components/labels';
 import { call } from '../../api';
 import { useNotices } from '../../notices/store';
 import { useBrowse } from '../../state/browse';
@@ -56,7 +56,7 @@ export function SelectionBar({ packs, total, all }: { packs?: boolean; total?: n
     if (!packs) return call('assets:refs', [...selection].map(Number));
     const out: { packId: string; ref: string }[] = [];
     for (const id of [...selection].map(String)) {
-      for (const file of await call('pack:files', id)) out.push({ packId: file.packId, ref: file.ref });
+      out.push(...mainAssetsOf(await call('pack:files', id)));
     }
     return out;
   };

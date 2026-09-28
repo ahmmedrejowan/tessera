@@ -33,7 +33,7 @@ import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
 import { Page } from '../Placeholder';
 import { failed, notify } from '../../notices/store';
-import { formatBytes, formatCount, sourceName, typeSummary } from '../../components/labels';
+import { formatBytes, formatCount, sourceName, typeSummary, mainAssetsOf } from '../../components/labels';
 import { LicenceChip, licenceSummary } from '../../components/LicenceChip';
 import { VirtualGrid } from '../../components/VirtualGrid';
 import { useIndexVersion, useLibraryId } from '../../state/library';
@@ -518,7 +518,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
       </div>
 
       <PackPreviews packId={id} packName={pack.name} open={showingPreviews} onClose={() => setShowingPreviews(false)} />
-      <ProjectMenu anchor={copying} onClose={() => setCopying(null)} items={async () => (await call('pack:files', id)).map((f) => ({ packId: f.packId, ref: f.ref }))} />
+      <ProjectMenu anchor={copying} onClose={() => setCopying(null)} items={async () => mainAssetsOf(await call('pack:files', id))} />
       <CollectionMenu anchor={collecting} onClose={() => setCollecting(null)} packs={() => Promise.resolve([id])} />
 
       <Dialog open={showing !== null} onClose={() => setShowing(null)} maxWidth="xs" fullWidth>

@@ -16,6 +16,11 @@ describe('pack names from downloads', () => {
     ['medieval_village_megakit (1).zip', 'Medieval Village Megakit'],
     ['kenney_3d-road-tiles.zip', '3D Road Tiles'],
     ['LowPolyTrees.zip', 'Low Poly Trees'],
+    // A short run of capitals was meant that way: a folder called UI is not "Ui".
+    ['UI', 'UI'],
+    ['PBR Materials', 'PBR Materials'],
+    ['SFX_pack', 'SFX Pack'],
+    ['HDRI skies', 'HDRI Skies'],
   ])('%s → %s', (file, name) => {
     expect(nameFromDownload(file)).toBe(name);
   });

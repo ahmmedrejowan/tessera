@@ -25,11 +25,27 @@ export function creditsMarkdown(entries: ManifestEntry[]): string {
   const all = [...packs.values()].sort((a, b) => a.name.localeCompare(b.name));
   const needs = all.filter((p) => licenceInfo(p.licence)?.attribution || licenceInfo(p.licence)?.shareAlike);
   const rest = all.filter((p) => !needs.includes(p));
+  /**
+   * One line per pack: what it is, then the credit its licence asks for.
+   *
+   * A credit line the creator supplied is used word for word, because that is what the licence
+   * asks for, but it is added to the pack's name rather than put in its place: two packs sharing
+   * a creator's stock credit line used to come out as two identical lines that named neither.
+   */
   const line = (p: PackCredit) => {
     const info = licenceInfo(p.licence);
-    const credit = p.attribution ?? `“${p.name}”${p.creator ? ` by ${p.creator}` : ''}`;
+    const has = (s: string | null | undefined) => !!s && !!p.attribution && p.attribution.toLowerCase().includes(s.toLowerCase());
+    // A credit line the creator supplied is used word for word, and the pack's name and licence
+    // are added only where it does not already carry them. Without that, two packs sharing one
+    // creator's stock line came out as two identical lines naming neither.
+    const what = has(p.name) ? '' : `“${p.name}”`;
+    // A supplied credit line is set off with a dash, because it is somebody else's sentence;
+    // "by Creator" reads as part of the same one.
+    const who = p.attribution ? `${what ? ' — ' : ''}${p.attribution}` : p.creator ? `${what ? ' ' : ''}by ${p.creator}` : '';
     const licence = info ? (info.url ? `[${info.short}](${info.url})` : info.short) : 'licence not recorded';
-    return `- ${credit}${p.attribution ? '' : ` (${licence})`}${p.url && !p.attribution?.includes(p.url) ? ` ${p.url}` : ''}`;
+    const saysLicence = has(info?.short) || has(info?.name);
+    const url = p.url && !has(p.url) ? ` ${p.url}` : '';
+    return `- ${what}${who}${saysLicence ? '' : ` (${licence})`}${url}`;
   };
   const out = ['# Credits', '', 'Assets used in this game.', ''];
   if (needs.length) out.push('## Credit required', '', ...needs.map(line), '');

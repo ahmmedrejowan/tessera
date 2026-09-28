@@ -143,3 +143,14 @@ export function dateTimeText(at: string | number | Date, options: Intl.DateTimeF
   const d = readable(at);
   return d ? d.toLocaleString([], options) : '—';
 }
+
+/**
+ * The assets of a pack that belong in a game, out of every file it holds.
+ *
+ * A pack carries more than its assets: a readme, a "Visit Kenney" shortcut, the preview picture
+ * from its store page, a tilesheet note. Those are worth keeping in the library and have no
+ * business in somebody's project, where the engine would import each one. Textures and the rest
+ * of a model's parts are not dropped here: they come along as that model's dependencies.
+ */
+export const mainAssetsOf = (files: { packId: string; ref: string; role: string }[]) =>
+  files.filter((f) => f.role === 'main').map((f) => ({ packId: f.packId, ref: f.ref }));

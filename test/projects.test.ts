@@ -162,5 +162,30 @@ describe('copying into a project', () => {
   it('writes a credits file even before anything is copied', () => {
     expect(creditsMarkdown([])).toContain('No assets copied yet.');
   });
+
+  it('names the pack on every line, whether or not a credit line was given', () => {
+    const entry = (packId: string, packName: string, attribution: string | null) =>
+      ({ packId, packName, ref: 'a.glb', copiedRef: 'a.glb', files: ['x'], licence: 'CC-BY-4.0', attribution, creator: 'Someone', sourceUrl: null, copiedAt: 'now' }) as never;
+    const md = creditsMarkdown([entry('p1', 'Ships', 'Nebula Assets'), entry('p2', 'Environment', 'Nebula Assets'), entry('p3', 'Sounds', null)]);
+
+    // Two packs sharing one creator's stock credit line must not come out as two identical
+    // lines that name neither: the line the licence asks for is added, not substituted.
+    expect(md).toContain('“Ships” — Nebula Assets ([CC BY 4.0]');
+    expect(md).toContain('“Environment” — Nebula Assets ([CC BY 4.0]');
+    expect(md).toContain("“Sounds” by Someone ([CC BY 4.0]");
+    // A credit line that already names the pack and its licence is left exactly as it is.
+    const whole = creditsMarkdown([
+      { packId: 'p', packName: 'Icons', ref: 'a.png', copiedRef: 'a.png', files: ['x'], licence: 'CC-BY-3.0', attribution: 'Icons by Lorc, CC BY 3.0', creator: 'Lorc', sourceUrl: null, copiedAt: 'now' } as never,
+    ]);
+    expect(whole).toContain('- Icons by Lorc, CC BY 3.0\n');
+    expect(md.split('\n').filter((l) => l.trim() === '- Nebula Assets')).toHaveLength(0);
+  });
+
+  it('says so plainly when no licence is on record', () => {
+    const md = creditsMarkdown([
+      { packId: 'p', packName: 'Mystery', ref: 'a.glb', copiedRef: 'a.glb', files: ['x'], licence: null, attribution: null, creator: null, sourceUrl: null, copiedAt: 'now' } as never,
+    ]);
+    expect(md).toContain('“Mystery” (licence not recorded)');
+  });
 });
 

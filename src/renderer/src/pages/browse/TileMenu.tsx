@@ -17,6 +17,7 @@ import { useState, type MouseEvent, type ReactNode } from 'react';
 import { hostLabel } from '@shared/links';
 import type { AssetRow, PackRow } from '@shared/query';
 import { sourceInfo } from '@shared/sources';
+import { mainAssetsOf } from '../../components/labels';
 import { call } from '../../api';
 import { failed, notify } from '../../notices/store';
 import { useIndexVersion, useLibraryId } from '../../state/library';
@@ -134,7 +135,7 @@ export function PackMenu({
   const [projects, setProjects] = useState<HTMLElement | null>(null);
   const details = usePackDetails(pack.id);
   const page = pageOf(details);
-  const files = async () => (await call('pack:files', pack.id)).map((f) => ({ packId: f.packId, ref: f.ref }));
+  const files = async () => mainAssetsOf(await call('pack:files', pack.id));
   const close = () => {
     setCollections(null);
     setProjects(null);
