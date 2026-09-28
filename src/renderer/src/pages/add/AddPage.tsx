@@ -750,12 +750,16 @@ function HowKeptBar() {
 
   const folders = drafts.filter((d) => d.item.kind === 'folder');
   // A folder someone pointed at is never emptied, and only a folder can be read where it lies:
-  // a handful of loose files has no folder of its own to stand for the pack.
+  // a handful of loose files has no folder of its own to stand for the pack. Splitting a folder
+  // usually gives both at once, so the choice is offered whenever any of it can be read in
+  // place, and the odd one out is named rather than quietly deciding for the lot.
   const allFolders = drafts.length > 0 && folders.length === drafts.length;
+  const anyFolder = folders.length > 0;
+  const loose = drafts.length - folders.length;
   const bytes = drafts.reduce((n, d) => n + d.item.size, 0);
   const name = library?.name ?? 'your library';
   const where = folders.length === 1 ? folders[0]!.item.sources[0] : `${folders.length} folders`;
-  const suggested = recommend(bytes, allFolders);
+  const suggested = recommend(bytes, anyFolder);
 
   // The setting and the size decide where the choice starts; after that the person's stands.
   useEffect(() => {
@@ -769,7 +773,7 @@ function HowKeptBar() {
   // tooltip, where somebody who wants it will look and nobody else has to read it.
   const says =
     mode === 'keep'
-      ? `Nothing is copied or moved${allFolders ? `; read from ${where}` : ''}. Not backed up or synced, because the files are not in the library.`
+      ? `${loose ? `Read where they are, except ${loose === 1 ? 'the loose one, which has no folder of its own and is copied in' : `${loose} loose ones, which have no folder of their own and are copied in`}` : `Nothing is copied or moved${allFolders ? `; read from ${where}` : ''}`}. Not backed up or synced, because the files are not in the library.`
       : mode === 'move'
         ? `The originals go once the copy is safely in and has been read back. Frees ${formatBytes(bytes)}.`
         : `The library keeps its own copy and your originals stay put. Uses ${formatBytes(bytes)} more.`;
@@ -780,7 +784,7 @@ function HowKeptBar() {
    * backups. An ordinary answer goes straight through.
    */
   const pick = (m: AddMode) => {
-    const doubt = secondThought(m, bytes, allFolders, formatBytes);
+    const doubt = secondThought(m, bytes, anyFolder, formatBytes);
     if (doubt) setAsking({ mode: m, doubt });
     else void setMode(m);
   };
@@ -816,10 +820,10 @@ function HowKeptBar() {
           {
             value: 'keep',
             label: 'In place',
-            title: allFolders
-              ? `Nothing is copied or moved. Read from ${where}, and never written to. Not backed up or synced, because the files are not in the library.`
+            title: anyFolder
+              ? `Nothing is copied or moved${allFolders ? `. Read from ${where}` : '; loose files have no folder of their own, so those are copied in'}, and the folders are never written to. Not backed up or synced, because the files are not in the library.`
               : undefined,
-            disabled: allFolders ? undefined : 'Only whole folders can be read where they are.',
+            disabled: anyFolder ? undefined : 'Only whole folders can be read where they are, and none of these is one.',
           },
         ]}
       />
