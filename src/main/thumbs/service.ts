@@ -80,6 +80,8 @@ interface Queued {
   priority: number;
   /** Set when the picture has to be read out of the file before the window can draw it. */
   needsPixels?: { packId: string; ref: string };
+  /** How many times this has been put back after the drawing window was restarted under it. */
+  retried?: number;
 }
 
 export interface ThumbDeps {
@@ -215,6 +217,14 @@ export class ThumbService {
       await writeFile(join(dir, `${q.name}.webp`), data);
       state = thumbUrl(`${q.name}.webp`);
     } catch (e) {
+      // A job thrown out with a wedged window never met its file, so it is not evidence about the
+      // file. Marking it failed would condemn good assets until somebody cleared them by hand,
+      // which is how one bad model used to cost a whole library its previews. Put it back once
+      // instead: the window it waits on now is a fresh one.
+      if ((e as Error)?.name === 'RecycledError' && (q.retried ?? 0) < 1) {
+        this.queue.set(q.name, { ...q, retried: (q.retried ?? 0) + 1 });
+        return;
+      }
       log.warn('thumbs', `could not draw ${q.job.url}`, e instanceof Error ? e.message : e);
       await writeFile(join(dir, `${q.name}.fail`), e instanceof Error ? e.message : String(e)).catch(() => undefined);
       state = 'failed';
