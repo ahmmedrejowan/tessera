@@ -364,6 +364,7 @@ function PackIcon({ d, size }: { d: Draft; size: number }) {
 
 /** The pack's pictures and what's in it, and how the copying is going. */
 function Preview({ d }: { d: Draft }) {
+  const mode = useAdding((s) => s.mode);
   const files = useQuery({ queryKey: ['add-files', d.packId], queryFn: () => call('pack:files', d.packId!), enabled: !!d.packId }).data ?? [];
   const jobs = useJobs();
   const pics = files.filter((a) => a.kind === 'model' || a.kind === 'image').slice(0, 5);
@@ -392,11 +393,18 @@ function Preview({ d }: { d: Draft }) {
       </div>
       <div style={{ marginTop: 'auto' }}>
         <Typography variant="bodySmall" component="div" sx={{ color: d.state === 'failed' ? md('error') : md('onSurfaceVariant'), display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          {d.state === 'copying' ? `Copying into the library…${job?.progress != null ? ` ${Math.round(job.progress * 100)}%` : ''}` : d.state === 'failed' ? `Couldn’t add it: ${d.error}` : (
-            <>
-              Copied into the library <CheckRounded sx={{ fontSize: 15 }} />
-            </>
-          )}
+          {/* Says what actually happened: nothing is copied when the files are read where they lie. */}
+          {d.state === 'copying'
+            ? mode === 'keep'
+              ? 'Reading it where it is…'
+              : `Copying into the library…${job?.progress != null ? ` ${Math.round(job.progress * 100)}%` : ''}`
+            : d.state === 'failed'
+              ? `Couldn’t add it: ${d.error}`
+              : (
+                  <>
+                    {mode === 'keep' ? 'Read where it is' : 'Copied into the library'} <CheckRounded sx={{ fontSize: 15 }} />
+                  </>
+                )}
         </Typography>
         <LinearProgress variant={d.state === 'copying' && job?.progress == null ? 'indeterminate' : 'determinate'} value={d.state === 'copying' ? (job?.progress ?? 0) * 100 : 100} sx={{ mt: 0.75, height: 4, borderRadius: 2 }} />
       </div>
