@@ -34,7 +34,13 @@ export function creditsMarkdown(entries: ManifestEntry[]): string {
    */
   const line = (p: PackCredit) => {
     const info = licenceInfo(p.licence);
-    const has = (s: string | null | undefined) => !!s && !!p.attribution && p.attribution.toLowerCase().includes(s.toLowerCase());
+    // Whole words. A substring test dropped the licence from "Art by John Smith", because "Smith"
+    // contains "MIT", and from any creator called Fabian or Wolfley for the same reason.
+    const has = (s: string | null | undefined) => {
+      if (!s || !p.attribution) return false;
+      const word = s.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`(^|[^\\p{L}\\p{N}])${word}([^\\p{L}\\p{N}]|$)`, 'iu').test(p.attribution);
+    };
     // A credit line the creator supplied is used word for word, and the pack's name and licence
     // are added only where it does not already carry them. Without that, two packs sharing one
     // creator's stock line came out as two identical lines naming neither.

@@ -70,3 +70,21 @@ describe('the licence file a pack actually ships', () => {
     expect(detectLicence('h1 { color: #cc0000 }')).toBeNull();
   });
 });
+
+describe('licences that are easy to record too loosely', () => {
+  it('keeps NoDerivatives out of the licence that allows changes', () => {
+    // "CC BY-NC-ND" used to match the by-nc test and be recorded as CC BY-NC, which says a work
+    // may be changed. Rescaling a texture is a derivative, so this is the clause a game breaks
+    // by accident.
+    expect(detectLicence('Creative Commons Attribution-NonCommercial-NoDerivatives 4.0')).toBe('CC-BY-NC-ND-4.0');
+    expect(detectLicence('CC BY-NC-ND 4.0')).toBe('CC-BY-NC-ND-4.0');
+    expect(licenceInfo('CC-BY-NC-ND-4.0')?.modify).toBe(false);
+    expect(licenceInfo('CC-BY-NC-ND-4.0')?.commercial).toBe(false);
+  });
+
+  it('asks for a font licence to be credited', () => {
+    // The OFL wants its notice and text to travel with the font. Marked as needing no
+    // attribution, it was never mentioned in the credits or before a copy.
+    expect(licenceInfo('OFL-1.1')?.attribution).toBe(true);
+  });
+});

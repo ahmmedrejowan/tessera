@@ -6,6 +6,8 @@
  */
 import { BrowserWindow, app, dialog, shell } from 'electron';
 import { join, relative, resolve, isAbsolute } from 'node:path';
+import { assetPath } from '@shared/assets';
+import { licenceForPath } from '@shared/pack';
 import { packFileUrl } from '@shared/urls';
 import { parseRef } from '../index/files';
 import { UserError, handle } from '../ipc';
@@ -59,7 +61,15 @@ export function registerPackIpc(c: Deps): void {
     if (row) {
       const m = row.meta;
       await projects
-        .packChanged(libraryId(), id, { packName: m.name, licence: m.licence.id, attribution: m.licence.attribution, creator: m.source.creator, sourceUrl: m.source.url })
+        .packChanged(
+          libraryId(),
+          id,
+          { packName: m.name, licence: m.licence.id, attribution: m.licence.attribution, creator: m.source.creator, sourceUrl: m.source.url },
+          (ref) => {
+            const covering = licenceForPath(m, assetPath(ref));
+            return { licence: covering.id, attribution: covering.attribution };
+          },
+        )
         .catch((e: unknown) => log.warn('projects', 'could not update projects after a pack edit', e));
     }
   });

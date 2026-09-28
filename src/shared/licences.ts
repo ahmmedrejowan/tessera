@@ -33,7 +33,14 @@ export const LICENCES: LicenceInfo[] = [
   cc('CC-BY-NC-4.0', 'Creative Commons Attribution-NonCommercial 4.0', 'CC BY-NC 4.0', 'https://creativecommons.org/licenses/by-nc/4.0/', { commercial: false }),
   cc('CC-BY-NC-SA-4.0', 'Creative Commons Attribution-NonCommercial-ShareAlike 4.0', 'CC BY-NC-SA 4.0', 'https://creativecommons.org/licenses/by-nc-sa/4.0/', { commercial: false, shareAlike: true }),
   cc('CC-BY-ND-4.0', 'Creative Commons Attribution-NoDerivatives 4.0', 'CC BY-ND 4.0', 'https://creativecommons.org/licenses/by-nd/4.0/', { modify: false }),
-  cc('OFL-1.1', 'SIL Open Font License 1.1', 'OFL', 'https://openfontlicense.org', { attribution: false }),
+  // Without this, "CC BY-NC-ND" matched the by-nc test first and was recorded as CC BY-NC, which
+  // says a work may be changed. It may not, and for game assets that is the clause most likely to
+  // be broken by accident: rescaling a texture is a derivative.
+  cc('CC-BY-NC-ND-4.0', 'Creative Commons Attribution-NonCommercial-NoDerivatives 4.0', 'CC BY-NC-ND 4.0', 'https://creativecommons.org/licenses/by-nc-nd/4.0/', { commercial: false, modify: false }),
+  // The OFL asks that its copyright notice and the licence itself travel with the font, so a
+  // credits line is the least it needs. Marked as needing no attribution, it was never mentioned
+  // in the credits or in the warnings before a copy.
+  cc('OFL-1.1', 'SIL Open Font License 1.1', 'OFL', 'https://openfontlicense.org', {}),
   cc('Apache-2.0', 'Apache License 2.0', 'Apache 2.0', 'https://www.apache.org/licenses/LICENSE-2.0', {}),
   cc('MIT', 'MIT License', 'MIT', 'https://opensource.org/license/mit', {}),
   { id: 'royalty-free', name: 'Royalty-free (bought)', short: 'Royalty-free', url: null, commercial: true, attribution: false, shareAlike: false, modify: true, free: false },
@@ -73,6 +80,7 @@ export function detectLicence(text: string): string | null {
   // Most restrictive first, and CC0 last of the Creative Commons family. Where a file names more
   // than one, the stricter reading is the safe one to be wrong about: crediting something that
   // needed no credit costs a line of text, and the other way round costs a takedown.
+  if (/by-nc-nd|attribution-noncommercial-noderiv/i.test(t)) return 'CC-BY-NC-ND-4.0';
   if (/by-nc-sa|attribution-noncommercial-sharealike/i.test(t)) return 'CC-BY-NC-SA-4.0';
   // Only the licence's own wording: "free for commercial and non-commercial use" is not NC.
   if (/by-nc|attribution-noncommercial/i.test(t)) return 'CC-BY-NC-4.0';

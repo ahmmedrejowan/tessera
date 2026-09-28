@@ -204,13 +204,24 @@ export class ProjectService {
    * A pack's licence, credit line or name changed: update what every project that uses it has on
    * record, and rewrite their credits files.
    */
-  async packChanged(libraryId: string, packId: string, info: Pick<ManifestEntry, 'packName' | 'licence' | 'attribution' | 'creator' | 'sourceUrl'>): Promise<void> {
+  async packChanged(
+    libraryId: string,
+    packId: string,
+    info: Pick<ManifestEntry, 'packName' | 'licence' | 'attribution' | 'creator' | 'sourceUrl'>,
+    /**
+     * The licence covering one particular file of the pack, where the pack has parts under terms
+     * of their own. Without it, a bundle whose `Music/` folder is CC BY had that folder's licence
+     * replaced by the pack's own the next time anybody added a tag to the pack, and the game's
+     * credits lost a required attribution for a change that had nothing to do with licences.
+     */
+    licenceFor?: (ref: string) => { licence: string | null; attribution: string | null },
+  ): Promise<void> {
     for (const project of await this.load()) {
       if (!existsSync(project.path)) continue;
       const manifest = await readManifest(project.path, libraryId);
       const mine = (e: ManifestEntry) => e.packId === packId && entryLibrary(e, manifest) === libraryId;
       if (!manifest.entries.some(mine)) continue;
-      manifest.entries = manifest.entries.map((e) => (mine(e) ? { ...e, ...info } : e));
+      manifest.entries = manifest.entries.map((e) => (mine(e) ? { ...e, ...info, ...(licenceFor ? licenceFor(e.ref) : {}) } : e));
       await writeJson(join(project.path, MANIFEST), manifest);
       if (project.creditsFile) await writeCredits(join(project.path, ...project.creditsFile.split('/')), manifest.entries);
     }
