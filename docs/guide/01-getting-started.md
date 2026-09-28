@@ -18,8 +18,20 @@ Take the file for your system from the [install page](/install), or use a packag
 | Windows, Scoop | `scoop bucket add tessera https://github.com/ahmmedrejowan/scoop-tessera` then `scoop install tessera` |
 
 The builds are not signed with paid Apple or Microsoft certificates, so macOS and Windows each ask
-once the first time you open it. The install page spells out exactly what each one says and which
-button to press.
+once the first time you open it. Installing with a package manager skips that: Homebrew, Scoop and
+Chocolatey all clear the download flag as they go.
+
+If you took the file yourself, the shortest way past it on a Mac is one line, once Tessera is in
+Applications:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Tessera.app
+```
+
+It removes the flag macOS puts on anything a browser downloaded, which is what the warning is
+about. On Windows the same idea is `Unblock-File .\Tessera-win-x64.exe` in PowerShell before you
+run the installer. Neither is required: the [install page](/install) spells out the clicking route
+too, and says exactly what each system asks.
 
 ## The first screen
 

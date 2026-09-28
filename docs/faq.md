@@ -45,10 +45,24 @@ tessera`. winget and the AUR do not yet; the winget submission is waiting on a m
 **Why does macOS say it cannot verify Tessera is free from malware?**
 Because the build is not notarised by Apple, which costs ninety-nine dollars a year that a free
 program would rather not spend. The app is not damaged and nothing has gone wrong with the
-download. Press Done on the warning, then open System Settings, Privacy & Security, scroll to
-Security, and press Open Anyway beside Tessera. Confirm with Touch ID or your password, then press
-Open. Only the first time. On macOS 14 and earlier, right-clicking Tessera and choosing Open does
-the same thing.
+download. macOS says the same about anything it cannot check with Apple.
+
+There are two ways past it, and both are one-time. With Tessera in Applications, one line in
+Terminal:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Tessera.app
+```
+
+That takes off the flag macOS puts on anything downloaded by a browser, which is the whole reason
+for the warning, and is exactly what Homebrew does for you when you install that way. It is a
+check you are switching off, so do it for software you mean to trust; the checksums on the
+releases page are there to make that an informed decision.
+
+Or without Terminal: press Done on the warning, then open System Settings, Privacy & Security,
+scroll to Security, and press Open Anyway beside Tessera. Confirm with Touch ID or your password,
+then press Open. On macOS 14 and earlier, right-clicking Tessera and choosing Open does the same
+thing; Apple removed that shortcut in macOS 15.
 
 **macOS says Tessera is damaged instead. What now?**
 That means the download was flagged on the way in rather than the signature being unrecognised.

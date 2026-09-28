@@ -53,17 +53,22 @@
 
 | Your computer | What to type |
 |---------------|--------------|
-| macOS | `brew tap ahmmedrejowan/tessera && brew install --cask tessera` |
+| macOS, Homebrew | `brew tap ahmmedrejowan/tessera && brew install --cask tessera` |
 | Windows, Chocolatey | `choco install tessera` |
 | Windows, Scoop | `scoop bucket add tessera https://github.com/ahmmedrejowan/scoop-tessera && scoop install tessera` |
+| Windows, winget | `winget install Rejowan.Tessera` — **not yet**, see below |
+| Arch, Manjaro | `yay -S tessera-bin` — **not yet**, see below |
+
+The winget submission passes every check and is waiting on a moderator at
+[microsoft/winget-pkgs#441739](https://github.com/microsoft/winget-pkgs/pull/441739). A PKGBUILD is
+written on every release but nothing is published to the AUR yet. Both commands are given so you
+know what they will be, not because they work today.
 
 Homebrew 7 asks before it loads anything from a tap that is not its own. If it does, run
-`brew trust --cask ahmmedrejowan/tessera/tessera` and install again. winget and the AUR do not
-carry Tessera yet; their manifests are written on every release, and the winget submission is
-waiting on a moderator.
+`brew trust --cask ahmmedrejowan/tessera/tessera` and install again.
 
-Homebrew is worth preferring on a Mac: it clears the download flag as it installs, so macOS opens
-Tessera without asking you to allow it first.
+A package manager is worth preferring: each of them clears the download flag as it installs, so
+neither macOS nor Windows asks you to allow anything.
 
 ### Or take the file
 
@@ -86,6 +91,20 @@ skips this on a Mac entirely.
 
 **macOS** says it cannot verify the app is free from malware.
 
+The quickest way, once Tessera is in Applications, is one line in Terminal:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Tessera.app
+```
+
+That removes the flag macOS puts on anything a browser downloaded, which is the whole reason for
+the warning. It is the same thing Homebrew does for you. Running it says nothing and does nothing
+if the flag has already gone. You are switching off a check, so do it for software you mean to
+trust: the checksums on the releases page, and `gh attestation verify`, are there to make that
+judgement an informed one.
+
+Or click through it instead, which needs no Terminal:
+
 1. Double-click Tessera, then press **Done** on the warning.
 2. Apple menu, **System Settings**, **Privacy & Security**.
 3. Scroll to **Security**. There is a line saying Tessera was blocked.
@@ -95,7 +114,16 @@ skips this on a Mac entirely.
 From then on it opens like anything else. On macOS 14 and earlier you can instead right-click
 Tessera in Applications and choose **Open**, then **Open** again.
 
-**Windows** says "Windows protected your PC". Choose **More info**, then **Run anyway**.
+**Windows** says "Windows protected your PC". Choose **More info**, then **Run anyway**. The
+equivalent one-liner, before you run the installer, is PowerShell's
+
+```powershell
+Unblock-File .\Tessera-win-x64.exe
+```
+
+which takes off the mark Windows puts on a downloaded file. SmartScreen usually reacts to that
+mark, so the prompt normally does not appear; a publisher it has never heard of can still be
+questioned, and **More info** then **Run anyway** always works.
 
 **Linux** says nothing. `chmod +x Tessera-*.AppImage`, or `sudo dpkg -i Tessera-*.deb`, or
 `sudo rpm -i Tessera-*.rpm`.
@@ -247,6 +275,24 @@ npm install
 npm run dev          # the app, with the window reloading as you save
 npm run dist         # installers for this computer, in release/
 ```
+
+Node 24 or newer, and git. Kopia, rclone and Syncthing are not needed to build: the app only
+fetches them if you turn on backups or sync.
+
+`npm run dist` builds for the system it runs on, and only that one. What it needs and what it
+leaves in `release/`:
+
+| On | Also needs | You get |
+|----|-----------|---------|
+| macOS | Xcode command line tools (`xcode-select --install`) | `.dmg` and `.zip`, Apple Silicon and Intel, signed ad hoc |
+| Windows | nothing further, there is no native code to compile | an installer and a portable `.zip`, x64 and Arm |
+| Linux | `rpm` as well, if you want the `.rpm` on a Debian-like system | `.AppImage`, `.deb` and `.rpm` |
+
+`npm run package` is the quicker one: an unpacked app in `release/`, no installers.
+
+A build from a clean clone is the same build the release workflow publishes, which is the point of
+the checksums and the `gh attestation verify` line above: you can check that for yourself rather
+than take it on trust.
 
 ## Testing
 
