@@ -28,6 +28,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { Page } from '../Placeholder';
 import { displayName, formatCount } from '../../components/labels';
 import { LicenceChip } from '../../components/LicenceChip';
+import { ask } from '../../notices/dialogs';
 import { failed, notify } from '../../notices/store';
 import { useLibraryId } from '../../state/library';
 import { useNav } from '../../state/nav';
@@ -109,8 +110,33 @@ export function ProjectPage({ id }: { id: string }) {
   }
   const isActive = active?.id === id;
   const remove = async (items: ManifestEntry[]) => {
-    const n = await call('projects:remove', id, items.map((e) => ({ packId: e.packId, ref: e.ref, ...(e.libraryId ? { libraryId: e.libraryId } : {}) })));
-    notify.success(`Removed ${n} asset${n === 1 ? '' : 's'} from ${project.name}.`);
+    // This deletes files out of somebody else's project, and there is no bin for a game. The
+    // sidecars go with them, and a Unity .meta holds the asset's GUID, so every prefab and scene
+    // that referenced it breaks. Every other destructive action in Tessera asks first; this one
+    // did not, and it is the one that reaches furthest outside the library.
+    const count = items.length;
+    const adopted = items.filter((e) => e.adopted).length;
+    const what = count === 1 ? `“${items[0]!.packName}”` : `${count.toLocaleString()} assets`;
+    const yes = await ask<boolean>({
+      tone: 'warning',
+      title: count === 1 ? 'Take this out of the game?' : `Take ${count.toLocaleString()} assets out of the game?`,
+      body:
+        `The files are deleted from ${project.name}, along with the sidecars the engine keeps beside them. There is no bin for a game, so this cannot be undone from here.` +
+        (adopted ? ` ${adopted === count ? 'These were' : `${adopted.toLocaleString()} of them were`} already in the game before Tessera saw them, so ${adopted === count ? 'they stay' : 'those stay'} where they are and only the record goes.` : '') +
+        ' Anything in your library is untouched.',
+      actions: [
+        { label: 'Cancel', value: false, kind: 'text' },
+        { label: count === 1 ? 'Take it out' : 'Take them out', value: true, kind: 'danger' },
+      ],
+    });
+    if (!yes) return;
+    try {
+      const n = await call('projects:remove', id, items.map((e) => ({ packId: e.packId, ref: e.ref, ...(e.libraryId ? { libraryId: e.libraryId } : {}) })));
+      notify.success(`Took ${n} asset${n === 1 ? '' : 's'} out of ${project.name}.`, { body: what === `${count.toLocaleString()} assets` ? undefined : what });
+    } catch (e) {
+      // It used to say nothing at all when this failed.
+      failed(e);
+    }
   };
 
   return (
