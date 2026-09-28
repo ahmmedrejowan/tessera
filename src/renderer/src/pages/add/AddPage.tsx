@@ -52,6 +52,7 @@ import { useNotices } from '../../notices/store';
 import { useLibraryRecord } from '../../state/library';
 import { useSettings, useUpdateSettings } from '../../state/queries';
 import { md, mdAlpha, SHAPE } from '../../theme';
+import { recommend, secondThought, whyRecommended, type SecondThought } from '@shared/keeping';
 import { HowKept, KEPT_ICONS, type KeptChoice } from './HowKept';
 
 /** Changing a form, saying where a filled-in value came from when Tessera filled it in. */
@@ -723,14 +724,8 @@ function WhereItGoes() {
   const drafts = useAdding((s) => s.drafts);
   const busy = useAdding((s) => s.busy);
   const [open, setOpen] = useState(false);
+  const [asking, setAsking] = useState<{ mode: AddMode; doubt: SecondThought } | null>(null);
   const started = useRef(false);
-
-  // The setting decides where the choice starts; after that the person's choice stands.
-  useEffect(() => {
-    if (started.current || !settings) return;
-    started.current = true;
-    setMove(settings.moveIntoLibrary);
-  }, [settings, setMove]);
 
   const folders = drafts.filter((d) => d.item.kind === 'folder');
   // A folder someone pointed at is never emptied, and only a folder can be read where it lies:
@@ -740,6 +735,20 @@ function WhereItGoes() {
   const name = library?.name ?? 'your library';
   const where = folders.length === 1 ? folders[0]!.item.sources[0] : `${folders.length} folders`;
 
+  // What to put forward follows the size: copy is right for a download and wrong for somebody's
+  // whole art drive, and size is the only thing that tells them apart before anybody has typed.
+  const suggested = recommend(bytes, allFolders);
+  const why = whyRecommended(bytes, allFolders);
+
+  // The setting and the size decide where the choice starts; after that the person's stands.
+  useEffect(() => {
+    if (started.current || !settings || !drafts.length) return;
+    started.current = true;
+    if (settings.moveIntoLibrary) setMove(true);
+    else if (suggested !== 'copy') void setMode(suggested);
+  }, [settings, drafts.length, suggested, setMove, setMode]);
+
+
   const choices: KeptChoice<AddMode>[] = [
     {
       value: 'copy',
@@ -747,7 +756,7 @@ function WhereItGoes() {
       body: 'The library holds its own copy, backed up and synced with everything else. Your originals stay exactly where they are.',
       icon: KEPT_ICONS.copy,
       adds: bytes,
-      recommended: true,
+      recommended: suggested === 'copy',
     },
     {
       value: 'move',
@@ -766,10 +775,24 @@ function WhereItGoes() {
       detail: allFolders ? `Read from ${where}` : undefined,
       warning: 'Their files are not backed up or synced, because they are not in the library.',
       disabled: allFolders ? undefined : 'Only for whole folders. Archives and loose files are copied in.',
+      recommended: suggested === 'keep',
     },
   ];
 
   const label = mode === 'keep' ? 'Indexed where they are' : mode === 'move' ? `Moved into ${name}` : `Copied into ${name}`;
+
+  /**
+   * Take the choice, unless it is one somebody would be cross to discover afterwards.
+   *
+   * Only the surprising ones stop: a hundred gigabytes about to be copied, or a small download
+   * about to be left out of the backups for no reason. An ordinary answer goes straight through,
+   * because a dialog that always appears is a dialog nobody reads.
+   */
+  const pick = (m: AddMode) => {
+    const doubt = secondThought(m, bytes, allFolders, formatBytes);
+    if (doubt) setAsking({ mode: m, doubt });
+    else void setMode(m);
+  };
 
   return (
     <div style={{ marginRight: 'auto', minWidth: 0 }}>
@@ -779,11 +802,44 @@ function WhereItGoes() {
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>How should these be kept?</DialogTitle>
         <DialogContent>
-          <HowKept<AddMode> label="" value={mode} choices={choices} onChange={(m) => void setMode(m)} />
+          {why && (
+            <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mb: 1.5 }}>
+              {why}
+            </Typography>
+          )}
+          <HowKept<AddMode> label="" value={mode} choices={choices} onChange={pick} />
         </DialogContent>
         <DialogActions>
           <Button variant="contained" onClick={() => setOpen(false)}>
             Done
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!asking} onClose={() => setAsking(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>{asking?.doubt.title}</DialogTitle>
+        <DialogContent>
+          <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
+            {asking?.doubt.body}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              if (asking) void setMode(asking.mode);
+              setAsking(null);
+            }}
+          >
+            {asking?.doubt.goOn}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              if (asking) void setMode(asking.doubt.instead);
+              setAsking(null);
+            }}
+          >
+            {asking?.doubt.insteadLabel}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -11,6 +11,17 @@ import { runImport } from '../src/main/import/run';
 import { canKeep, keptRoot } from '../src/main/import/run';
 import { planImport } from '../src/main/import/plan';
 import { tempDir } from './helpers';
+import { running, type Running } from './library';
+
+/** A library running the way the app runs it, with one pack indexed where it lies. */
+async function keptInApp(): Promise<{ app: Running; theirs: string; packId: string }> {
+  const app = await running([]);
+  const theirs = theirFolder();
+  const items = await app.library.planImport([theirs], false);
+  const result = await app.library.import(items, true, false, false, true);
+  await app.library.sync();
+  return { app, theirs, packId: result.added[0]!.id };
+}
 
 /** A folder of assets somewhere on the person's disk, nothing to do with any library. */
 function theirFolder(): string {
@@ -123,5 +134,58 @@ describe('the record still travels with the library', () => {
     const raw = JSON.parse(await readFile(join(packs[0]!.dir, 'pack.json'), 'utf8')) as PackMeta;
     expect(raw.kept?.where).toBe(theirs);
     expect(raw.licence.id).toBe('CC0-1.0');
+  });
+});
+
+describe('the ways out of indexing in place', () => {
+  it('finds the folder again, and refuses one that is plainly not it', async () => {
+    const { app, theirs, packId } = await keptInApp();
+    rmSync(theirs, { recursive: true, force: true });
+    await app.library.sync();
+    expect(app.library.require().queries.pack(packId)?.away).toBe(true);
+
+    // Somewhere else entirely: refused, because accepting it would leave the licence on record
+    // describing files that are not the ones it was recorded against.
+    const elsewhere = tempDir();
+    mkdirSync(join(elsewhere, 'Models'), { recursive: true });
+    writeFileSync(join(elsewhere, 'Models', 'unrelated.glb'), 'no');
+    await expect(app.library.findPackAgain(packId, elsewhere)).rejects.toThrow(/holds/);
+
+    // The same files somewhere new: taken.
+    const moved = theirFolder();
+    const found = await app.library.findPackAgain(packId, moved);
+    expect(found.matched).toBe(found.of);
+    expect(app.library.require().queries.pack(packId)?.away).toBe(false);
+    expect(app.library.require().queries.pack(packId)?.keptWhere).toBe(moved);
+  });
+
+  it('takes a pack into the library and leaves their folder alone', async () => {
+    const { app, theirs, packId } = await keptInApp();
+    await app.library.takePackIn(packId);
+
+    const row = app.library.require().queries.pack(packId)!;
+    expect(row.keptWhere).toBeNull();
+    expect(row.fileCount).toBeGreaterThan(0);
+    // Copied in, under original/ like any other pack, and their folder untouched.
+    expect(app.library.require().queries.packRefs(packId).every((r) => r.startsWith('original/'))).toBe(true);
+    expect(existsSync(join(theirs, 'Models', 'tree.glb'))).toBe(true);
+
+    // And it is an ordinary pack now, so asking again is a plain refusal rather than a mess.
+    await expect(app.library.takePackIn(packId)).rejects.toThrow(/already/);
+  });
+
+  it('will not put files into somebody else’s folder', async () => {
+    const { app, packId } = await keptInApp();
+    const loose = join(tempDir(), 'extra.glb');
+    writeFileSync(loose, 'x');
+    await expect(app.library.addFilesToPack(packId, [loose])).rejects.toThrow(/never writes/);
+  });
+
+  it('will not delete their files, and says so rather than half doing it', async () => {
+    const { app, theirs, packId } = await keptInApp();
+    const out = await app.library.removeFiles([{ packId, ref: 'Models/tree.glb' }]);
+    expect(out.removed).toBe(0);
+    expect(out.failed).toBe(1);
+    expect(existsSync(join(theirs, 'Models', 'tree.glb'))).toBe(true);
   });
 });

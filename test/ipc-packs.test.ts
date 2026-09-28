@@ -253,3 +253,21 @@ describe('files of a pack', () => {
     expect(details).toHaveProperty('suggestions');
   });
 });
+
+describe('packs indexed where they lie, over the wire', () => {
+  it('lists every pack with what its previews cost, and refuses the two ways out on an ordinary pack', async () => {
+    const list = await ok('thumbs:packs');
+    expect(list.length).toBeGreaterThan(0);
+    for (const p of list) {
+      expect(typeof p.name).toBe('string');
+      expect(p.bytes).toBe(0);
+      expect(p.on).toBe(true);
+    }
+
+    // Neither makes sense for a pack the library holds, and both say so rather than doing
+    // something surprising.
+    const pack = list[0]!;
+    expect((await refused('pack:findAgain', pack.packId, '/tmp')).code).toBe('pack-not-kept');
+    expect((await refused('pack:takeIn', pack.packId)).code).toBe('pack-not-kept');
+  });
+});
