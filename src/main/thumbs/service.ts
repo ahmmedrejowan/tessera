@@ -221,8 +221,12 @@ export class ThumbService {
       // file. Marking it failed would condemn good assets until somebody cleared them by hand,
       // which is how one bad model used to cost a whole library its previews. Put it back once
       // instead: the window it waits on now is a fresh one.
-      if ((e as Error)?.name === 'RecycledError' && (q.retried ?? 0) < 1) {
-        this.queue.set(q.name, { ...q, retried: (q.retried ?? 0) + 1 });
+      if ((e as Error)?.name === 'RecycledError') {
+        // Never a permanent mark. A second file that hangs, in the same pack, would put this job
+        // behind a second culprit and condemn it on the retry, which is the very thing recycling
+        // was added to prevent. A few attempts, then let it go without a marker so it is tried
+        // again next time rather than written off for ever.
+        if ((q.retried ?? 0) < 3) this.queue.set(q.name, { ...q, retried: (q.retried ?? 0) + 1 });
         return;
       }
       log.warn('thumbs', `could not draw ${q.job.url}`, e instanceof Error ? e.message : e);

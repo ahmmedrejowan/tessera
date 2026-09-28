@@ -70,17 +70,29 @@ describe('a filter value that matches nothing', () => {
     const { app } = await ready();
     const said = (await callTool(app, 'search', { text: '', of: 'packs', filters: { licence: ['CC0'] } })) as {
       total: number;
-      unknownFilterValues?: Record<string, { youAsked: string[]; theseExist: string[] }>;
+      unknownFilterValues?: Record<string, { youAsked: string[]; theseTheLibraryHas: string[] }>;
     };
     expect(said.total).toBe(0);
     expect(said.unknownFilterValues?.licence?.youAsked).toEqual(['CC0']);
-    expect(said.unknownFilterValues?.licence?.theseExist.length).toBeGreaterThan(0);
+    expect(said.unknownFilterValues?.licence?.theseTheLibraryHas.length).toBeGreaterThan(0);
   });
 
   it('says nothing when the filter matched', async () => {
     const { app } = await ready();
     const said = (await callTool(app, 'search', { text: '', of: 'packs', filters: { licence: ['CC0-1.0'] } })) as { unknownFilterValues?: unknown };
     expect(said.unknownFilterValues).toBeUndefined();
+  });
+
+  it('says nothing when some results were found, even if one value is odd', async () => {
+    // It used to be attached whenever any filter value was unknown, so an agent got matching
+    // results and a claim that its filter did not exist, in the same answer.
+    const { app } = await ready();
+    const said = (await callTool(app, 'search', {
+      text: '',
+      of: 'packs',
+      filters: { licence: ['CC0-1.0'], tag: ['not-a-real-tag'] },
+    })) as { total: number; unknownFilterValues?: unknown };
+    if (said.total > 0) expect(said.unknownFilterValues).toBeUndefined();
   });
 });
 

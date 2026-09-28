@@ -12,21 +12,25 @@ import { define, scope, filters, packOut, assetOut, ASSET_SORTS, PACK_SORTS, que
  * Filtering by `licence: ['CC0']` returns an empty list, because the id is `CC0-1.0`. Empty is a
  * true answer to the question asked and a useless one: an agent reports "you have no CC0 assets"
  * when the library is full of them. So when a filter narrows to nothing, the values that exist
- * are named. Only when nothing was found, because that is the only time it can mislead.
+ * are named. Only when nothing was found, because that is the only time it can mislead, and
+ * because working the facets out is eight queries over the whole library.
+ *
+ * The facet list a library returns is capped, so a value further down the tail can be reported as
+ * unknown when it does exist. Said as "these are the ones I can see" rather than as a verdict.
  */
 function unknownFilters(
   q: { facets: (query: import('@shared/query').BrowseQuery, mode: 'assets' | 'packs') => Record<string, { value: string; count: number }[]> },
   args: { of: 'assets' | 'packs'; filters?: Record<string, string[]>; text: string; scope: string },
-): { unknownFilterValues?: Record<string, { youAsked: string[]; theseExist: string[] }> } {
+): { unknownFilterValues?: Record<string, { youAsked: string[]; theseTheLibraryHas: string[] }> } {
   const given = args.filters ?? {};
   if (!Object.keys(given).length) return {};
   // The facets of the library without these filters applied: what could have been asked for.
   const all = q.facets({ scope: args.scope as never, text: '', filters: {} }, args.of);
-  const out: Record<string, { youAsked: string[]; theseExist: string[] }> = {};
+  const out: Record<string, { youAsked: string[]; theseTheLibraryHas: string[] }> = {};
   for (const [facet, wanted] of Object.entries(given)) {
     const have = new Set((all[facet] ?? []).map((v) => v.value));
     const missing = (wanted ?? []).filter((v) => !have.has(v));
-    if (missing.length) out[facet] = { youAsked: missing, theseExist: [...have].slice(0, 40) };
+    if (missing.length) out[facet] = { youAsked: missing, theseTheLibraryHas: [...have].slice(0, 40) };
   }
   return Object.keys(out).length ? { unknownFilterValues: out } : {};
 }
@@ -80,11 +84,11 @@ export const READ: Tool[] = [
         // "relevance" is the default for assets and means nothing for packs: fall back by name.
         const sort = (PACK_SORTS.includes(args.sort as PackSort) ? args.sort : 'name') as PackSort;
         const page = q.packs(query(args), sort, args.offset, args.limit);
-        return { total: page.total, packs: page.rows.map(packOut), ...unknownFilters(q, args) };
+        return { total: page.total, packs: page.rows.map(packOut), ...(page.total === 0 ? unknownFilters(q, args) : {}) };
       }
       const sort = (ASSET_SORTS.includes(args.sort as AssetSort) ? args.sort : 'relevance') as AssetSort;
       const page = q.assets(query(args), sort, args.offset, args.limit);
-      return { total: page.total, assets: page.rows.map(assetOut), ...unknownFilters(q, args) };
+      return { total: page.total, assets: page.rows.map(assetOut), ...(page.total === 0 ? unknownFilters(q, args) : {}) };
     },
   }),
   define({

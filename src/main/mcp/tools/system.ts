@@ -105,7 +105,11 @@ export const SYSTEM: Tool[] = [
       // and an agent that reports "changed" when nothing changed is worse than one that fails.
       const now = ctx.settings() as unknown as Record<string, unknown>;
       const stored = Object.fromEntries(Object.keys(patch).map((k) => [k, now[k]]));
-      const refused = Object.keys(patch).filter((k) => JSON.stringify(now[k]) !== JSON.stringify(patch[k]));
+      // Some settings are stored with more than they were given: a site rule gains the day it was
+      // added. Comparing whole values reported every successful siteRules change as refused, so
+      // an agent told the person it had failed. Only flat values are compared.
+      const flat = (v: unknown) => v === null || ['string', 'number', 'boolean'].includes(typeof v);
+      const refused = Object.keys(patch).filter((k) => flat(patch[k]) && JSON.stringify(now[k]) !== JSON.stringify(patch[k]));
       return { changed: Object.keys(patch), stored, ...(refused.length ? { notStoredAsAsked: refused } : {}) };
     },
   }),

@@ -70,6 +70,10 @@ export class RenderWindow {
       });
       win.webContents.on('render-process-gone', (_e, details) => {
         log.warn('thumbs', 'render window stopped', details);
+        // Only for the window this handler belongs to. A window destroyed on purpose can report
+        // this afterwards, and clearing the fields then would abandon its replacement and fail
+        // the jobs already running on it.
+        if (this.win !== win) return;
         this.failAll(new Error(`the render window stopped (${details.reason})`));
         this.win = null;
         this.ready = null;
@@ -92,12 +96,22 @@ export class RenderWindow {
     const win = await this.open();
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
+        // Only if this is still the job waiting under that id. The same file can be asked for
+        // twice while the first is running, which overwrites the entry, and the stale timer then
+        // fired later and destroyed a window that was working perfectly well. That used to leave
+        // a harmless stray marker; since a timeout restarts the window it would happen during
+        // every import, when the index changes often.
+        if (this.waiting.get(job.id)?.timer !== timer) return;
         this.waiting.delete(job.id);
         reject(new Error('took too long to draw'));
         // The window draws one thing at a time, so a job that never answers has wedged it and
         // everything behind it is waiting on a thread that is not coming back. Throw it away.
         this.recycle();
       }, JOB_TIMEOUT);
+      // Whatever was waiting under this id is no longer the one that will be answered, and its
+      // timer must not outlive it.
+      const before = this.waiting.get(job.id);
+      if (before) clearTimeout(before.timer);
       this.waiting.set(job.id, { resolve, reject, timer });
       win.webContents.send('render:job', job);
     });

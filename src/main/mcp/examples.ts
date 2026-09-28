@@ -84,7 +84,7 @@ export const ANSWERS: Record<string, ToolAnswer> = {
   },
   list_collections: {
     returns: 'Every collection, what it holds, and what it will accept.',
-    example: [{ id: 'fav', name: 'Favourites', packs: 2, assets: 120, rules: { licences: [], needsCreditLine: false }, projectId: null, kind: 'manual' }],
+    example: [{ id: 'fav', name: 'Favourites', packs: 2, assets: 120, rules: { licences: [] }, projectId: null, kind: 'manual' }],
   },
   list_projects: {
     returns: 'The games this library links into, with how much each has taken.',
