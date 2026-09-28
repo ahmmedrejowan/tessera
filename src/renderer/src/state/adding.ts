@@ -132,8 +132,42 @@ interface AddingState {
   finishLater(): Promise<void>;
   cancel(): Promise<void>;
   treatAsOnePack(): Promise<void>;
+  /**
+   * The other way: one pack becomes one per folder inside it, with anything loose gathered into
+   * a pack of its own. A folder with both subfolders and stray files is read as one pack,
+   * because guessing wrong there is worse than asking, so there has to be a way to say otherwise.
+   */
+  splitIntoPacks(): Promise<void>;
+  restart(paths: string[], eachInside: boolean): Promise<void>;
   /** What `start` was last given, kept so the mode can be changed after staging. */
   staged: { paths: string[]; eachInside: boolean | 'auto'; urls?: Record<string, string> } | null;
+}
+
+/**
+ * Packs have just joined the library, and a game may already be shipping them.
+ *
+ * Whoever links their game first and adds their packs second would otherwise have to know that
+ * "find assets already here" exists and think to go back for it. The other order prompts itself,
+ * because the game is right there when the pack is linked; this is the same prompt for people who
+ * arrive the other way round.
+ */
+async function offerToLookInGames(added: number): Promise<void> {
+  const games = await call('projects:list').catch(() => []);
+  const here = games.filter((g) => g.exists);
+  if (!here.length) return;
+  const one = here.length === 1 ? here[0]! : null;
+  notify.info(
+    one
+      ? `${one.name} may already have some of ${added === 1 ? 'it' : 'them'}.`
+      : `Your games may already have some of ${added === 1 ? 'it' : 'them'}.`,
+    {
+      body: 'Tessera can look, and record what it finds where the game already keeps it, instead of copying anything.',
+      action: {
+        label: one ? 'Look in it' : 'Open Projects',
+        run: () => useNav.getState().go(one ? { to: 'project', id: one.id } : { to: 'projects' }),
+      },
+    },
+  );
 }
 
 /** Copy the items in (waiting, unfinished), then fill each form from what was found. */
@@ -309,6 +343,7 @@ export const useAdding = create<AddingState>((set, get) => ({
       const left = get().drafts.filter((d) => !going.some((g) => g.item.id === d.item.id));
       set({ drafts: left, selected: left[0] ? [left[0].item.id] : [] });
       notify.success(summary(library, review), review ? { action: { label: 'Review', run: () => useNav.getState().go({ to: 'inbox' }) } } : {});
+      if (library) void offerToLookInGames(library);
       if (!left.some((d) => d.state !== 'failed')) {
         set({ drafts: [], skipped: [], folder: null });
         useNav.getState().goBack();
@@ -346,10 +381,23 @@ export const useAdding = create<AddingState>((set, get) => ({
   async treatAsOnePack() {
     const folder = get().folder;
     if (!folder) return;
+    await get().restart([folder], false);
+  },
+
+  async splitIntoPacks() {
+    // The single pack came from one folder, so that folder is what gets split.
+    const only = get().drafts;
+    const from = get().folder ?? (only.length === 1 && only[0]!.item.kind === 'folder' ? only[0]!.item.sources[0] : null);
+    if (!from) return;
+    await get().restart([from], true);
+  },
+
+  /** Throw away what was staged and plan the same paths a different way. */
+  async restart(paths: string[], eachInside: boolean) {
     const all = get().drafts;
     set({ drafts: [], busy: true });
     for (const d of all) if (d.packId) await call('pack:discard', d.packId).catch(() => undefined);
     set({ busy: false });
-    await get().start([folder], false);
+    await get().start(paths, eachInside);
   },
 }));

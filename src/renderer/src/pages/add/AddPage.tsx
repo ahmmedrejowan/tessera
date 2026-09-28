@@ -15,6 +15,7 @@ import RuleRounded from '@mui/icons-material/RuleRounded';
 import ScheduleRounded from '@mui/icons-material/ScheduleRounded';
 import SelectAllRounded from '@mui/icons-material/SelectAllRounded';
 import UnfoldLessRounded from '@mui/icons-material/UnfoldLessRounded';
+import UnfoldMoreRounded from '@mui/icons-material/UnfoldMoreRounded';
 import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -473,12 +474,21 @@ function Skipped() {
 }
 
 function SinglePage({ d }: { d: Draft }) {
-  const { edit, save, cancel, busy } = useAdding();
+  const { edit, save, cancel, busy, splitIntoPacks } = useAdding();
   const onEdit: Edit = (p, found) => edit(d.item.id, p, found);
   const ready = isReady(d.form);
+  // A folder holding more folders was read as one pack, which happens as soon as anything loose
+  // sits beside them. Offering the other reading here is the only way back from that guess.
+  const couldSplit = d.item.kind === 'folder' && d.item.files > 1;
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <Header title="Add pack" file={<FileChip icon={d.item.kind === 'folder' ? <FolderOutlined sx={{ fontSize: 16 }} /> : <FolderZipOutlined sx={{ fontSize: 16 }} />}>{d.item.sources[0]?.split(/[\\/]/).pop()}</FileChip>} />
+      <Header title="Add pack" file={<FileChip icon={d.item.kind === 'folder' ? <FolderOutlined sx={{ fontSize: 16 }} /> : <FolderZipOutlined sx={{ fontSize: 16 }} />}>{d.item.sources[0]?.split(/[\\/]/).pop()}</FileChip>}>
+        {couldSplit && (
+          <Button startIcon={<UnfoldMoreRounded />} onClick={() => void splitIntoPacks()} disabled={busy}>
+            One pack per folder inside
+          </Button>
+        )}
+      </Header>
       <Skipped />
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 32px 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '300px minmax(0, 1fr)', gap: 24, alignItems: 'start' }}>

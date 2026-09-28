@@ -178,11 +178,17 @@ export function ProjectPage({ id }: { id: string }) {
           <EmptyState
             icon={SportsEsportsOutlined}
             title="Nothing copied here yet"
-            body={`Pick assets in Browse and copy them to ${project.name}. They land in ${project.target}/ with their textures, licences and credits.`}
+            body={`Pick assets in Browse and copy them to ${project.name}: they land in ${project.target}/ with their textures, licences and credits. If this game is not new, it may already have assets your library knows, and those can be recorded where they are instead.`}
             actions={
-              <Button variant="contained" onClick={() => go({ to: 'browse' })}>
-                Pick assets
-              </Button>
+              <>
+                <Button variant="contained" onClick={() => go({ to: 'browse' })}>
+                  Pick assets
+                </Button>
+                {/* The other way round, for somebody who linked the game before adding anything. */}
+                <Button startIcon={<FindInPageOutlined />} disabled={!project.exists} onClick={() => setFinding(true)}>
+                  Find assets already here
+                </Button>
+              </>
             }
           />
         ) : (
