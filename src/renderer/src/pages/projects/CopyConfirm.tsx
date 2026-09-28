@@ -2,7 +2,6 @@ import FindInPageOutlined from '@mui/icons-material/FindInPageOutlined';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
 import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
 import Button from '@mui/material/Button';
-import ButtonBase from '@mui/material/ButtonBase';
 import Checkbox from '@mui/material/Checkbox';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -11,11 +10,15 @@ import DialogTitle from '@mui/material/DialogTitle';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Typography from '@mui/material/Typography';
 import { formatBytes, formatCount } from '../../components/labels';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCopy, useProjects } from '../../state/projects';
 import { AlreadyHere } from './AlreadyHere';
 import { useUpdateSettings } from '../../state/queries';
-import { md, SHAPE } from '../../theme';
+import { md } from '../../theme';
+import { HowKept } from '../add/HowKept';
+
+/** What to do with these assets: copy them in, or use the ones the game already has. */
+type Way = 'copy' | 'already';
 
 /**
  * What is about to be written into a game, before it is written.
@@ -27,6 +30,11 @@ import { md, SHAPE } from '../../theme';
 export function CopyConfirm() {
   const { pending, confirm, cancel } = useCopy();
   const [finding, setFinding] = useState(false);
+  const [way, setWay] = useState<Way>('copy');
+  // Every pack starts from the same answer: a game that already has them is the exception.
+  useEffect(() => {
+    if (pending) setWay('copy');
+  }, [pending]);
   const projects = useProjects().data ?? [];
   const update = useUpdateSettings();
   const project = projects.find((p) => p.id === pending?.projectId);
@@ -37,54 +45,40 @@ export function CopyConfirm() {
     <>
     <AlreadyHere project={project ?? null} open={finding} onClose={() => setFinding(false)} />
     <Dialog open={!!pending} onClose={cancel} maxWidth="sm" fullWidth>
-      <DialogTitle>Copy into {pending?.projectName}?</DialogTitle>
+      <DialogTitle>Put these into {pending?.projectName}</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-          The files are copied into your game. Your library keeps its own copy, and nothing there changes.
-        </Typography>
-
-        {/* The other answer, for a game that is not new: it may already have these files, and a
-            second copy at a new path is worse than useless. Offered here because this is the
-            moment somebody would otherwise make that second copy. */}
-        <ButtonBase
-          onClick={() => {
-            cancel();
-            setFinding(true);
-          }}
-          sx={{ display: 'block', textAlign: 'left', width: '100%', p: 1.5, borderRadius: `${SHAPE.md}px`, border: `1px solid ${md('outlineVariant')}`, '&:hover': { backgroundColor: md('surfaceContainerHigh') } }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <FindInPageOutlined sx={{ fontSize: 20, color: md('onSurfaceVariant') }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="bodyMedium" sx={{ color: md('onSurface') }}>
-                They may already be in this game
-              </Typography>
-              <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant') }}>
-                Look for them where the game already keeps its assets and record those instead, so nothing is copied twice.
-              </Typography>
-            </div>
-          </div>
-        </ButtonBase>
-
-        {plan && (
-          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: 14, borderRadius: `${SHAPE.md}px`, background: md('surfaceContainerHigh') }}>
-            <FolderOpenOutlined sx={{ fontSize: 20, color: md('onSurfaceVariant'), mt: '2px' }} />
-            <div style={{ minWidth: 0 }}>
-              <Typography variant="bodyMedium" sx={{ color: md('onSurface') }}>
-                {formatCount(plan.assets)} asset{plan.assets === 1 ? '' : 's'}, {formatCount(plan.files)} file{plan.files === 1 ? '' : 's'}, {formatBytes(plan.bytes)}
-                {plan.updating > 0 ? `, ${formatCount(plan.updating)} of them already there and being brought up to date` : ''}
-              </Typography>
-              {project && (
-                <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant'), mt: 0.5, wordBreak: 'break-all' }}>
-                  Into {project.target}/ in {project.path}
-                </Typography>
-              )}
-              <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant'), mt: 0.5 }}>
-                A licence file goes beside them, and CREDITS.md is written again.
-              </Typography>
-            </div>
-          </div>
-        )}
+        {/* Two ways, side by side and the same shape, because for a game that is not new they
+            are a real choice: a second copy at a new path, or the files the game already has.
+            Offered here because this is the moment somebody would otherwise make that copy. */}
+        <HowKept<Way>
+          label=""
+          value={way}
+          onChange={setWay}
+          choices={[
+            {
+              value: 'copy',
+              title: `Copy into ${pending?.projectName ?? 'the game'}`,
+              body: 'The files are copied into your game. Your library keeps its own copy, and nothing there changes. A licence file goes beside them, and CREDITS.md is written again.',
+              icon: FolderOpenOutlined,
+              adds: plan?.bytes,
+              recommended: true,
+              detail: plan ? (
+                <>
+                  {formatCount(plan.assets)} asset{plan.assets === 1 ? '' : 's'}, {formatCount(plan.files)} file{plan.files === 1 ? '' : 's'}
+                  {plan.updating > 0 ? `, ${formatCount(plan.updating)} already there and being brought up to date` : ''}
+                  {project ? ` · into ${project.target}/ in ${project.path}` : ''}
+                </>
+              ) : undefined,
+            },
+            {
+              value: 'already',
+              title: 'They are already in this game',
+              body: 'Look for them where the game already keeps its assets, and record those instead. Nothing is copied, no path changes, and your credits still cover them.',
+              icon: FindInPageOutlined,
+              adds: 0,
+            },
+          ]}
+        />
 
         {warnings.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -119,9 +113,21 @@ export function CopyConfirm() {
         )}
         <div style={{ display: 'flex', gap: 8 }}>
           <Button onClick={cancel}>Cancel</Button>
-          <Button variant="contained" onClick={() => void confirm()}>
-            {warnings.length ? 'Copy anyway' : 'Copy'}
-          </Button>
+          {way === 'already' ? (
+            <Button
+              variant="contained"
+              onClick={() => {
+                cancel();
+                setFinding(true);
+              }}
+            >
+              Look for them
+            </Button>
+          ) : (
+            <Button variant="contained" onClick={() => void confirm()}>
+              {warnings.length ? 'Copy anyway' : 'Copy'}
+            </Button>
+          )}
         </div>
       </DialogActions>
     </Dialog>

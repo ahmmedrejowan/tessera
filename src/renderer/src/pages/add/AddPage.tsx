@@ -471,6 +471,9 @@ function SinglePage({ d }: { d: Draft }) {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <Header title="Add pack" file={<FileChip icon={d.item.kind === 'folder' ? <FolderOutlined sx={{ fontSize: 16 }} /> : <FolderZipOutlined sx={{ fontSize: 16 }} />}>{d.item.sources[0]?.split(/[\\/]/).pop()}</FileChip>} />
       <Skipped />
+      <div style={{ padding: '0 32px 16px' }}>
+        <HowKeptCard />
+      </div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: '300px minmax(0, 1fr)', gap: 24, padding: '0 32px 24px', alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
           <Preview d={d} />
@@ -479,7 +482,6 @@ function SinglePage({ d }: { d: Draft }) {
         <Details d={d} onEdit={onEdit} />
       </div>
       <Footer tone={ready ? 'ok' : 'warn'} note={d.state === 'copying' ? 'Reading the pack…' : ready ? 'Everything needed is filled in' : 'Add a licence and source now, or finish later from Review.'}>
-        <WhereItGoes />
         <Button onClick={() => void cancel()} disabled={busy}>
           Cancel
         </Button>
@@ -632,6 +634,9 @@ function BatchPage() {
         )}
       </Header>
       <Skipped />
+      <div style={{ padding: '0 28px 16px' }}>
+        <HowKeptCard />
+      </div>
       <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '420px minmax(0, 1fr)', gap: 28, padding: '0 28px 20px' }}>
         <div style={{ background: md('surfaceContainerLowest'), border: `1px solid ${md('outlineVariant')}`, borderRadius: SHAPE.xl, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -650,6 +655,7 @@ function BatchPage() {
         </div>
         <div style={{ minHeight: 0, overflowY: 'auto' }}>
           {selected.length > 1 && <BulkBar count={selected.length} />}
+
           {primary && (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
@@ -711,19 +717,18 @@ export function AddPage() {
 /**
  * What adding does with the files: a copy, a move, or read them where they are.
  *
- * Said here rather than in a settings page nobody reads, because this is the moment the person is
- * deciding, and the three answers do very different things to their disk. Moving is never the
- * quiet default, and nothing is removed until a pack is actually kept.
+ * On the page, in the flow, not behind a link in the footer. This is the decision that says
+ * whether somebody's 300 GB is about to be copied, and a choice you have to go looking for is not
+ * a choice: it is a rule the app applied while you were reading something else. Which one is put
+ * forward follows the size, and moving is never the quiet default.
  */
-function WhereItGoes() {
+function HowKeptCard() {
   const library = useLibraryRecord();
   const settings = useSettings().data;
   const mode = useAdding((s) => s.mode);
   const setMode = useAdding((s) => s.setMode);
   const setMove = useAdding((s) => s.setMove);
   const drafts = useAdding((s) => s.drafts);
-  const busy = useAdding((s) => s.busy);
-  const [open, setOpen] = useState(false);
   const [asking, setAsking] = useState<{ mode: AddMode; doubt: SecondThought } | null>(null);
   const started = useRef(false);
 
@@ -734,9 +739,6 @@ function WhereItGoes() {
   const bytes = drafts.reduce((n, d) => n + d.item.size, 0);
   const name = library?.name ?? 'your library';
   const where = folders.length === 1 ? folders[0]!.item.sources[0] : `${folders.length} folders`;
-
-  // What to put forward follows the size: copy is right for a download and wrong for somebody's
-  // whole art drive, and size is the only thing that tells them apart before anybody has typed.
   const suggested = recommend(bytes, allFolders);
   const why = whyRecommended(bytes, allFolders);
 
@@ -747,7 +749,6 @@ function WhereItGoes() {
     if (settings.moveIntoLibrary) setMove(true);
     else if (suggested !== 'copy') void setMode(suggested);
   }, [settings, drafts.length, suggested, setMove, setMode]);
-
 
   const choices: KeptChoice<AddMode>[] = [
     {
@@ -779,8 +780,6 @@ function WhereItGoes() {
     },
   ];
 
-  const label = mode === 'keep' ? 'Indexed where they are' : mode === 'move' ? `Moved into ${name}` : `Copied into ${name}`;
-
   /**
    * Take the choice, unless it is one somebody would be cross to discover afterwards.
    *
@@ -795,26 +794,13 @@ function WhereItGoes() {
   };
 
   return (
-    <div style={{ marginRight: 'auto', minWidth: 0 }}>
-      <Button size="small" onClick={() => setOpen(true)} disabled={busy} sx={{ textTransform: 'none', px: 1, color: md('onSurfaceVariant') }}>
-        {label} · change
-      </Button>
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>How should these be kept?</DialogTitle>
-        <DialogContent>
-          {why && (
-            <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mb: 1.5 }}>
-              {why}
-            </Typography>
-          )}
-          <HowKept<AddMode> label="" value={mode} choices={choices} onChange={pick} />
-        </DialogContent>
-        <DialogActions>
-          <Button variant="contained" onClick={() => setOpen(false)}>
-            Done
-          </Button>
-        </DialogActions>
-      </Dialog>
+    <Card title="How these are kept">
+      {why && (
+        <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: -0.5 }}>
+          {why}
+        </Typography>
+      )}
+      <HowKept<AddMode> label="" value={mode} choices={choices} onChange={pick} across />
 
       <Dialog open={!!asking} onClose={() => setAsking(null)} maxWidth="xs" fullWidth>
         <DialogTitle>{asking?.doubt.title}</DialogTitle>
@@ -843,7 +829,7 @@ function WhereItGoes() {
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </Card>
   );
 }
 

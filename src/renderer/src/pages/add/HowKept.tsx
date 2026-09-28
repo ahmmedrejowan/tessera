@@ -32,13 +32,16 @@ export interface KeptChoice<T extends string> {
  * taken over, or left alone. Each card carries what it costs and what it costs you, in the card,
  * because a warning under three options is a warning nobody reads.
  */
-export function HowKept<T extends string>({ label, value, choices, onChange }: { label: string; value: T; choices: KeptChoice<T>[]; onChange: (v: T) => void }) {
+export function HowKept<T extends string>({ label, value, choices, onChange, across }: { label: string; value: T; choices: KeptChoice<T>[]; onChange: (v: T) => void; across?: boolean }) {
   return (
     <section>
-      <Typography variant="titleSmall" component="h3" sx={{ color: md('onSurface'), mb: 1 }}>
-        {label}
-      </Typography>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {label && (
+        <Typography variant="titleSmall" component="h3" sx={{ color: md('onSurface'), mb: 1 }}>
+          {label}
+        </Typography>
+      )}
+      {/* Side by side where there is room: the options are compared, not read in turn. */}
+      <div style={across ? { display: 'grid', gridTemplateColumns: `repeat(${choices.length}, minmax(0, 1fr))`, gap: 12, alignItems: 'stretch' } : { display: 'flex', flexDirection: 'column', gap: 10 }}>
         {choices.map((c) => {
           const on = c.value === value;
           const off = !!c.disabled;
@@ -55,6 +58,7 @@ export function HowKept<T extends string>({ label, value, choices, onChange }: {
                 p: 1.75,
                 borderRadius: `${SHAPE.lg}px`,
                 border: `1.5px solid ${on ? md('primary') : md('outlineVariant')}`,
+                height: '100%',
                 backgroundColor: on ? mdAlpha('primaryContainer', 0.45) : md('surfaceContainerLow'),
                 opacity: off ? 0.5 : 1,
                 '&:hover': { backgroundColor: on ? mdAlpha('primaryContainer', 0.5) : md('surfaceContainerHigh') },
