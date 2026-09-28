@@ -62,6 +62,19 @@ export function DialogHost() {
   const tone = TONES[spec.tone];
   const Icon = spec.icon ?? tone.icon;
   const stacked = spec.actions.length > 2;
+  /**
+   * The button the keyboard lands on, which is never the destructive one.
+   *
+   * The primary action if there is one; otherwise the last action that is not `danger`, which in
+   * practice is Cancel. It used to be simply the last button, and the last button in every delete
+   * dialog is Delete, so answering a run of questions with Enter emptied the bin for good.
+   */
+  const focusOn = (() => {
+    const primary = spec.actions.findIndex((a) => a.kind === 'primary');
+    if (primary !== -1) return primary;
+    for (let i = spec.actions.length - 1; i >= 0; i--) if (spec.actions[i]!.kind !== 'danger') return i;
+    return -1;
+  })();
   return (
     <Dialog open={!!current} onClose={() => close(d.id, null)} maxWidth={false} slotProps={{ paper: { sx: { width: 440, maxWidth: 'calc(100vw - 48px)', borderRadius: `${SHAPE.xl}px`, p: 3, backgroundImage: 'none' } } }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 16 }}>
@@ -79,13 +92,19 @@ export function DialogHost() {
         {spec.extra}
         {spec.details && <Details text={spec.details} />}
       </div>
+      {/*
+        Which button the keyboard lands on. Never the destructive one: with no primary action the
+        focus used to fall on the last button, which in every delete dialog is Delete or Delete for
+        good, so somebody answering a run of questions with Enter emptied the bin for good without
+        reading. The safe choice takes the focus, and the destructive one has to be reached for.
+      */}
       {/* Two choices sit side by side; three or more stack, the main one on top. */}
       <div style={stacked ? { display: 'flex', flexDirection: 'column-reverse', gap: 8, marginTop: 24 } : { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
         {spec.actions.map((a, i) => (
           <Button
             key={a.label}
             fullWidth={stacked}
-            autoFocus={a.kind === 'primary' || (i === spec.actions.length - 1 && !spec.actions.some((x) => x.kind === 'primary'))}
+            autoFocus={i === focusOn}
             variant={a.kind === 'primary' ? 'contained' : stacked && a.kind !== 'text' ? 'outlined' : 'text'}
             color={a.kind === 'danger' ? 'error' : 'primary'}
             onClick={() => close(d.id, a.value)}

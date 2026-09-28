@@ -56,12 +56,12 @@ export async function removeAssets(items: () => Promise<Items>, count: number, n
   const first = await confirm(
     many ? `Delete ${count.toLocaleString()} assets?` : `Delete ${name ?? 'this asset'}?`,
     many
-      ? `Their files move to the library’s bin, where they wait until you empty it. Emptying the bin is what deletes them for good. The packs they came from stay as they are.${used}`
-      : `Its file moves to the library’s bin, where it waits until you empty it. Emptying the bin is what deletes it for good. The pack it came from stays as it is.${used}`,
+      ? `Their files move to the library’s bin, where they wait until you empty it or the time set in Settings runs out. The packs they came from stay as they are.${used}`
+      : `Its file moves to the library’s bin, where it waits until you empty it or the time set in Settings runs out. The pack it came from stays as it is.${used}`,
     'Delete',
   );
   if (!first) return false;
-  if (many && !(await confirm(`Really delete ${count.toLocaleString()} assets?`, 'That is every one of them, in one go. They will be in the bin until you empty it, and anything already copied into a game stays where it is.', 'Delete them'))) return false;
+  if (many && !(await confirm(`Really delete ${count.toLocaleString()} assets?`, 'That is every one of them, in one go. They will be in the bin until you empty it or the time set in Settings runs out, and anything already copied into a game stays where it is.', 'Delete them'))) return false;
 
   try {
     const before = new Set((await call('bin:list').catch(() => [] as BinEntry[])).map((e) => e.id));
@@ -94,8 +94,8 @@ export async function removePacks(ids: string[], name?: string): Promise<boolean
   const first = await confirm(
     many ? `Delete ${ids.length} packs?` : `Delete ${name ?? 'this pack'}?`,
     many
-      ? `Their folders move to the library’s bin, licences and all, where they wait until you empty it. Emptying the bin is what deletes them for good.${used}`
-      : `Its folder moves to the library’s bin, licence and all, where it waits until you empty it. Emptying the bin is what deletes it for good.${used}`,
+      ? `Their folders move to the library’s bin, licences and all, where they wait until you empty it or the time set in Settings runs out.${used}`
+      : `Its folder moves to the library’s bin, licence and all, where it waits until you empty it or the time set in Settings runs out.${used}`,
     'Delete',
   );
   if (!first) return false;

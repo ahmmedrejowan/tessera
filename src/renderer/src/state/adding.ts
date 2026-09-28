@@ -173,7 +173,11 @@ async function offerToLookInGames(added: number): Promise<void> {
 /** Copy the items in (waiting, unfinished), then fill each form from what was found. */
 async function stage(items: ImportItem[], set: (fn: (s: AddingState) => Partial<AddingState>) => void, mode: AddMode = 'copy') {
   try {
-    const result = await call('import:run', items, { stage: true, keep: mode === 'keep' });
+    // The choice has to travel with the copy, not only with the keeping. Staging is what decides
+    // whether the original is remembered for later removal, and without `move` here it fell back
+    // to the app-wide setting: somebody picking "Move" watched the footer promise to free the
+    // space and then found everything still where it was.
+    const result = await call('import:run', items, { stage: true, keep: mode === 'keep', move: mode === 'move' });
     for (const f of result.failed) {
       // By id, not by name: two downloads can land on the same name, and marking the wrong draft
       // left the one that really failed stuck on "Copying into the library" for ever.
