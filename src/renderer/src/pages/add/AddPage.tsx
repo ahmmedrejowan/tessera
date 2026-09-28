@@ -52,8 +52,8 @@ import { useNotices } from '../../notices/store';
 import { useLibraryRecord } from '../../state/library';
 import { useSettings, useUpdateSettings } from '../../state/queries';
 import { md, mdAlpha, SHAPE } from '../../theme';
-import { recommend, secondThought, whyRecommended, type SecondThought } from '@shared/keeping';
-import { HowKept, KEPT_ICONS, type KeptChoice } from './HowKept';
+import { recommend, secondThought, type SecondThought } from '@shared/keeping';
+import { SegmentedButton } from '../../components/SegmentedButton';
 
 /** Changing a form, saying where a filled-in value came from when Tessera filled it in. */
 type Edit = (p: Partial<AddForm>, found?: Draft['found']) => void;
@@ -435,9 +435,10 @@ function FileChip({ icon, children }: { icon: ReactNode; children: ReactNode }) 
 function Footer({ children, note, tone }: { children: ReactNode; note: ReactNode; tone: 'ok' | 'warn' | 'plain' }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 24px 18px 28px', borderTop: `1px solid ${md('outlineVariant')}`, background: md('surfaceContainerLowest') }}>
-      <Typography variant="bodyMedium" component="div" sx={{ mr: 'auto', display: 'flex', alignItems: 'center', gap: 1, color: tone === 'warn' ? md('tertiary') : md('onSurfaceVariant') }}>
-        {tone === 'ok' ? <CheckCircleRounded sx={{ color: md('primary') }} /> : <InfoOutlined />}
-        {note}
+      {/* The note gives way first: the choice and the button that acts on it must stay whole. */}
+      <Typography variant="bodyMedium" component="div" noWrap sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flexShrink: 1000, color: tone === 'warn' ? md('tertiary') : md('onSurfaceVariant') }}>
+        {tone === 'ok' ? <CheckCircleRounded sx={{ color: md('primary'), flexShrink: 0 }} /> : <InfoOutlined sx={{ flexShrink: 0 }} />}
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note}</span>
       </Typography>
       {children}
     </div>
@@ -471,9 +472,6 @@ function SinglePage({ d }: { d: Draft }) {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <Header title="Add pack" file={<FileChip icon={d.item.kind === 'folder' ? <FolderOutlined sx={{ fontSize: 16 }} /> : <FolderZipOutlined sx={{ fontSize: 16 }} />}>{d.item.sources[0]?.split(/[\\/]/).pop()}</FileChip>} />
       <Skipped />
-      <div style={{ padding: '0 32px 16px' }}>
-        <HowKeptCard />
-      </div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: '300px minmax(0, 1fr)', gap: 24, padding: '0 32px 24px', alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
           <Preview d={d} />
@@ -482,6 +480,7 @@ function SinglePage({ d }: { d: Draft }) {
         <Details d={d} onEdit={onEdit} />
       </div>
       <Footer tone={ready ? 'ok' : 'warn'} note={d.state === 'copying' ? 'Reading the pack…' : ready ? 'Everything needed is filled in' : 'Add a licence and source now, or finish later from Review.'}>
+        <HowKeptBar />
         <Button onClick={() => void cancel()} disabled={busy}>
           Cancel
         </Button>
@@ -634,9 +633,6 @@ function BatchPage() {
         )}
       </Header>
       <Skipped />
-      <div style={{ padding: '0 28px 16px' }}>
-        <HowKeptCard />
-      </div>
       <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '420px minmax(0, 1fr)', gap: 28, padding: '0 28px 20px' }}>
         <div style={{ background: md('surfaceContainerLowest'), border: `1px solid ${md('outlineVariant')}`, borderRadius: SHAPE.xl, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -672,6 +668,7 @@ function BatchPage() {
         </div>
       </div>
       <Footer tone="plain" note={copying ? 'Reading the packs…' : 'Ready packs go in now. The others can be finished here or later.'}>
+        <HowKeptBar />
         <Button onClick={() => void cancel()} disabled={busy}>
           Cancel
         </Button>
@@ -717,12 +714,11 @@ export function AddPage() {
 /**
  * What adding does with the files: a copy, a move, or read them where they are.
  *
- * On the page, in the flow, not behind a link in the footer. This is the decision that says
- * whether somebody's 300 GB is about to be copied, and a choice you have to go looking for is not
- * a choice: it is a rule the app applied while you were reading something else. Which one is put
- * forward follows the size, and moving is never the quiet default.
+ * One line, at the foot of the page where the deciding happens, not a wall of cards that owns a
+ * quarter of the screen. It is one choice among three: a segmented button says that in the space
+ * the answer deserves, and the line under it says what the chosen one will do.
  */
-function HowKeptCard() {
+function HowKeptBar() {
   const library = useLibraryRecord();
   const settings = useSettings().data;
   const mode = useAdding((s) => s.mode);
@@ -740,7 +736,6 @@ function HowKeptCard() {
   const name = library?.name ?? 'your library';
   const where = folders.length === 1 ? folders[0]!.item.sources[0] : `${folders.length} folders`;
   const suggested = recommend(bytes, allFolders);
-  const why = whyRecommended(bytes, allFolders);
 
   // The setting and the size decide where the choice starts; after that the person's stands.
   useEffect(() => {
@@ -750,42 +745,14 @@ function HowKeptCard() {
     else if (suggested !== 'copy') void setMode(suggested);
   }, [settings, drafts.length, suggested, setMove, setMode]);
 
-  const choices: KeptChoice<AddMode>[] = [
-    {
-      value: 'copy',
-      title: `Copy into ${name}`,
-      body: 'The library holds its own copy, backed up and synced with everything else. Your originals stay exactly where they are.',
-      icon: KEPT_ICONS.copy,
-      adds: bytes,
-      recommended: suggested === 'copy',
-    },
-    {
-      value: 'move',
-      title: `Move into ${name}`,
-      body: 'The same, but the originals are removed once the copy is safely in and has been read back.',
-      icon: KEPT_ICONS.move,
-      adds: 0,
-      disabled: allFolders ? 'Not for folders. Adding a folder you chose never empties it.' : undefined,
-    },
-    {
-      value: 'keep',
-      title: 'Index where they are',
-      body: 'Nothing is copied or moved. Tessera reads the files where they sit and keeps the record here. It never writes in that folder.',
-      icon: KEPT_ICONS.keep,
-      adds: 0,
-      detail: allFolders ? `Read from ${where}` : undefined,
-      warning: 'Their files are not backed up or synced, because they are not in the library.',
-      disabled: allFolders ? undefined : 'Only for whole folders. Archives and loose files are copied in.',
-      recommended: suggested === 'keep',
-    },
-  ];
+  // What it costs, in as few words as the footer has room for. The rest is on the segment's own
+  // tooltip, where somebody who wants it will look and nobody else has to read it.
+  const says = mode === 'keep' ? 'not backed up' : mode === 'move' ? `frees ${formatBytes(bytes)}` : `+${formatBytes(bytes)}`;
 
   /**
-   * Take the choice, unless it is one somebody would be cross to discover afterwards.
-   *
-   * Only the surprising ones stop: a hundred gigabytes about to be copied, or a small download
-   * about to be left out of the backups for no reason. An ordinary answer goes straight through,
-   * because a dialog that always appears is a dialog nobody reads.
+   * Take the choice, unless it is one somebody would be cross to discover afterwards: a great
+   * deal about to be copied that need not be, or something small about to be left out of the
+   * backups. An ordinary answer goes straight through.
    */
   const pick = (m: AddMode) => {
     const doubt = secondThought(m, bytes, allFolders, formatBytes);
@@ -794,13 +761,32 @@ function HowKeptCard() {
   };
 
   return (
-    <Card title="How these are kept">
-      {why && (
-        <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: -0.5 }}>
-          {why}
-        </Typography>
-      )}
-      <HowKept<AddMode> label="" value={mode} choices={choices} onChange={pick} across />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, marginRight: 'auto', marginLeft: 8 }}>
+      <SegmentedButton<AddMode>
+        label="How these are kept"
+        value={mode}
+        onChange={pick}
+        options={[
+          { value: 'copy', label: 'Copy', title: 'The library holds its own copy, backed up and synced. Your originals stay exactly where they are.' },
+          {
+            value: 'move',
+            label: 'Move',
+            title: 'The same, but the originals go once the copy is safely in and has been read back.',
+            disabled: allFolders ? 'Adding a folder you chose never empties it.' : undefined,
+          },
+          {
+            value: 'keep',
+            label: 'In place',
+            title: allFolders
+              ? `Nothing is copied or moved. Read from ${where}, and never written to. Not backed up or synced, because the files are not in the library.`
+              : undefined,
+            disabled: allFolders ? undefined : 'Only whole folders can be read where they are.',
+          },
+        ]}
+      />
+      <Typography variant="bodySmall" noWrap sx={{ color: mode === 'keep' ? md('error') : md('onSurfaceVariant'), flexShrink: 0 }}>
+        {says}
+      </Typography>
 
       <Dialog open={!!asking} onClose={() => setAsking(null)} maxWidth="xs" fullWidth>
         <DialogTitle>{asking?.doubt.title}</DialogTitle>
@@ -829,7 +815,7 @@ function HowKeptCard() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Card>
+    </div>
   );
 }
 
@@ -839,7 +825,7 @@ function AddButton({ onClick, disabled }: { onClick: () => void; disabled: boole
   const mode = useAdding((s) => s.mode);
   const name = library?.name ?? 'the library';
   return (
-    <Button variant="contained" startIcon={<CheckRounded />} disabled={disabled} onClick={onClick}>
+    <Button variant="contained" startIcon={<CheckRounded />} disabled={disabled} onClick={onClick} sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
       {mode === 'keep' ? `Add to ${name}` : mode === 'move' ? `Move into ${name}` : `Copy into ${name}`}
     </Button>
   );

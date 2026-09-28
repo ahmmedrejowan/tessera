@@ -8,6 +8,10 @@ interface Option<T extends string> {
   value: T;
   label: string;
   icon?: ReactNode;
+  /** Why it cannot be picked. Shown on hover; the segment is still there, so the set is stable. */
+  disabled?: string;
+  /** What it means, for a short label that cannot say it all. */
+  title?: string;
 }
 
 /**
@@ -26,6 +30,8 @@ export function SegmentedButton<T extends string>({ value, options, onChange, la
             key={o.value}
             role="radio"
             aria-checked={on}
+            disabled={!!o.disabled}
+            title={o.disabled ?? o.title}
             onClick={() => onChange(o.value)}
             sx={{
               gap: 1,
@@ -35,6 +41,7 @@ export function SegmentedButton<T extends string>({ value, options, onChange, la
               borderLeft: i ? `1px solid ${md('outline')}` : 'none',
               backgroundColor: on ? md('secondaryContainer') : 'transparent',
               color: on ? md('onSecondaryContainer') : md('onSurface'),
+              opacity: o.disabled ? 0.4 : 1,
               '&:hover': { backgroundColor: on ? md('secondaryContainer') : mdAlpha('onSurface', STATE.hover) },
             }}
           >
