@@ -39,7 +39,8 @@ On a Mac and on Windows with Scoop, yes:
 `scoop install tessera`. Homebrew 7 asks before it loads anything from a tap that is not its own;
 if it does, run `brew trust --cask ahmmedrejowan/tessera/tessera` and install again. Homebrew is
 the easiest route on a Mac, because it clears the download flag as it installs and macOS then opens
-Tessera without asking you to allow it. winget, Chocolatey and the AUR do not carry it yet.
+Tessera without asking you to allow it. On Windows, Chocolatey carries it too: `choco install
+tessera`. winget and the AUR do not yet; the winget submission is waiting on a moderator.
 
 **Why does macOS say it cannot verify Tessera is free from malware?**
 Because the build is not notarised by Apple, which costs ninety-nine dollars a year that a free
