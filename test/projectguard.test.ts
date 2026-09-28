@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { readManifest, ManifestUnreadableError } from '../src/main/projects/copy';
 import { tempDir } from './helpers';
@@ -30,7 +30,9 @@ describe('a game’s record of what it took', () => {
 describe('a path inside a pack', () => {
   it('cannot climb out, whichever separator it uses', async () => {
     const { insidePack } = await import('../src/main/index/files');
-    const dir = '/library/packs/Kit';
+    // A real folder, resolved: a bare POSIX path gains a drive letter on Windows, so comparing
+    // against a hand-built string passes on a Mac and fails on CI.
+    const dir = resolve(tempDir('tessera-inside-'), 'packs', 'Kit');
     expect(insidePack(dir, 'models/tree.obj')).toBe(join(dir, 'models', 'tree.obj'));
     expect(insidePack(dir, '../Other/secret.txt')).toBeNull();
     expect(insidePack(dir, 'a/../../Other/secret.txt')).toBeNull();
