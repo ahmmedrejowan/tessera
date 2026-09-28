@@ -66,7 +66,7 @@ export interface Invokes {
    * Every pack and what its previews cost, for choosing which to keep. Packs with none are
    * listed too, so they can be drawn from the same place.
    */
-  'thumbs:packs': () => { packId: string; name: string; bytes: number; count: number; on: boolean; assets: number }[];
+  'thumbs:packs': () => { packId: string; name: string; bytes: number; count: number; on: boolean; assets: number; wanted: number }[];
   /** Whether previews are drawn for a pack. Turning them off clears the ones it already has. */
   'thumbs:forPack': (packId: string) => boolean;
   'thumbs:setForPack': (packId: string, on: boolean) => void;

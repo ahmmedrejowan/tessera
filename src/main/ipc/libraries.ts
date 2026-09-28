@@ -11,6 +11,7 @@ import { patchRecord } from '../libraries';
 import { locateLibrary } from '../library/locate';
 import type { IpcContext } from './context';
 import { clearFor, previewCost } from '../thumbs/cache';
+import { DIRECT, DIRECT_MAX, DRAWN_FOR } from '../thumbs/service';
 
 type Deps = Pick<
   IpcContext,
@@ -80,10 +81,11 @@ export function registerLibraryIpc(c: Deps): void {
     // Thumbnail names carry only the first eight characters of the pack id, which is what makes
     // the folder readable on its own. Matching happens here, where the real ids are.
     const packs = queries.packs({ scope: 'all', text: '', filters: {} }, 'name', 0, 5000).rows;
+    const wanted = queries.previewsWanted([...DRAWN_FOR], [...DIRECT], DIRECT_MAX);
     return packs
       .map((p) => {
         const had = cost.byPack[p.id.slice(0, 8)];
-        return { packId: p.id, name: p.name, bytes: had?.bytes ?? 0, count: had?.count ?? 0, on: usage.previewsOn(p.id), assets: p.assetCount };
+        return { packId: p.id, name: p.name, bytes: had?.bytes ?? 0, count: had?.count ?? 0, on: usage.previewsOn(p.id), assets: p.assetCount, wanted: wanted.get(p.id) ?? 0 };
       })
       .sort((a, b) => b.bytes - a.bytes || a.name.localeCompare(b.name));
   });

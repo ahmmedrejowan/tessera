@@ -49,6 +49,7 @@ import { HEADER_SIZE, ItemHeader } from '../../components/ItemHeader';
 import { Scrolling } from '../../components/Scrolling';
 import { CollectionMenu } from '../collections/CollectionMenu';
 import { KeptNotice } from './KeptNotice';
+import { PackPreviews } from './PackPreviews';
 import { ProjectMenu } from '../projects/ProjectMenu';
 import { useActiveProject } from '../../state/projects';
 import { CollectionIcon, LinkToGameIcon } from '../../components/icons';
@@ -130,19 +131,12 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
     void call('usage:record', id, 'opened').catch(() => undefined);
   }, [id]);
 
-  // Previews cost disk, and some packs are never looked at. Turning them off for one frees what
-  // it was using at once.
-  const [previews, setPreviewsState] = useState(true);
-  useEffect(() => {
-    void call('thumbs:forPack', id).then(setPreviewsState).catch(() => undefined);
-  }, [id]);
-  const setPreviews = async (on: boolean) => {
-    setPreviewsState(on);
-    await call('thumbs:setForPack', id, on).catch(() => undefined);
-    notify.success(on ? 'Previews will be made for this pack.' : 'Previews for this pack are off, and the ones it had are gone.');
-  };
+  // Only for the icon on the Previews button: the dialog owns changing it, and shares this key
+  // so turning them off in there is reflected here without a reload.
+  const previews = useQuery({ queryKey: ['thumbs-for-pack', id], queryFn: () => call('thumbs:forPack', id), staleTime: 0 }).data ?? true;
   const [sort, setSort] = useState<PackSort>('folder');
   const [viewing, setViewing] = useState<{ list: AssetRow[]; index: number } | null>(null);
+  const [showingPreviews, setShowingPreviews] = useState(false);
 
   const asked = useQuery({ queryKey: ['pack', lib, version, id], queryFn: () => call('pack:get', id), enabled: !!lib, placeholderData: (p) => p });
   const pack = asked.data;
@@ -313,26 +307,9 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
           { label: 'Add files', icon: AddRounded, onClick: () => void addToThisPack(id) },
           { label: 'Edit details', icon: EditOutlined, manage: true, onClick: () => setEditing(true) },
           { label: pack.meta.archived ? 'Bring it back' : 'Archive', icon: pack.meta.archived ? UnarchiveOutlined : ArchiveOutlined, manage: true, onClick: () => void archivePack(id, !pack.meta.archived) },
-          {
-            label: previews ? 'Stop making previews' : 'Make previews',
-            icon: previews ? HideImageOutlined : ImageOutlined,
-            manage: true,
-            onClick: () => void setPreviews(!previews),
-          },
-          // Only worth offering while previews are wanted for this pack at all.
-          ...(previews
-            ? [
-                {
-                  label: 'Draw its previews now',
-                  icon: ImageOutlined,
-                  manage: true,
-                  onClick: () => {
-                    void call('thumbs:build', [id]).catch(() => undefined);
-                    notify.success('Drawing this pack’s previews. The bar at the bottom shows how it is going.');
-                  },
-                },
-              ]
-            : []),
+          // One way in, not two. Turning previews off and drawing them now are the same subject,
+          // and as separate buttons they were the two longest labels in the narrowest column.
+          { label: 'Previews', icon: previews ? ImageOutlined : HideImageOutlined, manage: true, onClick: () => setShowingPreviews(true) },
           {
             label: 'Delete',
             icon: DeleteOutlined,
@@ -540,6 +517,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
         )}
       </div>
 
+      <PackPreviews packId={id} packName={pack.name} open={showingPreviews} onClose={() => setShowingPreviews(false)} />
       <ProjectMenu anchor={copying} onClose={() => setCopying(null)} items={async () => (await call('pack:files', id)).map((f) => ({ packId: f.packId, ref: f.ref }))} />
       <CollectionMenu anchor={collecting} onClose={() => setCollecting(null)} packs={() => Promise.resolve([id])} />
 

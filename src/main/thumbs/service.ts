@@ -12,18 +12,26 @@ export const THUMB_VERSION = 5;
 const SIZE = 384;
 
 /** Web images up to this size are drawn straight from the file; bigger ones get a small copy. */
-const DIRECT_MAX = 160 * 1024;
+export const DIRECT_MAX = 160 * 1024;
 // SVGs aren't drawn directly: many have no viewBox, so they won't scale in an <img>.
-const DIRECT = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'avif']);
-const MODEL = new Set(['glb', 'gltf', 'fbx', 'obj', 'dae', 'stl', 'ply', '3ds', 'usdz', 'vox']);
+export const DIRECT = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'avif']);
+export const MODEL = new Set(['glb', 'gltf', 'fbx', 'obj', 'dae', 'stl', 'ply', '3ds', 'usdz', 'vox']);
 // Blender's own files: not read as models, but they carry a picture of themselves.
-const BLEND = new Set(['blend']);
-const IMAGE = new Set([...DIRECT, 'tga', 'svg', 'tif', 'tiff', 'psd']);
-const HDR = new Set(['hdr', 'exr']);
-const AUDIO = new Set(['ogg', 'wav', 'mp3', 'flac', 'm4a', 'opus', 'aif', 'aiff']);
-const FONT = new Set(['ttf', 'otf', 'woff', 'woff2']);
+export const BLEND = new Set(['blend']);
+export const IMAGE = new Set([...DIRECT, 'tga', 'svg', 'tif', 'tiff', 'psd']);
+export const HDR = new Set(['hdr', 'exr']);
+export const AUDIO = new Set(['ogg', 'wav', 'mp3', 'flac', 'm4a', 'opus', 'aif', 'aiff']);
+export const FONT = new Set(['ttf', 'otf', 'woff', 'woff2']);
 
 type Info = ReturnType<LibraryQueries['thumbInfo']>[number];
+
+/**
+ * Every extension a picture is drawn for, and the ones only drawn when the file is too big to
+ * show straight from disk. Kept beside `plan` so a file that needs no preview is never counted
+ * as one waiting for one: a pack of small PNGs shows every tile without a single preview drawn,
+ * and telling somebody "none drawn yet, of 804" would be true and useless.
+ */
+export const DRAWN_FOR = new Set([...MODEL, ...BLEND, ...IMAGE, ...HDR, ...AUDIO, ...FONT]);
 
 /** What kind of drawing an asset needs, or a state that needs none. */
 export function plan(a: Pick<Info, 'ext' | 'size'>): RenderJob['kind'] | 'direct' | 'none' {

@@ -295,6 +295,26 @@ export class LibraryQueries {
   }
 
   /**
+   * How many of each pack's assets a preview is actually drawn for.
+   *
+   * Not the same as how many assets it has: a small PNG is shown straight from the file and
+   * needs nothing drawn, so a pack of 800 of them wants no previews at all. Said plainly, or
+   * "none drawn yet, of 804" reads like a failure.
+   */
+  previewsWanted(exts: string[], directExts: string[], directMax: number): Map<string, number> {
+    if (!exts.length) return new Map();
+    const marks = exts.map(() => '?').join(',');
+    const direct = directExts.length ? directExts.map(() => '?').join(',') : "''";
+    const rows = this.all<{ packId: string; n: number }>(
+      `SELECT pack_id AS packId, count(*) AS n FROM assets
+       WHERE role = 'main' AND ext IN (${marks}) AND NOT (ext IN (${direct}) AND size <= ?)
+       GROUP BY pack_id`,
+      [...exts, ...directExts, directMax] as Params,
+    );
+    return new Map(rows.map((r) => [r.packId, r.n]));
+  }
+
+  /**
    * Library assets of exactly this size, for recognising a file a game already has. Size throws
    * away almost everything for nothing, so only what survives it is ever opened and hashed.
    */
