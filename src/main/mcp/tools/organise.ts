@@ -54,6 +54,10 @@ export const ORGANISE: Tool[] = [
           tags: z.array(z.string()).default([]),
           types: z.array(z.string()).default([]),
         })
+        // Strict, because the whole point of a rule is to refuse things. A misspelled key was
+        // dropped in silence and what came back was a collection called "Only CC0" that would
+        // take anything at all. Better to fail the call than to answer it wrongly.
+        .strict()
         .optional()
         .describe('Only things that fit go in. Empty lists are not fussy.'),
     }),
@@ -222,20 +226,28 @@ export const ORGANISE: Tool[] = [
       projectId: z.string().nullable().optional().describe('The game this collection is for, or null to untie it.'),
       rules: z
         .object({
-          licences: z.array(z.string()).default([]),
-          needsCreditLine: z.boolean().default(false),
-          types: z.array(z.string()).default([]),
+          licences: z.array(z.string()),
+          creators: z.array(z.string()),
+          styles: z.array(z.string()),
+          tags: z.array(z.string()),
+          types: z.array(z.string()),
         })
         .partial()
+        .strict()
         .optional()
-        .describe('What may go in. Anything that does not fit is refused, with a reason.'),
+        .describe('What may go in. Anything that does not fit is refused, with a reason. Only the rules you name are changed; the rest are left as they are.'),
     }),
     run: async (args, ctx) => {
       const change: import('@shared/types').CollectionChange = {};
       if (args.name !== undefined) change.name = args.name;
       if (args.description !== undefined) change.description = args.description;
       if (args.projectId !== undefined) change.projectId = args.projectId;
-      if (args.rules) change.rules = { ...NO_RULES, ...args.rules } as import('@shared/collection').CollectionRules;
+      if (args.rules) {
+        // Naming one rule used to clear the others, so tightening a collection's licences threw
+        // away the creators and tags it was also keeping to.
+        const now = (await ctx.library.collections()).find((c) => c.id === args.collectionId)?.rules;
+        change.rules = { ...NO_RULES, ...now, ...args.rules } as import('@shared/collection').CollectionRules;
+      }
       await ctx.library.changeCollection(args.collectionId, change);
       ctx.note('An agent changed a collection');
       return { done: true };

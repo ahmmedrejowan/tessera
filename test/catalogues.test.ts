@@ -38,3 +38,35 @@ describe('source detection', () => {
     expect(sourceFromText('Made by Quaternius. Support me on Patreon')?.id).toBe('quaternius');
   });
 });
+
+describe('the licence file a pack actually ships', () => {
+  // Every Creative Commons 4.0 legal text ends with this sentence. It is about the wording of the
+  // licence, not about the work it covers, and reading it as the work's licence turned the
+  // official text of CC BY-NC into "public domain, credit nobody" and sent the pack straight past
+  // Review into the library. The most ordinary input there is, answered in the worst way.
+  const FOOTER = 'The text of the Creative Commons public licenses is dedicated to the public domain under the CC0 Public Domain Dedication.';
+
+  it('is read as the licence it is, not as the CC0 sentence inside it', () => {
+    expect(detectLicence(`Attribution-NonCommercial 4.0 International Public License. ${FOOTER}`)).toBe('CC-BY-NC-4.0');
+    expect(detectLicence(`Attribution 4.0 International Public License. ${FOOTER}`)).toBe('CC-BY-4.0');
+    expect(detectLicence(`Attribution-ShareAlike 4.0 International. ${FOOTER}`)).toBe('CC-BY-SA-4.0');
+    expect(detectLicence(`Attribution-NoDerivatives 4.0 International. ${FOOTER}`)).toBe('CC-BY-ND-4.0');
+  });
+
+  it('still reads a real CC0 file as CC0', () => {
+    expect(detectLicence('CC0 1.0 Universal Public Domain Dedication')).toBe('CC0-1.0');
+    expect(detectLicence('Creative Commons Zero v1.0 Universal')).toBe('CC0-1.0');
+  });
+
+  it('takes the stricter one when a file names two', () => {
+    // Being wrong towards the strict side costs a credit line nobody needed. The other way round
+    // costs a takedown.
+    expect(detectLicence('Models: CC BY-NC 4.0. Textures: CC0.')).toBe('CC-BY-NC-4.0');
+    expect(detectLicence('This pack is CC BY 4.0 (unlike our CC0 packs), please credit us.')).toBe('CC-BY-4.0');
+  });
+
+  it('does not read a colour in a stylesheet as a licence', () => {
+    expect(detectLicence('h1 { color: #cc0000 } This pack is Attribution-NonCommercial 4.0')).toBe('CC-BY-NC-4.0');
+    expect(detectLicence('h1 { color: #cc0000 }')).toBeNull();
+  });
+});

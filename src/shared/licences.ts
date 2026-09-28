@@ -60,15 +60,31 @@ export function licenceInfo(id: string | null | undefined): LicenceInfo | null {
  * first, so "Attribution-NonCommercial" is never read as plain "Attribution".
  */
 export function detectLicence(text: string): string | null {
-  const t = text.replace(/\s+/g, ' ');
+  const t = text
+    .replace(/\s+/g, ' ')
+    // Every Creative Commons 4.0 legal text ends by dedicating the text of the licence itself to
+    // the public domain under CC0. That sentence is about the wording of the licence, not about
+    // the work it covers, and reading it as the work's licence turned the official text of
+    // CC BY-NC into "public domain, no credit needed". Which is this application's worst possible
+    // mistake, made on the most ordinary input there is: a pack that ships the real licence file.
+    .replace(/the text of the creative commons public licen[cs]es is dedicated to the public domain under the cc0 public domain dedication\.?/gi, ' ')
+    .replace(/creative commons has dedicated[^.]*cc0[^.]*\./gi, ' ');
   const version = (re: RegExp) => (re.exec(t)?.[1] === '3.0' ? '3.0' : '4.0');
-  if (/creative ?commons zero|cc0|public ?domain dedication|publicdomain\/zero/i.test(t)) return 'CC0-1.0';
+  // Most restrictive first, and CC0 last of the Creative Commons family. Where a file names more
+  // than one, the stricter reading is the safe one to be wrong about: crediting something that
+  // needed no credit costs a line of text, and the other way round costs a takedown.
   if (/by-nc-sa|attribution-noncommercial-sharealike/i.test(t)) return 'CC-BY-NC-SA-4.0';
   // Only the licence's own wording: "free for commercial and non-commercial use" is not NC.
   if (/by-nc|attribution-noncommercial/i.test(t)) return 'CC-BY-NC-4.0';
   if (/by-nd|attribution-noderivs|noderivatives/i.test(t)) return 'CC-BY-ND-4.0';
   if (/by-sa|attribution-sharealike/i.test(t)) return `CC-BY-SA-${version(/(?:by-sa|sharealike)[ /]*(\d\.\d)/i)}`;
-  if (/creativecommons\.org\/licenses\/by\/|creative commons attribution|\bcc[- ]by\b/i.test(t)) return `CC-BY-${version(/(?:licenses\/by\/|attribution |cc[- ]by[ -])(\d\.\d)/i)}`;
+  // The last pattern is the title line of the official file, which says only "Attribution 4.0
+  // International" without the words "Creative Commons" anywhere near it. The stricter members of
+  // the family are tested above, so by this point "Attribution" on its own means plain BY.
+  if (/creativecommons\.org\/licenses\/by\/|creative commons attribution|\bcc[- ]by\b|\battribution[ -]\d\.\d international\b/i.test(t))
+    return `CC-BY-${version(/(?:licenses\/by\/|attribution[ -]|cc[- ]by[ -])(\d\.\d)/i)}`;
+  // \bcc0\b, not cc0: a stylesheet colour of #cc0000 in a readme used to make a pack public domain.
+  if (/creative ?commons zero|\bcc0\b|public ?domain dedication|publicdomain\/zero/i.test(t)) return 'CC0-1.0';
   if (/sil open font license|\bOFL\b/i.test(t)) return 'OFL-1.1';
   if (/apache license,? version 2\.0/i.test(t)) return 'Apache-2.0';
   if (/permission is hereby granted, free of charge/i.test(t)) return 'MIT';

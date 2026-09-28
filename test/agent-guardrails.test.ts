@@ -114,3 +114,32 @@ describe('a pack whose record two computers disagreed about', () => {
     expect(again.problems.join(' ')).toMatch(/sync-conflict/i);
   });
 });
+
+describe('a collection rule an agent gets slightly wrong', () => {
+  it('fails, rather than making a collection that refuses nothing', async () => {
+    // The field is "licences". A collection made with "licence" kept the name "Only CC0" and let
+    // a non-commercial pack straight in, which is the opposite of what it was asked for.
+    const { app } = await ready();
+    await expect(callTool(app, 'create_collection', { name: 'Only CC0', rules: { licence: ['CC0-1.0'] } })).rejects.toThrow();
+    const made = (await callTool(app, 'create_collection', { name: 'Only CC0', rules: { licences: ['CC0-1.0'] } })) as { id: string };
+    expect(made.id).toBeTruthy();
+  });
+
+  it('does not offer a rule the collection cannot keep', async () => {
+    // edit_collection offered needsCreditLine, which is not one of a collection's rules, so it
+    // was accepted and quietly dropped.
+    const { app } = await ready();
+    const made = (await callTool(app, 'create_collection', { name: 'Gathering', rules: { licences: ['CC0-1.0'] } })) as { id: string };
+    await expect(callTool(app, 'edit_collection', { collectionId: made.id, rules: { needsCreditLine: true } })).rejects.toThrow();
+  });
+
+  it('changes only the rule it was given, and leaves the others', async () => {
+    const { app } = await ready();
+    const made = (await callTool(app, 'create_collection', { name: 'Gathering', rules: { licences: ['CC0-1.0'], tags: ['trees'] } })) as { id: string };
+    await callTool(app, 'edit_collection', { collectionId: made.id, rules: { licences: ['CC-BY-4.0'] } });
+    const all = (await callTool(app, 'list_collections', {})) as { id: string; rules: { licences: string[]; tags: string[] } }[];
+    const now = all.find((c) => c.id === made.id)!;
+    expect(now.rules.licences).toEqual(['CC-BY-4.0']);
+    expect(now.rules.tags).toEqual(['trees']);
+  });
+});
