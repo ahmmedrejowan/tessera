@@ -39,6 +39,14 @@ describe('when to stop and ask', () => {
     const doubt = secondThought('keep', 500 * 1024 * 1024, true, gb);
     expect(doubt?.instead).toBe('copy');
     expect(doubt?.body).toMatch(/backed up/);
+    // Advice, not a veto: the click they made stays the one that is easiest to confirm, or
+    // picking the option feels like it did not take.
+    expect(doubt?.strong).toBe(false);
+  });
+
+  it('leans on the suggestion only where going ahead costs something real', () => {
+    expect(secondThought('copy', 200 * GB, true, gb)?.strong).toBe(true);
+    expect(secondThought('move', 80 * GB, false, gb)?.strong).toBe(true);
   });
 
   it('stops before a move big enough to need room for both at once', () => {

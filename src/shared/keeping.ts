@@ -51,6 +51,15 @@ export interface SecondThought {
   /** The answer being suggested instead, for the button that takes it. */
   instead: Keeping;
   insteadLabel: string;
+  /**
+   * Whether the suggestion is the one to lean on.
+   *
+   * True where going ahead would cost something real and hard to take back: a great deal copied
+   * that need not be. False where it is only advice, and the person's own click should be the
+   * button that is already under their finger, or picking an option would feel like it did not
+   * take.
+   */
+  strong: boolean;
 }
 
 /**
@@ -69,6 +78,7 @@ export function secondThought(mode: Keeping, bytes: number, canKeep: boolean, gb
       goOn: 'Copy it anyway',
       instead: 'keep',
       insteadLabel: 'Read them where they are',
+      strong: true,
     };
   }
   if (mode === 'keep' && bytes > 0 && bytes < SMALL) {
@@ -78,6 +88,7 @@ export function secondThought(mode: Keeping, bytes: number, canKeep: boolean, gb
       goOn: 'Read it where it is anyway',
       instead: 'copy',
       insteadLabel: 'Copy it in',
+      strong: false,
     };
   }
   if (mode === 'move' && bytes >= HUGE) {
@@ -87,6 +98,7 @@ export function secondThought(mode: Keeping, bytes: number, canKeep: boolean, gb
       goOn: 'Move it anyway',
       instead: 'copy',
       insteadLabel: 'Copy instead, and keep the originals',
+      strong: true,
     };
   }
   return null;

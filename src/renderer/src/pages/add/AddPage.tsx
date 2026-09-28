@@ -817,7 +817,10 @@ function HowKeptBar() {
           </Typography>
         </DialogContent>
         <DialogActions>
+          {/* Where it is only advice, the button already under their finger is the one they
+              clicked: a choice that quietly reverts feels like an option that does not work. */}
           <Button
+            variant={asking?.doubt.strong ? 'text' : 'contained'}
             onClick={() => {
               if (asking) void setMode(asking.mode);
               setAsking(null);
@@ -826,7 +829,7 @@ function HowKeptBar() {
             {asking?.doubt.goOn}
           </Button>
           <Button
-            variant="contained"
+            variant={asking?.doubt.strong ? 'contained' : 'text'}
             onClick={() => {
               if (asking) void setMode(asking.doubt.instead);
               setAsking(null);

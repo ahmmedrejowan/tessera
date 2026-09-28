@@ -208,16 +208,25 @@ export const useAdding = create<AddingState>((set, get) => ({
   setMove: (on) => set({ move: on, mode: on ? 'move' : 'copy' }),
   mode: 'copy',
   async setMode(mode) {
-    if (get().mode === mode) return;
+    const before = get().mode;
+    if (before === mode) return;
     set({ mode, move: mode === 'move' });
-    // Staging already wrote something for every pack, so changing the answer means doing it
-    // again. Cheap: cancelling a staged pack takes the copy back out and leaves the original.
-    const paths = get().staged;
-    if (!paths) return;
-    await get().cancel();
-    await get().start(paths.paths, paths.eachInside, paths.urls);
+    // Copy and move put the same thing in the same place; they differ only at the end, when the
+    // original is let go of. Nothing on disk has to change, so nothing does.
+    if ((before === 'keep') === (mode === 'keep')) return;
+    // Crossing into or out of "in place" does change what was written, so it is written again.
+    // In place, without leaving the page: cancelling used to navigate away and back, which threw
+    // the whole window about for what is meant to be a choice between three words.
+    const items = get().drafts.map((d) => d.item);
+    if (!items.length) return;
+    // Read before the drafts are cleared, or there is nothing left to say what to throw away.
+    const written = get().drafts.map((d) => d.packId).filter((id): id is string => !!id);
+    set({ busy: true, drafts: get().drafts.map((d) => ({ ...d, packId: null, state: 'copying' as const })) });
+    for (const id of written) await call('pack:discard', id).catch(() => undefined);
+    await stage(items, set, mode);
+    set({ busy: false });
   },
-  /** What `start` was given, so changing the mode can do the whole thing again. */
+  /** What `start` was given, so the mode can still be changed after staging. */
   staged: null,
 
   async start(paths, eachInside, urls) {

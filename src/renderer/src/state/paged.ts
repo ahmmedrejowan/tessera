@@ -31,6 +31,10 @@ export function usePagedRows<T>(key: readonly unknown[], fetchPage: (offset: num
       queryKey: [...key, p],
       queryFn: () => fetchPage(p * PAGE_SIZE, PAGE_SIZE),
       enabled: enabled && !first.isPlaceholderData,
+      // The same as the first page, and for the same reason. Without it, anything that changes
+      // the key (starring one thing bumps the whole index) emptied every page but the first,
+      // so a grid scrolled past two hundred rows blanked and refilled under the pointer.
+      placeholderData: keepPreviousData,
     })),
   });
   const loaded = useMemo(() => {
