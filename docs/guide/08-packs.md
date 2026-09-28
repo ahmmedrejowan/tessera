@@ -13,7 +13,13 @@ whether it is in a game or a collection yet. The buttons beside it:
 - **Add files**, to grow the pack with a later download.
 - **Edit details**, to correct anything by hand.
 - **Archive**, to take it out of search without deleting it.
+- **Previews**, for what the drawn pictures of this pack's files cost, with Draw, Clear, and a
+  switch to stop drawing them for this pack at all.
 - **Delete**, which moves it to the bin.
+
+A pack whose files were indexed where they lie says so under the buttons, with the folder it is
+read from, and offers to find that folder again if it has moved or to take the pack into the
+library properly. See [Adding packs](/docs/adding-packs).
 
 ## The tabs
 

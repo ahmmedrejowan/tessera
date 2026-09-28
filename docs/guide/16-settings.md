@@ -1,8 +1,11 @@
 # Settings
 
-Two halves: what belongs to the library that is open, and what belongs to Tessera on this computer.
+Two halves, and the page says which you are in: **Library Settings** belong to the library that is
+open and travel with it to your other computers, **App Settings** are kept on this computer and are
+the same whichever library is open. Every group carries a badge saying which it is, and the
+library's own settings are tinted.
 
-## This library
+## Library Settings
 
 **General**
 - **Name**: what the switcher and the top bar call it.
@@ -23,12 +26,18 @@ Two halves: what belongs to the library that is open, and what belongs to Tesser
 **Previews and index**
 - **Read the library again**: reads every pack from scratch. Useful after moving or editing files
   by hand; Tessera normally notices on its own.
-- **Thumbnails**: how much space the drawn previews take, with a button to clear them. They are
-  drawn again as you browse.
-- **File previews**: build them for this library or every library, retry the ones that failed, or
-  stop the work.
+- **Previews**: what the drawn pictures cost, broken down by kind, with a button to clear them.
+  They are kept in Tessera's own folder rather than in the library, and are drawn again as needed.
+- **Previews, pack by pack**: every pack with what its previews weigh, and for each one Draw,
+  Clear, and a switch to stop drawing them at all. Where the room went, and what to do about it.
+- **Draw them all now**: goes through every pack and draws whatever is missing, so browsing is
+  instant afterwards and works offline. It runs in the background and can be stopped.
+- **Keep previews under**: a cap. When the previews pass it, the ones belonging to the packs you
+  reach for least go first, then whatever was drawn longest ago.
 
-## Tessera
+A pack's own page has the same three under **Previews**, for that pack alone.
+
+## App Settings
 
 **Appearance**
 - **Theme**: follow the system, or pin light or dark.
