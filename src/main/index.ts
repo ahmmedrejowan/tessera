@@ -257,9 +257,10 @@ const mcp = new McpService({
       updateSettings: (patch) => settings.update(patch),
       activity: (limit) => activity.list(limit),
       backUpNow: async () => {
-        const done = await backups.backupNow();
-        activity.add('backup', 'Backed up this library');
-        return done;
+        const ran = await backups.backupNow();
+        // Only written down when it happened: one was already running otherwise.
+        if (ran) activity.add('backup', 'Backed up this library');
+        return ran;
       },
       reindex: () => library.reindex(),
       keeping: async () => ({ backup: await backups.status(), sync: await sync.status() }),

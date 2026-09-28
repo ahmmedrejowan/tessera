@@ -241,13 +241,20 @@ export class BackupService {
   }
 
   /** Back up a library now: the open one, or another whose backups are set up. */
-  async backupNow(libraryId?: string): Promise<void> {
+  /**
+   * Back up now. Answers false when one was already running, rather than pretending it ran.
+   *
+   * It used to return nothing either way, so the window wrote "Backed up this library" into the
+   * activity log and an agent answered "done" when nothing at all had happened, and if the backup
+   * already running then failed, the log had already claimed a success.
+   */
+  async backupNow(libraryId?: string): Promise<boolean> {
     const lib = this.d.library();
     const id = libraryId ?? lib?.id;
     if (!id) throw new UserError('no-library', 'No library is open.');
-    if (this.running.has(id)) return;
+    if (this.running.has(id)) return false;
     const { kopia, password, name, source } = await this.ready(id, lib?.id === id ? lib.path : undefined);
-    if (lib?.id !== id && !(await this.d.isLibrary(source, id))) return;
+    if (lib?.id !== id && !(await this.d.isLibrary(source, id))) return false;
     this.running.add(id);
     this.d.onChange();
     try {
@@ -257,6 +264,7 @@ export class BackupService {
         job.update(1, `${snap.files.toLocaleString()} files`);
       });
       await this.patch(id, { lastBackupAt: new Date().toISOString(), lastError: null });
+      return true;
     } catch (e) {
       log.error('backup', 'backup failed', e);
       await this.patch(id, { lastError: e instanceof Error ? e.message : String(e) });

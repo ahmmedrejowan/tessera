@@ -178,7 +178,10 @@ describe.skipIf(!exe)('what a backup service says and does', () => {
 
     // Something changes, and a second backup keeps both.
     writeFileSync(join(work.path, 'packs', 'Kit', 'new-file.txt'), 'added later');
-    await backups.backupNow();
+    // The first backup writes its "finished" time before it lets go of the "running" mark, so
+    // asking for a second one straight away could find the first still marked as running and
+    // quietly do nothing. Ask until one is actually started.
+    for (let i = 0; i < 100 && !(await backups.backupNow()); i++) await new Promise((r) => setTimeout(r, 50));
     const snapshots = await backups.snapshots();
     expect(snapshots.length).toBeGreaterThanOrEqual(2);
     expect(snapshots[0]!.startTime).toBeTruthy();

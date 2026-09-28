@@ -259,7 +259,8 @@ export interface Invokes {
   /** Show a file or folder in Finder, Explorer or the file manager. */
   'fs:reveal': (path: string) => void;
   'app:openExternal': (url: string) => void;
-  'backup:now': () => void;
+  /** Whether a backup was actually started: false when one was already running. */
+  'backup:now': () => boolean;
   /** Back up the open library to the same place as another library, with its password. */
   'backup:join': (libraryId: string) => void;
   'backup:setInterval': (hours: number) => void;

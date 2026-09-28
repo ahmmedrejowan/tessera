@@ -387,9 +387,11 @@ export const SYSTEM: Tool[] = [
     summary: 'Make a backup of the open library at once, if backups are set up for it.',
     input: z.object({}),
     run: async (_args, ctx) => {
-      await ctx.app.backUpNow();
-      ctx.note('An agent backed up the library');
-      return { done: true };
+      const ran = await ctx.app.backUpNow();
+      if (ran) ctx.note('An agent backed up the library');
+      return ran === false
+        ? { done: false, why: 'A backup of this library was already running, so nothing new was started. It will finish on its own.' }
+        : { done: true };
     },
   }),
 ];

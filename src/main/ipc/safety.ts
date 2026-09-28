@@ -64,9 +64,11 @@ export function registerSafetyIpc(c: Deps): void {
     await saveToKeychain(account, password ?? (await backups.password()));
   });
   handle('backup:now', async () => {
-    const done = await backups.backupNow();
-    activity.add('backup', 'Backed up this library');
-    return done;
+    const ran = await backups.backupNow();
+    // Only write it down if it happened. One was already running otherwise, and claiming a second
+    // one finished is how the log came to say "backed up" for a backup that then failed.
+    if (ran) activity.add('backup', 'Backed up this library');
+    return ran;
   });
   handle('backup:join', (libraryId) => backups.join(libraryId));
   handle('backup:setInterval', (hours) => backups.setInterval(hours));
