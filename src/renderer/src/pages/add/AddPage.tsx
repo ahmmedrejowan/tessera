@@ -435,8 +435,8 @@ function FileChip({ icon, children }: { icon: ReactNode; children: ReactNode }) 
 function Footer({ children, note, tone }: { children: ReactNode; note: ReactNode; tone: 'ok' | 'warn' | 'plain' }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 24px 18px 28px', borderTop: `1px solid ${md('outlineVariant')}`, background: md('surfaceContainerLowest') }}>
-      {/* The note gives way first: the choice and the button that acts on it must stay whole. */}
-      <Typography variant="bodyMedium" component="div" noWrap sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flexShrink: 1000, color: tone === 'warn' ? md('tertiary') : md('onSurfaceVariant') }}>
+      {/* The note takes the slack, so the buttons stay at the right edge, and gives way first. */}
+      <Typography variant="bodyMedium" component="div" noWrap sx={{ mr: 'auto', display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flexShrink: 1000, color: tone === 'warn' ? md('tertiary') : md('onSurfaceVariant') }}>
         {tone === 'ok' ? <CheckCircleRounded sx={{ color: md('primary'), flexShrink: 0 }} /> : <InfoOutlined sx={{ flexShrink: 0 }} />}
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note}</span>
       </Typography>
@@ -472,15 +472,17 @@ function SinglePage({ d }: { d: Draft }) {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <Header title="Add pack" file={<FileChip icon={d.item.kind === 'folder' ? <FolderOutlined sx={{ fontSize: 16 }} /> : <FolderZipOutlined sx={{ fontSize: 16 }} />}>{d.item.sources[0]?.split(/[\\/]/).pop()}</FileChip>} />
       <Skipped />
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: '300px minmax(0, 1fr)', gap: 24, padding: '0 32px 24px', alignItems: 'start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-          <Preview d={d} />
-          <VersionCard d={d} onEdit={onEdit} />
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 32px 24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '300px minmax(0, 1fr)', gap: 24, alignItems: 'start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+            <Preview d={d} />
+            <VersionCard d={d} onEdit={onEdit} />
+          </div>
+          <Details d={d} onEdit={onEdit} />
         </div>
-        <Details d={d} onEdit={onEdit} />
+        <HowKeptBar />
       </div>
       <Footer tone={ready ? 'ok' : 'warn'} note={d.state === 'copying' ? 'Reading the pack…' : ready ? 'Everything needed is filled in' : 'Add a licence and source now, or finish later from Review.'}>
-        <HowKeptBar />
         <Button onClick={() => void cancel()} disabled={busy}>
           Cancel
         </Button>
@@ -649,7 +651,7 @@ function BatchPage() {
             {window.tessera.platform === 'darwin' ? '⌘' : 'Ctrl'}-click or Shift-click to fill in several at once
           </Typography>
         </div>
-        <div style={{ minHeight: 0, overflowY: 'auto' }}>
+        <div style={{ minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           {selected.length > 1 && <BulkBar count={selected.length} />}
 
           {primary && (
@@ -665,10 +667,10 @@ function BatchPage() {
               <Details d={primary} onEdit={(p, found) => edit(primary.item.id, p, found)} />
             </>
           )}
+          <HowKeptBar />
         </div>
       </div>
       <Footer tone="plain" note={copying ? 'Reading the packs…' : 'Ready packs go in now. The others can be finished here or later.'}>
-        <HowKeptBar />
         <Button onClick={() => void cancel()} disabled={busy}>
           Cancel
         </Button>
@@ -747,7 +749,12 @@ function HowKeptBar() {
 
   // What it costs, in as few words as the footer has room for. The rest is on the segment's own
   // tooltip, where somebody who wants it will look and nobody else has to read it.
-  const says = mode === 'keep' ? 'not backed up' : mode === 'move' ? `frees ${formatBytes(bytes)}` : `+${formatBytes(bytes)}`;
+  const says =
+    mode === 'keep'
+      ? `Nothing is copied or moved${allFolders ? `; read from ${where}` : ''}. Not backed up or synced, because the files are not in the library.`
+      : mode === 'move'
+        ? `The originals go once the copy is safely in and has been read back. Frees ${formatBytes(bytes)}.`
+        : `The library keeps its own copy and your originals stay put. Uses ${formatBytes(bytes)} more.`;
 
   /**
    * Take the choice, unless it is one somebody would be cross to discover afterwards: a great
@@ -761,7 +768,21 @@ function HowKeptBar() {
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, marginRight: 'auto', marginLeft: 8 }}>
+    <div
+      style={{
+        // At the foot of what scrolls, after the pack is described and before it is committed.
+        marginTop: 'auto',
+        paddingTop: 20,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        minWidth: 0,
+        flexWrap: 'wrap',
+      }}
+    >
+      <Typography variant="titleSmall" sx={{ color: md('onSurface') }}>
+        How these are kept
+      </Typography>
       <SegmentedButton<AddMode>
         label="How these are kept"
         value={mode}
@@ -784,7 +805,7 @@ function HowKeptBar() {
           },
         ]}
       />
-      <Typography variant="bodySmall" noWrap sx={{ color: mode === 'keep' ? md('error') : md('onSurfaceVariant'), flexShrink: 0 }}>
+      <Typography variant="bodySmall" sx={{ color: mode === 'keep' ? md('error') : md('onSurfaceVariant'), flex: 1, minWidth: 260, wordBreak: 'break-word' }}>
         {says}
       </Typography>
 
