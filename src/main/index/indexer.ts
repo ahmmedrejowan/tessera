@@ -169,7 +169,15 @@ export class LibraryIndex {
         continue;
       }
       seen.add(pack.meta.id);
-      if (await this.syncPack(pack, known.get(pack.meta.id))) changed++;
+      try {
+        if (await this.syncPack(pack, known.get(pack.meta.id))) changed++;
+      } catch (e) {
+        // One pack that cannot be read must not stop the library being read. Without this, an
+        // archive with a repeated entry name, or a file that vanished mid-walk, aborted the loop:
+        // every pack after it was never indexed, nothing was ever taken out, nobody was told
+        // which pack it was, and it happened again on every launch.
+        problems.push({ folder: pack.folder, message: `could not be read into the index: ${e instanceof Error ? e.message : String(e)}` });
+      }
     }
     const removed = [...known.keys()].filter((id) => !seen.has(id));
     // A pack is only forgotten when the folder it should be in was actually readable. Checked here
@@ -309,7 +317,13 @@ export class LibraryIndex {
       });
       const id = Number(lastInsertRowid);
       ids.set(f, id);
-      this.st.insertAssetFts!.run(id, `${pathWords(baseName(f.shown))} ${f.ext}`, slash >= 0 ? pathWords(f.shown.slice(0, slash)) : '');
+      // Both the split words and the name as one word. "FireBall.png" is split into "fire ball",
+      // so somebody typing "fireball", which is how people type, matched nothing at all. Game
+      // assets are named in camelCase constantly, so this was the search complaint waiting to
+      // happen. Indexing both costs a few bytes a file and finds it either way.
+      const plain = baseName(f.shown).toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/g, '');
+      const words = pathWords(baseName(f.shown));
+      this.st.insertAssetFts!.run(id, `${words}${plain && !words.split(' ').includes(plain) ? ` ${plain}` : ''} ${f.ext}`, slash >= 0 ? pathWords(f.shown.slice(0, slash)) : '');
       // An archive's size is already counted by the files it holds; a top-level archive on disk is what takes space.
       if (!f.ref.includes('!')) size += f.size;
       if (f.role === 'main') assetCount++;

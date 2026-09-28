@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
  * deleted and rebuilt; a schema change simply rebuilds it.
  */
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 const SCHEMA = `
 CREATE TABLE packs (
@@ -70,6 +70,10 @@ CREATE INDEX assets_pack ON assets(pack_id, role);
 CREATE INDEX assets_type ON assets(type, role);
 CREATE INDEX assets_ext ON assets(ext);
 CREATE INDEX assets_licence ON assets(licence);
+-- Recognising the assets a game already has looks every one of its files up by size first, once
+-- per file. Without this that is a full scan of the table each time, which on a large library and
+-- a large project is minutes of it.
+CREATE INDEX assets_size ON assets(size);
 
 -- Words of each asset's file name, and of the folders (and archives) it sits in; rowid is assets.id.
 CREATE VIRTUAL TABLE assets_fts USING fts5(name, path, content='', contentless_delete=1, tokenize='unicode61 remove_diacritics 2', prefix='2 3');

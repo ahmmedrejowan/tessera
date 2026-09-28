@@ -108,11 +108,25 @@ export async function listPackFiles(filesRoot: string, walkRoot: string = join(f
     if (!room()) break;
     const ref = relative(filesRoot, abs).split(sep).join('/');
     if (isIgnored(ref)) continue;
-    const s = await stat(abs);
+    // A file can go between being listed and being asked about: a sync tool's temporary file, an
+    // unzip still running, somebody tidying. That is not a reason to give up on the whole pack.
+    const s = await stat(abs).catch(() => null);
+    if (!s) continue;
     files.push({ ref, size: s.size, mtimeMs: s.mtimeMs });
     if (isZip(ref)) await expand(ref, abs, 1);
   }
-  return { files, problems };
+  // Two files must never claim the same ref: the index insists they are unique, and the insert
+  // that broke that rule took the whole library's indexing down with it. An archive may repeat an
+  // entry name, and a loose file called "kit.zip!tree.png" collides with the tree inside kit.zip.
+  const byRef = new Map<string, PackFile>();
+  for (const f of files) {
+    if (byRef.has(f.ref)) {
+      problems.push(`${displayPath(f.ref)}: more than one file goes by this name, so only the first is listed.`);
+      continue;
+    }
+    byRef.set(f.ref, f);
+  }
+  return { files: [...byRef.values()], problems };
 }
 
 /**

@@ -306,3 +306,24 @@ describe('an index that will not open', () => {
     }
   });
 });
+
+describe('finding a file by the way people type its name', () => {
+  it('finds a camelCase name typed as one lower-case word', async () => {
+    // "FireBall.png" was indexed only as "fire ball", so searching "fireball" found nothing.
+    // Game assets are named in camelCase constantly and people type in lower case.
+    const root = tempDir();
+    await createLibrary(root, 'Effects library');
+    const pack = await createPack(root, 'Effects', { licence: { id: 'CC0-1.0' }, source: { url: 'https://example.test/e' } } as never);
+    for (const name of ['FireBall.png', 'IceShard.png', 'plainname.png']) writeFileSync(join(pack.dir, 'original', name), 'x');
+    const index = new LibraryIndex(':memory:');
+    const q = new LibraryQueries(index.db);
+    await index.sync(root);
+    const find = (text: string) => q.assets({ scope: 'all', text, filters: {} }, 'relevance', 0, 20).rows.map((r) => r.name);
+    expect(find('fireball')).toContain('FireBall.png');
+    expect(find('FireBall')).toContain('FireBall.png');
+    expect(find('fire')).toContain('FireBall.png');
+    expect(find('ball')).toContain('FireBall.png');
+    expect(find('iceshard')).toContain('IceShard.png');
+    expect(find('plainname')).toContain('plainname.png');
+  });
+});
