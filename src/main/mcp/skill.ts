@@ -1,4 +1,5 @@
 import { TOOL_GROUPS } from '@shared/mcp';
+import { ANSWERS } from './examples';
 import { TOOLS } from './tools';
 
 /**
@@ -9,7 +10,17 @@ import { TOOLS } from './tools';
 export function skillMarkdown(url: string): string {
   const groups = TOOL_GROUPS.map((g) => {
     const tools = TOOLS.filter((t) => t.group === g.id);
-    return [`### ${g.title}`, '', g.note, '', ...tools.map((t) => `- \`${t.name}\` — ${t.summary}`), ''].join('\n');
+    return [
+      `### ${g.title}`,
+      '',
+      g.note,
+      '',
+      // What a tool gives back matters as much as what it takes, and the app already has that
+      // written down for its own list. An agent that knows the shape of the answer asks for the
+      // right thing first time instead of calling something to find out what it returns.
+      ...tools.map((t) => `- \`${t.name}\` — ${t.summary}${ANSWERS[t.name] ? ` _Gives back: ${ANSWERS[t.name]!.returns}_` : ''}`),
+      '',
+    ].join('\n');
   }).join('\n');
 
   return `---
@@ -34,9 +45,11 @@ appears in their window as you do it, so work as though they are watching, becau
   textures, its licence papers and the game's credits file kept up to date.
 - **Review** — where a pack waits until it has both a licence and a source. It cannot be browsed
   until it does.
+- **Game** — a project folder the library copies into. The tools call it \`projectId\`, the window
+  and the person call it a game. They are the same thing.
 - **Archive** — a pack kept in full but out of the way of browsing.
-- **The bin** — where deleting puts things. You can delete to the bin and put things back. Only
-  the person can empty it.
+- **The bin** — where deleting puts things. You can delete to the bin and put things back.
+  Emptying it destroys what is in it, and is the one thing here that nobody can undo.
 
 ## The rules that matter
 
@@ -46,11 +59,24 @@ appears in their window as you do it, so work as though they are watching, becau
    \`move_to_library\`.
 3. **Check \`usage\` before archiving or deleting.** Files already linked into a game stay there,
    with their licence beside them, but the person should know.
-4. **Deleting means the bin.** Say so plainly when you do it; it is not permanent and you cannot
-   make it permanent.
-5. **Prefer \`search\` with filters over reading everything.** The library can hold a hundred
-   thousand files.
-6. **Say what you did in the app's words**: starred, collected, linked, archived, in the bin.
+4. **Deleting means the bin, and the bin can be emptied.** \`delete_to_bin\` can be undone with
+   \`restore_from_bin\`. \`empty_bin\` cannot be undone by anyone, and it is offered to you only
+   when the person has switched on "Deleting for good". Never call it to tidy up; call it only
+   when the person has asked for that, in those words.
+5. **When unsure, archive rather than delete.** \`archive_pack\` keeps the pack whole and only
+   takes it out of browsing, and is the right answer to "get rid of things I don't use". Tessera
+   has no record of what is unused, so any such list is your guess: say that it is a guess, show
+   it, and wait to be told to go ahead.
+6. **Say the whole list before acting on many things.** A tool that takes an array will happily
+   take fifty. Name them, or count them and say what they have in common, before you call it.
+7. **Prefer \`search\` with filters over reading everything.** The library can hold a hundred
+   thousand files. Filter values are ids, not names: the licence is \`CC0-1.0\`, not \`CC0\`. Use
+   \`list_facets\` to see the values that exist, and if a search comes back empty it will tell you
+   which of your filter values matched nothing.
+8. **Linking tells you what is wrong with the licences.** \`link_to_game\` returns
+   \`licenceWarnings\` when a pack has no licence recorded, forbids commercial use, needs a credit
+   line, or is still in Review. It copies anyway. Read them out; the person may want it undone.
+9. **Say what you did in the app's words**: starred, collected, linked, archived, in the bin.
 
 ## A good first move
 
