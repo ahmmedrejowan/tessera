@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
  * deleted and rebuilt; a schema change simply rebuilds it.
  */
 
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 const SCHEMA = `
 CREATE TABLE packs (
@@ -46,7 +46,13 @@ CREATE TABLE pack_terms (
 CREATE INDEX pack_terms_value ON pack_terms(facet, value);
 
 CREATE TABLE assets (
-  id      INTEGER PRIMARY KEY,
+  -- AUTOINCREMENT, so an id is never handed to a different file later. Re-reading a pack deletes
+  -- its rows and writes them again, and without this SQLite reuses the numbers that just became
+  -- free. A selection made a moment earlier, or an id an agent wrote down, then pointed at some
+  -- other file entirely, and "remove these" removed the wrong things. It is why the window throws
+  -- away the selection every time anything is indexed at all. An id that no longer exists matches
+  -- nothing, which is a safe way to be stale; an id that means something else is not.
+  id      INTEGER PRIMARY KEY AUTOINCREMENT,
   pack_id TEXT NOT NULL REFERENCES packs(id) ON DELETE CASCADE,
   ref     TEXT NOT NULL,
   name    TEXT NOT NULL,

@@ -327,3 +327,33 @@ describe('finding a file by the way people type its name', () => {
     expect(find('plainname')).toContain('plainname.png');
   });
 });
+
+describe('an asset id, after the pack it belongs to is read again', () => {
+  it('is never handed to a different file', async () => {
+    // Re-reading a pack deletes its rows and writes them again. Without AUTOINCREMENT, SQLite
+    // reuses the numbers that just became free, so a selection made a moment earlier, or an id an
+    // agent wrote down, pointed at some other file and "remove these" removed the wrong things.
+    const root = tempDir();
+    await createLibrary(root, 'Ids');
+    const pack = await createPack(root, 'Kit', { licence: { id: 'CC0-1.0' }, source: { url: 'https://example.test/k' } } as never);
+    for (const n of ['a.png', 'b.png', 'c.png']) writeFileSync(join(pack.dir, 'original', n), 'x');
+    const index = new LibraryIndex(':memory:');
+    const q = new LibraryQueries(index.db);
+    await index.sync(root);
+
+    const before = new Map(q.assets({ scope: 'all', text: '', filters: {} }, 'name', 0, 10).rows.map((r) => [r.id, r.name]));
+    expect(before.size).toBe(3);
+
+    // The pack changes, so it is read again from scratch.
+    writeFileSync(join(pack.dir, 'original', 'd.png'), 'x');
+    await index.sync(root);
+    const after = q.assets({ scope: 'all', text: '', filters: {} }, 'name', 0, 10).rows;
+
+    // Any id that survives still means the same file, and none of the old ids means a new one.
+    for (const row of after) {
+      const was = before.get(row.id);
+      if (was !== undefined) expect(row.name).toBe(was);
+    }
+    expect(after).toHaveLength(4);
+  });
+});
