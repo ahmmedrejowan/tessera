@@ -260,6 +260,19 @@ describe('backups', () => {
     expect(await ok('backup:chooseFolder')).toBe('/tmp/chosen');
   });
 
+  it('says why backups cannot go in a folder, so the window can refuse Next', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'tessera-cloud-'));
+    const account = join(home, 'Library', 'CloudStorage', 'GoogleDrive-someone@example.test');
+    await mkdir(join(account, 'My Drive'), { recursive: true });
+    execFileSync('chmod', ['a-w', account]);
+    try {
+      expect(await ok('backup:folderProblem', account)).toMatch(/account itself/);
+      expect(await ok('backup:folderProblem', join(account, 'My Drive', 'Tessera Backups'))).toBeNull();
+    } finally {
+      execFileSync('chmod', ['u+w', account]);
+    }
+  });
+
   it('will not take a folder nothing can be written into, and asks again', async () => {
     // The folder a Mac shows for a cloud account is read-only: it is the account, and what can be
     // written is inside it. Taking it means failing minutes later with the operating system's own

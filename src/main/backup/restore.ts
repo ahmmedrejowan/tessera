@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { readdir, realpath, rm, stat } from 'node:fs/promises';
+import { access, readdir, realpath, rm, stat } from 'node:fs/promises';
+import { constants } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 import type { BackupPlace, FoundBackup, RestoreSource } from '@shared/types';
@@ -32,6 +33,29 @@ async function dirs(path: string): Promise<string[]> {
  * Where backups are likely to be on this computer: cloud drive folders (iCloud Drive, Dropbox,
  * Google Drive, OneDrive), external and network drives, and the usual personal folders.
  */
+const writable = (path: string) => access(path, constants.W_OK).then(() => true, () => false);
+
+/**
+ * The folder of a cloud account that things can actually be put in.
+ *
+ * A Mac shows one folder per signed-in account under Library/CloudStorage, and for Google Drive
+ * that folder is read-only: it is the account, holding "My Drive" and "Other computers", and only
+ * what is inside can be written to. Offering the account itself as a place to keep backups gave
+ * somebody a suggestion that could not work, and it failed with the operating system's own words
+ * minutes later. OneDrive and Dropbox put their files straight in theirs, which is why this asks
+ * rather than assuming either way.
+ */
+async function writableIn(account: string): Promise<string> {
+  if (await writable(account)) return account;
+  const inside = await dirs(account);
+  // "My Drive" is the one for Google Drive; otherwise the only one that can be written to.
+  const named = inside.find((n) => n === 'My Drive');
+  if (named && (await writable(join(account, named)))) return join(account, named);
+  const usable = [];
+  for (const n of inside) if (await writable(join(account, n))) usable.push(n);
+  return usable.length === 1 ? join(account, usable[0]!) : account;
+}
+
 export async function backupPlaces(platform: NodeJS.Platform = process.platform, home = homedir()): Promise<BackupPlace[]> {
   const places: BackupPlace[] = [];
   const add = (label: string, path: string, kind: BackupPlace['kind']) => {
@@ -40,7 +64,8 @@ export async function backupPlaces(platform: NodeJS.Platform = process.platform,
   if (platform === 'darwin') {
     add('iCloud Drive', join(home, 'Library', 'Mobile Documents', 'com~apple~CloudDocs'), 'cloud');
     for (const name of await dirs(join(home, 'Library', 'CloudStorage'))) {
-      add(CLOUD_NAMES.find(([re]) => re.test(name))?.[1] ?? name, join(home, 'Library', 'CloudStorage', name), 'cloud');
+      const account = join(home, 'Library', 'CloudStorage', name);
+      add(CLOUD_NAMES.find(([re]) => re.test(name))?.[1] ?? name, await writableIn(account), 'cloud');
     }
     add('Dropbox', join(home, 'Dropbox'), 'cloud');
     const root = await realpath('/').catch(() => '/');

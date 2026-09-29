@@ -25,9 +25,17 @@ type Deps = Pick<IpcContext, 'activity' | 'backupChanged' | 'backups' | 'dataDir
 export function registerSafetyIpc(c: Deps): void {
   const { activity, backupChanged, backups, dataDir, jobs, librariesChanged, library, libraryId, platform, rcloneAuth, restorer, settings, sync, syncChanged, windows } = c;
   handle('backup:status', () => backups.status());
-  handle('backup:chooseFolder', async () => {
+  handle('backup:folderProblem', (path) => {
+    try {
+      checkBackupFolder(path);
+      return null;
+    } catch (e) {
+      return e instanceof UserError ? e.message : 'Backups can’t go there.';
+    }
+  });
+  handle('backup:chooseFolder', async (defaultPath) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options: Electron.OpenDialogOptions = { title: 'Choose where to keep backups', buttonLabel: 'Choose', properties: ['openDirectory', 'createDirectory'] };
+    const options: Electron.OpenDialogOptions = { title: 'Choose where to keep backups', message: 'Choose a folder for backups', buttonLabel: 'Choose', properties: ['openDirectory', 'createDirectory'], ...(defaultPath ? { defaultPath } : {}) };
     // Asked again rather than accepted and failed later. The folder people reach for is the one a
     // Mac shows for a cloud account, and nothing can be written straight into that: it is the
     // account, and what can be written is inside it. Rather than take it, say so and open the

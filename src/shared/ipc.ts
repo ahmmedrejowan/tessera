@@ -247,7 +247,9 @@ export interface Invokes {
 
   'backup:status': () => BackupStatus;
   /** Ask for a folder to keep backups in; null when canceled. */
-  'backup:chooseFolder': () => string | null;
+  'backup:chooseFolder': (defaultPath?: string) => string | null;
+  /** Why backups can't go in this folder, or null when they can. */
+  'backup:folderProblem': (path: string) => string | null;
   /** Start backing up to a folder, making a new store there or opening an existing one. */
   'backup:setup': (target: StorageTarget, password: string, create: boolean) => void;
   /** Sign in to a cloud drive in the browser (the page's address comes as `backup:signInUrl`); returns the rclone remote. */

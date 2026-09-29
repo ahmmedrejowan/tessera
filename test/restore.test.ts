@@ -28,6 +28,31 @@ describe('finding backups', () => {
     expect(places.find((p) => p.label === 'Dropbox')?.kind).toBe('cloud');
   });
 
+  it('suggests the folder inside a cloud account, not the account, when the account is read-only', async () => {
+    // A Mac's folder for a Google Drive account holds "My Drive" and "Other computers" and is
+    // read-only: it is the account. Suggesting it gave somebody a place backups could never go,
+    // and it failed minutes later with the operating system's own words.
+    const { home } = await fakeHome();
+    const account = join(home, 'Library', 'CloudStorage', 'GoogleDrive-sam@example.com');
+    await mkdir(join(account, 'My Drive'), { recursive: true });
+    await mkdir(join(account, 'Other computers'), { recursive: true });
+    execFileSync('chmod', ['a-w', account]);
+    try {
+      const drive = (await backupPlaces('darwin', home)).find((p) => p.label === 'Google Drive');
+      expect(drive?.path).toBe(join(account, 'My Drive'));
+    } finally {
+      execFileSync('chmod', ['u+w', account]);
+    }
+  });
+
+  it('leaves a cloud folder alone when things can be put straight in it', async () => {
+    const { home } = await fakeHome();
+    const account = join(home, 'Library', 'CloudStorage', 'OneDrive-Personal');
+    await mkdir(join(account, 'Documents'), { recursive: true });
+    const one = (await backupPlaces('darwin', home)).find((p) => p.path === account);
+    expect(one).toBeTruthy();
+  });
+
   it('finds a store a few folders down, and from a folder that holds one', async () => {
     const { home, store } = await fakeHome();
     const found = await findBackups(await backupPlaces('darwin', home));

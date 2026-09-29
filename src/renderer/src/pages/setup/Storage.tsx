@@ -116,6 +116,10 @@ function FieldInput({ field, value, onChange }: { field: Field; value: string; o
 function FolderForm({ target, onChange, suggest }: { target: StorageTarget; onChange: (t: StorageTarget) => void; suggest: 'backups' | 'none' }) {
   const path = target.values.path ?? '';
   const info = useFolder(path || null).data;
+  // Whether backups can actually go there. Only the main process can answer it, because the answer
+  // is whether the folder can be written to, and the one people reach for on a Mac cannot be: the
+  // folder shown for a cloud account is the account, not a folder in it.
+  const problem = useQuery({ queryKey: ['folder-problem', path], queryFn: () => call('backup:folderProblem', path), enabled: !!path, staleTime: 0 }).data ?? null;
   const places = useQuery({ queryKey: ['restore-places'], queryFn: () => call('restore:places'), staleTime: 60_000 }).data ?? [];
   const sep = window.tessera.platform === 'win32' ? '\\' : '/';
   const suggestion = (p: BackupPlace) => `${p.path.replace(/[\\/]+$/, '')}${sep}Tessera Backups`;
@@ -125,10 +129,15 @@ function FolderForm({ target, onChange, suggest }: { target: StorageTarget; onCh
         info={info}
         path={path || null}
         onChange={async () => {
-          const p = await call('dialog:folder', 'Choose a folder for backups', { message: 'Choose a folder for backups', buttonLabel: 'Choose', ...(path ? { defaultPath: path } : {}) });
+          // This picker will not hand back a folder backups cannot go in: it says why and opens
+          // again inside the one that was chosen, which is where the usable one is.
+          const p = await call('backup:chooseFolder', path || undefined);
           if (p) onChange({ ...target, values: { path: p } });
         }}
       />
+      {/* The picker cannot return a bad folder, but a suggestion below can name one that has since
+          gone, and a path can arrive from a previous setup. Said here rather than at the end. */}
+      {!!path && !!problem && <StatusSlot message={{ tone: 'error', text: problem }} />}
       {suggest === 'backups' && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', minHeight: 32 }}>
           {places
