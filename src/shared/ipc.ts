@@ -223,6 +223,8 @@ export interface Invokes {
     matches: { packId: string; packName: string; ref: string; path: string; size: number }[];
     looked: number;
     packs: { id: string; name: string; files: number }[];
+    /** It gave up before looking everywhere, so "nothing else matched" would be a false answer. */
+    stoppedEarly?: boolean;
   };
   /** Record those assets at the paths the game already uses. Nothing is copied. */
   'projects:adopt': (id: string, matches: { packId: string; packName: string; ref: string; path: string; size: number }[]) => number;

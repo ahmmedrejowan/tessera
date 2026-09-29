@@ -111,3 +111,32 @@ describe('finding assets a game already has', () => {
     expect(adoptEntries(project, scan.matches, src, existing)).toEqual([]);
   });
 });
+
+describe('when matching by size stops narrowing anything', () => {
+  it('gives up rather than reading the whole library, and says it did', async () => {
+    // Matching is by size first and content second, which is nearly free when sizes vary the way
+    // real assets do. When they do not, the size stops narrowing and every candidate has to be
+    // read out of its archive and hashed. Measured on a library of 168,000 same-sized files: four
+    // minutes, on the main process, with no way to stop it and no sign anything was wrong.
+    const { game, project, src } = await setup();
+    writeFileSync(join(game, 'Assets', 'Art', 'theirs.png'), 'x'.repeat(64));
+
+    // Every library asset the same size as that file, and far more of them than the budget.
+    let reads = 0;
+    const many = Array.from({ length: 60_000 }, (_, i) => ({ packId: 'p', packName: 'Pack', ref: `original/f${i}.png`, size: 64 }) as never);
+    const scan = await scanForAdoption(project.path, 'Assets/Art', {
+      src: {
+        ...src,
+        packDir: () => {
+          reads++;
+          return '/nowhere-at-all';
+        },
+      },
+      bySize: () => many,
+    });
+
+    expect(scan.stoppedEarly).toBe(true);
+    // It stopped well short of the sixty thousand it was offered.
+    expect(reads).toBeLessThan(30_000);
+  });
+});

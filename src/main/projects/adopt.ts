@@ -42,6 +42,12 @@ export interface AdoptScan {
   looked: number;
   /** Packs the matches belong to, for saying "3 packs found" rather than listing 900 files. */
   packs: { id: string; name: string; files: number }[];
+  /**
+   * The search gave up before it had looked everywhere, because it was reading far more of the
+   * library than the answer could be worth. Said out loud: "nothing else matched" and "I stopped
+   * looking" are different answers and the person is entitled to know which one they got.
+   */
+  stoppedEarly?: boolean;
 }
 
 async function hashFile(path: string): Promise<string> {
@@ -89,8 +95,21 @@ export async function scanForAdoption(projectPath: string, folder: string, d: Ad
   const matches: AdoptMatch[] = [];
   const seen = new Set<string>();
   const hashes = new Map<string, string>();
+  /**
+   * How many library files this may read and hash in one scan.
+   *
+   * A file is matched by size first and only then by content, which narrows it to almost nothing
+   * when sizes vary the way real assets do. Where they do not, the size stops narrowing: a library
+   * with many files of the same length, which placeholder art, generated tiles and engine sidecars
+   * all produce, made one scan read a hundred and sixty thousand files out of their archives.
+   * Measured: four minutes, on the main process, with no way to stop it. Bounded so that cannot
+   * happen quietly.
+   */
+  const READS = 25_000;
+  let stoppedEarly = false;
 
   for (const [i, path] of files.entries()) {
+    if (stoppedEarly) break;
     d.onProgress?.(i, files.length);
     const s = await stat(path).catch(() => null);
     if (!s || s.size === 0 || s.size > MAX_HASH) continue;
@@ -106,6 +125,10 @@ export async function scanForAdoption(projectPath: string, folder: string, d: Ad
       if (seen.has(key)) continue;
       let ours = hashes.get(key);
       if (ours === undefined) {
+        if (hashes.size >= READS) {
+          stoppedEarly = true;
+          break;
+        }
         const buf = await readPackFile(d.src.packDir(c.packId), c.ref, MAX_HASH).catch(() => null);
         ours = buf ? hashBuffer(buf) : '';
         hashes.set(key, ours);
@@ -130,7 +153,7 @@ export async function scanForAdoption(projectPath: string, folder: string, d: Ad
     p.files++;
     packs.set(m.packId, p);
   }
-  return { matches, looked: files.length, packs: [...packs.values()].sort((a, b) => b.files - a.files) };
+  return { matches, looked: files.length, packs: [...packs.values()].sort((a, b) => b.files - a.files), ...(stoppedEarly ? { stoppedEarly: true } : {}) };
 }
 
 /**

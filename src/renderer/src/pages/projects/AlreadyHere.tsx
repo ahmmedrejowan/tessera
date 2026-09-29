@@ -84,6 +84,14 @@ export function AlreadyHere({ project, open, onClose }: { project: ProjectSummar
 
         {scan && (
           <div style={{ padding: 14, borderRadius: SHAPE.lg, background: md('surfaceContainerLow') }}>
+            {/* "Nothing else matched" and "I stopped looking" are different answers. */}
+            {scan.stoppedEarly && (
+              <Typography variant="bodySmall" component="div" sx={{ color: md('error'), mb: 1 }}>
+                This stopped before it had looked everywhere: too much of the library is the same size as
+                the files in this folder for matching by size to narrow it down. What is listed is real;
+                there may be more.
+              </Typography>
+            )}
             {scan.matches.length === 0 ? (
               <Typography variant="bodyMedium" sx={{ color: md('onSurface') }}>
                 Nothing of your library’s is in there. Looked at {formatCount(scan.looked)} file{scan.looked === 1 ? '' : 's'}. An asset that was re-exported or edited will not match, because it is no longer the file the licence was recorded against.
