@@ -129,7 +129,12 @@
         "NSDesktopFolderUsageDescription": "Tessera reads and keeps your asset library, and its backups, where you choose, which can be on the Desktop.",
         "NSDownloadsFolderUsageDescription": "Tessera adds asset packs you downloaded, from the Downloads folder.",
         "NSRemovableVolumesUsageDescription": "Tessera can keep your library or its backups on an external drive.",
-        "NSNetworkVolumesUsageDescription": "Tessera can keep your library or its backups on a network drive."
+        "NSNetworkVolumesUsageDescription": "Tessera can keep your library or its backups on a network drive.",
+        "NSCameraUsageDescription": null,
+        "NSMicrophoneUsageDescription": null,
+        "NSAudioCaptureUsageDescription": null,
+        "NSBluetoothAlwaysUsageDescription": null,
+        "NSBluetoothPeripheralUsageDescription": null
       }
     },
     "dmg": {
