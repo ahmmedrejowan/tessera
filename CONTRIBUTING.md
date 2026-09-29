@@ -49,9 +49,14 @@ bridge, and the window. The short version:
   should be atomic, or recoverable.
 - **No new runtime dependency** without a good reason. There are four.
 
-Before you open a pull request: `npm run typecheck && npm test`. CI runs both on macOS, Windows and
-Linux, builds the app on each, and holds coverage to a floor, so a change that quietly stops testing
-something fails rather than going unnoticed.
+Everything reaches `main` through a pull request; nobody pushes to it, including me. Branch, open
+the pull request, and let the checks run.
+
+Before you open one: `npm run typecheck && npm test`. The pull request then runs the whole thing on
+macOS, Windows and Linux, builds and packages the app on each, drives the app end to end, and holds
+coverage to a floor, so a change that quietly stops testing something fails rather than going
+unnoticed. All four checks have to pass before it can go in. What runs after the merge is smaller
+and only confirms that `main` is still good with the change actually in it.
 
 ## License
 
