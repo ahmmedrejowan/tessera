@@ -17,7 +17,11 @@ const noRclone = { exe: null, config: '' };
 const t = (provider: StorageTarget['provider'], values: Record<string, string>): StorageTarget => ({ provider, values });
 
 describe('a folder the backups cannot go in', () => {
-  it('says which folder to pick when the one chosen is a cloud account rather than a folder', async () => {
+  // Only where a folder can be made unwritable, which is Unix. Windows does not work that way: the
+  // read-only attribute on a directory does not stop files being created in it, so there is no way
+  // to set this situation up there. What is being tested is a Mac one anyway, the folder a Mac
+  // shows for a cloud account.
+  it.skipIf(process.platform === 'win32')('says which folder to pick when the one chosen is a cloud account rather than a folder', async () => {
     // A Mac keeps one folder per signed-in cloud account under Library/CloudStorage, and it is
     // read-only: it is the account, not a folder, and what can be written is inside it. Choosing
     // it used to come back as "EACCES: permission denied, mkdir", which names what the system
@@ -37,7 +41,7 @@ describe('a folder the backups cannot go in', () => {
     }
   });
 
-  it('refuses a folder that cannot be written to, and one that was never chosen', async () => {
+  it.skipIf(process.platform === 'win32')('refuses a folder that cannot be written to, and one that was never chosen', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'tessera-locked-'));
     const locked = join(dir, 'locked');
     await mkdir(locked);

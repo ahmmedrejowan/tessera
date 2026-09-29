@@ -28,7 +28,11 @@ describe('finding backups', () => {
     expect(places.find((p) => p.label === 'Dropbox')?.kind).toBe('cloud');
   });
 
-  it('suggests the folder inside a cloud account, not the account, when the account is read-only', async () => {
+  // Only where a folder can be made unwritable, which is Unix. Windows does not work that way: the
+  // read-only attribute on a directory does not stop files being created in it, so there is no way
+  // to set this situation up there. What is being tested is a Mac one anyway, the folder a Mac
+  // shows for a cloud account.
+  it.skipIf(process.platform === 'win32')('suggests the folder inside a cloud account, not the account, when the account is read-only', async () => {
     // A Mac's folder for a Google Drive account holds "My Drive" and "Other computers" and is
     // read-only: it is the account. Suggesting it gave somebody a place backups could never go,
     // and it failed minutes later with the operating system's own words.

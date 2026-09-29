@@ -274,7 +274,11 @@ describe('backups', () => {
     expect(said('backups.turnOff')).toBeTruthy();
   });
 
-  it('says why backups cannot go in a folder, so the window can refuse Next', async () => {
+  // Only where a folder can be made unwritable, which is Unix. Windows does not work that way: the
+  // read-only attribute on a directory does not stop files being created in it, so there is no way
+  // to set this situation up there. What is being tested is a Mac one anyway, the folder a Mac
+  // shows for a cloud account.
+  it.skipIf(process.platform === 'win32')('says why backups cannot go in a folder, so the window can refuse Next', async () => {
     const home = await mkdtemp(join(tmpdir(), 'tessera-cloud-'));
     const account = join(home, 'Library', 'CloudStorage', 'GoogleDrive-someone@example.test');
     await mkdir(join(account, 'My Drive'), { recursive: true });
@@ -287,7 +291,7 @@ describe('backups', () => {
     }
   });
 
-  it('will not take a folder nothing can be written into, and asks again', async () => {
+  it.skipIf(process.platform === 'win32')('will not take a folder nothing can be written into, and asks again', async () => {
     // The folder a Mac shows for a cloud account is read-only: it is the account, and what can be
     // written is inside it. Taking it means failing minutes later with the operating system's own
     // words, so the picker comes back instead, standing in the folder that was chosen.
