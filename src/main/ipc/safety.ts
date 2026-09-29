@@ -115,6 +115,7 @@ export function registerSafetyIpc(c: Deps): void {
     broadcast(windows, 'restore:progress', f);
   };
   handle('backup:restore', (id, target, size, name) => jobs.run('Restoring a copy of the library', (job) => backups.restore(id, target, size, name, restoreProgress(job), knownLibraries)));
+  handle('backup:pause', (on) => backups.pause(on));
   handle('backup:turnOff', () => backups.turnOff());
 
   handle('restore:places', () => backupPlaces());

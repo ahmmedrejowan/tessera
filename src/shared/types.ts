@@ -184,6 +184,13 @@ export interface LibraryBackup {
   target: StorageTarget;
   /** Back up automatically this often while Tessera is open; 0 = only when asked. */
   intervalHours: number;
+  /**
+   * Paused: nothing is backed up on its own, and everything else stays as it is. The store, the
+   * password and the schedule are all still here, so turning it back on carries on where it left
+   * off. This is the answer to "not for a while", which used to mean disconnecting and setting the
+   * whole thing up again afterwards.
+   */
+  paused?: boolean;
   lastBackupAt: string | null;
   lastError: string | null;
 }
@@ -476,6 +483,8 @@ export interface BackupStatus {
   lastBackupAt: string | null;
   lastError: string | null;
   running: boolean;
+  /** Set up, but not backing up on its own until it is turned back on. */
+  paused: boolean;
   /** Other libraries' backups this one could join (same place, same password). */
   others: { libraryId: string; libraryName: string; repo: string }[];
 }

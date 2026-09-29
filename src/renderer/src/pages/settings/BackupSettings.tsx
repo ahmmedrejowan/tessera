@@ -45,6 +45,60 @@ const STORE_NAME: Record<string, string> = { darwin: 'Keychain Access', win32: '
 
 const MONO = 'ui-monospace, Menlo, Consolas, monospace';
 
+/**
+ * Ask, do it, then say what happened, without the box closing in between.
+ *
+ * These two answers are the ones people hesitate over: one is reversible and sounds worse than it
+ * is, the other lets go of the only way back into a set of backups. Saying exactly what each does
+ * before it happens, and exactly what it did afterwards, is the difference between a button and a
+ * decision.
+ */
+function Confirm({ open, onClose, title, body, confirm, done, run, danger }: { open: boolean; onClose: () => void; title: string; body: string; confirm: string; done: string; run: () => Promise<unknown>; danger?: boolean }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  useEffect(() => {
+    if (open) setResult(null);
+  }, [open]);
+  const go = async () => {
+    setBusy(true);
+    try {
+      await run();
+      setResult(done);
+    } catch (e) {
+      failed(e);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog open={open} onClose={busy ? undefined : onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>{result ? 'Done' : title}</DialogTitle>
+      <DialogContent>
+        <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
+          {result ?? body}
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        {result ? (
+          <Button variant="contained" onClick={onClose}>
+            Close
+          </Button>
+        ) : (
+          <>
+            <Button onClick={onClose} disabled={busy}>
+              Cancel
+            </Button>
+            <Button variant="contained" color={danger ? 'error' : 'primary'} disabled={busy} onClick={() => void go()}>
+              {busy ? 'Working…' : confirm}
+            </Button>
+          </>
+        )}
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 /** The backup password: see it, change it, and keep copies where they'll be found. */
 function PasswordRow() {
   const [shown, setShown] = useState<string | null>(null);
@@ -197,6 +251,8 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
   // Read again whenever Settings opens: the library may have changed since.
   const status = useQuery({ queryKey: ['backup'], queryFn: () => call('backup:status'), refetchInterval: 60_000, staleTime: 0 }).data;
   const [restoring, setRestoring] = useState(false);
+  const [pausing, setPausing] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   if (!status) return null;
 
   if (!status.available) {
@@ -252,12 +308,49 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
       <Row title="Restore" body="Bring back the library as it was at an earlier backup, as a copy beside it.">
         <Button onClick={() => setRestoring(true)}>Restore…</Button>
       </Row>
-      <Row title="Turn off backups" body="Tessera stops backing up. The backups already made stay in their folder.">
-        <Button color="error" onClick={() => void call('backup:turnOff')}>
-          Turn off
+      <Row
+        title={status.paused ? 'Backups are paused' : 'Pause backups'}
+        body={
+          status.paused
+            ? 'Nothing is backed up on its own. Where they go, the password and how often are all still set.'
+            : 'Stop backing up on its own for a while. Nothing is disconnected and nothing is forgotten.'
+        }
+      >
+        <Button onClick={() => setPausing(true)}>{status.paused ? 'Resume' : 'Pause…'}</Button>
+      </Row>
+      <Row title="Disconnect" body="Let go of the place these backups go. The backups already made stay where they are.">
+        <Button color="error" onClick={() => setDisconnecting(true)}>
+          Disconnect…
         </Button>
       </Row>
       <RestoreCopy open={restoring} onClose={() => setRestoring(false)} />
+      <Confirm
+        open={pausing}
+        onClose={() => setPausing(false)}
+        title={status.paused ? 'Start backing up again?' : 'Pause backups?'}
+        body={
+          status.paused
+            ? 'Tessera will back this library up on its own again, starting from where it left off. Nothing has to be set up again.'
+            : 'Nothing is backed up on its own until you start it again. Where the backups go, the password and how often are all kept, and you can still back up now yourself whenever you want to.'
+        }
+        confirm={status.paused ? 'Start again' : 'Pause'}
+        done={
+          status.paused
+            ? 'Backups are on again. The next one happens on its usual schedule.'
+            : 'Backups are paused. Nothing goes up on its own until you start them again; “Back up now” still works.'
+        }
+        run={() => call('backup:pause', !status.paused)}
+      />
+      <Confirm
+        open={disconnecting}
+        onClose={() => setDisconnecting(false)}
+        danger
+        title="Disconnect these backups?"
+        body={`Tessera lets go of ${status.repoPath ?? 'the place the backups go'} and forgets the password for it. The backups already made are not deleted: they stay exactly where they are, and you can restore from them later with “From a backup”, as long as you still have the password. Setting backups up again, here or somewhere else, starts a new set from nothing.`}
+        confirm="Disconnect"
+        done="Disconnected. The backups already made are still where they were, and Tessera no longer has the password for them: keep your recovery kit."
+        run={() => call('backup:turnOff')}
+      />
     </>
   );
 }

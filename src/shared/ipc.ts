@@ -285,6 +285,9 @@ export interface Invokes {
   'backup:snapshots': () => Snapshot[];
   /** Restore a snapshot of the open library into a new or empty folder, as a copy of its own. */
   'backup:restore': (snapshotId: string, target: string, size: number, name: string) => void;
+  /** Stop backing up on its own, keeping the store, the password and the schedule. */
+  'backup:pause': (on: boolean) => void;
+  /** Let go of the store: the backups already made stay where they are. */
   'backup:turnOff': () => void;
 
   'sync:status': () => SyncStatus;

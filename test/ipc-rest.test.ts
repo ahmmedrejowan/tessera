@@ -73,6 +73,7 @@ const backups = {
     (args[4] as (f: number | null) => void)(0.5);
     return { restored: 1, known: (await (args[5] as () => Promise<unknown[]>)()).length };
   },
+  pause: records('backups.pause', Promise.resolve()),
   turnOff: records('backups.turnOff', Promise.resolve()),
 };
 
@@ -258,6 +259,19 @@ describe('backups', () => {
     expect(await ok('backup:chooseFolder')).toBeNull();
     asked.folder = '/tmp/chosen';
     expect(await ok('backup:chooseFolder')).toBe('/tmp/chosen');
+  });
+
+  it('pauses without letting go, and disconnecting is the one that forgets', async () => {
+    // Two different answers to "not right now". Pausing keeps the store, the password and the
+    // schedule and only stops the app backing up on its own; disconnecting is the one that lets
+    // go. They used to be the same button.
+    expect(said('backups.pause')).toBeUndefined();
+    await ok('backup:pause', true);
+    await ok('backup:pause', false);
+    expect(heard.filter((h) => h.what === 'backups.pause').map((h) => h.args)).toEqual([[true], [false]]);
+    // And letting go is its own thing, reached by its own channel.
+    await ok('backup:turnOff');
+    expect(said('backups.turnOff')).toBeTruthy();
   });
 
   it('says why backups cannot go in a folder, so the window can refuse Next', async () => {

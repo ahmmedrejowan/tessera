@@ -37,6 +37,22 @@ Then set a password. It encrypts the backup, and **it is the only way in**. Tess
 one, save it to your keychain, and print a recovery kit that holds everything needed to restore on
 a computer that has never seen this library.
 
+## Pausing, and letting go
+
+Two different answers to "not right now", and the Backups screen keeps them apart.
+
+**Pause** stops Tessera backing up on its own. Where the backups go, the password and how often are
+all kept, so starting again carries on rather than beginning a new set. **Back up now** still works
+while it is paused. This is the one for a slow connection, a trip, or a week of heavy work.
+
+**Disconnect** lets go of the place the backups go and forgets its password. The backups already
+made are not deleted: they stay exactly where they are, and you can still restore from them with
+**From a backup**, as long as you have the password. This is what to use before setting backups up
+somewhere else. Setting them up again starts a new set from nothing, so the old ones sit there
+until you delete them yourself.
+
+Both ask first, and say what happened afterwards.
+
 ## While it runs
 
 Backups happen while Tessera is open: every day, every few hours, or only when you press **Back up

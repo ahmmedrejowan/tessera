@@ -132,6 +132,7 @@ export class BackupService {
       lastBackupAt: entry?.lastBackupAt ?? null,
       lastError: entry?.lastError ?? null,
       running: !!lib && this.running.has(lib.id),
+      paused: !!entry?.paused,
       others: lib ? others : [],
     };
   }
@@ -296,6 +297,19 @@ export class BackupService {
   }
 
   /** Stop backing up the open library. Its backups stay where they are. */
+  /**
+   * Stop backing up on its own, keeping everything else. Nothing is disconnected and nothing is
+   * forgotten: the store, the password and how often stay exactly as they are, so turning it back
+   * on carries on rather than starting again.
+   */
+  async pause(on: boolean): Promise<void> {
+    const lib = this.open();
+    const entry = this.entry(lib.id);
+    if (!entry) throw new UserError('no-backup', 'Backups aren’t set up for this library.');
+    await this.save(lib.id, { ...entry, paused: on });
+    this.d.onChange();
+  }
+
   async turnOff(): Promise<void> {
     const lib = this.open();
     const kopia = this.kopia(lib.id);
@@ -316,7 +330,7 @@ export class BackupService {
       ticking = true;
       try {
         for (const { id, backup: e } of Object.values(this.d.settings.get().libraries)) {
-          if (!e) continue;
+          if (!e || e.paused) continue;
           if (!e.intervalHours || this.running.has(id)) continue;
           const last = e.lastBackupAt ? Date.parse(e.lastBackupAt) : 0;
           if (Date.now() - last >= e.intervalHours * HOUR) await this.backupNow(id).catch(() => undefined);
