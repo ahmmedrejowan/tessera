@@ -948,7 +948,16 @@ export class LibraryService {
 
   /** Throw away what is in the bin, for good. */
   async emptyBin(ids?: string[]): Promise<number> {
-    const n = await emptyBin(this.require().root, ids);
+    // In the queue like everything else that writes. Reading a file to work out what it contains
+    // holds it open, and Windows will not delete a file something has open, so emptying the bin
+    // while that was going on simply failed.
+    const writeTurn = await this.takeWriteTurn();
+    let n = 0;
+    try {
+      n = await emptyBin(this.require().root, ids);
+    } finally {
+      writeTurn();
+    }
     if (n) await this.binChanged();
     return n;
   }
