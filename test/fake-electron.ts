@@ -16,6 +16,8 @@ export const asked = {
   sent: [] as { channel: string; payload: unknown }[],
   /** What the next folder picker answers with, or null for "canceled". */
   folder: null as string | null,
+  /** Answers for a picker that can be shown more than once, taken one at a time. */
+  folders: [] as string[],
   /** What the next file picker answers with. */
   files: [] as string[],
   /** Where the next save box says to save, or null for "canceled". */
@@ -34,6 +36,7 @@ export function forget(): void {
   asked.external = [];
   asked.sent = [];
   asked.folder = null;
+  asked.folders = [];
   asked.files = [];
   asked.savePath = null;
   asked.pageLoad = null;
@@ -100,7 +103,10 @@ export const app = {
 export const dialog = {
   showOpenDialog: async (_w: unknown, options: { properties?: string[] }) => {
     const folder = options.properties?.includes('openDirectory');
-    const paths = folder ? (asked.folder ? [asked.folder] : []) : asked.files;
+    // A picker that can be asked more than once answers differently each time, which is what the
+    // backup folder does: a folder nothing can be written into sends you back to choose again.
+    const next = folder && asked.folders.length ? asked.folders.shift()! : asked.folder;
+    const paths = folder ? (next ? [next] : []) : asked.files;
     return { canceled: paths.length === 0, filePaths: paths };
   },
   showSaveDialog: async () => ({ canceled: !asked.savePath, filePath: asked.savePath ?? '' }),

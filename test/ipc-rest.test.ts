@@ -8,7 +8,9 @@
  * must arrive as a refusal rather than as a crash. So the services here are stand-ins that record
  * what they were given.
  */
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdir, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -256,6 +258,25 @@ describe('backups', () => {
     expect(await ok('backup:chooseFolder')).toBeNull();
     asked.folder = '/tmp/chosen';
     expect(await ok('backup:chooseFolder')).toBe('/tmp/chosen');
+  });
+
+  it('will not take a folder nothing can be written into, and asks again', async () => {
+    // The folder a Mac shows for a cloud account is read-only: it is the account, and what can be
+    // written is inside it. Taking it means failing minutes later with the operating system's own
+    // words, so the picker comes back instead, standing in the folder that was chosen.
+    const home = await mkdtemp(join(tmpdir(), 'tessera-cloud-'));
+    const account = join(home, 'Library', 'CloudStorage', 'GoogleDrive-someone@example.test');
+    const inside = join(account, 'My Drive');
+    await mkdir(inside, { recursive: true });
+    execFileSync('chmod', ['a-w', account]);
+    try {
+      asked.folders = [account, inside];
+      expect(await ok('backup:chooseFolder')).toBe(inside);
+      // Both were asked for: the first was refused rather than handed back.
+      expect(asked.folders).toEqual([]);
+    } finally {
+      execFileSync('chmod', ['u+w', account]);
+    }
   });
 
   it('runs one now, and notes it in Activity', async () => {
