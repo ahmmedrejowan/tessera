@@ -1,0 +1,51 @@
+name: A pack Tessera read wrongly
+description: It missed a license, a source or a creator, could not preview a format, or does not know a site.
+labels: [pack]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the one that matters most. Tessera exists to keep the record straight, so a pack it
+        reads wrongly is a bug even when nothing crashed. Nothing about your library is sent
+        anywhere; paste only what you are happy to share.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What it got wrong
+      options:
+        - The license, or it found none and there is one
+        - The source, the creator or the credit line
+        - It cannot preview a file it should
+        - It does not know a site I download from
+        - Something else about how it read the pack
+    validations:
+      required: true
+  - type: input
+    id: pack
+    attributes:
+      label: Which pack
+      description: Its name, and a link to where it came from if it is public.
+      placeholder: Kenney, Nature Kit, https://kenney.nl/assets/nature-kit
+  - type: textarea
+    id: expected
+    attributes:
+      label: What it should say
+      description: The license, the creator, the credit line: whatever the truth is, and how you know.
+    validations:
+      required: true
+  - type: textarea
+    id: shape
+    attributes:
+      label: What the pack looks like inside
+      description: >
+        The top level of the archive or folder helps most: where the license file is, what the
+        formats are, whether there are archives inside archives.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Which version
+      description: It is beside the name at the top left of the window.
+      placeholder: 0.2.0
+    validations:
+      required: true

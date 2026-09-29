@@ -24,8 +24,8 @@ body:
     id: version
     attributes:
       label: Which version
-      description: Help, then About, shows it.
-      placeholder: 0.1.0
+      description: It is beside the name at the top left of the window.
+      placeholder: 0.2.0
     validations:
       required: true
   - type: dropdown

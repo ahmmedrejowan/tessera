@@ -1,5 +1,35 @@
 # What's new in Tessera
 
+## 0.2.0: the second preview (29 September 2026)
+
+Still a preview, and the last one before the finished version. Two things in it are worth knowing
+about before you rely on them: backups and sync have never been restored or paired by anybody but
+their tests. Keep a copy of anything you cannot lose.
+
+- **A copy into a game never writes over your work.** Where the game already has a file under a
+  name a copy wants, the two are compared byte for byte with SHA-256. The same file is left alone
+  and nothing is written. A different file stops and asks: keep what the game has, write over it,
+  or keep both, with Tessera's copy coming in beside yours as "name (2)". Keeping yours is what is
+  offered first, and it is what an agent gets unless it is told otherwise.
+- **Taking a pack into the library brings its records with it.** A pack read where it lies has its
+  files renamed when it is copied in, and the star, the collections, the pack's own part-license
+  rules and every game that had taken from it now follow the rename instead of pointing at a name
+  that no longer exists.
+- **A game's page** has the same head as a pack's, and three tabs: what has been copied in, the
+  credits file, and its settings. The credits are shown both ways at once, the markdown beside what
+  it comes out as, so a missing credit line is visible before anybody else reads it.
+- **One queue for everything that writes to the library.** Importing, deleting, restoring, taking a
+  pack in and adding files take turns in the order they were asked for, so two of them can no
+  longer land in each other's folders.
+- **What every file contains** is worked out in the background and remembered, which is what finds
+  duplicates, recognizes an asset a game already has, and answers "have I got this already".
+- **American spelling throughout**, with libraries written by the first preview still read as they
+  are and moved over on their next save.
+- **While something is on its way** the window draws the shape of the page rather than a spinner,
+  and says so if opening the library is taking long enough to suggest your computer is waiting for
+  an answer about folder permission.
+- **The version is beside the name** at the top left, so a problem report can say which one.
+
 ## 0.1.0: the first preview (25 September 2026)
 
 The first working version, published as a preview: everything below is in the app today, and the

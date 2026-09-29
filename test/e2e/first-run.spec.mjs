@@ -13,7 +13,12 @@ export async function run(ok) {
     await t.call('library:create', root, 'My Library');
     await waitFor(t, async () => (await t.call('library:state')).status === 'ready', 'the library to open');
     ok('a library is an ordinary folder, made where it was asked for', existsSync(join(root, 'packs')) && existsSync(join(root, 'tessera-library.json')));
-    ok('and the window moves on to it', await t.page.getByText('My Library', { exact: false }).first().isVisible());
+    // Waited for, not asked once. The app says "ready" as soon as the library is open, and the
+    // window draws on its own schedule a frame or two later; asking the instant the state changed
+    // was a coin toss, and it is the reason this suite failed about one run in three.
+    const named = t.page.getByText('My Library', { exact: false }).first();
+    const moved = await named.waitFor({ state: 'visible', timeout: 15_000 }).then(() => true, () => false);
+    ok('and the window moves on to it', moved);
 
     // The sample packs: the way most people will see their first pack.
     await t.call('import:run', await t.call('import:plan', await t.call('import:samples'), false));

@@ -1,6 +1,6 @@
-import CircularProgress from '@mui/material/CircularProgress';
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { OpeningLibrary, PageSkeleton } from './components/Loading';
 import { DialogHost } from './notices/DialogHost';
 import { NewCollectionHost } from './pages/collections/CollectionDialog';
 import { NoticeHost } from './notices/NoticeHost';
@@ -98,13 +98,9 @@ function Current() {
   }
 }
 
-/** While a page that is fetched on demand arrives: a beat, not a flash. */
+/** While a page that is fetched on demand arrives: its shape, not a spinner. */
 function Loading() {
-  return (
-    <div style={{ height: '100%', display: 'grid', placeItems: 'center' }}>
-      <CircularProgress />
-    </div>
-  );
+  return <PageSkeleton />;
 }
 
 /** An error boundary that resets when the page changes. */
@@ -166,9 +162,7 @@ function Screen() {
   if (state.status === 'opening') {
     return (
       <AppShell bare onAdd={() => undefined}>
-        <div style={{ height: '100%', display: 'grid', placeItems: 'center' }}>
-          <CircularProgress />
-        </div>
+        <OpeningLibrary />
       </AppShell>
     );
   }

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Reac
 import { platform } from '../api';
 import { Logo } from '../components/Logo';
 import { useNav } from '../state/nav';
+import { useAppInfo } from '../state/queries';
 import { md, mdAlpha, SHAPE } from '../theme';
 import { useCommands } from './commands';
 import { comboText } from './keys';
@@ -151,6 +152,23 @@ export function SearchField({ value, onChange, placeholder }: { value: string; o
 }
 
 /** The bar across the top of the window. It is also the window's title bar, so empty parts drag the window. */
+/**
+ * Which version this is, beside the name.
+ *
+ * Quiet, because nobody opened the app to read it, and always there, because the first question
+ * about anything that went wrong is which version it went wrong in, and answering it used to mean
+ * finding About. Selectable, so it can be pasted into a report.
+ */
+function Version() {
+  const version = useAppInfo().data?.version;
+  if (!version) return null;
+  return (
+    <Typography variant="labelSmall" sx={{ color: md('onSurfaceVariant'), opacity: 0.75, userSelect: 'text', ...noDrag }} title={`Tessera ${version}`}>
+      {version}
+    </Typography>
+  );
+}
+
 export function TopAppBar({ search, trailing }: { search: ReactNode; trailing?: ReactNode }) {
   return (
     <header
@@ -168,14 +186,19 @@ export function TopAppBar({ search, trailing }: { search: ReactNode; trailing?: 
       <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
         {/* On macOS the traffic lights sit above the rail; elsewhere the logo does. */}
         <div style={{ width: RAIL_WIDTH, flexShrink: 0, display: 'grid', placeItems: 'center' }}>{platform !== 'darwin' && <Logo />}</div>
-        {platform === 'darwin' && (
+        {platform === 'darwin' ? (
           // The window buttons end about 72 px in; the name keeps a clear gap from them.
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 16 }}>
             <Logo size={24} />
             <Typography variant="titleMedium" sx={{ color: md('onSurface') }}>
               Tessera
             </Typography>
+            <Version />
           </div>
+        ) : (
+          // Elsewhere the logo is in the rail and there is no name to sit beside, so the version
+          // follows the logo itself.
+          <Version />
         )}
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', minWidth: 0 }}>{search}</div>

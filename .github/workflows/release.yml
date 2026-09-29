@@ -108,6 +108,9 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
+          # Anything before 1.0.0, and anything with a suffix (v1.0.0-rc1), is a preview. GitHub
+          # then keeps it out of "latest", which is why the update check reads the list instead.
+          prerelease: ${{ startsWith(github.ref_name, 'v0.') || contains(github.ref_name, '-') }}
           name: Tessera ${{ github.ref_name }}
           body_path: release-notes.md
           files: downloaded/*
