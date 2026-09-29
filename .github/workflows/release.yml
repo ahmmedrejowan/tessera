@@ -11,6 +11,12 @@ name: Release builds
 #
 # Run workflow with "Publish" off builds and nothing else, so you can try an installer before
 # anybody else sees it: the files come back as workflow artifacts and no release is made.
+#
+# Two files carry the version, and both are checked here before anything is built:
+#   package.json   what the app calls itself, what the installers are named, and the tag
+#   CHANGELOG.md   a "## x.y.z" section, which the release page and the app's About screen read
+# Nothing else needs touching. The README links to the releases page rather than to a version, and
+# the website reads this repository.
 on:
   push:
     tags: ['v*']
@@ -29,6 +35,13 @@ on:
         description: Publish a release, tagging this commit with the version in package.json
         type: boolean
         default: false
+      release_type:
+        description: How it goes out
+        type: choice
+        default: Pre-release
+        options:
+          - Pre-release
+          - Full release
 
 permissions:
   contents: write
@@ -46,6 +59,7 @@ jobs:
       os: ${{ steps.pick.outputs.os }}
       tag: ${{ steps.what.outputs.tag }}
       publish: ${{ steps.what.outputs.publish }}
+      prerelease: ${{ steps.what.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
       - id: pick
@@ -65,18 +79,24 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = push ]; then
-            # A tag was pushed: that tag is the release, and it publishes.
+            # A tag was pushed: that tag is the release, and it publishes. Nobody was asked how it
+            # should go out, so it is read from the tag the way semver writes it: anything below
+            # 1.0.0, and anything with a suffix like -beta.1, is a preview.
             tag='${{ github.ref_name }}'
             publish=true
+            case "$tag" in v0.*|*-*) prerelease=true ;; *) prerelease=false ;; esac
           else
             # Started by hand: the version is the one in package.json, which is the same one the
-            # app will report about itself, so the two can never disagree.
+            # app will report about itself, so the two can never disagree. How it goes out is
+            # whatever was chosen, because that is a decision and not something to infer.
             tag="v$(jq -r .version package.json)"
             publish='${{ inputs.publish }}'
+            [ '${{ inputs.release_type }}' = 'Full release' ] && prerelease=false || prerelease=true
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
-          echo "Tag: $tag. Publishing: $publish."
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "Tag: $tag. Publishing: $publish. Preview: $prerelease."
       - name: A release needs every platform
         if: inputs.publish && inputs.platforms != 'All three'
         run: |
@@ -217,9 +237,9 @@ jobs:
         with:
           draft: false
           tag_name: ${{ needs.choose.outputs.tag }}
-          # Anything before 1.0.0, and anything with a suffix (v1.0.0-rc1), is a preview. GitHub
-          # then keeps it out of "latest", which is why the update check reads the list instead.
-          prerelease: ${{ startsWith(needs.choose.outputs.tag, 'v0.') || contains(needs.choose.outputs.tag, '-') }}
+          # A preview is kept out of GitHub's "latest", which is why the update check reads the
+          # list of releases instead: somebody already on a preview still gets offered the next one.
+          prerelease: ${{ needs.choose.outputs.prerelease == 'true' }}
           name: Tessera ${{ needs.choose.outputs.tag }}
           body_path: release-notes.md
           files: downloaded/*
