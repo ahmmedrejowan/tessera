@@ -135,7 +135,11 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   // so turning them off in there is reflected here without a reload.
   const previews = useQuery({ queryKey: ['thumbs-for-pack', id], queryFn: () => call('thumbs:forPack', id), staleTime: 0 }).data ?? true;
   const [sort, setSort] = useState<PackSort>('folder');
-  const [viewing, setViewing] = useState<{ list: AssetRow[]; index: number } | null>(null);
+  // What is open in the viewer, by which file it is rather than where it was in the list. The
+  // list was held as a snapshot taken when the viewer opened, so the star never changed after
+  // pressing S, and pressing S again sent "star" a second time: an asset could not be unstarred
+  // from here at all. Starring also reorders the list, so a position stops meaning anything.
+  const [viewing, setViewing] = useState<{ packId: string; ref: string } | null>(null);
   const [showingPreviews, setShowingPreviews] = useState(false);
 
   const asked = useQuery({ queryKey: ['pack', lib, version, id], queryFn: () => call('pack:get', id), enabled: !!lib, placeholderData: (p) => p });
@@ -179,8 +183,8 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
           asset={a}
           width={width}
           selected={false}
-          onClick={() => a && setViewing({ list: assets, index: i })}
-          onOpen={() => a && setViewing({ list: assets, index: i })}
+          onClick={() => a && setViewing({ packId: a.packId, ref: a.ref })}
+          onOpen={() => a && setViewing({ packId: a.packId, ref: a.ref })}
           onMenu={(anchor, x) => setMenu({ anchor, asset: x, index: i })}
           dragItems={(x) => [{ packId: x.packId, ref: x.ref }]}
         />
@@ -224,7 +228,10 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
     }
   };
 
-  const viewed = viewing ? viewing.list[viewing.index] : undefined;
+  // Looked up fresh every render, so what the viewer shows is what the library now says. The
+  // file tab can open a supporting file, which is not in `assets`, so both are searched.
+  const viewed = viewing ? (assets.find((a) => a.packId === viewing.packId && a.ref === viewing.ref) ?? files.find((f) => f.packId === viewing.packId && f.ref === viewing.ref)) : undefined;
+  const viewedAt = viewed ? assets.findIndex((a) => a.packId === viewed.packId && a.ref === viewed.ref) : -1;
 
   return (
     <div
@@ -403,7 +410,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
             </div>
           </div>
         )}
-        {tab === 'files' && <FileTree files={files} onOpen={(f) => setViewing({ list: [f], index: 0 })} />}
+        {tab === 'files' && <FileTree files={files} onOpen={(f) => setViewing({ packId: f.packId, ref: f.ref })} />}
         {tab === 'licence' && (
           <div style={{ height: '100%', overflowY: 'auto', padding: '16px 32px 32px' }}>
             <div style={{ maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -576,18 +583,18 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
           anchor={menu.anchor}
           asset={menu.asset}
           onClose={() => setMenu(null)}
-          onOpen={() => setViewing({ list: assets, index: menu.index })}
+          onOpen={() => setViewing({ packId: menu.asset.packId, ref: menu.asset.ref })}
         />
       )}
       {viewing && viewed && (
         <Suspense fallback={null}>
           <Viewer
             asset={viewed}
-            position={{ index: viewing.index, total: viewing.list.length }}
-            {...(viewing.index > 0 ? { onPrev: () => setViewing({ ...viewing, index: viewing.index - 1 }) } : {})}
-            {...(viewing.index < viewing.list.length - 1 ? { onNext: () => setViewing({ ...viewing, index: viewing.index + 1 }) } : {})}
+            position={{ index: Math.max(0, viewedAt), total: assets.length }}
+            {...(viewedAt > 0 ? { onPrev: () => setViewing({ packId: assets[viewedAt - 1]!.packId, ref: assets[viewedAt - 1]!.ref }) } : {})}
+            {...(viewedAt >= 0 && viewedAt < assets.length - 1 ? { onNext: () => setViewing({ packId: assets[viewedAt + 1]!.packId, ref: assets[viewedAt + 1]!.ref }) } : {})}
             onClose={() => setViewing(null)}
-            strip={{ items: viewing.list, onPick: (i) => setViewing({ ...viewing, index: i }) }}
+            strip={{ items: assets, onPick: (i) => assets[i] && setViewing({ packId: assets[i]!.packId, ref: assets[i]!.ref }) }}
           />
         </Suspense>
       )}
