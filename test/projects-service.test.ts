@@ -103,10 +103,10 @@ describe('taking a folder as a game', () => {
     expect(await projects.keepLicences(libraryId, [pack.id], app.context().copySource())).toEqual({ done: 0, failed: [] });
   });
 
-  it('writes over a file somebody else put there, but never deletes it', async () => {
-    // Copying used to claim a file it had written over, so taking the asset back out deleted
-    // work the person had done by hand. Overwriting is still what happens, and is now said out
-    // loud in the plan; deleting is not.
+  it('leaves a file somebody else put there exactly as it is', async () => {
+    // Copying used to write over it and then claim it, so taking the asset back out deleted work
+    // the person had done by hand. Now the rest of the asset comes in, that one file keeps the
+    // version the game already had, and the plan says which files those are.
     const { projects, app, project, path, libraryId, names, packs, aFile } = await withGame();
     const pack = packs[0]!;
     const ref = aFile.ref;
@@ -127,9 +127,9 @@ describe('taking a folder as a game', () => {
     // Now the plan says so, before a byte moves.
     expect((await projects.plan(project.id, [{ packId: pack.id, ref }], src)).overwriting).toContain(where);
 
-    // Copying still writes over it, which is what was asked for.
+    // And copying leaves it exactly as it is.
     await projects.copy(project.id, [{ packId: pack.id, ref }], src);
-    expect(readFileSync(mine, 'utf8')).not.toBe('MY OWN WORK');
+    expect(readFileSync(mine, 'utf8')).toBe('MY OWN WORK');
 
     // But taking the asset back out leaves the file alone, because Tessera did not create it.
     await projects.remove(project.id, [{ packId: pack.id, ref }], libraryId);
@@ -156,6 +156,7 @@ describe('taking a folder as a game', () => {
     await projects.copy(project.id, [{ packId: pack.id, ref }], src);
     await projects.remove(project.id, [{ packId: pack.id, ref }], libraryId);
     expect(existsSync(mine)).toBe(true);
+    expect(readFileSync(mine, 'utf8')).toBe('MY OWN WORK');
   });
 
   it('refuses clearly over a game it has never heard of', async () => {

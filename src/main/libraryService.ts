@@ -68,8 +68,43 @@ export class LibraryService {
   private watchTimer: NodeJS.Timeout | null = null;
   /** While the app itself is adding packs, file-change syncs wait until it's done. */
   private busyWriting = 0;
+  /**
+   * One queue for everything that writes into the library.
+   *
+   * Two of these running at once is not a thing anybody asks for and is a thing that goes wrong:
+   * two imports could pick the same folder name at the same moment and land in each other's pack,
+   * and one of them failing then deleted the other's copy. Deleting, restoring, taking a pack in
+   * and adding files all touch the same folders and the same index. They take turns now, in the
+   * order they were asked for, so each one sees the library the last one left behind.
+   */
+  private writeQueue: Promise<void> = Promise.resolve();
 
   constructor(private readonly d: Deps) {}
+
+  /**
+   * Wait for the write queue, then hold it. Call what comes back when the work is done.
+   *
+   * Nothing that writes calls anything else that writes, so there is no way to wait on yourself.
+   */
+  private async takeWriteTurn(): Promise<() => void> {
+    const before = this.writeQueue;
+    let release!: () => void;
+    const mine = new Promise<void>((r) => (release = r));
+    // Claimed straight away, so the next caller queues behind this one rather than beside it.
+    this.writeQueue = before.then(
+      () => mine,
+      () => mine,
+    );
+    await before.catch(() => undefined);
+    this.busyWriting++;
+    let letGo = false;
+    return () => {
+      if (letGo) return;
+      letGo = true;
+      this.busyWriting--;
+      release();
+    };
+  }
 
   getState(): LibraryState {
     return this.state;
@@ -308,12 +343,12 @@ export class LibraryService {
     const lib = this.require();
     const pack = await this.packRecord(id);
     if (pack.meta.status !== 'inbox') throw new UserError('pack-in-library', 'That pack is already in the library.');
-    this.busyWriting++;
+    const writeTurn = await this.takeWriteTurn();
     try {
       await rm(pack.dir, { recursive: true, force: true });
       lib.index.removePack(id);
     } finally {
-      this.busyWriting--;
+      writeTurn();
     }
     this.d.onIndexChanged();
   }
@@ -556,7 +591,7 @@ export class LibraryService {
 
   async import(items: ImportItem[], skipInboxWhenSure: boolean, stage = false, move = false, keep = false): Promise<ImportResult> {
     const lib = this.require();
-    this.busyWriting++;
+    const writeTurn = await this.takeWriteTurn();
     const job = this.d.jobs.start(items.length === 1 ? `Adding ${items[0]!.name}` : `Adding ${items.length} packs`);
     try {
       const deps: ImportDeps = {
@@ -585,7 +620,7 @@ export class LibraryService {
       job.fail(e);
       throw e;
     } finally {
-      this.busyWriting--;
+      writeTurn();
       this.d.onIndexChanged();
     }
   }
@@ -651,7 +686,7 @@ export class LibraryService {
     await mkdir(dir, { recursive: true });
     const taken = new Set((await readdir(dir).catch(() => [])).map((n) => n.toLowerCase()));
     const names: string[] = [];
-    this.busyWriting++;
+    const writeTurn = await this.takeWriteTurn();
     try {
       for (const src of paths) {
         const ext = extname(src);
@@ -663,7 +698,7 @@ export class LibraryService {
         names.push(folder ? `${folder}/${name}` : name);
       }
     } finally {
-      this.busyWriting--;
+      writeTurn();
     }
     if (names.length) {
       await lib.index.syncPack(await this.packRecord(id), lib.index.known(id));
@@ -735,7 +770,7 @@ export class LibraryService {
     if (!existsSync(kept.where)) throw new UserError('folder-missing', `${kept.where} is not there${kept.volume ? `. Connect ${kept.volume} and try again` : ''}.`);
     const original = join(pack.dir, PACK_DIRS.original);
     const job = this.d.jobs.start(`Taking ${pack.meta.name} into the library`);
-    this.busyWriting++;
+    const writeTurn = await this.takeWriteTurn();
     try {
       // Into a folder beside the real one, so a failure half way through leaves the pack exactly
       // as it was: still read from its own folder, still whole.
@@ -758,7 +793,7 @@ export class LibraryService {
       job.fail(e);
       throw e;
     } finally {
-      this.busyWriting--;
+      writeTurn();
     }
     this.d.onIndexChanged();
   }
@@ -768,12 +803,12 @@ export class LibraryService {
     const lib = this.require();
     const pack = await this.packRecord(id);
     const row = lib.queries.pack(id);
-    this.busyWriting++;
+    const writeTurn = await this.takeWriteTurn();
     try {
       await binPack(lib.root, id, pack.meta.name, basename(pack.dir), pack.dir, row?.size ?? 0);
       lib.index.removePack(id);
     } finally {
-      this.busyWriting--;
+      writeTurn();
     }
     await this.binChanged();
     return pack.meta.name;
@@ -799,7 +834,7 @@ export class LibraryService {
     let moved = 0;
     let hidden = 0;
     let failed = 0;
-    this.busyWriting++;
+    const writeTurn = await this.takeWriteTurn();
     try {
       for (const [packId, refs] of byPack) {
         const pack = await this.packRecord(packId);
@@ -824,7 +859,7 @@ export class LibraryService {
         if (done.some((r) => !r.inArchive)) await lib.index.syncPack(pack, lib.index.known(packId));
       }
     } finally {
-      this.busyWriting--;
+      writeTurn();
     }
     await this.binChanged();
     return { removed: moved + hidden, inArchive: hidden, failed };
@@ -838,12 +873,12 @@ export class LibraryService {
   /** Put something back where it came from. */
   async restoreFromBin(id: string): Promise<BinEntry | null> {
     const lib = this.require();
-    this.busyWriting++;
+    const writeTurn = await this.takeWriteTurn();
     let entry: BinEntry | null = null;
     try {
       entry = await restoreFromBin(lib.root, id, (packId) => join(lib.root, DIRS.packs, this.folderOf(packId)), join(lib.root, DIRS.packs));
     } finally {
-      this.busyWriting--;
+      writeTurn();
     }
     if (entry) {
       await this.sync();

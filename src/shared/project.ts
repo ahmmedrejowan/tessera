@@ -67,12 +67,13 @@ export interface ManifestEntry {
    */
   adopted?: boolean;
   /**
-   * Files of this entry that already existed at that path, put there by somebody other than
-   * Tessera, and were written over.
+   * Files of this entry that were already at that path, put there by somebody other than Tessera,
+   * and so were left exactly as they were.
    *
-   * The same rule as `adopted` applies to them, for the same reason: what Tessera did not create
-   * it does not destroy. Taking the entry out leaves these files where they are. They are listed
-   * rather than flagged because one entry can write several files and only some of them clash.
+   * What Tessera did not create it neither overwrites nor destroys. The asset still came in; these
+   * particular files keep the version the game already had, and taking the entry out leaves them
+   * alone. They are listed rather than flagged because one entry can write several files and only
+   * some of them clash.
    */
   wereAlreadyThere?: string[];
 }
@@ -107,9 +108,9 @@ export interface CopyPlan {
   /** Assets already in the project, which will be updated. */
   updating: number;
   /**
-   * Files that are already at the paths this copy would write to, and that Tessera did not put
-   * there. They are somebody else's work, and copying writes over them, so the person is told
-   * before it happens rather than discovering it afterwards.
+   * Files already at the paths this copy would write to that Tessera did not put there. They are
+   * somebody else's work, so they are left as they are and the person is told which, rather than
+   * finding out afterwards that their own edit is gone.
    */
   overwriting: string[];
 }

@@ -14,7 +14,7 @@ vi.mock('electron', () => import('./fake-electron'));
 import { Jobs } from '../src/main/jobs';
 import { LibraryService } from '../src/main/libraryService';
 import { tempDir } from './helpers';
-import { PIXEL } from './library';
+import { PIXEL, running } from './library';
 import { writeZip } from './zipfixture';
 import type { LibraryState } from '../src/shared/types';
 
@@ -561,5 +561,40 @@ describe('when things are not as expected', () => {
     expect(result.refused.length).toBeGreaterThan(0);
     expect(result.addedPacks).toBe(0);
     close();
+  });
+});
+
+describe('two things writing to the library at once', () => {
+  it('take turns, rather than landing in each other', async () => {
+    // Two imports could pick the same folder name in the same moment and copy into each other's
+    // pack, and one of them failing then deleted the other's files. Everything that writes now
+    // goes through one queue, in the order it was asked for.
+    const app = await running([]);
+    const a = tempDir();
+    const b = tempDir();
+    // The same name on purpose: this is what made them collide.
+    for (const dir of [a, b]) {
+      mkdirSync(join(dir, 'Kit'), { recursive: true });
+      writeFileSync(join(dir, 'Kit', 'LICENSE.txt'), 'CC0 1.0 Universal\nhttps://example.test/p');
+    }
+    writeFileSync(join(a, 'Kit', 'from-a.png'), 'A');
+    writeFileSync(join(b, 'Kit', 'from-b.png'), 'B');
+
+    const plan = async (dir: string) => app.library.planImport([join(dir, 'Kit')], false);
+    const [one, two] = await Promise.all([plan(a), plan(b)]);
+    // Asked for at the same moment, deliberately.
+    await Promise.all([app.library.import(one, true), app.library.import(two, true)]);
+
+    const packs = app.library.require().queries.packs({ scope: 'all', text: '', filters: {} }, 'name', 0, 10).rows;
+    expect(packs).toHaveLength(2);
+    // Each pack holds its own file and only its own.
+    const filesOf = (id: string) => app.library.require().queries.packFiles(id).map((f) => f.ref.split('/').pop());
+    const all = packs.flatMap((p) => filesOf(p.id));
+    expect(all).toContain('from-a.png');
+    expect(all).toContain('from-b.png');
+    for (const p of packs) {
+      const mine = filesOf(p.id);
+      expect(mine.includes('from-a.png') && mine.includes('from-b.png')).toBe(false);
+    }
   });
 });

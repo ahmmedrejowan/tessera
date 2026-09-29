@@ -89,14 +89,14 @@ export function CopyConfirm() {
             <WarningAmberOutlined sx={{ fontSize: 20, color: md('error'), mt: '1px' }} />
             <div>
               <Typography variant="bodyMedium" sx={{ color: md('onSurface') }}>
-                {formatCount(overwriting.length)} file{overwriting.length === 1 ? '' : 's'} already there {overwriting.length === 1 ? 'was' : 'were'} not put there by Tessera, and will be written over.
+                {formatCount(overwriting.length)} file{overwriting.length === 1 ? '' : 's'} already there {overwriting.length === 1 ? 'was' : 'were'} not put there by Tessera, so {overwriting.length === 1 ? 'it is' : 'they are'} left exactly as {overwriting.length === 1 ? 'it is' : 'they are'}.
               </Typography>
               <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5, wordBreak: 'break-all' }}>
                 {overwriting.slice(0, 6).join(', ')}
                 {overwriting.length > 6 ? ` and ${formatCount(overwriting.length - 6)} more` : ''}
               </Typography>
               <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5 }}>
-                Taking this back out later will leave them alone, because Tessera did not create them.
+                The rest of the asset still comes in. Move {overwriting.length === 1 ? 'it' : 'them'} aside first if you want Tessera&rsquo;s version instead.
               </Typography>
             </div>
           </div>

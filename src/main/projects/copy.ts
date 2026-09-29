@@ -309,8 +309,18 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
         const dest = join(project.path, ...f.dest.split('/'));
         made.push(dirname(dest));
         await mkdir(dirname(dest), { recursive: true });
-        if (!existsSync(dest)) fresh.push(dest);
-        else if (!ours.has(f.dest) || knownTheirs.has(f.dest)) clashed.push(f.dest);
+        const there = existsSync(dest);
+        // A file we did not write is somebody else's work, and it is left exactly as it is. The
+        // asset still comes in; the one file that clashed keeps the version already in the game,
+        // and is named in what comes back so nobody has to discover it later. Writing over it and
+        // apologising afterwards was the old behaviour and it destroyed people's edits.
+        if (there && (!ours.has(f.dest) || knownTheirs.has(f.dest))) {
+          clashed.push(f.dest);
+          ours.add(f.dest);
+          onProgress(++done, total);
+          continue;
+        }
+        if (!there) fresh.push(dest);
         // Ours from here on, so a texture two assets share is not mistaken for somebody else's
         // work the second time it is written in this same run.
         ours.add(f.dest);
