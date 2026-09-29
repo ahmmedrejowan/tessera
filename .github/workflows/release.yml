@@ -91,7 +91,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    name: Draft the release
+    name: Publish the release
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
