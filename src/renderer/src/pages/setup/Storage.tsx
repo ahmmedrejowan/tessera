@@ -112,6 +112,18 @@ function FieldInput({ field, value, onChange }: { field: Field; value: string; o
   );
 }
 
+/**
+ * What a cloud app's own setting is called, where it decides whether a copy is kept on this
+ * computer as well as in the cloud. Naming it saves somebody hunting through settings for a thing
+ * they have never had a reason to look at.
+ */
+const KEEP_ONLINE: Record<string, string> = {
+  'Google Drive': 'choose “Stream files” in Google Drive’s settings',
+  OneDrive: 'turn on Files On-Demand in OneDrive’s settings',
+  Dropbox: 'set this folder to Online-only in Dropbox',
+  'iCloud Drive': 'turn on Optimize Mac Storage in iCloud settings',
+};
+
 /** Folder choice: suggested cloud folders and drives, or any folder. */
 function FolderForm({ target, onChange, suggest }: { target: StorageTarget; onChange: (t: StorageTarget) => void; suggest: 'backups' | 'none' }) {
   const path = target.values.path ?? '';
@@ -138,6 +150,17 @@ function FolderForm({ target, onChange, suggest }: { target: StorageTarget; onCh
       {/* The picker cannot return a bad folder, but a suggestion below can name one that has since
           gone, and a path can arrive from a previous setup. Said here rather than at the end. */}
       {!!path && !!problem && <StatusSlot message={{ tone: 'error', text: problem }} />}
+      {/* What a folder inside a cloud app really means. Tessera is finished when the files are
+          written; the cloud app uploads them afterwards, on its own schedule and behind whatever
+          else it has queued, and neither app can say when. Signing in instead uploads from here. */}
+      {!!path && !problem && !!info?.cloud && (
+        <StatusSlot
+          message={{
+            tone: 'info',
+            text: `Tessera writes the backup here and ${info.cloud} uploads it afterwards, so it is only on this computer until that finishes. To keep it from taking the same space here as well, ${KEEP_ONLINE[info.cloud] ?? 'set the app to keep files online rather than copied here'}. Signing in to ${info.cloud} on the previous screen uploads from Tessera instead, and says when it is done.`,
+          }}
+        />
+      )}
       {suggest === 'backups' && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', minHeight: 32 }}>
           {places
