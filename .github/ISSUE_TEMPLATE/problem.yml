@@ -12,7 +12,7 @@ body:
     attributes:
       label: What happened
       description: What you did, what you expected, and what happened instead.
-      placeholder: I dropped a zip on the window, and it went to Review even though the licence is in the zip.
+      placeholder: I dropped a zip on the window, and it went to Review even though the license is in the zip.
     validations:
       required: true
   - type: textarea

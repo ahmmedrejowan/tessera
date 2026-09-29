@@ -40,7 +40,7 @@ interface BrowseState {
   setAssetSort(sort: AssetSort): void;
   setPackSort(sort: PackSort): void;
   setIncludeSupport(v: boolean): void;
-  setFavourites(v: boolean): void;
+  setFavorites(v: boolean): void;
   setKept(v: boolean): void;
   setTileSize(v: number): void;
   setFiltersOpen(v: boolean): void;
@@ -94,7 +94,7 @@ export const useBrowse = create<BrowseState>((set, get) => ({
   setAssetSort: (assetSort) => set({ assetSort }),
   setPackSort: (packSort) => set({ packSort }),
   setIncludeSupport: (includeSupport) => set({ includeSupport }),
-  setFavourites: (favorites) => set({ favorites, selection: new Set(), anchor: null }),
+  setFavorites: (favorites) => set({ favorites, selection: new Set(), anchor: null }),
   setKept: (kept) => set({ kept, selection: new Set(), anchor: null }),
   setTileSize: (tileSize) => set({ tileSize: Math.max(TILE_MIN, Math.min(TILE_MAX, Math.round(tileSize))) }),
   setFiltersOpen: (filtersOpen) => set({ filtersOpen }),

@@ -280,7 +280,7 @@ describe('taking charge of the queue', () => {
 
     const id = q.downloads.list()[0]!.id;
     q.downloads.cancel(id);
-    expect(['cancelled', 'failed', 'paused']).toContain(q.downloads.list()[0]!.state);
+    expect(['canceled', 'failed', 'paused']).toContain(q.downloads.list()[0]!.state);
 
     q.downloads.remove(id);
     expect(q.downloads.list()).toEqual([]);

@@ -82,7 +82,7 @@ describe.skipIf(windows)('signing in through rclone', () => {
     await expect(auth.signIn(drive, () => undefined)).rejects.toMatchObject({ code: 'sign-in-failed' });
   });
 
-  it('says the sign-in was stopped when it is cancelled partway', async () => {
+  it('says the sign-in was stopped when it is canceled partway', async () => {
     const exe = fakeRclone(`sleep 30`);
     const auth = new RcloneAuth(() => exe, join(tempDir(), 'rclone.conf'));
     const going = auth.signIn(drive, () => undefined);

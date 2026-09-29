@@ -184,7 +184,7 @@ export function CollectionPage({ id }: { id: string }) {
     for (const [facet, values] of Object.entries(collection.query?.filters ?? {})) s.setFilter(facet as never, values);
     s.setText(collection.query?.text ?? '');
     s.setIncludeSupport(collection.query?.includeSupport ?? false);
-    s.setFavourites(collection.query?.favorites ?? false);
+    s.setFavorites(collection.query?.favorites ?? false);
     go({ to: 'browse' });
   };
 
@@ -230,7 +230,7 @@ export function CollectionPage({ id }: { id: string }) {
             Open in Browse
           </Button>
         )}
-        {/* Labelled, not two bare icons. A pencil and a bin next to each other say nothing about
+        {/* Labeled, not two bare icons. A pencil and a bin next to each other say nothing about
             what they act on, and one of them throws a collection away. */}
         {!own && (
           <>

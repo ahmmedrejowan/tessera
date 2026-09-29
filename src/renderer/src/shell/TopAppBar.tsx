@@ -157,7 +157,7 @@ export function TopAppBar({ search, trailing }: { search: ReactNode; trailing?: 
       style={{
         ...drag,
         height: TOP_BAR_HEIGHT,
-        // Equal outer columns keep the search box centred whatever sits at either end.
+        // Equal outer columns keep the search box centered whatever sits at either end.
         display: 'grid',
         gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 680px) minmax(0, 1fr)',
         alignItems: 'center',

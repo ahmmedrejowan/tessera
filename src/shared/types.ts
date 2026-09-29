@@ -398,7 +398,7 @@ export interface ActivityEntry {
 }
 
 /** Where a download has got to. */
-export type DownloadState = 'waiting' | 'running' | 'paused' | 'ready' | 'added' | 'failed' | 'cancelled';
+export type DownloadState = 'waiting' | 'running' | 'paused' | 'ready' | 'added' | 'failed' | 'canceled';
 
 /** One link the user brought, on its way to becoming a pack. */
 export interface DownloadItem {

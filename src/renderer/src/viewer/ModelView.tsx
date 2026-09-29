@@ -131,7 +131,7 @@ export function ModelView({ url, ext, textures, dark, onStats }: { url: string; 
   useEffect(() => {
     const v = view.current;
     if (!v) return;
-    let cancelled = false;
+    let canceled = false;
     let model: THREE.Object3D | null = null;
     let grid: THREE.GridHelper | null = null;
     setState('loading');
@@ -139,7 +139,7 @@ export function ModelView({ url, ext, textures, dark, onStats }: { url: string; 
     void (async () => {
       try {
         const loaded = await loadModel(url, ext, textures);
-        if (cancelled) {
+        if (canceled) {
           disposeObject(loaded);
           return;
         }
@@ -168,13 +168,13 @@ export function ModelView({ url, ext, textures, dark, onStats }: { url: string; 
         onStats?.(measure(model, found));
         setState('ready');
       } catch (e) {
-        if (cancelled) return;
+        if (canceled) return;
         setError(e instanceof Error ? e.message : String(e));
         setState('error');
       }
     })();
     return () => {
-      cancelled = true;
+      canceled = true;
       v.mixer?.stopAllAction();
       v.mixer = null;
       if (model) {

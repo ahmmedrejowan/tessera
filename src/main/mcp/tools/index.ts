@@ -19,7 +19,7 @@ export const TOOLS: Tool[] = [...READ, ...ORGANISE, ...LINK, ...BRING, ...REMOVE
 export const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 
 /** The catalog as the window and the skill file see it. */
-export const toolCatalogue = () =>
+export const toolCatalog = () =>
   TOOLS.map((t) => ({
     name: t.name,
     group: t.group,

@@ -70,7 +70,7 @@ export function BrowseControls({ total, stale }: { total: number; stale: boolean
         <IconButton
           aria-label="Only what you starred"
           aria-pressed={s.favorites}
-          onClick={() => s.setFavourites(!s.favorites)}
+          onClick={() => s.setFavorites(!s.favorites)}
           sx={{ color: s.favorites ? md('tertiary') : md('onSurfaceVariant'), backgroundColor: s.favorites ? md('tertiaryContainer') : 'transparent' }}
         >
           {s.favorites ? <StarRounded /> : <StarOutlineRounded />}

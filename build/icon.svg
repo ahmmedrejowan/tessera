@@ -9,10 +9,10 @@
       <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
   </defs>
-  <!-- macOS icon grid: an 824 px rounded square centred in 1024. -->
+  <!-- macOS icon grid: an 824 px rounded square centered in 1024. -->
   <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
   <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#shine)"/>
-  <!-- Four tesserae, one set apart in the accent colour. -->
+  <!-- Four tesserae, one set apart in the accent color. -->
   <rect x="262" y="262" width="236" height="236" rx="48" fill="#a8d4ee"/>
   <rect x="526" y="262" width="236" height="236" rx="48" fill="#e6f0f7"/>
   <rect x="262" y="526" width="236" height="236" rx="48" fill="#e6f0f7"/>

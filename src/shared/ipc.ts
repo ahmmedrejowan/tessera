@@ -214,7 +214,7 @@ export interface Invokes {
   'pack:archive': (id: string, on: boolean) => void;
 
   'projects:list': () => ProjectSummary[];
-  /** Ask for a game project's folder and say what it is; null when cancelled. */
+  /** Ask for a game project's folder and say what it is; null when canceled. */
   'projects:choose': () => ProjectProbe | null;
   /** Say what a folder is as a game project. */
   'projects:probe': (path: string) => ProjectProbe;
@@ -246,7 +246,7 @@ export interface Invokes {
   'projects:reveal': (id: string, rel?: string) => void;
 
   'backup:status': () => BackupStatus;
-  /** Ask for a folder to keep backups in; null when cancelled. */
+  /** Ask for a folder to keep backups in; null when canceled. */
   'backup:chooseFolder': () => string | null;
   /** Start backing up to a folder, making a new store there or opening an existing one. */
   'backup:setup': (target: StorageTarget, password: string, create: boolean) => void;
@@ -382,7 +382,7 @@ export interface Invokes {
   'reports:crashes': (send: boolean) => void;
   /** A report the user asked for, as text: their words, this session's errors, the recent log. */
   'reports:problem': (note: string) => string;
-  /** Save that report where the user chooses; returns the file, or null when cancelled. */
+  /** Save that report where the user chooses; returns the file, or null when canceled. */
   'reports:saveProblem': (note: string) => string | null;
   'reports:sendProblem': (note: string) => void;
 

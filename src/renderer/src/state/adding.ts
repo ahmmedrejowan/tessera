@@ -109,7 +109,7 @@ interface AddingState {
    * Let go of the files these packs were made from, once they are kept.
    *
    * Starts from the setting and can be changed for this batch alone. Nothing is removed until a
-   * pack is actually saved, so cancelling always leaves the originals where they are.
+   * pack is actually saved, so canceling always leaves the originals where they are.
    */
   move: boolean;
   setMove(on: boolean): void;
@@ -253,7 +253,7 @@ export const useAdding = create<AddingState>((set, get) => ({
     // original is let go of. Nothing on disk has to change, so nothing does.
     if ((before === 'keep') === (mode === 'keep')) return;
     // Crossing into or out of "in place" does change what was written, so it is written again.
-    // In place, without leaving the page: cancelling used to navigate away and back, which threw
+    // In place, without leaving the page: canceling used to navigate away and back, which threw
     // the whole window about for what is meant to be a choice between three words.
     const items = get().drafts.map((d) => d.item);
     if (!items.length) return;

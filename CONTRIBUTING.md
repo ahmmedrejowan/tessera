@@ -8,8 +8,8 @@ you what it is doing and why, and so should anything you add to it.
 Open an issue first if it is more than a small fix. A change that fits the app is easier to agree
 on in a paragraph than in a pull request, and it saves you work that might not be merged.
 
-Good first things: a site Tessera should know how to fetch from, an engine it should recognise, a
-format it should preview, a licence it should know, a rough edge in the wording.
+Good first things: a site Tessera should know how to fetch from, an engine it should recognize, a
+format it should preview, a license it should know, a rough edge in the wording.
 
 ## Running it
 
@@ -32,7 +32,7 @@ bridge, and the window. The short version:
 
 - **`src/main`** owns everything that touches the disk, the network or another program.
 - **`src/renderer`** is the window. It never touches a file itself; it asks through `window.tessera`.
-- **`src/shared`** is what both sides agree on: the IPC contract, the pack format, licences, words.
+- **`src/shared`** is what both sides agree on: the IPC contract, the pack format, licenses, words.
 - Every channel in `src/shared/ipc.ts` has exactly one handler in `src/main/ipc/`.
 
 ## What a change should look like
@@ -41,7 +41,7 @@ bridge, and the window. The short version:
   a person who is not a programmer. No jargon where a word will do, no em dashes anywhere.
 - **Comments say why, not what.** The code says what.
 - **Tests for what could break.** A new tool, a new format, a new rule: a test with a name that
-  reads as a sentence about behaviour, not about the code.
+  reads as a sentence about behavior, not about the code.
   [docs/testing.md](docs/testing.md) explains how the suites are put together, what is deliberately
   left out of them, and the two rules worth knowing before writing one: wait for a condition rather
   than a duration, and let a test own the folders it writes into.
@@ -53,6 +53,6 @@ Before you open a pull request: `npm run typecheck && npm test`. CI runs both on
 Linux, builds the app on each, and holds coverage to a floor, so a change that quietly stops testing
 something fails rather than going unnoticed.
 
-## Licence
+## License
 
 Tessera is GPL-3.0-or-later. By contributing you agree your work goes out under the same terms.

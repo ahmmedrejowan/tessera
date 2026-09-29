@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
   <!--
     The repository's social preview: 1280 by 640, which is what GitHub asks for and what it hands
-    to anyone who links the repo. The same colours, the same mosaic and the same wordmark as the
+    to anyone who links the repo. The same colors, the same mosaic and the same wordmark as the
     site's cards, so a link to the code and a link to the site look like one project.
 
     Rendered with: npx electron scripts/make-social.cjs

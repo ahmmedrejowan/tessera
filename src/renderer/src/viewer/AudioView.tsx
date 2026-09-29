@@ -30,14 +30,14 @@ export function AudioView({ url, onInfo }: { url: string; onInfo?: (i: AudioInfo
 
   // Decode once for the waveform (the <audio> element streams for playback).
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     setPeaks(null);
     onInfo?.(null);
     void (async () => {
       try {
         const bytes = await (await fetch(url)).arrayBuffer();
         const buf = await new OfflineAudioContext(1, 1, 44100).decodeAudioData(bytes);
-        if (cancelled) return;
+        if (canceled) return;
         onInfo?.({ duration: buf.duration, channels: buf.numberOfChannels, sampleRate: buf.sampleRate });
         const data = buf.getChannelData(0);
         const n = 400;
@@ -51,11 +51,11 @@ export function AudioView({ url, onInfo }: { url: string; onInfo?: (i: AudioInfo
         const top = Math.max(...out, 1e-4);
         setPeaks(out.map((p) => p / top));
       } catch {
-        if (!cancelled) setPeaks([]);
+        if (!canceled) setPeaks([]);
       }
     })();
     return () => {
-      cancelled = true;
+      canceled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);

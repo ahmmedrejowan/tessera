@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 const REPO = process.env.GITHUB_REPOSITORY ?? 'ahmmedrejowan/tessera';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HOME = `https://github.com/${REPO}`;
-const DESC = 'Desktop library for game assets, with their licences and sources on record';
+const DESC = 'Desktop library for game assets, with their licenses and sources on record';
 
 const tag = process.argv[2];
 const outDir = process.argv[3] ?? join(ROOT, 'dist-manifests');
@@ -203,7 +203,7 @@ function chocoNuspec() {
     <bugTrackerUrl>${HOME}/issues</bugTrackerUrl>
     <tags>gamedev assets unity godot unreal electron</tags>
     <summary>${DESC}</summary>
-    <description>${DESC}. Keep every pack you collect, with its licence and source on record, find the piece you need in seconds, and copy it into your game with the credits written for you.</description>
+    <description>${DESC}. Keep every pack you collect, with its license and source on record, find the piece you need in seconds, and copy it into your game with the credits written for you.</description>
     <releaseNotes>${HOME}/releases/tag/${tag}</releaseNotes>
   </metadata>
   <files>

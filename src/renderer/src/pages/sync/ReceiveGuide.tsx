@@ -75,7 +75,7 @@ function Rail({ step, done }: { step: Step; done: (s: Step) => boolean }) {
   );
 }
 
-/** A labelled card saying which computer an instruction is for. */
+/** A labeled card saying which computer an instruction is for. */
 function Where({ who, children }: { who: 'other' | 'this'; children: ReactNode }) {
   const other = who === 'other';
   return (

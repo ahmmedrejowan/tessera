@@ -64,7 +64,7 @@ export interface ProviderInfo {
   fields: Field[];
   /** Signed into in the browser, through rclone. */
   signIn?: { rcloneType: string; params: string[] };
-  /** The name of the provider's own app folder on this computer (as found places are labelled). */
+  /** The name of the provider's own app folder on this computer (as found places are labeled). */
   appFolder?: string;
   /** One or two lines worth knowing, shown with the form. */
   tip?: string;

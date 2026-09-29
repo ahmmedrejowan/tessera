@@ -91,7 +91,7 @@ function BrowseEmpty() {
         title="Nothing starred yet"
         body="The star in a tile's corner keeps a thing to hand. Starred assets also gather in a Favorites collection."
         actions={
-          <Button variant="contained" onClick={() => s.setFavourites(false)}>
+          <Button variant="contained" onClick={() => s.setFavorites(false)}>
             Show everything
           </Button>
         }

@@ -44,7 +44,7 @@ await inv('import:run', await inv('import:plan', await inv('import:samples'), fa
 await page.waitForTimeout(8000);
 const packs = (await inv('browse:packs', { scope: 'library', text: '', filters: {} }, 'name', 0, 10)).rows;
 const arcade = packs.find((p) => p.name === 'Mini Arcade') ?? packs[0];
-await inv('favourites:pack', arcade.id, true);
+await inv('favorites:pack', arcade.id, true);
 const collection = await inv('collections:create', 'For the platformer', { description: 'What the first level needs' });
 await inv('collections:change', collection, { addPacks: [packs.find((p) => p.name.includes('Platformer'))?.id ?? packs[0].id] });
 mkdirSync(join(root, 'Bunny Dash'), { recursive: true });

@@ -89,7 +89,7 @@ function line(d: DownloadItem): string {
       return [d.packName ? `In your library as “${d.packName}”` : 'In your library', formatBytes(d.total ?? d.received), when(d.finishedAt)].filter(Boolean).join(' · ');
     case 'failed':
       return d.error ?? 'It didn’t work';
-    case 'cancelled':
+    case 'canceled':
       return 'Stopped';
   }
 }

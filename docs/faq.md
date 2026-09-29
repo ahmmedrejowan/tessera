@@ -65,7 +65,7 @@ then press Open. On macOS 14 and earlier, right-clicking Tessera and choosing Op
 thing; Apple removed that shortcut in macOS 15.
 
 **macOS says Tessera is damaged instead. What now?**
-That means the download was flagged on the way in rather than the signature being unrecognised.
+That means the download was flagged on the way in rather than the signature being unrecognized.
 Clear the flag and open it again:
 
 ```bash
@@ -150,7 +150,7 @@ are what make a project build on a computer that has never heard of Tessera. Mov
 copying removes the first of those three.
 
 **Do I lose anything by letting Tessera copy?**
-Disk space, and nothing else. Nothing is renamed, re-encoded or reorganised on the way in.
+Disk space, and nothing else. Nothing is renamed, re-encoded or reorganized on the way in.
 
 **Can I move my library?**
 Yes. Close Tessera, move the folder, then open it from the switcher at the top right. The index is

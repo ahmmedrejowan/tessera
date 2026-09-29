@@ -158,7 +158,7 @@ function volumeOf(path: string): string | null {
  * Downloads until it is added, and then goes or stays by the same answer as everything else.
  */
 export function movable(item: ImportItem, d: ImportDeps): boolean {
-  // While a pack is only staged the person can still cancel, and cancelling throws the copy away.
+  // While a pack is only staged the person can still cancel, and canceling throws the copy away.
   // Nothing is taken until they keep it.
   if (d.stage) return false;
   if (!d.move) return false;

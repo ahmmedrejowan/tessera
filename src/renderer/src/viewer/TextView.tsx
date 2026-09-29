@@ -9,17 +9,17 @@ export function TextView({ url }: { url: string }) {
   const [text, setText] = useState<string | null>(null);
   const [cut, setCut] = useState(false);
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     void fetch(url)
       .then((r) => r.arrayBuffer())
       .then((b) => {
-        if (cancelled) return;
+        if (canceled) return;
         setCut(b.byteLength > MAX);
         setText(new TextDecoder().decode(b.slice(0, MAX)));
       })
-      .catch(() => !cancelled && setText(''));
+      .catch(() => !canceled && setText(''));
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [url]);
   return (

@@ -77,17 +77,17 @@ function SvgImage({ url, onInfo, command }: { url: string; onInfo: (i: ImageInfo
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let made: string | null = null;
-    let cancelled = false;
+    let canceled = false;
     void fetch(url)
       .then((r) => r.text())
       .then((text) => {
-        if (cancelled) return;
+        if (canceled) return;
         made = URL.createObjectURL(new Blob([fitSvg(text).svg], { type: 'image/svg+xml' }));
         setSrc(made);
       })
-      .catch(() => !cancelled && setSrc(url));
+      .catch(() => !canceled && setSrc(url));
     return () => {
-      cancelled = true;
+      canceled = true;
       if (made) URL.revokeObjectURL(made);
     };
   }, [url]);

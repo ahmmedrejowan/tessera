@@ -48,7 +48,7 @@ hello@rejowan.com.
 Tessera reads and writes outside the library only where you point it:
 
 - Files and folders you add, from wherever you chose them.
-- A game's folder, when you link assets into it: the assets, a licence file beside them, and the
+- A game's folder, when you link assets into it: the assets, a license file beside them, and the
   credits file.
 - The place you set up for backups.
 - Its own helper programs, and the usual places those are installed, when it looks for them.

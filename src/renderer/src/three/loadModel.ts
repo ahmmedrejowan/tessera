@@ -109,7 +109,7 @@ async function parse(url: string, ext: string, m: TrackedManager): Promise<THREE
           materials.preload();
           obj.setMaterials(materials);
         } catch {
-          // no usable .mtl: plain grey
+          // no usable .mtl: plain gray
         }
       }
       return obj.parse(text);

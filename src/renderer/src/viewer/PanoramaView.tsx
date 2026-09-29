@@ -50,12 +50,12 @@ export function PanoramaView({ url, ext, onInfo }: { url: string; ext: string; o
     ro.observe(el);
     resize();
     let texture: THREE.Texture | null = null;
-    let cancelled = false;
+    let canceled = false;
     setState('loading');
     onInfo?.(null);
     (ext === 'exr' ? new EXRLoader() : new HDRLoader()).loadAsync(url).then(
       (tex) => {
-        if (cancelled) return tex.dispose();
+        if (canceled) return tex.dispose();
         texture = tex;
         tex.mapping = THREE.EquirectangularReflectionMapping;
         scene.background = tex;
@@ -63,14 +63,14 @@ export function PanoramaView({ url, ext, onInfo }: { url: string; ext: string; o
         onInfo?.({ width: img.width, height: img.height });
         setState('ready');
       },
-      () => !cancelled && setState('error'),
+      () => !canceled && setState('error'),
     );
     renderer.setAnimationLoop(() => {
       controls.update();
       renderer.render(scene, camera);
     });
     return () => {
-      cancelled = true;
+      canceled = true;
       renderer.setAnimationLoop(null);
       ro.disconnect();
       controls.dispose();

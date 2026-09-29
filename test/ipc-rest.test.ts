@@ -317,7 +317,7 @@ describe('backups', () => {
     expect(await ok('backup:revealPassword')).toBe('a very long password');
   });
 
-  it('writes the recovery kit where the save box says, and nowhere when it is cancelled', async () => {
+  it('writes the recovery kit where the save box says, and nowhere when it is canceled', async () => {
     asked.savePath = null;
     expect(await ok('backup:saveKit', { password: 'a very long password', includeKeys: false })).toBeNull();
   });
@@ -518,7 +518,7 @@ describe('agents', () => {
     expect(said('mcp.apply')!.args[0]).toBe(true);
   });
 
-  it('saves the skill wherever the save box says, and nowhere when it is cancelled', async () => {
+  it('saves the skill wherever the save box says, and nowhere when it is canceled', async () => {
     asked.savePath = null;
     expect(await ok('mcp:installSkill', 'choose')).toBeNull();
     asked.savePath = join(ownDir(), 'SKILL.md');
@@ -591,7 +591,7 @@ describe('the desktop, when it answers', () => {
     }
   });
 
-  it('saves a problem report where the save box says, and nowhere when it is cancelled', async () => {
+  it('saves a problem report where the save box says, and nowhere when it is canceled', async () => {
     asked.savePath = null;
     expect(await ok('reports:saveProblem', 'it broke')).toBeNull();
     asked.savePath = join(ownDir(), 'report.txt');
@@ -644,7 +644,7 @@ describe('updates and problem reports', () => {
     expect(said('reports.answerCrashes')!.args[0]).toBe(true);
   });
 
-  it('saves a problem report where the save box says, and nowhere when cancelled', async () => {
+  it('saves a problem report where the save box says, and nowhere when canceled', async () => {
     asked.savePath = null;
     expect(await ok('reports:saveProblem', 'a note')).toBeNull();
     asked.savePath = join(ownDir(), 'report.txt');

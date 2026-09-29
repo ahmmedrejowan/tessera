@@ -79,7 +79,7 @@ pulled out.
 
 ## Writing a new test
 
-- Name the test for the behaviour, not the function. "puts a pack back where it came from", not
+- Name the test for the behavior, not the function. "puts a pack back where it came from", not
   "restoreFromBin works".
 - Make a test own the folders it writes into when what it is testing keeps working after the test
   ends. The shared `tempDir()` helper clears up after every test, which a download queue or a

@@ -116,6 +116,19 @@ describe('packs', () => {
   });
 });
 
+/**
+ * The old keys, spelled out rather than written down.
+ *
+ * These tests are the only proof that a library written by an older Tessera can still be read, and
+ * they only prove it while they use the old spelling. A find-and-replace over the repository for
+ * the British spelling has already turned the readers themselves into no-ops once, and it would
+ * have done the same here: the fixture would have said "license", the test would still have
+ * passed, and it would have been testing nothing. Built from pieces so that sweep cannot reach it,
+ * the same way src/shared/pack.ts holds the keys it looks for.
+ */
+const WAS_LICENSE = `licen${'c'}e`;
+const WAS_LICENSES = `${WAS_LICENSE}s`;
+
 describe('a record written before the spelling was settled', () => {
   it('is read, and keeps its license and its part rules', () => {
     // Everything the app writes now says "license". A library made by an older Tessera spells it
@@ -129,8 +142,8 @@ describe('a record written before the spelling was settled', () => {
       addedAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-01-01T00:00:00Z',
       source: { url: 'https://example.test/old', site: null, creator: 'Someone', name: null },
-      licence: { id: 'CC-BY-4.0', attribution: 'by Someone' },
-      licences: [{ path: 'Music', licence: { id: 'CC0-1.0', attribution: null } }],
+      [WAS_LICENSE]: { id: 'CC-BY-4.0', attribution: 'by Someone' },
+      [WAS_LICENSES]: [{ path: 'Music', [WAS_LICENSE]: { id: 'CC0-1.0', attribution: null } }],
     };
     const meta = PackMeta.parse(eitherSpelling(old));
     expect(meta.license.id).toBe('CC-BY-4.0');
@@ -141,7 +154,7 @@ describe('a record written before the spelling was settled', () => {
   });
 
   it('leaves a record that already says license alone', () => {
-    const now = { licence: { id: 'CC0-1.0' }, license: { id: 'MIT' } };
+    const now = { [WAS_LICENSE]: { id: 'CC0-1.0' }, license: { id: 'MIT' } };
     expect((eitherSpelling(now) as { license: { id: string } }).license.id).toBe('MIT');
   });
 });

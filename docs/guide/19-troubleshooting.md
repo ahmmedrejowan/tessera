@@ -15,7 +15,7 @@ Same reason. Choose **More info**, then **Run anyway**. Only the first time.
 Check **Review**: a pack waiting there is deliberately out of search until it has a license and a
 source. Check **Archive** too, and whether a filter is still on.
 
-## Thumbnails are missing or grey
+## Thumbnails are missing or gray
 
 They are drawn in the background and cached. Settings, Previews and index, can build them for the
 whole library, retry the ones that failed, or clear them and start again. A format nothing can draw

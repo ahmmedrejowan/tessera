@@ -43,7 +43,7 @@ export function FontView({ url, onInfo }: { url: string; onInfo?: (i: FontInfo |
   const [size, setSize] = useState(() => Number(remembered(SIZE_KEY, '64')) || 64);
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     let face: FontFace | null = null;
     setFamily(null);
     setFailed(false);
@@ -54,7 +54,7 @@ export function FontView({ url, onInfo }: { url: string; onInfo?: (i: FontInfo |
         const name = `preview-${Math.random().toString(36).slice(2)}`;
         face = new FontFace(name, bytes);
         await face.load();
-        if (cancelled) return;
+        if (canceled) return;
         document.fonts.add(face);
         const found = readAxes(bytes);
         setAxes(found);
@@ -62,11 +62,11 @@ export function FontView({ url, onInfo }: { url: string; onInfo?: (i: FontInfo |
         setFamily(name);
         onInfo?.({ family: name, axes: found });
       } catch {
-        if (!cancelled) setFailed(true);
+        if (!canceled) setFailed(true);
       }
     })();
     return () => {
-      cancelled = true;
+      canceled = true;
       if (face) document.fonts.delete(face);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

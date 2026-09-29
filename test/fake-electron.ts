@@ -14,11 +14,11 @@ export const asked = {
   revealed: [] as string[],
   external: [] as string[],
   sent: [] as { channel: string; payload: unknown }[],
-  /** What the next folder picker answers with, or null for "cancelled". */
+  /** What the next folder picker answers with, or null for "canceled". */
   folder: null as string | null,
   /** What the next file picker answers with. */
   files: [] as string[],
-  /** Where the next save box says to save, or null for "cancelled". */
+  /** Where the next save box says to save, or null for "canceled". */
   savePath: null as string | null,
   /** What a hidden window should fail with when it is asked to open a page. */
   pageLoad: null as Error | null,

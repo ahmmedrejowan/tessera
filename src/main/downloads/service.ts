@@ -112,7 +112,7 @@ export class DownloadService {
     let added = 0;
     let skipped = 0;
     for (const url of urls.slice(0, MOST_AT_ONCE)) {
-      if (!isWebLink(url) || this.items.some((i) => i.url === url && i.state !== 'failed' && i.state !== 'cancelled')) {
+      if (!isWebLink(url) || this.items.some((i) => i.url === url && i.state !== 'failed' && i.state !== 'canceled')) {
         skipped++;
         continue;
       }
@@ -158,7 +158,7 @@ export class DownloadService {
     const item = this.find(id);
     if (!item) return;
     this.hold(item);
-    item.state = 'cancelled';
+    item.state = 'canceled';
     item.speed = 0;
     item.eta = null;
     item.finishedAt = nowIso();
@@ -444,7 +444,7 @@ export class DownloadService {
       item.stop = undefined;
       // A pause or a cancel isn't a failure (either changed the state while this was in flight).
       const state = this.stateOf(item);
-      if (state === 'paused' || state === 'cancelled') this.changed();
+      if (state === 'paused' || state === 'canceled') this.changed();
       else {
         const error = e instanceof Error ? e : new Error(String(e));
         log.warn('downloads', `could not download ${item.url}`, e);
