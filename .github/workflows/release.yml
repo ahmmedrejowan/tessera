@@ -243,3 +243,23 @@ jobs:
           name: Tessera ${{ needs.choose.outputs.tag }}
           body_path: release-notes.md
           files: downloaded/*
+
+  # Telling everybody else, in the same run rather than by an event.
+  #
+  # GitHub will not act on an event raised by a workflow's own token, which is right: it is what
+  # stops a workflow setting itself off for ever. The cost is that a release published up there
+  # looks like nothing happened down here, and the package managers and the website were told only
+  # when somebody remembered to run them by hand. Asked directly, they are part of the release.
+  packages:
+    name: Package managers
+    needs: [choose, publish]
+    uses: ./.github/workflows/packages.yml
+    with:
+      tag: ${{ needs.choose.outputs.tag }}
+    secrets: inherit
+
+  site:
+    name: Tell the website
+    needs: publish
+    uses: ./.github/workflows/site.yml
+    secrets: inherit
