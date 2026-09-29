@@ -1,11 +1,16 @@
 name: Release builds
 
-# Installers for every platform, from a version tag (v0.2.0) or by hand. A tag publishes the
-# release, with the files and their checksums; anything below 1.0.0 goes out as a preview.
+# Installers for every platform, and the release they go out in.
 #
-# By hand it builds and nothing else, so you can try an installer before anybody else sees it. The
-# files come back as workflow artifacts. To publish from a hand-started run, choose the tag under
-# "Use workflow from" and turn "Publish" on.
+# Two ways to release, and they do the same thing:
+#
+#   By hand   Bump the version in package.json, write its section in CHANGELOG.md, push that to
+#             main, then Run workflow with "Publish" on. The version is read out of package.json,
+#             the tag is made for you, and the release goes out.
+#   By tag    Push a tag like v1.0.0 yourself. Everything after that is the same.
+#
+# Run workflow with "Publish" off builds and nothing else, so you can try an installer before
+# anybody else sees it: the files come back as workflow artifacts and no release is made.
 on:
   push:
     tags: ['v*']
@@ -21,7 +26,7 @@ on:
           - Windows only
           - Linux only
       publish:
-        description: Publish a release (only works when you chose a tag above)
+        description: Publish a release, tagging this commit with the version in package.json
         type: boolean
         default: false
 
@@ -32,15 +37,17 @@ permissions:
   attestations: write
 
 jobs:
-  # Which computers this run is for. A tag is always all three; a hand-started run is whatever was
-  # chosen. Publishing part of a release would put out a version some people cannot download, so
-  # that combination stops here rather than half way through.
+  # What this run is: which computers, which version, and whether anybody else will see it.
+  # Everything that can be wrong about a release is checked here, before ten minutes of building.
   choose:
     name: What to build
     runs-on: ubuntu-latest
     outputs:
       os: ${{ steps.pick.outputs.os }}
+      tag: ${{ steps.what.outputs.tag }}
+      publish: ${{ steps.what.outputs.publish }}
     steps:
+      - uses: actions/checkout@v4
       - id: pick
         shell: bash
         run: |
@@ -52,12 +59,55 @@ jobs:
           esac
           echo "os=$os" >> "$GITHUB_OUTPUT"
           echo "Building for $os"
+      - id: what
+        name: Which version, and is it going out
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = push ]; then
+            # A tag was pushed: that tag is the release, and it publishes.
+            tag='${{ github.ref_name }}'
+            publish=true
+          else
+            # Started by hand: the version is the one in package.json, which is the same one the
+            # app will report about itself, so the two can never disagree.
+            tag="v$(jq -r .version package.json)"
+            publish='${{ inputs.publish }}'
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "Tag: $tag. Publishing: $publish."
       - name: A release needs every platform
         if: inputs.publish && inputs.platforms != 'All three'
         run: |
           echo "Publishing was asked for with only ${{ inputs.platforms }} selected."
           echo "A release missing a platform is a release somebody cannot download."
           exit 1
+      - name: The changelog has to say what is new
+        if: steps.what.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.what.outputs.tag }}"
+          version="${version#v}"
+          if ! grep -q "^## ${version}\b" CHANGELOG.md; then
+            echo "CHANGELOG.md has no '## ${version}' section."
+            echo "The release page and the app's About screen both read it, so there is nothing to say yet."
+            exit 1
+          fi
+          echo "Found the ${version} section."
+      - name: That version has not gone out already
+        if: steps.what.outputs.publish == 'true' && github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.what.outputs.tag }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null 2>&1; then
+            echo "$tag is already tagged, so this version has been released."
+            echo "Bump the version in package.json and add its section to CHANGELOG.md first."
+            exit 1
+          fi
+          echo "$tag is free."
 
   build:
     name: ${{ matrix.os }}
@@ -138,15 +188,25 @@ jobs:
 
   publish:
     name: Publish the release
-    needs: build
-    # A tag publishes by itself. A hand-started run only publishes when it was asked to, and only
-    # when what it was started from is a tag: there is no version and no release notes otherwise.
-    if: startsWith(github.ref, 'refs/tags/v') && (github.event_name != 'workflow_dispatch' || inputs.publish)
+    needs: [choose, build]
+    if: needs.choose.outputs.publish == 'true'
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.choose.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+      # Started by hand, the tag does not exist yet: it is made here, on the very commit that was
+      # just built and tested, so the tag can never point at something that was never built.
+      - name: Tag this commit
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git tag -a "$TAG" -m "Tessera $TAG"
+          git push origin "$TAG"
       # What is new comes from CHANGELOG.md, so the release page and the app agree.
-      - run: node scripts/release-notes.mjs ${{ github.ref_name }} > release-notes.md
+      - run: node scripts/release-notes.mjs "$TAG" > release-notes.md
       - run: cat release-notes.md
       - uses: actions/download-artifact@v4
         with:
@@ -156,9 +216,10 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           draft: false
+          tag_name: ${{ needs.choose.outputs.tag }}
           # Anything before 1.0.0, and anything with a suffix (v1.0.0-rc1), is a preview. GitHub
           # then keeps it out of "latest", which is why the update check reads the list instead.
-          prerelease: ${{ startsWith(github.ref_name, 'v0.') || contains(github.ref_name, '-') }}
-          name: Tessera ${{ github.ref_name }}
+          prerelease: ${{ startsWith(needs.choose.outputs.tag, 'v0.') || contains(needs.choose.outputs.tag, '-') }}
+          name: Tessera ${{ needs.choose.outputs.tag }}
           body_path: release-notes.md
           files: downloaded/*
