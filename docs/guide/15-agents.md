@@ -17,7 +17,7 @@ teaches an assistant how this library works.
 
 ## The tools, and what is allowed
 
-There are 63 tools in seven groups. Each group has a switch:
+There are 65 tools in seven groups. Each group has a switch:
 
 | Group | What it can do | At first |
 |-------|----------------|----------|

@@ -45,6 +45,19 @@ export interface Invokes {
   'library:close': () => void;
   'library:refresh': () => void;
   'library:stats': () => LibraryStats;
+  /**
+   * Files the library holds more than once, worked out from their contents rather than their
+   * names, biggest waste first. Empty until the background pass has read them.
+   */
+  'library:duplicates': () => {
+    sha256: string;
+    copies: number;
+    bytes: number;
+    name: string;
+    packs: { packId: string; packName: string; ref: string }[];
+  }[];
+  /** How many files are still to be read, so the window can say the answer is not final yet. */
+  'library:stillReading': () => number;
   'library:health': () => LicenseHealth;
   /** Read every pack again from scratch (after moving files around by hand, say). */
   'library:reindex': () => void;

@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
  * deleted and rebuilt; a schema change simply rebuilds it.
  */
 
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;
 
 const SCHEMA = `
 CREATE TABLE packs (
@@ -71,6 +71,25 @@ CREATE TABLE assets (
   license TEXT,
   UNIQUE (pack_id, ref)
 );
+
+-- What a file actually contains, so two copies of the same thing can be told apart from two files
+-- that merely share a name and a size.
+--
+-- Its own table rather than a column on assets, because re-reading a pack throws those rows away
+-- and rewrites them, and hashing is the one thing here that costs real time: a hash already worked
+-- out is kept and reused as long as the file has not changed. Nothing here is required; an asset
+-- with no row yet simply has not been read.
+CREATE TABLE file_hashes (
+  pack_id TEXT NOT NULL REFERENCES packs(id) ON DELETE CASCADE,
+  ref     TEXT NOT NULL,
+  -- What the file was when it was hashed. If either changes the hash is stale and is worked out again.
+  size    INTEGER NOT NULL,
+  mtime   INTEGER NOT NULL,
+  sha256  TEXT NOT NULL,
+  PRIMARY KEY (pack_id, ref)
+);
+-- The question this table exists to answer: what else in the library is this same file?
+CREATE INDEX file_hashes_sha ON file_hashes(sha256);
 CREATE INDEX assets_group ON assets(group_id);
 CREATE INDEX assets_pack ON assets(pack_id, role);
 CREATE INDEX assets_type ON assets(type, role);

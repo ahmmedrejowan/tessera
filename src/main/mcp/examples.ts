@@ -242,4 +242,26 @@ export const ANSWERS: Record<string, ToolAnswer> = {
   back_up_now: { returns: 'That it is done.', example: { done: true } },
   empty_bin: { returns: 'How many things went from the disk for good.', example: { gone: 3 } },
   discard_review_pack: { returns: 'That it is done.', example: { done: true } },
+  find_duplicates: {
+    returns: 'Files the library holds more than once, biggest waste first, and how much is still to be read.',
+    example: {
+      duplicates: [
+        {
+          sha256: '9f2c…',
+          copies: 3,
+          bytes: 41943040,
+          name: 'barrel.fbx',
+          packs: [
+            { packId: 'p1', packName: 'Props Vol 1', ref: 'original/Models/barrel.fbx' },
+            { packId: 'p2', packName: 'Mega Bundle', ref: 'original/Props/barrel.fbx' },
+          ],
+        },
+      ],
+      stillReading: 0,
+    },
+  },
+  where_else_is_this: {
+    returns: 'Every other place in the library holding the same file, by contents rather than by name.',
+    example: { read: true, elsewhere: [{ id: 913, packId: 'p2', packName: 'Mega Bundle', ref: 'original/Props/barrel.fbx', name: 'barrel.fbx' }] },
+  },
 };

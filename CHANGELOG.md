@@ -19,7 +19,7 @@ keep a copy of anything you cannot lose, and tell me what breaks.
   somewhere else.
 - **Starred, archived, binned**: star anything worth coming back to; archive a pack you want kept
   but out of the way; deleting means the library's own bin, which puts things back where they were.
-- **AI agents**: while Tessera is open it answers agents on this computer alone, with 63 tools
+- **AI agents**: while Tessera is open it answers agents on this computer alone, with 65 tools
   covering everything the window can do. You choose what they may reach; the app's own settings and
   deleting for good start switched off. Every call is listed, and every change is in Activity.
 - **Update checks and error reports**, both on your say-so and neither carrying anything about you.

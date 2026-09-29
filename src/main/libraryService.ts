@@ -10,6 +10,7 @@ import type { BinEntry, CollectionChange, CollectionResult, Detected, FolderKind
 import { UserError } from './errors';
 import { listPackFiles, parseRef } from './index/files';
 import { LibraryIndex } from './index/indexer';
+import { hashSome } from './index/hashes';
 import { planImport } from './import/plan';
 import { copyTree, movable, runImport, type ImportDeps } from './import/run';
 import { LibraryQueries } from './index/query';
@@ -78,8 +79,48 @@ export class LibraryService {
    * order they were asked for, so each one sees the library the last one left behind.
    */
   private writeQueue: Promise<void> = Promise.resolve();
+  /** Whether the background pass that works out file contents is already running. */
+  private hashing = false;
 
   constructor(private readonly d: Deps) {}
+
+  /**
+   * Work out what files contain, in the background, a few at a time.
+   *
+   * Size and name cannot tell two copies of the same thing from two different things, which is the
+   * question behind "have I got this already", "did that bundle repeat itself" and "where did this
+   * file in my game come from". Hashing answers all three and is the one expensive thing here, so
+   * it happens after everything else, gives way to anything that writes, and keeps what it works
+   * out until the file changes.
+   */
+  private async readContents(): Promise<void> {
+    if (this.hashing) return;
+    this.hashing = true;
+    try {
+      const lib = this.current;
+      if (!lib) return;
+      for (;;) {
+        // Never while the app itself is writing, and never after the library has been closed or
+        // swapped underneath us.
+        if (this.busyWriting || this.current !== lib) return;
+        const did = await hashSome({
+          db: lib.index.db,
+          packDir: (packId) => {
+            const known = lib.index.known(packId);
+            return known ? join(lib.root, DIRS.packs, known.folder) : null;
+          },
+          keepGoing: () => this.busyWriting === 0 && this.current === lib,
+        });
+        if (!did) return;
+        // A breath between batches, so a big library does not hold the main process to itself.
+        await new Promise((r) => setTimeout(r, 25));
+      }
+    } catch (e) {
+      log.warn('hashes', 'could not finish reading file contents', e);
+    } finally {
+      this.hashing = false;
+    }
+  }
 
   /**
    * Wait for the write queue, then hold it. Call what comes back when the work is done.
@@ -213,6 +254,8 @@ export class LibraryService {
         if (result.changed || result.removed || collectionsChanged) this.d.onIndexChanged();
         // Where each folder is watched on its own, a pack that has just appeared needs watching too.
         if (this.watchers.length && (result.changed || result.removed)) this.startWatching(lib.root);
+        // And then, quietly, work out what the new files actually contain.
+        void this.readContents();
       } catch (e) {
         job.fail(e);
       } finally {

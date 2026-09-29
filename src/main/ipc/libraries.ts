@@ -12,6 +12,7 @@ import { locateLibrary } from '../library/locate';
 import type { IpcContext } from './context';
 import { clearFor, previewCost } from '../thumbs/cache';
 import { DIRECT, DIRECT_MAX, DRAWN_FOR } from '../thumbs/service';
+import { stillToHash } from '../index/hashes';
 
 type Deps = Pick<
   IpcContext,
@@ -54,6 +55,8 @@ export function registerLibraryIpc(c: Deps): void {
   handle('library:stats', () => library.require().queries.stats());
   handle('library:terms', (field) => library.require().queries.terms(field));
   handle('library:health', () => library.require().queries.health());
+  handle('library:duplicates', () => library.require().queries.duplicates());
+  handle('library:stillReading', () => stillToHash(library.require().index.db));
   handle('library:reindex', () => library.reindex());
   handle('thumbs:size', async () => {
     const dir = thumbDir();

@@ -53,7 +53,15 @@ export function registerProjectIpc(c: Deps): void {
     projectsChanged();
     return n;
   });
-  handle('projects:findAlreadyHere', (id, folder) => projects.findAlreadyHere(id, folder, copySource(), (size) => library.require().queries.bySize(size)));
+  handle('projects:findAlreadyHere', (id, folder) =>
+    projects.findAlreadyHere(
+      id,
+      folder,
+      copySource(),
+      (size) => library.require().queries.bySize(size),
+      (sha) => library.require().queries.byHash(sha),
+    ),
+  );
   handle('projects:adopt', async (id, matches) => {
     const n = await projects.adopt(id, matches, copySource());
     if (n) activity.add('project', `Found ${n} asset${n === 1 ? '' : 's'} already in a game`, 'Recorded where the game already keeps them; nothing was copied');

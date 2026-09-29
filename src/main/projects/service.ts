@@ -184,11 +184,11 @@ export class ProjectService {
    * thing. The answer is shown before anything is recorded, because "I found 400 of your files"
    * is a claim somebody should get to look at first.
    */
-  async findAlreadyHere(id: string, folder: string, src: CopySource, bySize: AdoptDeps['bySize']): Promise<AdoptScan> {
+  async findAlreadyHere(id: string, folder: string, src: CopySource, bySize: AdoptDeps['bySize'], byHash?: AdoptDeps['byHash']): Promise<AdoptScan> {
     const project = await this.get(id);
     const where = checkRelative(folder || project.target, 'folder to look in');
     return this.jobs.run(`Looking through ${project.name}`, (job) =>
-      scanForAdoption(project.path, where, { src, bySize, onProgress: (done, total) => job.update(total ? done / total : null, `${done} of ${total} files`) }),
+      scanForAdoption(project.path, where, { src, bySize, byHash, onProgress: (done, total) => job.update(total ? done / total : null, `${done} of ${total} files`) }),
     );
   }
 

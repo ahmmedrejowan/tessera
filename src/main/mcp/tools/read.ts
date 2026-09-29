@@ -35,6 +35,7 @@ function unknownFilters(
   return Object.keys(out).length ? { unknownFilterValues: out } : {};
 }
 import type { Tool } from './shared';
+import { stillToHash } from '../../index/hashes';
 
 export const READ: Tool[] = [
 
@@ -153,6 +154,35 @@ export const READ: Tool[] = [
     summary: 'The kinds, formats, sources, creators, licenses, genres, styles and tags in use, with how many things carry each. Use it to pick filter values that exist.',
     input: z.object({ of: z.enum(['assets', 'packs']).default('assets'), text: z.string().default(''), filters, scope }),
     run: async (args, ctx) => ctx.library.require().queries.facets(query(args), args.of),
+  }),
+  define({
+    name: 'find_duplicates',
+    group: 'read',
+    title: 'Things the library holds more than once',
+    summary:
+      'Files the library has more than one copy of, worked out from what they contain rather than what they are called, the biggest waste first. Two bundles often ship the same kit, and the same pack bought twice has every file twice. Empty until the library has finished reading its files; check stillReading.',
+    input: z.object({ limit: z.number().int().min(1).max(200).default(50) }),
+    run: async (args, ctx) => {
+      const q = ctx.library.require().queries;
+      return {
+        duplicates: q.duplicates(args.limit),
+        stillReading: stillToHash(ctx.library.require().index.db),
+      };
+    },
+  }),
+  define({
+    name: 'where_else_is_this',
+    group: 'read',
+    title: 'Where else this exact file is',
+    summary: 'Every place in the library holding the same file as this one, by contents rather than by name. Use it before adding something to see whether it is already there, or to find which pack a file really came from.',
+    input: z.object({ packId: z.string(), ref: z.string() }),
+    run: async (args, ctx) => {
+      const q = ctx.library.require().queries;
+      const sha = q.hashOf(args.packId, args.ref);
+      if (!sha) return { read: false, note: 'This file has not been read yet, so nothing can be said about what else matches it.', elsewhere: [] };
+      const all = q.byHash(sha).filter((a) => !(a.packId === args.packId && a.ref === args.ref));
+      return { read: true, elsewhere: all.map(assetOut) };
+    },
   }),
   define({
     name: 'list_collections',

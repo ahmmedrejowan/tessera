@@ -325,6 +325,65 @@ export class LibraryQueries {
     ).map((r) => toAsset(r) as AssetRow & { packName: string });
   }
 
+  /**
+   * Every file in the library with these contents, by hash.
+   *
+   * The question behind "have I got this already?", "did this bundle give me the same kit twice?"
+   * and "which pack did the game get this from?". Size answered none of those on its own.
+   */
+  byHash(sha256: string): (AssetRow & { packName: string })[] {
+    return this.all<RawAsset>(
+      `SELECT ${ASSET_FIELDS} FROM assets a
+         JOIN packs p ON p.id = a.pack_id
+         JOIN file_hashes h ON h.pack_id = a.pack_id AND h.ref = a.ref
+        WHERE h.sha256 = ? AND p.status = 'library'`,
+      [sha256],
+    ).map((r) => toAsset(r) as AssetRow & { packName: string });
+  }
+
+  /** The recorded contents of one file, or null if it has not been read yet. */
+  hashOf(packId: string, ref: string): string | null {
+    const row = this.get<{ sha256: string }>('SELECT sha256 FROM file_hashes WHERE pack_id = ? AND ref = ? AND sha256 != \'\'', [packId, ref]);
+    return row?.sha256 ?? null;
+  }
+
+  /**
+   * Files that exist more than once in the library, the biggest waste first.
+   *
+   * Only main files: a model's textures are meant to be shared, and counting them would bury the
+   * thing somebody actually wants to see. `bytes` is what the copies beyond the first take up.
+   */
+  duplicates(limit = 200): { sha256: string; copies: number; bytes: number; name: string; packs: { packId: string; packName: string; ref: string }[] }[] {
+    const groups = this.all<{ sha256: string; copies: number; size: number }>(
+      `SELECT h.sha256 AS sha256, count(*) AS copies, max(a.size) AS size
+         FROM file_hashes h
+         JOIN assets a ON a.pack_id = h.pack_id AND a.ref = h.ref
+         JOIN packs p ON p.id = a.pack_id
+        WHERE h.sha256 != '' AND a.role = 'main' AND p.status = 'library'
+        GROUP BY h.sha256 HAVING copies > 1
+        ORDER BY (copies - 1) * max(a.size) DESC
+        LIMIT ?`,
+      [limit],
+    );
+    return groups.map((g) => {
+      const where = this.all<{ packId: string; packName: string; ref: string; name: string }>(
+        `SELECT a.pack_id AS packId, p.name AS packName, a.ref AS ref, a.name AS name
+           FROM file_hashes h
+           JOIN assets a ON a.pack_id = h.pack_id AND a.ref = h.ref
+           JOIN packs p ON p.id = a.pack_id
+          WHERE h.sha256 = ? AND a.role = 'main' AND p.status = 'library'`,
+        [g.sha256],
+      );
+      return {
+        sha256: g.sha256,
+        copies: g.copies,
+        bytes: (g.copies - 1) * g.size,
+        name: where[0]?.name ?? '',
+        packs: where.map((w) => ({ packId: w.packId, packName: w.packName, ref: w.ref })),
+      };
+    });
+  }
+
   refs(ids: number[]): { packId: string; ref: string }[] {
     const out: { packId: string; ref: string }[] = [];
     // SQLite takes only so many values in one statement, and a whole library can be picked out.

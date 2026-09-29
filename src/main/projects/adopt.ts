@@ -78,6 +78,15 @@ async function walk(dir: string, out: string[], limit: number): Promise<void> {
 export interface AdoptDeps {
   /** Library assets of exactly this size, whatever pack they are in. */
   bySize: (size: number) => (AssetRow & { packName: string })[];
+  /**
+   * Library assets with exactly these contents, if the library has read them yet.
+   *
+   * When it has, this answers the whole question on its own and nothing has to be read or hashed
+   * on this side at all. Matching by size and then hashing every candidate was fine while sizes
+   * varied and unusable when they did not: a library of same-sized files made one scan read a
+   * hundred and sixty thousand files out of their archives.
+   */
+  byHash?: (sha256: string) => (AssetRow & { packName: string })[];
   src: CopySource;
   onProgress?: (done: number, total: number) => void;
 }
@@ -113,11 +122,23 @@ export async function scanForAdoption(projectPath: string, folder: string, d: Ad
     d.onProgress?.(i, files.length);
     const s = await stat(path).catch(() => null);
     if (!s || s.size === 0 || s.size > MAX_HASH) continue;
-    const candidates = d.bySize(s.size);
-    if (!candidates.length) continue;
-
     const theirs = await hashFile(path).catch(() => null);
     if (!theirs) continue;
+
+    // The library already knows what its files contain: one lookup, no reading, no guessing.
+    const known = d.byHash?.(theirs);
+    if (known?.length) {
+      const c = known[0]!;
+      const key = `${c.packId}|${c.ref}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        matches.push({ packId: c.packId, packName: c.packName, ref: c.ref, path: relative(projectPath, path).split(sep).join('/'), size: s.size });
+      }
+      continue;
+    }
+    // Nothing read yet for this one, so fall back to comparing against everything of that size.
+    const candidates = d.bySize(s.size);
+    if (!candidates.length) continue;
     for (const c of candidates) {
       const key = `${c.packId}|${c.ref}`;
       // One library asset stands for one file in the game. Two copies of the same asset in a

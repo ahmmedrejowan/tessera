@@ -95,7 +95,13 @@ export const LINK: Tool[] = [
       folder: z.string().default('').describe('A folder inside the project, e.g. "Assets" or "Content". Leave out for the folder copies normally go to.'),
     }),
     run: async (args, ctx) => {
-      const scan = await ctx.projects.findAlreadyHere(args.projectId, args.folder, ctx.copySource(), (size) => ctx.library.require().queries.bySize(size));
+      const scan = await ctx.projects.findAlreadyHere(
+        args.projectId,
+        args.folder,
+        ctx.copySource(),
+        (size) => ctx.library.require().queries.bySize(size),
+        (sha) => ctx.library.require().queries.byHash(sha),
+      );
       return {
         looked: scan.looked,
         found: scan.matches.length,
