@@ -1,4 +1,5 @@
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -7,13 +8,58 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { describeTarget, targetProblem, withoutSecrets, type StorageTarget } from '../src/shared/storage';
 import { Kopia } from '../src/main/backup/kopia';
 import { RestoreService } from '../src/main/backup/restore';
-import { kopiaStorage, storageError } from '../src/main/backup/storage';
+import { checkBackupFolder, kopiaStorage, storageError } from '../src/main/backup/storage';
 import { forgetHost, hostKeys, keyNeedsPassphrase, knownHostName } from '../src/main/backup/ssh';
 import { createLibrary } from '../src/main/library/layout';
 import { findTool } from '../src/main/tools/find';
 
 const noRclone = { exe: null, config: '' };
 const t = (provider: StorageTarget['provider'], values: Record<string, string>): StorageTarget => ({ provider, values });
+
+describe('a folder the backups cannot go in', () => {
+  it('says which folder to pick when the one chosen is a cloud account rather than a folder', async () => {
+    // A Mac keeps one folder per signed-in cloud account under Library/CloudStorage, and it is
+    // read-only: it is the account, not a folder, and what can be written is inside it. Choosing
+    // it used to come back as "EACCES: permission denied, mkdir", which names what the system
+    // refused and nothing about what to do instead.
+    const home = await mkdtemp(join(tmpdir(), 'tessera-cloud-'));
+    const account = join(home, 'Library', 'CloudStorage', 'GoogleDrive-someone@example.test');
+    await mkdir(join(account, 'My Drive'), { recursive: true });
+    await mkdir(join(account, 'Other computers'), { recursive: true });
+    execFileSync('chmod', ['a-w', account]);
+    try {
+      expect(() => checkBackupFolder(account)).toThrow(/account itself/);
+      expect(() => checkBackupFolder(account)).toThrow(/“My Drive”/);
+      // And inside it is fine, including a folder that is not there yet.
+      expect(() => checkBackupFolder(join(account, 'My Drive', 'Tessera Backups'))).not.toThrow();
+    } finally {
+      execFileSync('chmod', ['u+w', account]);
+    }
+  });
+
+  it('refuses a folder that cannot be written to, and one that was never chosen', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tessera-locked-'));
+    const locked = join(dir, 'locked');
+    await mkdir(locked);
+    execFileSync('chmod', ['a-w', locked]);
+    try {
+      expect(() => checkBackupFolder(join(locked, 'backups'))).toThrow(/can’t be written to/);
+    } finally {
+      execFileSync('chmod', ['u+w', locked]);
+    }
+    expect(() => checkBackupFolder('   ')).toThrow(/Choose a folder/);
+  });
+
+  it('is what makes the store, so restoring from a folder nobody can write to still works', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tessera-readonly-'));
+    const storage = kopiaStorage(t('folder', { path: join(dir, 'backups') }), noRclone);
+    expect(storage.type).toBe('filesystem');
+    // Building the storage touches nothing: the check and the folder happen when one is created.
+    expect(existsSync(join(dir, 'backups'))).toBe(false);
+    await storage.prepare!();
+    expect(existsSync(join(dir, 'backups'))).toBe(true);
+  });
+});
 
 describe('storage for Kopia', () => {
   it('builds S3 flags for each service, with keys in the environment', () => {
@@ -27,7 +73,9 @@ describe('storage for Kopia', () => {
   });
 
   it('builds the other kinds', () => {
-    expect(kopiaStorage(t('folder', { path: '/x' }), noRclone)).toEqual({ type: 'filesystem', args: ['--path=/x'], env: {} });
+    // A folder carries a `prepare` that checks it and makes it, which only runs when a store is
+    // being created, so building the storage here touches nothing.
+    expect(kopiaStorage(t('folder', { path: '/x' }), noRclone)).toMatchObject({ type: 'filesystem', args: ['--path=/x'], env: {} });
     expect(kopiaStorage(t('azure', { account: 'acc', container: 'c', key: 'K' }), noRclone)).toEqual({ type: 'azure', args: ['--container=c', '--storage-account=acc'], env: { AZURE_STORAGE_KEY: 'K' } });
     expect(kopiaStorage(t('webdav', { url: 'https://d/x', username: 'u', password: 'p' }), noRclone)).toMatchObject({ type: 'webdav', args: ['--url=https://d/x', '--webdav-username=u'], env: { KOPIA_WEBDAV_PASSWORD: 'p' } });
     expect(kopiaStorage(t('sftp', { host: 'h', port: '2222', username: 'u', path: 'p', keyFile: '/nonexistent/k', knownHosts: 'h ssh-ed25519 AAA' }), noRclone).args).toEqual(['--host=h', '--port=2222', '--username=u', '--path=p', '--keyfile=/nonexistent/k', '--known-hosts-data=h ssh-ed25519 AAA']);

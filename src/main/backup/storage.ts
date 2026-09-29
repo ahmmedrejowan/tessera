@@ -1,3 +1,6 @@
+import { accessSync, constants, existsSync, readdirSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { providerInfo, type StorageTarget } from '@shared/storage';
 import { UserError } from '../errors';
 import { keyFileNeedsPassphrase, rememberHost, TESSERA_KNOWN_HOSTS } from './ssh';
@@ -14,6 +17,44 @@ export interface KopiaStorage {
 export interface RcloneSetup {
   exe: string | null;
   config: string;
+}
+
+/** The deepest part of a path that exists: what a new folder would be made inside. */
+function nearest(path: string): string {
+  let at = path;
+  while (at && at !== dirname(at) && !existsSync(at)) at = dirname(at);
+  return at;
+}
+
+/**
+ * Refuse a folder that backups cannot be written into, and say which folder to pick instead.
+ *
+ * The one people choose by mistake is a cloud account's own folder. A Mac keeps one per signed-in
+ * account under Library/CloudStorage, and that folder is read-only, because it is not really a
+ * folder: it is the account, and what can be written to is inside it, in "My Drive" for Google
+ * Drive. Choosing it used to come back as "EACCES: permission denied, mkdir", which says what the
+ * operating system refused and nothing about what to do instead.
+ */
+export function checkBackupFolder(path: string): void {
+  const clean = (path ?? '').trim();
+  if (!clean) throw new UserError('no-folder', 'Choose a folder for the backups to go in.');
+  const where = nearest(clean);
+  try {
+    accessSync(where, constants.W_OK);
+    return;
+  } catch {
+    // Not writable. Which of the two reasons decides what there is to say about it.
+  }
+  const inside = readdirSync(where, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
+    .map((e) => `“${e.name}”`);
+  if (/Library\/CloudStorage\/[^/]+$/.test(where) && inside.length) {
+    throw new UserError(
+      'cloud-account-folder',
+      `That is the account itself rather than a folder in it, so nothing can be written straight there. Choose one inside it: ${inside.join(', ')}.`,
+    );
+  }
+  throw new UserError('folder-not-writable', `${where} can’t be written to, so backups can’t go there. Choose a folder you can write to.`);
 }
 
 const prefixOf = (p: string | undefined) => {
@@ -60,7 +101,17 @@ export function kopiaStorage(t: StorageTarget, rclone: RcloneSetup): KopiaStorag
     case 'icloud':
       throw new UserError('icloud-folder', 'iCloud Drive is used through its folder.');
     case 'folder':
-      return { type: 'filesystem', args: [`--path=${v.path}`], env: {} };
+      // Checked and made here rather than by whoever calls this, so it happens only when a store
+      // is being set up: restoring reads, and a backup on a disk you cannot write to still reads.
+      return {
+        type: 'filesystem',
+        args: [`--path=${v.path}`],
+        env: {},
+        prepare: async () => {
+          checkBackupFolder(v.path ?? '');
+          await mkdir(v.path ?? '', { recursive: true });
+        },
+      };
     case 'gcs':
       return { type: 'gcs', args: [`--bucket=${v.bucket}`, `--credentials-file=${v.credentials}`, ...(prefixOf(v.prefix) ? [`--prefix=${prefixOf(v.prefix)}`] : [])], env: {} };
     case 'azure':

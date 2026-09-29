@@ -78,7 +78,6 @@ export class Kopia {
    */
   async connect(storage: KopiaStorage, password: string, create: boolean, readOnly = false): Promise<void> {
     await mkdir(this.dir, { recursive: true });
-    if (create && storage.type === 'filesystem') await mkdir(storage.args[0]!.slice('--path='.length), { recursive: true });
     if (create && storage.prepare) await storage.prepare();
     // A modest local cache: Kopia's default can grow to several gigabytes.
     const cache = [`--cache-directory=${this.cache}`, '--content-cache-size-mb=1024', '--metadata-cache-size-mb=512'];
