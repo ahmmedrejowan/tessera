@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { baseName } from '@shared/assets';
-import { parseRef, readPackFile } from './index/files';
+import { insidePack, parseRef, readPackFile } from './index/files';
 import { log } from './log';
 
 /**
@@ -40,8 +40,12 @@ export function registerDrag(deps: { cacheDir: () => string | null; packDir: (id
     const dir = deps.packDir(packId);
     if (!dir) return null;
     const { file, inside } = parseRef(ref);
-    if (file.split('/').includes('..')) return null;
-    if (!inside.length) return join(dir, ...file.split('/'));
+    // The same check the protocol and the reader use, rather than a weaker copy of it: it refuses
+    // a climb, then resolves the path and makes sure the answer is still inside the pack, which
+    // matters on Windows where a backslash is also a separator.
+    const loose = insidePack(dir, file);
+    if (!loose) return null;
+    if (!inside.length) return loose;
     const cache = deps.cacheDir();
     if (!cache) return null;
     const folder = join(cache, createHash('sha1').update(`${packId}|${ref}`).digest('hex').slice(0, 16));

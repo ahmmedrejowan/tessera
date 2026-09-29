@@ -6,7 +6,7 @@ import { readdir, readFile, rm, stat } from 'node:fs/promises';
 import { basename, join, sep } from 'node:path';
 import type { DownloadItem, LibrarySummary, Platform, Settings } from '@shared/types';
 import { byRecent, libraryDataDir, patchRecord, recordOf, touchLibrary } from './libraries';
-import { broadcast, onInternalError, UserError } from './ipc';
+import { broadcast, onInternalError, onlyAnswer, UserError } from './ipc';
 import { registerIpc, type IpcContext } from './ipc/index';
 import { parseRef } from './index/files';
 import { Jobs, type JobHandle } from './jobs';
@@ -117,6 +117,14 @@ function caught(kind: 'exception' | 'rejection', e: unknown): void {
 }
 process.on('uncaughtException', (e) => caught('exception', e));
 process.on('unhandledRejection', (e) => caught('rejection', e));
+// Only the app's own windows may ask the main process for anything. The hidden window that draws
+// previews parses files out of somebody's downloaded pack, and it has no business reaching the
+// library, the settings or the agent server even if something in it were to go wrong.
+onlyAnswer((event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  return !!win && appWindows.has(win);
+});
+
 onInternalError((channel, e) => {
   const err = e instanceof Error ? e : new Error(String(e));
   reports.record({ source: 'main', kind: 'ipc', name: err.name, message: err.message, ...(err.stack ? { stack: err.stack } : {}), context: { channel } });
