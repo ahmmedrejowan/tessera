@@ -1,26 +1,31 @@
-name: CI
+name: Pull request
 
-# After a merge, and only after a merge. Everything about the change itself was proved on the pull
-# request, on all three systems, before it was allowed in; repeating that here would be fifteen
-# minutes spent asking a question that has been answered.
+# The gate. Nothing reaches main without this passing, so it is the thorough one: all three
+# systems, every test, the real Kopia and rclone, the installers, and the app driven the way a
+# person drives it. It costs about fifteen minutes and it is the only thing standing between a
+# change and the branch everything is released from.
 #
-# What has not been answered is whether main is still good now that the change is actually in it.
-# Two branches that each passed can still be wrong together, and nothing catches that until they
-# meet. So this is quick and on one system: the tests, and the app opened and driven. It is also
-# what the badge in the README reports, which is why it runs at all rather than nothing.
+# What runs after a merge is in ci.yml, and is deliberately smaller: see the note there.
 on:
-  push:
-    branches: [main]
+  pull_request:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: pr-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   check:
-    name: Main
-    runs-on: ubuntu-latest
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macOS, os: macos-latest }
+          - { name: Windows, os: windows-latest }
+          - { name: Linux, os: ubuntu-latest }
+    runs-on: ${{ matrix.os }}
     env:
+      # No signing certificates in CI; macOS builds are signed ad hoc by scripts/adhoc-sign.cjs.
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
       - uses: actions/checkout@v4
@@ -71,11 +76,19 @@ jobs:
 
       - run: npm ci
       - run: npm run typecheck
-      # With coverage, where the thresholds in vitest.config.ts are a floor: a change that quietly
-      # stops testing something fails the build rather than going unnoticed.
-      - run: npm test -- --coverage
+      # The whole suite on all three systems, and on Linux with coverage as well, where the
+      # thresholds in vitest.config.ts are a floor: a change that quietly stops testing something
+      # fails the build rather than going unnoticed.
+      - name: Tests
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then npm test -- --coverage; else npm test; fi
       - run: npm run build
+      - name: Package (unpacked, the same settings a release uses)
+        run: npx electron-builder --config build/builder.cjs --dir --publish never
 
+  # The app itself, driven the way a person drives it. Linux only: one run is enough to catch a
+  # broken screen, and a headless display is cheap there.
   e2e:
     name: End to end
     runs-on: ubuntu-latest
