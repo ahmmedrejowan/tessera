@@ -172,8 +172,8 @@ describe('copying into a project', () => {
 
     // Two packs sharing one creator's stock credit line must not come out as two identical
     // lines that name neither: the line the license asks for is added, not substituted.
-    expect(md).toContain('“Ships” — Nebula Assets ([CC BY 4.0]');
-    expect(md).toContain('“Environment” — Nebula Assets ([CC BY 4.0]');
+    expect(md).toContain('“Ships”: Nebula Assets ([CC BY 4.0]');
+    expect(md).toContain('“Environment”: Nebula Assets ([CC BY 4.0]');
     expect(md).toContain("“Sounds” by Someone ([CC BY 4.0]");
     // A credit line that already names the pack and its license is left exactly as it is.
     const whole = creditsMarkdown([

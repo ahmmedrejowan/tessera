@@ -1,5 +1,5 @@
 // The notes for one release, from CHANGELOG.md, so the release page says what the app says.
-//   node scripts/release-notes.mjs v0.2.0 > notes.md
+//   node scripts/release-notes.mjs v1.0.0 > notes.md
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

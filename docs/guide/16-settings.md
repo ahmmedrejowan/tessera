@@ -15,9 +15,9 @@ library's own settings are tinted.
 - **Close this library**: back to the welcome screen, to open or make another. Backups and sync
   carry on as set.
 
-**Backups** — see [Backups](/docs/backups).
+**Backups**: see [Backups](/docs/backups).
 
-**Sync** — see [Sync](/docs/sync).
+**Sync**: see [Sync](/docs/sync).
 
 **Bin**
 - **Keep deleted things for**: a week, a month, or until you empty it yourself.
@@ -56,7 +56,7 @@ Editing or removing one changes what happens to the next pack from that site.
 - **Ask before copying into a game**: show how much is going and where it will land first. A
   license problem stops for an answer either way.
 
-**AI agents** — see [AI agents](/docs/agents).
+**AI agents**: see [AI agents](/docs/agents).
 
 **Paired computers**: the computers this one syncs libraries with.
 

@@ -56,8 +56,8 @@
 | macOS, Homebrew | `brew tap ahmmedrejowan/tessera && brew install --cask tessera` |
 | Windows, Chocolatey | `choco install tessera` |
 | Windows, Scoop | `scoop bucket add tessera https://github.com/ahmmedrejowan/scoop-tessera && scoop install tessera` |
-| Windows, winget | `winget install Rejowan.Tessera` — **not yet**, see below |
-| Arch, Manjaro | `yay -S tessera-bin` — **not yet**, see below |
+| Windows, winget | `winget install Rejowan.Tessera` (**not yet**, see below) |
+| Arch, Manjaro | `yay -S tessera-bin` (**not yet**, see below) |
 
 The winget submission passes every check and is waiting on a moderator at
 [microsoft/winget-pkgs#441739](https://github.com/microsoft/winget-pkgs/pull/441739). A PKGBUILD is
@@ -343,9 +343,12 @@ Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how the c
 what a change should look like; open an issue first if it is more than a small fix.
 
 1. Fork the repository
-2. Make your branch (`git checkout -b better-thing`)
+2. Branch off `dev` (`git checkout dev && git checkout -b better-thing`)
 3. `npm run typecheck && npm test`
-4. Commit, push, and open a pull request
+4. Commit, push, and open a pull request **against `dev`**
+
+`main` is what has been released; `dev` is where the next version is put together. Nobody pushes to
+either, and all four checks have to pass before anything goes in.
 
 ---
 

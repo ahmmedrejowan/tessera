@@ -1,7 +1,7 @@
 /** Reading the project's own CHANGELOG: one entry per version, newest first. */
 
 export interface Release {
-  /** "0.1.0" */
+  /** "1.0.0" */
   version: string;
   /** What followed the version on its heading, a date, or "in development". */
   when: string;

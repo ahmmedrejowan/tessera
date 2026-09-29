@@ -18,7 +18,7 @@ export function skillMarkdown(url: string): string {
       // What a tool gives back matters as much as what it takes, and the app already has that
       // written down for its own list. An agent that knows the shape of the answer asks for the
       // right thing first time instead of calling something to find out what it returns.
-      ...tools.map((t) => `- \`${t.name}\` — ${t.summary}${ANSWERS[t.name] ? ` _Gives back: ${ANSWERS[t.name]!.returns}_` : ''}`),
+      ...tools.map((t) => `- \`${t.name}\`: ${t.summary}${ANSWERS[t.name] ? ` _Gives back: ${ANSWERS[t.name]!.returns}_` : ''}`),
       '',
     ].join('\n');
   }).join('\n');
@@ -36,19 +36,19 @@ appears in their window as you do it, so work as though they are watching, becau
 
 ## The words
 
-- **Pack** — how assets arrive: a download, a bundle, a folder. A pack carries the license, the
+- **Pack**: how assets arrive: a download, a bundle, a folder. A pack carries the license, the
   source and the proof. It is the unit that can be archived or deleted.
-- **Asset** — one file inside a pack. It can be starred, collected, linked and deleted on its own.
-- **Collection** — a gathering of packs and assets for one game or one job. It can carry rules
+- **Asset**: one file inside a pack. It can be starred, collected, linked and deleted on its own.
+- **Collection**: a gathering of packs and assets for one game or one job. It can carry rules
   ("only CC0") and refuse anything that doesn't fit.
-- **Linking** — copying an asset into a game's folder, in the format that engine prefers, with its
+- **Linking**: copying an asset into a game's folder, in the format that engine prefers, with its
   textures, its license papers and the game's credits file kept up to date.
-- **Review** — where a pack waits until it has both a license and a source. It cannot be browsed
+- **Review**: where a pack waits until it has both a license and a source. It cannot be browsed
   until it does.
-- **Game** — a project folder the library copies into. The tools call it \`projectId\`, the window
+- **Game**: a project folder the library copies into. The tools call it \`projectId\`, the window
   and the person call it a game. They are the same thing.
-- **Archive** — a pack kept in full but out of the way of browsing.
-- **The bin** — where deleting puts things. You can delete to the bin and put things back.
+- **Archive**: a pack kept in full but out of the way of browsing.
+- **The bin**: where deleting puts things. You can delete to the bin and put things back.
   Emptying it destroys what is in it, and is the one thing here that nobody can undo.
 
 ## The rules that matter

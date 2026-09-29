@@ -49,14 +49,24 @@ bridge, and the window. The short version:
   should be atomic, or recoverable.
 - **No new runtime dependency** without a good reason. There are four.
 
-Everything reaches `main` through a pull request; nobody pushes to it, including me. Branch, open
-the pull request, and let the checks run.
+## Which branch
 
-Before you open one: `npm run typecheck && npm test`. The pull request then runs the whole thing on
-macOS, Windows and Linux, builds and packages the app on each, drives the app end to end, and holds
-coverage to a floor, so a change that quietly stops testing something fails rather than going
-unnoticed. All four checks have to pass before it can go in. What runs after the merge is smaller
-and only confirms that `main` is still good with the change actually in it.
+`main` is what has been released. `dev` is where the next version is put together. Nobody pushes to
+either, including me: everything arrives through a pull request.
+
+- Branch off **`dev`**, and open your pull request **against `dev`**.
+- `dev` goes into `main` as a single pull request when a version is released, and `main` is then
+  tagged. `dev` is not deleted; it carries on.
+- A fix for something that is broken in the released version can go straight at `main`. Say so in
+  the pull request, because it has to be put into `dev` as well or the next release undoes it.
+
+## Before you open one
+
+`npm run typecheck && npm test`. The pull request then runs the whole thing on macOS, Windows and
+Linux, builds and packages the app on each, drives the app end to end, and holds coverage to a
+floor, so a change that quietly stops testing something fails rather than going unnoticed. All four
+checks have to pass before it can go in. What runs after a merge to `main` is smaller, and only
+confirms that `main` is still good with the change actually in it.
 
 ## License
 
