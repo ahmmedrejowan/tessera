@@ -79,6 +79,17 @@ function Credits({ project }: { project: ProjectSummary }) {
   });
   const text = credits.data?.text ?? '';
   const onDisk = credits.data?.onDisk ?? false;
+  // A game whose folder has gone has no credits to read and none to work out: the page says so
+  // rather than showing two empty columns and letting somebody wonder.
+  if (!project.exists) {
+    return (
+      <div style={{ padding: '24px 32px' }}>
+        <Typography variant="bodyMedium" sx={{ color: md('error') }}>
+          Tessera can’t find {project.path}, so it can’t read this game’s credits.
+        </Typography>
+      </div>
+    );
+  }
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 32px' }}>
