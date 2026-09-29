@@ -51,6 +51,9 @@ const sha256OfBuffer = (b: Buffer): string => createHash('sha256').update(b).dig
  * file whose size and time still match what was hashed is skipped.
  */
 export async function hashSome(d: HashDeps, limit = BATCH): Promise<number> {
+  // A library can be closed while this is between batches, which leaves the database shut and its
+  // statements finalised. That is an ordinary end to the work, not a fault, so it stops quietly.
+  if (!d.keepGoing()) return 0;
   const rows = d.db
     .prepare(
       `SELECT a.pack_id AS packId, a.ref AS ref, a.size AS size, a.mtime AS mtime
@@ -63,6 +66,7 @@ export async function hashSome(d: HashDeps, limit = BATCH): Promise<number> {
     .all(MAX_BYTES, limit) as { packId: string; ref: string; size: number; mtime: number }[];
   if (!rows.length) return 0;
 
+  if (!d.keepGoing()) return 0;
   const write = d.db.prepare('INSERT OR REPLACE INTO file_hashes (pack_id, ref, size, mtime, sha256) VALUES (?, ?, ?, ?, ?)');
   let done = 0;
   for (const row of rows) {

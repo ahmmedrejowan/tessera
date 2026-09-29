@@ -116,7 +116,10 @@ export class LibraryService {
         await new Promise((r) => setTimeout(r, 25));
       }
     } catch (e) {
-      log.warn('hashes', 'could not finish reading file contents', e);
+      // A library closed underneath this leaves the database shut and its statements finalised.
+      // That is how the work ends when somebody switches library, not something to report.
+      const closed = /database is not open|statement has been finalized/i.test(e instanceof Error ? e.message : String(e));
+      if (!closed && this.current) log.warn('hashes', 'could not finish reading file contents', e);
     } finally {
       this.hashing = false;
     }
@@ -202,8 +205,12 @@ export class LibraryService {
 
   close(): void {
     this.stopWatching();
-    this.current?.index.close();
+    // Let go of the library before shutting its database, not after. Anything still working in the
+    // background asks "is this still the open library?" to decide whether to carry on, and between
+    // those two lines the answer was yes while the database underneath it was already closed.
+    const going = this.current;
     this.current = null;
+    going?.index.close();
     if (this.state.status !== 'none') this.setState({ status: 'none' });
   }
 
