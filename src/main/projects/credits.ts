@@ -47,7 +47,7 @@ export function creditsMarkdown(entries: ManifestEntry[]): string {
     const what = has(p.name) ? '' : `“${p.name}”`;
     // A supplied credit line is set off with a dash, because it is somebody else's sentence;
     // "by Creator" reads as part of the same one.
-    const who = p.attribution ? `${what ? ' — ' : ''}${p.attribution}` : p.creator ? `${what ? ' ' : ''}by ${p.creator}` : '';
+    const who = p.attribution ? `${what ? ': ' : ''}${p.attribution}` : p.creator ? `${what ? ' ' : ''}by ${p.creator}` : '';
     const license = info ? (info.url ? `[${info.short}](${info.url})` : info.short) : 'license not recorded';
     const saysLicense = has(info?.short) || has(info?.name);
     const url = p.url && !has(p.url) ? ` ${p.url}` : '';

@@ -23,13 +23,13 @@ export function AddMenu({ anchor, onClose }: { anchor: HTMLElement | null; onClo
         <ListItemIcon>
           <UploadFileOutlined />
         </ListItemIcon>
-        <ListItemText primary="Choose files…" secondary="Zips or files you downloaded" />
+        <ListItemText primary="Choose files" secondary="Zips or files you downloaded" />
       </MenuItem>
       <MenuItem onClick={() => pick('folder')}>
         <ListItemIcon>
           <CreateNewFolderOutlined />
         </ListItemIcon>
-        <ListItemText primary="Choose a folder…" secondary="One pack, or a folder of downloads" />
+        <ListItemText primary="Choose a folder" secondary="One pack, or a folder of downloads" />
       </MenuItem>
       <Divider />
       <MenuItem
@@ -41,7 +41,7 @@ export function AddMenu({ anchor, onClose }: { anchor: HTMLElement | null; onClo
         <ListItemIcon>
           <DownloadOutlined />
         </ListItemIcon>
-        <ListItemText primary="Download from a link…" secondary="Paste one link or a list" />
+        <ListItemText primary="Download from a link" secondary="Paste one link or a list" />
       </MenuItem>
     </Menu>
   );

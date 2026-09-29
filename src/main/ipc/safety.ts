@@ -12,6 +12,7 @@ import { writeRecoveryKit } from '../backup/kit';
 import { generatePassword, saveToKeychain } from '../backup/password';
 import { backupPlaces, findBackups, storeAt } from '../backup/restore';
 import { hostKeys, keyFileNeedsPassphrase } from '../backup/ssh';
+import { checkBackupFolder } from '../backup/storage';
 import { UserError, broadcast, handle } from '../ipc';
 import { readLibraryInfo } from '../library/layout';
 import { findTool } from '../tools/find';
@@ -24,11 +25,37 @@ type Deps = Pick<IpcContext, 'activity' | 'backupChanged' | 'backups' | 'dataDir
 export function registerSafetyIpc(c: Deps): void {
   const { activity, backupChanged, backups, dataDir, jobs, librariesChanged, library, libraryId, platform, rcloneAuth, restorer, settings, sync, syncChanged, windows } = c;
   handle('backup:status', () => backups.status());
-  handle('backup:chooseFolder', async () => {
+  handle('backup:folderProblem', (path) => {
+    try {
+      checkBackupFolder(path);
+      return null;
+    } catch (e) {
+      return e instanceof UserError ? e.message : 'Backups can’t go there.';
+    }
+  });
+  handle('backup:chooseFolder', async (defaultPath) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options: Electron.OpenDialogOptions = { title: 'Choose where to keep backups', buttonLabel: 'Choose', properties: ['openDirectory', 'createDirectory'] };
-    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-    return result.canceled ? null : (result.filePaths[0] ?? null);
+    const options: Electron.OpenDialogOptions = { title: 'Choose where to keep backups', message: 'Choose a folder for backups', buttonLabel: 'Choose', properties: ['openDirectory', 'createDirectory'], ...(defaultPath ? { defaultPath } : {}) };
+    // Asked again rather than accepted and failed later. The folder people reach for is the one a
+    // Mac shows for a cloud account, and nothing can be written straight into that: it is the
+    // account, and what can be written is inside it. Rather than take it, say so and open the
+    // picker again standing in it, so the next choice is one of the folders that will work.
+    for (;;) {
+      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+      const chosen = result.canceled ? null : (result.filePaths[0] ?? null);
+      if (!chosen) return null;
+      try {
+        checkBackupFolder(chosen);
+        return chosen;
+      } catch (e) {
+        const message = e instanceof UserError ? e.message : 'Backups can’t be written there.';
+        const ask: Electron.MessageBoxOptions = { type: 'warning', buttons: ['Choose another'], defaultId: 0, title: 'Not that folder', message: 'Backups can’t go there', detail: message };
+        if (win) await dialog.showMessageBox(win, ask);
+        else await dialog.showMessageBox(ask);
+        // Standing inside the folder they picked, which is where the one they want is.
+        options.defaultPath = chosen;
+      }
+    }
   });
   handle('backup:setup', (target, password, create) => backups.setup(target, password, create));
   handle('backup:signIn', (provider, client) => rcloneAuth.signIn(providerInfo(provider), (url) => broadcast(windows, 'backup:signInUrl', url), client));
@@ -88,6 +115,7 @@ export function registerSafetyIpc(c: Deps): void {
     broadcast(windows, 'restore:progress', f);
   };
   handle('backup:restore', (id, target, size, name) => jobs.run('Restoring a copy of the library', (job) => backups.restore(id, target, size, name, restoreProgress(job), knownLibraries)));
+  handle('backup:pause', (on) => backups.pause(on));
   handle('backup:turnOff', () => backups.turnOff());
 
   handle('restore:places', () => backupPlaces());

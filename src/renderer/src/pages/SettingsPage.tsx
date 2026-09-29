@@ -128,7 +128,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
             <div {...at('general')}>
               <Group part="library" title="General" note="What this library is called, where it lives, and closing it.">
                 <Row title="Name" body={lib?.name}>
-                  <Button onClick={() => setRenaming(true)}>Rename…</Button>
+                  <Button onClick={() => setRenaming(true)}>Rename</Button>
                 </Row>
                 <Row title="Folder" body={lib ? tidyPath(lib.path) : undefined}>
                   <Button onClick={() => lib && void call('fs:reveal', lib.path)}>{window.tessera.platform === 'darwin' ? 'Show in Finder' : 'Show'}</Button>
@@ -393,7 +393,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                   <Row title="Error reports" body="Errors are kept on this computer only: this copy of Tessera has nowhere to send them. You can still send a report yourself." />
                 )}
                 <Row title="Report a problem" body="Say what went wrong. The report adds this session’s errors and the recent log, and you see all of it first.">
-                  <Button onClick={() => useReportProblem.getState().show()}>Report…</Button>
+                  <Button onClick={() => useReportProblem.getState().show()}>Report</Button>
                 </Row>
                 <Row title="Logs" body="What Tessera has written down, including the record of errors.">
                   <Button onClick={() => void call('app:showLogs')}>Show logs</Button>

@@ -214,7 +214,7 @@ export function PackEditor({ packId, meta, open, onClose }: { packId: string; me
                 {s.name}
               </MenuItem>
             ))}
-            <MenuItem value={OTHER}>Somewhere else…</MenuItem>
+            <MenuItem value={OTHER}>Somewhere else</MenuItem>
           </TextField>
           {d.site === OTHER && <TextField label="Where" placeholder="A friend, a game jam, a bundle…" value={d.sourceName} onChange={(e) => set('sourceName', e.target.value)} />}
           <TextField label="Link to the pack" value={d.url} onChange={(e) => set('url', e.target.value)} placeholder="https://" />

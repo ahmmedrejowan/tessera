@@ -83,7 +83,7 @@ export function useCommands(q: string, active: boolean, done: () => void): { com
     const actions: Command[] = [
       { id: 'add', group: 'Do', label: 'Add packs…', icon: AddOutlined, run: then(() => void choose('files')) },
       { id: 'add-folder', group: 'Do', label: 'Add a folder…', icon: AddOutlined, run: then(() => void choose('folder')) },
-      { id: 'link', group: 'Do', label: 'Link a game project…', icon: AddLinkOutlined, run: then(() => void link.start()) },
+      { id: 'link', group: 'Do', label: 'Link a game project', icon: AddLinkOutlined, run: then(() => void link.start()) },
       {
         id: 'theme',
         group: 'Do',

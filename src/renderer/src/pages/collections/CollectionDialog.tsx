@@ -179,7 +179,7 @@ interface NewCollectionState {
 }
 
 /**
- * "New collection…" is offered inside menus that close the moment it is chosen, so the dialog
+ * "New collection" is offered inside menus that close the moment it is chosen, so the dialog
  * belongs to the app rather than to the menu: it opens here and outlives whatever started it.
  */
 export const useNewCollection = create<NewCollectionState>((set) => ({

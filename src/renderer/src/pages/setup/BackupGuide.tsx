@@ -169,7 +169,12 @@ export function BackupGuide({ open, onClose }: { open: boolean; onClose: () => v
     setTarget(newTarget(p));
     setWhereMsg(null);
   };
-  const problem = target ? targetProblem(target) : 'Choose a place.';
+  // A folder can be filled in and still be one nothing can be written into, which targetProblem
+  // cannot know because it never touches the disk. Asked here so Next is refused before the setup
+  // is, rather than after a password has been chosen and a store attempted.
+  const folderPath = target?.provider === 'folder' ? (target.values.path ?? '') : '';
+  const folderProblem = useQuery({ queryKey: ['folder-problem', folderPath], queryFn: () => call('backup:folderProblem', folderPath), enabled: !!folderPath, staleTime: 0 }).data ?? null;
+  const problem = target ? (targetProblem(target) ?? (folderPath ? folderProblem : null)) : 'Choose a place.';
   const noKeychain = status ? !status.keychain : false;
   const pwProblem = password.length < 8 ? 'At least 8 characters.' : mode === 'new' && again !== password ? 'The two don’t match.' : noKeychain && !settings?.backupPasswordInFile ? 'Choose how to keep the password.' : null;
   const generate = async () => {

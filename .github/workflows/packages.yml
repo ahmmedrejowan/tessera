@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: The release to describe, for example v0.2.0
+        description: The release to describe, for example v1.0.0
         required: true
 
 permissions:

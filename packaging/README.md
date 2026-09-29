@@ -12,7 +12,7 @@ is published and sends each one where it belongs.
 To see what it would write, without publishing anything:
 
 ```bash
-node scripts/manifests.mjs v0.1.0        # into dist-manifests/
+node scripts/manifests.mjs v1.0.0        # into dist-manifests/
 ```
 
 ## What is published where

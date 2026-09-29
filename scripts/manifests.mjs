@@ -1,6 +1,6 @@
 // Every package manager's description of one release, written from the release itself.
 //
-//   node scripts/manifests.mjs v0.2.0 [outDir]
+//   node scripts/manifests.mjs v1.0.0 [outDir]
 //
 // Reads the published release from GitHub, takes each file's checksum out of the SHA256SUMS files
 // published beside them, and writes a Homebrew cask, a Scoop manifest, an Arch PKGBUILD and a
@@ -18,7 +18,7 @@ const DESC = 'Desktop library for game assets, with their licenses and sources o
 const tag = process.argv[2];
 const outDir = process.argv[3] ?? join(ROOT, 'dist-manifests');
 if (!tag) {
-  console.error('which release? node scripts/manifests.mjs v0.2.0');
+  console.error('which release? node scripts/manifests.mjs v1.0.0');
   process.exit(1);
 }
 const version = tag.replace(/^v/i, '');

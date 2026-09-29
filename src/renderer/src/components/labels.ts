@@ -131,17 +131,17 @@ const readable = (at: string | number | Date): Date | null => {
 
 export function dateText(at: string | number | Date, options: Intl.DateTimeFormatOptions = { dateStyle: 'medium' }): string {
   const d = readable(at);
-  return d ? d.toLocaleDateString([], options) : '—';
+  return d ? d.toLocaleDateString([], options) : '-';
 }
 
 export function timeText(at: string | number | Date, options: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' }): string {
   const d = readable(at);
-  return d ? d.toLocaleTimeString([], options) : '—';
+  return d ? d.toLocaleTimeString([], options) : '-';
 }
 
 export function dateTimeText(at: string | number | Date, options: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }): string {
   const d = readable(at);
-  return d ? d.toLocaleString([], options) : '—';
+  return d ? d.toLocaleString([], options) : '-';
 }
 
 /**

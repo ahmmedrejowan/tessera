@@ -112,15 +112,18 @@ function Chip({ icon: Icon, children, tone = 'surfaceContainerHighest' }: { icon
 /** The chosen folder as a card of fixed height, with a way to change it. */
 export function FolderCard({ info, path, onChange, placeholder = 'No folder chosen' }: { info: FolderInfo | undefined; path: string | null; onChange: () => void; placeholder?: string }) {
   return (
-    <div style={{ height: 84, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 14, padding: '0 14px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow'), border: `1px solid ${md('outlineVariant')}` }}>
+    // It grows rather than cutting the path off. Where a backup goes is the one thing on this
+    // screen somebody has to be sure about, and "…/GoogleDrive-kmrejowan@gm…" is not something
+    // anybody can be sure about.
+    <div style={{ minHeight: 84, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px', borderRadius: SHAPE.lg, background: md('surfaceContainerLow'), border: `1px solid ${md('outlineVariant')}` }}>
       <span style={{ width: 48, height: 48, borderRadius: 14, display: 'grid', placeItems: 'center', background: md('secondaryContainer'), color: md('onSecondaryContainer'), flexShrink: 0 }}>
         <FolderRounded />
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="titleMedium" noWrap component="div" sx={{ color: path ? md('onSurface') : md('onSurfaceVariant') }} title={path ?? ''}>
+        <Typography variant="titleMedium" component="div" sx={{ color: path ? md('onSurface') : md('onSurfaceVariant'), overflowWrap: 'anywhere' }}>
           {path ? baseName(path) : placeholder}
         </Typography>
-        <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant'), height: 18 }}>
+        <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), minHeight: 18, overflowWrap: 'anywhere', userSelect: 'text' }}>
           {path ? tidyPath(path) : ''}
         </Typography>
         <div style={{ display: 'flex', gap: 6, marginTop: 4, height: 22, overflow: 'hidden' }}>
@@ -134,7 +137,7 @@ export function FolderCard({ info, path, onChange, placeholder = 'No folder chos
         </div>
       </div>
       <Button variant="outlined" onClick={onChange} sx={{ flexShrink: 0 }}>
-        {path ? 'Change…' : 'Choose…'}
+        {path ? 'Change' : 'Choose'}
       </Button>
     </div>
   );
@@ -192,7 +195,7 @@ export function LocationFields({ loc, pickerTitle, slot = true }: { loc: Locatio
           onChange={(e) => loc.setName(e.target.value)}
           slotProps={{ input: { startAdornment: <CreateNewFolderOutlined sx={{ color: md('onSurfaceVariant'), mr: 1 }} /> } }}
         />
-        <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant'), mt: 1, px: 0.5, height: 18, fontFamily: 'ui-monospace, Menlo, Consolas, monospace' }} title={loc.target ?? ''}>
+        <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 1, px: 0.5, minHeight: 18, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', overflowWrap: 'anywhere' }}>
           {loc.target ? tidyPath(loc.target) : ''}
         </Typography>
       </div>

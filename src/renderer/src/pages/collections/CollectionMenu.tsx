@@ -69,7 +69,7 @@ export function CollectionMenu({
           <ListItemIcon>
             <AddOutlined />
           </ListItemIcon>
-          <ListItemText primary="New collection…" />
+          <ListItemText primary="New collection" />
         </MenuItem>
         {collections.length > 0 && <Divider />}
         {collections.map((c) => (

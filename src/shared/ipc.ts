@@ -247,7 +247,9 @@ export interface Invokes {
 
   'backup:status': () => BackupStatus;
   /** Ask for a folder to keep backups in; null when canceled. */
-  'backup:chooseFolder': () => string | null;
+  'backup:chooseFolder': (defaultPath?: string) => string | null;
+  /** Why backups can't go in this folder, or null when they can. */
+  'backup:folderProblem': (path: string) => string | null;
   /** Start backing up to a folder, making a new store there or opening an existing one. */
   'backup:setup': (target: StorageTarget, password: string, create: boolean) => void;
   /** Sign in to a cloud drive in the browser (the page's address comes as `backup:signInUrl`); returns the rclone remote. */
@@ -283,6 +285,9 @@ export interface Invokes {
   'backup:snapshots': () => Snapshot[];
   /** Restore a snapshot of the open library into a new or empty folder, as a copy of its own. */
   'backup:restore': (snapshotId: string, target: string, size: number, name: string) => void;
+  /** Stop backing up on its own, keeping the store, the password and the schedule. */
+  'backup:pause': (on: boolean) => void;
+  /** Let go of the store: the backups already made stay where they are. */
   'backup:turnOff': () => void;
 
   'sync:status': () => SyncStatus;

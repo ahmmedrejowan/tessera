@@ -64,7 +64,7 @@ export function CopyButton({ items, variant = 'contained', size = 'small', color
           <ListItemIcon>
             <AddLinkOutlined />
           </ListItemIcon>
-          <ListItemText primary="Set up a new game…" secondary="Tell Tessera where a game folder is" />
+          <ListItemText primary="Set up a new game" secondary="Tell Tessera where a game folder is" />
         </MenuItem>
         {projects.length > 0 && (
           <MenuItem

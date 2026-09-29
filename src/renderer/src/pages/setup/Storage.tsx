@@ -112,10 +112,26 @@ function FieldInput({ field, value, onChange }: { field: Field; value: string; o
   );
 }
 
+/**
+ * What a cloud app's own setting is called, where it decides whether a copy is kept on this
+ * computer as well as in the cloud. Naming it saves somebody hunting through settings for a thing
+ * they have never had a reason to look at.
+ */
+const KEEP_ONLINE: Record<string, string> = {
+  'Google Drive': 'choose “Stream files” in Google Drive’s settings',
+  OneDrive: 'turn on Files On-Demand in OneDrive’s settings',
+  Dropbox: 'set this folder to Online-only in Dropbox',
+  'iCloud Drive': 'turn on Optimize Mac Storage in iCloud settings',
+};
+
 /** Folder choice: suggested cloud folders and drives, or any folder. */
 function FolderForm({ target, onChange, suggest }: { target: StorageTarget; onChange: (t: StorageTarget) => void; suggest: 'backups' | 'none' }) {
   const path = target.values.path ?? '';
   const info = useFolder(path || null).data;
+  // Whether backups can actually go there. Only the main process can answer it, because the answer
+  // is whether the folder can be written to, and the one people reach for on a Mac cannot be: the
+  // folder shown for a cloud account is the account, not a folder in it.
+  const problem = useQuery({ queryKey: ['folder-problem', path], queryFn: () => call('backup:folderProblem', path), enabled: !!path, staleTime: 0 }).data ?? null;
   const places = useQuery({ queryKey: ['restore-places'], queryFn: () => call('restore:places'), staleTime: 60_000 }).data ?? [];
   const sep = window.tessera.platform === 'win32' ? '\\' : '/';
   const suggestion = (p: BackupPlace) => `${p.path.replace(/[\\/]+$/, '')}${sep}Tessera Backups`;
@@ -125,10 +141,26 @@ function FolderForm({ target, onChange, suggest }: { target: StorageTarget; onCh
         info={info}
         path={path || null}
         onChange={async () => {
-          const p = await call('dialog:folder', 'Choose a folder for backups', { message: 'Choose a folder for backups', buttonLabel: 'Choose', ...(path ? { defaultPath: path } : {}) });
+          // This picker will not hand back a folder backups cannot go in: it says why and opens
+          // again inside the one that was chosen, which is where the usable one is.
+          const p = await call('backup:chooseFolder', path || undefined);
           if (p) onChange({ ...target, values: { path: p } });
         }}
       />
+      {/* The picker cannot return a bad folder, but a suggestion below can name one that has since
+          gone, and a path can arrive from a previous setup. Said here rather than at the end. */}
+      {!!path && !!problem && <StatusSlot message={{ tone: 'error', text: problem }} />}
+      {/* What a folder inside a cloud app really means. Tessera is finished when the files are
+          written; the cloud app uploads them afterwards, on its own schedule and behind whatever
+          else it has queued, and neither app can say when. Signing in instead uploads from here. */}
+      {!!path && !problem && !!info?.cloud && (
+        <StatusSlot
+          message={{
+            tone: 'info',
+            text: `Tessera writes the backup here and ${info.cloud} uploads it afterwards, so it is only on this computer until that finishes. To keep it from taking the same space here as well, ${KEEP_ONLINE[info.cloud] ?? 'set the app to keep files online rather than copied here'}. Signing in to ${info.cloud} on the previous screen uploads from Tessera instead, and says when it is done.`,
+          }}
+        />
+      )}
       {suggest === 'backups' && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', minHeight: 32 }}>
           {places

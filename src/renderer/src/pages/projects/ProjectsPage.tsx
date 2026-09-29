@@ -90,7 +90,7 @@ function ProjectCard({ p, active }: { p: ProjectSummary; active: boolean }) {
           {ENGINE_LABELS[p.engine]}
           {p.engineVersion ? ` ${p.engineVersion}` : ''} · {p.assets} asset{p.assets === 1 ? '' : 's'} from {p.packs} pack{p.packs === 1 ? '' : 's'}
         </Typography>
-        <Typography variant="bodySmall" noWrap sx={{ color: p.exists ? md('onSurfaceVariant') : md('error'), display: 'flex', alignItems: 'center', gap: 0.5 }} title={p.path}>
+        <Typography variant="bodySmall" sx={{ color: p.exists ? md('onSurfaceVariant') : md('error'), display: 'flex', alignItems: 'center', gap: 0.5, overflowWrap: 'anywhere' }}>
           {!p.exists && <WarningAmberOutlined sx={{ fontSize: 14 }} />}
           {p.exists ? p.path : `Can’t find ${p.path}`}
         </Typography>

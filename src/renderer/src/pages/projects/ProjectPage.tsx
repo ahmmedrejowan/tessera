@@ -30,6 +30,7 @@ import { AssetThumb } from '../../components/AssetThumb';
 import { EmptyState } from '../../components/EmptyState';
 import { HEADER_SIZE, ItemHeader, type ItemAction } from '../../components/ItemHeader';
 import { Markdown } from '../../components/Markdown';
+import { Scrolling } from '../../components/Scrolling';
 import { Page } from '../Placeholder';
 import { displayName, formatCount } from '../../components/labels';
 import { LicenseChip } from '../../components/LicenseChip';
@@ -244,9 +245,11 @@ export function ProjectPage({ id }: { id: string }) {
         license={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
             {isActive && <Chip size="small" icon={<CheckCircle />} label="Copies go here" sx={{ flexShrink: 0 }} />}
-            <Typography variant="bodySmall" noWrap sx={{ color: project.exists ? md('onSurfaceVariant') : md('error'), minWidth: 0 }} title={project.path}>
-              {project.exists ? project.path : `Can’t find ${project.path}`}
-            </Typography>
+            <Scrolling title={project.path} style={{ minWidth: 0 }}>
+              <Typography variant="bodySmall" component="span" sx={{ color: project.exists ? md('onSurfaceVariant') : md('error') }}>
+                {project.exists ? project.path : `Can’t find ${project.path}`}
+              </Typography>
+            </Scrolling>
           </div>
         }
         belongs={

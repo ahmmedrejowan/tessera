@@ -56,8 +56,8 @@
 | macOS, Homebrew | `brew tap ahmmedrejowan/tessera && brew install --cask tessera` |
 | Windows, Chocolatey | `choco install tessera` |
 | Windows, Scoop | `scoop bucket add tessera https://github.com/ahmmedrejowan/scoop-tessera && scoop install tessera` |
-| Windows, winget | `winget install Rejowan.Tessera` — **not yet**, see below |
-| Arch, Manjaro | `yay -S tessera-bin` — **not yet**, see below |
+| Windows, winget | `winget install Rejowan.Tessera` (**not yet**, see below) |
+| Arch, Manjaro | `yay -S tessera-bin` (**not yet**, see below) |
 
 The winget submission passes every check and is waiting on a moderator at
 [microsoft/winget-pkgs#441739](https://github.com/microsoft/winget-pkgs/pull/441739). A PKGBUILD is
@@ -308,9 +308,32 @@ the main process. They work against real folders, a real index, a real Kopia and
 rather than mocks, and [docs/testing.md](docs/testing.md) explains how, what is deliberately not
 covered, and how to add one.
 
-CI runs the typecheck, the whole suite and a packaged build on macOS, Windows and Linux for every
-push, installs Kopia and rclone on each so the backup tests run there too, and holds coverage to a
-floor so a change that quietly stops testing something fails the build.
+Every pull request runs the typecheck, the whole suite, a packaged build and the end-to-end suite on
+macOS, Windows and Linux, installs Kopia and rclone on each so the backup tests run there too, and
+holds coverage to a floor so a change that quietly stops testing something fails the build. Nothing
+reaches `main` without all four passing. What runs after a merge is smaller, and only confirms that
+`main` is still good with the change in it.
+
+---
+
+## What's next
+
+No dates, and none of this is a promise. It is what I think is worth doing after 1.0.0, in no
+particular order:
+
+- **More than one place for backups.** Today a library has one. A local drive and a cloud at the
+  same time is the shape people actually want.
+- **Watching files on Linux.** macOS and Windows notice changes made outside Tessera; Linux does
+  not, so the library is read again when you ask rather than when it changes.
+- **Very large imports.** Review draws every waiting pack, which is fine for twenty and stutters
+  at two hundred.
+- **Sites and engines.** More places a download can be recognized from, and more project layouts
+  than Unity, Godot and Unreal.
+
+The real list is the issues: everything anyone has asked for is under
+[the `idea` label](https://github.com/ahmmedrejowan/tessera/issues?q=is%3Aissue+label%3Aidea), and
+[Discussions](https://github.com/ahmmedrejowan/tessera/discussions) is where the arguing happens.
+Add yours; what gets built is mostly what people ask for twice.
 
 ---
 
@@ -320,9 +343,12 @@ Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how the c
 what a change should look like; open an issue first if it is more than a small fix.
 
 1. Fork the repository
-2. Make your branch (`git checkout -b better-thing`)
+2. Branch off `dev` (`git checkout dev && git checkout -b better-thing`)
 3. `npm run typecheck && npm test`
-4. Commit, push, and open a pull request
+4. Commit, push, and open a pull request **against `dev`**
+
+`main` is what has been released; `dev` is where the next version is put together. Nobody pushes to
+either, and all four checks have to pass before anything goes in.
 
 ---
 

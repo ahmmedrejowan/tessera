@@ -8,7 +8,9 @@
  * must arrive as a refusal rather than as a crash. So the services here are stand-ins that record
  * what they were given.
  */
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdir, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -71,6 +73,7 @@ const backups = {
     (args[4] as (f: number | null) => void)(0.5);
     return { restored: 1, known: (await (args[5] as () => Promise<unknown[]>)()).length };
   },
+  pause: records('backups.pause', Promise.resolve()),
   turnOff: records('backups.turnOff', Promise.resolve()),
 };
 
@@ -256,6 +259,55 @@ describe('backups', () => {
     expect(await ok('backup:chooseFolder')).toBeNull();
     asked.folder = '/tmp/chosen';
     expect(await ok('backup:chooseFolder')).toBe('/tmp/chosen');
+  });
+
+  it('pauses without letting go, and disconnecting is the one that forgets', async () => {
+    // Two different answers to "not right now". Pausing keeps the store, the password and the
+    // schedule and only stops the app backing up on its own; disconnecting is the one that lets
+    // go. They used to be the same button.
+    expect(said('backups.pause')).toBeUndefined();
+    await ok('backup:pause', true);
+    await ok('backup:pause', false);
+    expect(heard.filter((h) => h.what === 'backups.pause').map((h) => h.args)).toEqual([[true], [false]]);
+    // And letting go is its own thing, reached by its own channel.
+    await ok('backup:turnOff');
+    expect(said('backups.turnOff')).toBeTruthy();
+  });
+
+  // Only where a folder can be made unwritable, which is Unix. Windows does not work that way: the
+  // read-only attribute on a directory does not stop files being created in it, so there is no way
+  // to set this situation up there. What is being tested is a Mac one anyway, the folder a Mac
+  // shows for a cloud account.
+  it.skipIf(process.platform === 'win32')('says why backups cannot go in a folder, so the window can refuse Next', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'tessera-cloud-'));
+    const account = join(home, 'Library', 'CloudStorage', 'GoogleDrive-someone@example.test');
+    await mkdir(join(account, 'My Drive'), { recursive: true });
+    execFileSync('chmod', ['a-w', account]);
+    try {
+      expect(await ok('backup:folderProblem', account)).toMatch(/account itself/);
+      expect(await ok('backup:folderProblem', join(account, 'My Drive', 'Tessera Backups'))).toBeNull();
+    } finally {
+      execFileSync('chmod', ['u+w', account]);
+    }
+  });
+
+  it.skipIf(process.platform === 'win32')('will not take a folder nothing can be written into, and asks again', async () => {
+    // The folder a Mac shows for a cloud account is read-only: it is the account, and what can be
+    // written is inside it. Taking it means failing minutes later with the operating system's own
+    // words, so the picker comes back instead, standing in the folder that was chosen.
+    const home = await mkdtemp(join(tmpdir(), 'tessera-cloud-'));
+    const account = join(home, 'Library', 'CloudStorage', 'GoogleDrive-someone@example.test');
+    const inside = join(account, 'My Drive');
+    await mkdir(inside, { recursive: true });
+    execFileSync('chmod', ['a-w', account]);
+    try {
+      asked.folders = [account, inside];
+      expect(await ok('backup:chooseFolder')).toBe(inside);
+      // Both were asked for: the first was refused rather than handed back.
+      expect(asked.folders).toEqual([]);
+    } finally {
+      execFileSync('chmod', ['u+w', account]);
+    }
   });
 
   it('runs one now, and notes it in Activity', async () => {
