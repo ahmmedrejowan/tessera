@@ -306,7 +306,7 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
       </Row>
       <PasswordRow />
       <Row title="Restore" body="Bring back the library as it was at an earlier backup, as a copy beside it.">
-        <Button onClick={() => setRestoring(true)}>Restore…</Button>
+        <Button onClick={() => setRestoring(true)}>Restore</Button>
       </Row>
       <Row
         title={status.paused ? 'Backups are paused' : 'Pause backups'}
@@ -316,7 +316,7 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
             : 'Stop backing up on its own for a while. Nothing is disconnected and nothing is forgotten.'
         }
       >
-        <Button onClick={() => setPausing(true)}>{status.paused ? 'Resume' : 'Pause…'}</Button>
+        <Button onClick={() => setPausing(true)}>{status.paused ? 'Resume' : 'Pause'}</Button>
       </Row>
       <Row title="Disconnect" body="Let go of the place these backups go. The backups already made stay where they are.">
         <Button color="error" onClick={() => setDisconnecting(true)}>

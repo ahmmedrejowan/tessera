@@ -99,7 +99,7 @@ function Variants({ id }: { id: number }) {
           <Typography variant="labelMedium" sx={{ width: 44, color: md('onSurface') }}>
             {f.ext.toUpperCase()}
           </Typography>
-          <Typography variant="bodySmall" noWrap title={f.dir} sx={{ flex: 1, minWidth: 0, color: md('onSurfaceVariant') }}>
+          <Typography variant="bodySmall" sx={{ flex: 1, minWidth: 0, color: md('onSurfaceVariant'), overflowWrap: 'anywhere' }}>
             {f.dir.split('/').slice(-2).join('/') || 'Top level'}
           </Typography>
           <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>

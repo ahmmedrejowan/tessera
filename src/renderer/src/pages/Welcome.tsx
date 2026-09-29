@@ -107,7 +107,7 @@ export function Welcome({ state }: { state: LibraryState }) {
         body: state.message,
         actions: [
           { label: 'Remove from recent', value: 'forget' as const },
-          { label: 'Locate…', value: 'locate' as const, kind: 'primary' },
+          { label: 'Locate', value: 'locate' as const, kind: 'primary' },
         ],
       }).then((choice) => {
         if (choice === 'forget') forget(state.path);

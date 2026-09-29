@@ -137,7 +137,7 @@ export function FolderCard({ info, path, onChange, placeholder = 'No folder chos
         </div>
       </div>
       <Button variant="outlined" onClick={onChange} sx={{ flexShrink: 0 }}>
-        {path ? 'Change…' : 'Choose…'}
+        {path ? 'Change' : 'Choose'}
       </Button>
     </div>
   );
@@ -195,7 +195,7 @@ export function LocationFields({ loc, pickerTitle, slot = true }: { loc: Locatio
           onChange={(e) => loc.setName(e.target.value)}
           slotProps={{ input: { startAdornment: <CreateNewFolderOutlined sx={{ color: md('onSurfaceVariant'), mr: 1 }} /> } }}
         />
-        <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant'), mt: 1, px: 0.5, height: 18, fontFamily: 'ui-monospace, Menlo, Consolas, monospace' }} title={loc.target ?? ''}>
+        <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 1, px: 0.5, minHeight: 18, fontFamily: 'ui-monospace, Menlo, Consolas, monospace', overflowWrap: 'anywhere' }}>
           {loc.target ? tidyPath(loc.target) : ''}
         </Typography>
       </div>

@@ -27,7 +27,7 @@ export function LinkProjectDialog({ probe, onClose, onLink }: { probe: ProjectPr
               {ENGINE_LABELS[draft.engine]}
               {draft.engineVersion ? ` ${draft.engineVersion}` : ''}
             </Typography>
-            <Typography variant="bodySmall" noWrap sx={{ color: md('onSurfaceVariant') }} title={draft.path}>
+            <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant'), overflowWrap: 'anywhere' }}>
               {draft.path}
             </Typography>
           </div>

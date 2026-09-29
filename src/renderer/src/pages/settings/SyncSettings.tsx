@@ -150,7 +150,7 @@ export function SyncSettings() {
           </>
         }
       >
-        <Button onClick={() => setAdding(true)}>Share with a computer…</Button>
+        <Button onClick={() => setAdding(true)}>Share with a computer</Button>
       </Row>
       {status.devices
         .filter((d) => !d.shared)
@@ -216,7 +216,7 @@ export function PairedComputers() {
         </Row>
       ))}
       <Row title={status.devices.length ? 'Pair another computer' : 'No computers paired yet'} body="On the other computer, choose “From another computer” and give its ID here.">
-        <Button onClick={() => setAdding(true)}>Pair a computer…</Button>
+        <Button onClick={() => setAdding(true)}>Pair a computer</Button>
       </Row>
       <AddComputer open={adding} onClose={() => setAdding(false)} />
     </>

@@ -164,7 +164,7 @@ export function LibrarySwitcher() {
               <Typography variant="titleMedium" noWrap sx={{ color: md('onSurface') }}>
                 {current.name}
               </Typography>
-              <Typography variant="bodySmall" noWrap component="div" sx={{ color: md('onSurfaceVariant') }} title={current.path}>
+              <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), overflowWrap: 'anywhere' }}>
                 {tidyPath(current.path)}
               </Typography>
             </div>
