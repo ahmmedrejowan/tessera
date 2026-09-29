@@ -1,7 +1,7 @@
 name: Release builds
 
-# Installers for every platform, from a version tag (v0.2.0) or by hand. A tag also drafts a
-# release with the files and their checksums; you read it over and press publish.
+# Installers for every platform, from a version tag (v0.2.0) or by hand. A tag publishes the
+# release, with the files and their checksums; anything below 1.0.0 goes out as a preview.
 on:
   push:
     tags: ['v*']
@@ -107,7 +107,7 @@ jobs:
       - run: ls -la downloaded
       - uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          draft: false
           # Anything before 1.0.0, and anything with a suffix (v1.0.0-rc1), is a preview. GitHub
           # then keeps it out of "latest", which is why the update check reads the list instead.
           prerelease: ${{ startsWith(github.ref_name, 'v0.') || contains(github.ref_name, '-') }}
