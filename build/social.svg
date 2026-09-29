@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <!--
+    The repository's social preview: 1280 by 640, which is what GitHub asks for and what it hands
+    to anyone who links the repo. The same colours, the same mosaic and the same wordmark as the
+    site's cards, so a link to the code and a link to the site look like one project.
+
+    Rendered with: npx electron scripts/make-social.cjs
+  -->
+  <defs>
+    <radialGradient id="glowA" cx="1" cy="0" r="1">
+      <stop offset="0" stop-color="#2a2348" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#2a2348" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.15" cy="1" r="0.9">
+      <stop offset="0" stop-color="#0f2e44" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#0f2e44" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="markBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2d5670"/>
+      <stop offset="1" stop-color="#16303f"/>
+    </linearGradient>
+    <linearGradient id="markShine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.14"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="640" fill="#0a141b"/>
+  <rect width="1280" height="640" fill="url(#glowA)"/>
+  <rect width="1280" height="640" fill="url(#glowB)"/>
+
+  <!-- The app's own icon, at the size it is in a dock. -->
+  <g transform="translate(88 70) scale(0.13592) translate(-100 -100)">
+    <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#markBg)"/>
+    <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#markShine)"/>
+    <rect x="262" y="262" width="236" height="236" rx="48" fill="#a8d4ee"/>
+    <rect x="526" y="262" width="236" height="236" rx="48" fill="#e6f0f7"/>
+    <rect x="262" y="526" width="236" height="236" rx="48" fill="#e6f0f7"/>
+    <rect x="526" y="526" width="236" height="236" rx="48" fill="#cdb8f0"/>
+  </g>
+
+  <!-- The mosaic from the logo, given the room the text does not want. -->
+  <g>
+    <rect x="952" y="128" width="118" height="262" rx="24" fill="#1f5a7e"/>
+    <rect x="1086" y="128" width="118" height="118" rx="24" fill="#54486c"/>
+    <rect x="952" y="406" width="118" height="118" rx="24" fill="#234c69"/>
+    <rect x="1086" y="262" width="118" height="262" rx="24" fill="#41365f"/>
+    <rect x="1086" y="540" width="118" height="62" rx="24" fill="#1a2c38"/>
+  </g>
+
+  <text x="88" y="298" font-family="Figtree, Avenir Next, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="96" font-weight="700" fill="#e8f0f6">Tessera</text>
+  <text x="88" y="360" font-family="Figtree, Avenir Next, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="38" font-weight="600" fill="#8cc6ec">A desktop library for game assets</text>
+  <text x="88" y="424" font-family="Figtree, Avenir Next, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="26" font-weight="500" fill="#b6c4d0">Keep every pack you collect, with its license and source</text>
+  <text x="88" y="462" font-family="Figtree, Avenir Next, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="26" font-weight="500" fill="#b6c4d0">on record. Find what you need and copy it into your game.</text>
+
+  <rect x="88" y="524" width="760" height="1" fill="#203340"/>
+  <text x="88" y="570" font-family="Figtree, Avenir Next, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="23" font-weight="500" fill="#8a99a6">macOS &#183; Windows &#183; Linux</text>
+  <text x="848" y="570" text-anchor="end" font-family="Figtree, Avenir Next, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="23" font-weight="500" fill="#8a99a6">GPL-3.0 &#183; tessera.rejowan.com</text>
+</svg>
