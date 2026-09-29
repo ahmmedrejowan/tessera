@@ -11,7 +11,7 @@ import { TOOL_GROUPS } from '@shared/mcp';
 import { broadcast, handle } from '../ipc';
 import { clients, installFor } from '../mcp/clients';
 import { freePort, whoHasPort } from '../mcp/port';
-import { catalogue, portFree } from '../mcp/server';
+import { catalog, portFree } from '../mcp/server';
 import { skillMarkdown } from '../mcp/skill';
 import type { IpcContext } from './context';
 
@@ -20,7 +20,7 @@ type Deps = Pick<IpcContext, 'library' | 'mcp' | 'mcpHistory' | 'settings' | 'st
 export function registerAgentIpc(c: Deps): void {
   const { library, mcp, mcpHistory, settings, start, windows } = c;
   handle('mcp:status', () => mcp.status());
-  handle('mcp:tools', () => catalogue(settings.get().mcp));
+  handle('mcp:tools', () => catalog(settings.get().mcp));
   handle('mcp:set', async (change) => {
     const now = settings.get().mcp;
     const next = { ...now };

@@ -58,7 +58,7 @@ describe('adding a pack without copying it', () => {
     expect(refs).toContain('Models/tree.glb');
     expect(refs.some((r) => r.startsWith('original/'))).toBe(false);
 
-    // Their folder is exactly as it was: no pack.json, no licence folder, nothing of ours.
+    // Their folder is exactly as it was: no pack.json, no license folder, nothing of ours.
     const theirFiles = (await import('node:fs/promises')).readdir(theirs);
     expect((await theirFiles).sort()).toEqual(['LICENSE.txt', 'Models']);
 
@@ -69,10 +69,10 @@ describe('adding a pack without copying it', () => {
     expect(existsSync(join(packs[0]!.dir, 'pack.json'))).toBe(true);
   });
 
-  it('finds the licence in their folder, the same as any other pack', async () => {
+  it('finds the license in their folder, the same as any other pack', async () => {
     const { queries } = await libraryWithKeptPack();
     const pack = queries.packs({ scope: 'all', text: '', filters: {} }, 'name', 0, 10).rows[0]!;
-    expect(pack.licence).toBe('CC0-1.0');
+    expect(pack.license).toBe('CC0-1.0');
   });
 
   it('marks the pack as away when the folder goes, and keeps its files in the index', async () => {
@@ -128,12 +128,12 @@ describe('what can be kept where it lies', () => {
 });
 
 describe('the record still travels with the library', () => {
-  it('pack.json holds the licence and where the files are', async () => {
+  it('pack.json holds the license and where the files are', async () => {
     const { root, theirs } = await libraryWithKeptPack();
     const { packs } = await listPacks(root);
     const raw = JSON.parse(await readFile(join(packs[0]!.dir, 'pack.json'), 'utf8')) as PackMeta;
     expect(raw.kept?.where).toBe(theirs);
-    expect(raw.licence.id).toBe('CC0-1.0');
+    expect(raw.license.id).toBe('CC0-1.0');
   });
 });
 
@@ -144,7 +144,7 @@ describe('the ways out of indexing in place', () => {
     await app.library.sync();
     expect(app.library.require().queries.pack(packId)?.away).toBe(true);
 
-    // Somewhere else entirely: refused, because accepting it would leave the licence on record
+    // Somewhere else entirely: refused, because accepting it would leave the license on record
     // describing files that are not the ones it was recorded against.
     const elsewhere = tempDir();
     mkdirSync(join(elsewhere, 'Models'), { recursive: true });

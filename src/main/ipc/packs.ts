@@ -7,7 +7,7 @@
 import { BrowserWindow, app, dialog, shell } from 'electron';
 import { join, relative, resolve, isAbsolute } from 'node:path';
 import { assetPath } from '@shared/assets';
-import { licenceForPath } from '@shared/pack';
+import { licenseForPath } from '@shared/pack';
 import { packFileUrl } from '@shared/urls';
 import { parseRef } from '../index/files';
 import { UserError, handle } from '../ipc';
@@ -56,7 +56,7 @@ export function registerPackIpc(c: Deps): void {
   handle('pack:files', (id) => library.require().queries.packFiles(id));
   handle('pack:edit', async (id, edit) => {
     await library.editPack(id, edit);
-    // Projects keep the pack's licence and credit line on record: bring them up to date.
+    // Projects keep the pack's license and credit line on record: bring them up to date.
     const row = library.require().queries.pack(id);
     if (row) {
       const m = row.meta;
@@ -64,17 +64,17 @@ export function registerPackIpc(c: Deps): void {
         .packChanged(
           libraryId(),
           id,
-          { packName: m.name, licence: m.licence.id, attribution: m.licence.attribution, creator: m.source.creator, sourceUrl: m.source.url },
+          { packName: m.name, license: m.license.id, attribution: m.license.attribution, creator: m.source.creator, sourceUrl: m.source.url },
           (ref) => {
-            const covering = licenceForPath(m, assetPath(ref));
-            return { licence: covering.id, attribution: covering.attribution };
+            const covering = licenseForPath(m, assetPath(ref));
+            return { license: covering.id, attribution: covering.attribution };
           },
         )
         .catch((e: unknown) => log.warn('projects', 'could not update projects after a pack edit', e));
     }
   });
   handle('pack:detect', (id) => library.detect(id));
-  handle('pack:partLicences', (id) => library.partLicences(id));
+  handle('pack:partLicenses', (id) => library.partLicenses(id));
   handle('pack:details', (id) => library.details(id));
   handle('pack:discard', (id) => {
     // Thrown away, so whatever it was made from stays where it is.
@@ -102,10 +102,10 @@ export function registerPackIpc(c: Deps): void {
   handle('bin:list', () => library.bin());
   handle('bin:restore', (id) => library.restoreFromBin(id));
   handle('bin:empty', (ids) => library.emptyBin(ids));
-  handle('pack:proof', async (id) => (await library.proofFiles(id)).map((f) => ({ ...f, url: packFileUrl(id, `licence/${f.name}`) })));
+  handle('pack:proof', async (id) => (await library.proofFiles(id)).map((f) => ({ ...f, url: packFileUrl(id, `license/${f.name}`) })));
   handle('pack:addProof', async (id) => {
     const win = BrowserWindow.getFocusedWindow() ?? windows()[0];
-    const options = { title: 'Add licence proof', properties: ['openFile', 'multiSelections'] as ('openFile' | 'multiSelections')[] };
+    const options = { title: 'Add license proof', properties: ['openFile', 'multiSelections'] as ('openFile' | 'multiSelections')[] };
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     return result.canceled ? 0 : library.addProof(id, result.filePaths);
   });
@@ -158,8 +158,8 @@ export function registerPackIpc(c: Deps): void {
     await library.takePackIn(id);
     activity.add('added', 'Took a pack into the library', 'Its files were copied in; the folder they came from is untouched');
   });
-  handle('favourites:assets', (items, on) => library.favouriteAssets(items, on));
-  handle('favourites:pack', (id, on) => library.favouritePack(id, on));
+  handle('favorites:assets', (items, on) => library.favoriteAssets(items, on));
+  handle('favorites:pack', (id, on) => library.favoritePack(id, on));
   handle('pack:archive', async (id, on) => {
     if (on) await keepTheRecord(projects, activity, libraryId(), [id], copySource());
     return library.archivePack(id, on);
@@ -168,16 +168,16 @@ export function registerPackIpc(c: Deps): void {
 }
 
 /**
- * Every game that uses these packs keeps the licence beside the files. Any game that would not
+ * Every game that uses these packs keeps the license beside the files. Any game that would not
  * take it is named in the activity log, because the pack is about to leave the library and the
  * record is the thing that must not be lost quietly.
  */
 async function keepTheRecord(projects: Deps['projects'], activity: Deps['activity'], libraryId: string, packIds: string[], src: ReturnType<Deps['copySource']>): Promise<void> {
   try {
-    const { failed } = await projects.keepLicences(libraryId, packIds, src);
-    if (failed.length) activity.add('project', `Could not write the licence into ${failed.join(', ')}. The record there is out of date.`);
+    const { failed } = await projects.keepLicenses(libraryId, packIds, src);
+    if (failed.length) activity.add('project', `Could not write the license into ${failed.join(', ')}. The record there is out of date.`);
   } catch (e) {
-    log.warn('projects', 'could not write a licence into a game', e);
-    activity.add('project', 'Could not write the licence into the games using this pack. The record there is out of date.');
+    log.warn('projects', 'could not write a license into a game', e);
+    activity.add('project', 'Could not write the license into the games using this pack. The record there is out of date.');
   }
 }

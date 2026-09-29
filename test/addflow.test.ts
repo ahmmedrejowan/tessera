@@ -12,7 +12,7 @@ import { writeZip } from './zipfixture';
 const f = (ref: string, size = 10) => ({ ref, size, mtime: 0 }) as never;
 
 describe('what a pack suggests', () => {
-  it('reads the name, version and creator from a licence file’s first lines', () => {
+  it('reads the name, version and creator from a license file’s first lines', () => {
     const s = suggestDetails({
       files: [f('kenney_mini-arcade.zip!Models/GLB format/arcade-machine.glb'), f('kenney_mini-arcade.zip!Models/FBX format/arcade-machine.fbx'), f('kenney_mini-arcade.zip!Models/GLB format/claw.glb')],
       texts: [{ from: 'License.txt', text: '\n\tMini Arcade (1.2)\n\n\tCreated/distributed by Kenney (www.kenney.nl)\n\tLicense: (Creative Commons Zero, CC0)' }],

@@ -14,7 +14,7 @@ import { log } from './log';
 
 let icon: NativeImage | null = null;
 
-/** A small rounded tile in the app's colour, shown under the pointer while dragging. */
+/** A small rounded tile in the app's color, shown under the pointer while dragging. */
 function dragIcon(): NativeImage {
   if (icon) return icon;
   const size = 32;

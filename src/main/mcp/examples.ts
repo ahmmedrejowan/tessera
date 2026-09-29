@@ -26,14 +26,14 @@ export const ANSWERS: Record<string, ToolAnswer> = {
       bytes: 9123456789,
       archived: 3,
       waitingInReview: 1,
-      needsAttention: { noLicence: 1, noSource: 0, noCreditLine: 2 },
+      needsAttention: { noLicense: 1, noSource: 0, noCreditLine: 2 },
     },
   },
   search: {
     returns: 'A page of matches, with the total so you know how much is behind it.',
     example: {
       total: 3,
-      packs: [{ id: PACK_ID, name: 'Mini Arcade', licence: 'CC0-1.0', creator: 'Kenney', assets: 20, files: 20, bytes: 1263291, kinds: ['model'], tags: ['arcade'], starred: false, archived: false, status: 'library' }],
+      packs: [{ id: PACK_ID, name: 'Mini Arcade', license: 'CC0-1.0', creator: 'Kenney', assets: 20, files: 20, bytes: 1263291, kinds: ['model'], tags: ['arcade'], starred: false, archived: false, status: 'library' }],
     },
   },
   get_pack: {
@@ -41,7 +41,7 @@ export const ANSWERS: Record<string, ToolAnswer> = {
     example: {
       id: PACK_ID,
       name: 'Mini Arcade',
-      licence: 'CC0-1.0',
+      license: 'CC0-1.0',
       creator: 'Kenney',
       source: 'kenney.nl',
       sourceUrl: 'https://kenney.nl/assets/mini-arcade',
@@ -51,16 +51,16 @@ export const ANSWERS: Record<string, ToolAnswer> = {
       kinds: ['model'],
       tags: ['arcade', 'low poly'],
       creditLine: 'Mini Arcade by Kenney (CC0)',
-      partsWithTheirOwnLicence: [{ path: 'Extras/logo.png', licence: 'CC-BY-4.0' }],
-      proof: ['licence.txt'],
+      partsWithTheirOwnLicense: [{ path: 'Extras/logo.png', license: 'CC-BY-4.0' }],
+      proof: ['license.txt'],
       problems: [],
     },
   },
   list_files: {
-    returns: 'The files of one pack, a page at a time, each with the licence covering it.',
+    returns: 'The files of one pack, a page at a time, each with the license covering it.',
     example: {
       total: 20,
-      files: [{ id: 1841, name: 'arcade_machine.fbx', path: 'Models/arcade_machine.fbx', type: 'model', format: '.fbx', bytes: 61244, licence: 'CC0-1.0', starred: false }],
+      files: [{ id: 1841, name: 'arcade_machine.fbx', path: 'Models/arcade_machine.fbx', type: 'model', format: '.fbx', bytes: 61244, license: 'CC0-1.0', starred: false }],
     },
   },
   get_asset: {
@@ -74,17 +74,17 @@ export const ANSWERS: Record<string, ToolAnswer> = {
       type: 'model',
       format: '.fbx',
       bytes: 61244,
-      licence: 'CC0-1.0',
+      license: 'CC0-1.0',
       otherFormats: [{ id: 1842, format: '.obj', bytes: 70112 }],
     },
   },
   list_facets: {
     returns: 'The values in use for each facet, with how many things carry each: what you can filter by.',
-    example: { type: [{ value: 'model', count: 320 }], licence: [{ value: 'CC0-1.0', count: 40 }], creator: [{ value: 'Kenney', count: 12 }] },
+    example: { type: [{ value: 'model', count: 320 }], license: [{ value: 'CC0-1.0', count: 40 }], creator: [{ value: 'Kenney', count: 12 }] },
   },
   list_collections: {
     returns: 'Every collection, what it holds, and what it will accept.',
-    example: [{ id: 'fav', name: 'Favourites', packs: 2, assets: 120, rules: { licences: [] }, projectId: null, kind: 'manual' }],
+    example: [{ id: 'fav', name: 'Favorites', packs: 2, assets: 120, rules: { licenses: [] }, projectId: null, kind: 'manual' }],
   },
   list_projects: {
     returns: 'The games this library links into, with how much each has taken.',
@@ -96,7 +96,7 @@ export const ANSWERS: Record<string, ToolAnswer> = {
   },
   list_review: {
     returns: 'Packs that cannot join the library yet, each with what it still needs.',
-    example: [{ id: PACK_ID, name: 'Rocks', licence: null, source: null, assets: 3, needs: ['licence', 'source'] }],
+    example: [{ id: PACK_ID, name: 'Rocks', license: null, source: null, assets: 3, needs: ['license', 'source'] }],
   },
   list_bin: {
     returns: 'What is waiting in the bin, with when it went and how big it is.',
@@ -104,11 +104,11 @@ export const ANSWERS: Record<string, ToolAnswer> = {
   },
   list_packs: {
     returns: 'A page of packs, short lines, with the total behind them.',
-    example: { total: 42, offset: 0, packs: [{ id: PACK_ID, name: 'Mini Arcade', licence: 'CC0-1.0', creator: 'Kenney', assets: 20, bytes: 1263291, kinds: ['model'], status: 'library', archived: false }] },
+    example: { total: 42, offset: 0, packs: [{ id: PACK_ID, name: 'Mini Arcade', license: 'CC0-1.0', creator: 'Kenney', assets: 20, bytes: 1263291, kinds: ['model'], status: 'library', archived: false }] },
   },
   list_assets: {
     returns: 'A page of files, short lines, with the total behind them.',
-    example: { total: 18320, offset: 0, assets: [{ id: 1841, name: 'arcade_machine.fbx', packId: PACK_ID, path: 'Models/arcade_machine.fbx', type: 'model', format: '.fbx', bytes: 61244, licence: 'CC0-1.0' }] },
+    example: { total: 18320, offset: 0, assets: [{ id: 1841, name: 'arcade_machine.fbx', packId: PACK_ID, path: 'Models/arcade_machine.fbx', type: 'model', format: '.fbx', bytes: 61244, license: 'CC0-1.0' }] },
   },
   list_activity: {
     returns: 'The library’s own record, newest first.',
@@ -119,8 +119,8 @@ export const ANSWERS: Record<string, ToolAnswer> = {
     example: { folders: ['Models', 'Models/Props', 'Textures'] },
   },
   project_files: {
-    returns: 'What a game has taken, with the licence and credit line recorded for each.',
-    example: [{ packId: PACK_ID, pack: 'Mini Arcade', path: 'Models/arcade_machine.fbx', files: ['Assets/Tessera/Mini Arcade/arcade_machine.fbx'], licence: 'CC0-1.0', creditLine: 'Mini Arcade by Kenney (CC0)', copiedAt: '2026-09-24T02:14:09.412Z' }],
+    returns: 'What a game has taken, with the license and credit line recorded for each.',
+    example: [{ packId: PACK_ID, pack: 'Mini Arcade', path: 'Models/arcade_machine.fbx', files: ['Assets/Tessera/Mini Arcade/arcade_machine.fbx'], license: 'CC0-1.0', creditLine: 'Mini Arcade by Kenney (CC0)', copiedAt: '2026-09-24T02:14:09.412Z' }],
   },
   list_downloads: {
     returns: 'The download queue, with how far each has got.',
@@ -136,7 +136,7 @@ export const ANSWERS: Record<string, ToolAnswer> = {
   },
   add_to_collection: {
     returns: 'What went in, and what the collection’s rules refused, with a reason.',
-    example: { added: 4, addedPacks: 1, refused: [{ name: 'Sky HDRI', why: 'its licence is not one this collection takes' }] },
+    example: { added: 4, addedPacks: 1, refused: [{ name: 'Sky HDRI', why: 'its license is not one this collection takes' }] },
   },
   remove_from_collection: { returns: 'That it is done.', example: { done: true } },
   edit_collection: { returns: 'That it is done.', example: { done: true } },
@@ -145,7 +145,7 @@ export const ANSWERS: Record<string, ToolAnswer> = {
     returns: 'What the pack still needs before it can leave Review, read back after the change.',
     example: { done: true, stillNeeds: ['source'], inReview: true },
   },
-  set_file_licence: {
+  set_file_license: {
     returns: 'That it is done, and how many files the rule covers.',
     example: { done: true, files: 3 },
   },
@@ -204,7 +204,7 @@ export const ANSWERS: Record<string, ToolAnswer> = {
       updateCheck: true,
       moveIntoLibrary: false,
       confirmCopyToGame: true,
-      siteRules: [{ host: 'kenney.nl', licence: 'CC0-1.0', creator: 'Kenney' }],
+      siteRules: [{ host: 'kenney.nl', license: 'CC0-1.0', creator: 'Kenney' }],
     },
   },
   set_settings: { returns: 'Which settings were changed.', example: { changed: ['binKeepDays'] } },

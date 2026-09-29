@@ -69,8 +69,8 @@ export interface IpcContext {
   buildPreviews: (packs: string[] | null) => void;
   stopPreviews: () => void;
   previewsBuilding: () => boolean;
-  /** One of the documents the app ships: the licence, the changelog, the privacy page. */
-  readDocument: (name: 'licence' | 'changelog' | 'privacy') => Promise<string>;
+  /** One of the documents the app ships: the license, the changelog, the privacy page. */
+  readDocument: (name: 'license' | 'changelog' | 'privacy') => Promise<string>;
   /** Keep a copy of the page a pack came from, in the background. */
   recordPage: (id: string, what: { snapshot: boolean; archive: boolean }) => void;
   /** Start the app's services again, after a restore. */

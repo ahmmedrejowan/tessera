@@ -276,7 +276,7 @@ function KeptWarning() {
   return (
     <Row
       title={`${stats.kept} pack${stats.kept === 1 ? ' is' : 's are'} indexed where they lie`}
-      body={`Their records, licences and tags are backed up with everything else. Their files are not, because they were never brought into the library. Take one into the library from its own page to have it backed up too.`}
+      body={`Their records, licenses and tags are backed up with everything else. Their files are not, because they were never brought into the library. Take one into the library from its own page to have it backed up too.`}
     >
       <Button onClick={() => (useBrowse.getState().setMode('packs'), useBrowse.getState().setKept(true), go({ to: 'browse' }))}>Show them</Button>
     </Row>

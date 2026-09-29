@@ -126,7 +126,7 @@ describe('a file that goes missing halfway through a copy', () => {
     // One of the two files disappears from the library between the plan and the copy.
     rmSync(join(app.root, 'packs', 'Two Things', 'original', 'Models', 'second.obj'));
     await expect(callTool(app, 'link_to_game', { projectId: project.id, packIds: [id] })).rejects.toThrow();
-    // The game folder holds nothing from the run that failed: no half a pack, no licence for
+    // The game folder holds nothing from the run that failed: no half a pack, no license for
     // files that are not there.
     const left = readdirSync(game).filter((n) => n !== '.tessera');
     expect(left).toEqual([]);

@@ -17,7 +17,7 @@ import { PackMenu } from './browse/TileMenu';
 import { Page } from './Placeholder';
 
 /**
- * Packs put away: kept in full, out of the way of browsing. They keep their licences, their
+ * Packs put away: kept in full, out of the way of browsing. They keep their licenses, their
  * collections and their place in any game they were copied into; they simply aren't browsed.
  */
 export function ArchivePage() {

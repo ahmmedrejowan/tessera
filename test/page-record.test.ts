@@ -1,7 +1,7 @@
 /**
  * Keeping the page a pack came from.
  *
- * Two things are kept alongside a licence: a PDF of the page as it was, and a public copy at the
+ * Two things are kept alongside a license: a PDF of the page as it was, and a public copy at the
  * Internet Archive. The archive is often busy, so most of what matters here is what happens when
  * it says no: one more try, then the copy it already has, and a plain refusal if there is none.
  */

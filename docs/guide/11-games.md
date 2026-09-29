@@ -10,7 +10,7 @@ paths, and Unity has already assigned GUIDs. Copying the same assets in from the
 give you a second copy at a new path that nothing references, and leave the first lot as
 unlicensed as they were.
 
-So Tessera can recognise what is already there instead. Open the game and choose **Find assets
+So Tessera can recognize what is already there instead. Open the game and choose **Find assets
 already here**, name a folder (`Assets` works, it just takes longer), and Tessera matches what it
 finds against your library **by content, not by name**. What matches is recorded at the path the
 game already uses. Nothing is copied, nothing moves, no path changes, and your credits file then
@@ -19,8 +19,8 @@ covers what the game actually ships.
 Two things worth knowing:
 
 - An asset you re-exported, edited or converted will not match, because it is no longer the file
-  the licence was recorded against. That is deliberate.
-- Taking a recognised asset back out of the game forgets the record and leaves the file alone.
+  the license was recorded against. That is deliberate.
+- Taking a recognized asset back out of the game forgets the record and leaves the file alone.
   Tessera never wrote it, so it never deletes it.
 
 The same offer appears when you link a pack into a game, because that is the moment you would
@@ -28,7 +28,7 @@ otherwise make the second copy.
 
 ## Linking one
 
-**Projects**, then **Link a game**, and choose the folder. Tessera recognises:
+**Projects**, then **Link a game**, and choose the folder. Tessera recognizes:
 
 - **Unity**, by `ProjectSettings/ProjectVersion.txt`. Assets land in `Assets/ThirdParty` by
   default, and Tessera notices whether the project has a glTF importer.
@@ -40,7 +40,7 @@ You can change the folder assets go into, and where the credits file is written,
 
 Before anything is written, Tessera shows what is going: how many assets and files, how big, and
 the exact folder they will land in. Turn that off from the dialog or in Settings if you would
-rather not be asked; a licence problem still stops for an answer. Assets are only ever copied into
+rather not be asked; a license problem still stops for an answer. Assets are only ever copied into
 a game, never moved, because the library has to keep the pack whole for the record to mean
 anything.
 

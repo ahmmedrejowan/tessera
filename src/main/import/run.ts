@@ -40,7 +40,7 @@ export interface ImportDeps {
   root: string;
   index: LibraryIndex;
   skipInboxWhenSure: boolean;
-  /** The user's own rules for sites, used while working out each pack's licence. */
+  /** The user's own rules for sites, used while working out each pack's license. */
   siteRules?: SiteRule[];
   /** Being added through the add page: every pack waits (unfinished) until the user decides. */
   stage?: boolean;
@@ -64,8 +64,8 @@ export interface ImportDeps {
 
 /**
  * Add packs to the library. Each becomes a folder with its download copied, untouched, into
- * `original/`; what can be read from its files (licence, site, creator) is recorded. Packs that
- * name their licence inside the download and come from a known site can go straight into the
+ * `original/`; what can be read from its files (license, site, creator) is recorded. Packs that
+ * name their license inside the download and come from a known site can go straight into the
  * library; the rest wait in the Inbox. The user's originals are never moved or changed.
  */
 export async function runImport(items: ImportItem[], d: ImportDeps): Promise<ImportResult> {
@@ -83,7 +83,7 @@ export async function runImport(items: ImportItem[], d: ImportDeps): Promise<Imp
       const pack = await createPack(d.root, item.name);
       packDir = pack.dir;
       if (where) {
-        // Nothing is copied. The pack folder holds the record and the licence proof; the files
+        // Nothing is copied. The pack folder holds the record and the license proof; the files
         // stay where their owner put them, and are only ever read.
         await rm(join(pack.dir, PACK_DIRS.original), { recursive: true, force: true }).catch(() => undefined);
         done += item.size;
@@ -100,15 +100,15 @@ export async function runImport(items: ImportItem[], d: ImportDeps): Promise<Imp
       const filesRoot = where ?? pack.dir;
       const { files } = await listPackFiles(filesRoot, where ?? join(pack.dir, PACK_DIRS.original));
       const found = await detectPack(filesRoot, files, { downloadName: basename(item.sources[0]!), rules: d.siteRules ?? [], url: item.url });
-      // Sure: the licence was read in the pack or set by the user's rule, and where it came from is known.
-      const sure = !!found.licence && !!found.licenceSure && (!!found.site || !!found.url);
+      // Sure: the license was read in the pack or set by the user's rule, and where it came from is known.
+      const sure = !!found.license && !!found.licenseSure && (!!found.site || !!found.url);
       const status = sure && d.skipInboxWhenSure && !d.stage ? 'library' : 'inbox';
       const meta = await writePack(pack.dir, {
         ...pack.meta,
         status,
         kept: where ? { where, since: new Date().toISOString(), volume: volumeOf(where) } : null,
         source: { ...pack.meta.source, site: found.site, url: found.url, creator: found.creator },
-        licence: { ...pack.meta.licence, id: found.licence, notes: found.licenceFrom ? `Licence found in ${found.licenceFrom}.` : '' },
+        license: { ...pack.meta.license, id: found.license, notes: found.licenseFrom ? `License found in ${found.licenseFrom}.` : '' },
       });
       await d.index.syncPack({ ...pack, meta });
       // Only now, with the copy in place and read back as a pack, is the original let go of.

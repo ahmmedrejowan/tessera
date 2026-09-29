@@ -1,8 +1,8 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
 import type { AssetType } from '@shared/assets';
 import { pathWords } from '@shared/assets';
-import { FAVOURITES } from '@shared/collection';
-import { licenceInfo } from '@shared/licences';
+import { FAVORITES } from '@shared/collection';
+import { licenseInfo } from '@shared/licenses';
 import type { PackMeta } from '@shared/pack';
 import {
   FACETS,
@@ -12,7 +12,7 @@ import {
   type Facet,
   type FacetCounts,
   type LibraryStats,
-  type LicenceHealth,
+  type LicenseHealth,
   type Page,
   type PackRow,
   type PackSort,
@@ -45,13 +45,13 @@ export function searchTerms(text: string): string[] {
 const TERM_FACETS = new Set<Facet>(['genre', 'style', 'tag']);
 
 /** Where a pack-level facet lives on the `packs` table. */
-const PACK_COLUMN: Partial<Record<Facet, string>> = { source: 'p.source', creator: 'p.creator', licence: 'p.licence' };
+const PACK_COLUMN: Partial<Record<Facet, string>> = { source: 'p.source', creator: 'p.creator', license: 'p.license' };
 /** Where an asset-level facet lives on the `assets` table. */
-const ASSET_COLUMN: Partial<Record<Facet, string>> = { type: 'a.type', format: 'a.ext', licence: 'a.licence' };
+const ASSET_COLUMN: Partial<Record<Facet, string>> = { type: 'a.type', format: 'a.ext', license: 'a.license' };
 
 /** Starred first, always: the star is the owner saying "this one matters", and a sort shouldn't bury it. */
-const STARRED_ASSET = `EXISTS (SELECT 1 FROM collection_items f WHERE f.collection_id = '${FAVOURITES}' AND f.pack_id = a.pack_id AND f.ref = a.ref) DESC, `;
-const STARRED_PACK = `EXISTS (SELECT 1 FROM collection_packs f WHERE f.collection_id = '${FAVOURITES}' AND f.pack_id = p.id) DESC, `;
+const STARRED_ASSET = `EXISTS (SELECT 1 FROM collection_items f WHERE f.collection_id = '${FAVORITES}' AND f.pack_id = a.pack_id AND f.ref = a.ref) DESC, `;
+const STARRED_PACK = `EXISTS (SELECT 1 FROM collection_packs f WHERE f.collection_id = '${FAVORITES}' AND f.pack_id = p.id) DESC, `;
 
 // A sort that is not one of these (an older window, a typo in an agent's call) falls back to by
 // name rather than reaching SQLite as the word "undefined".
@@ -74,8 +74,8 @@ const PACK_SORT: Record<PackSort, string> = {
 
 const FACET_LIMIT = 300;
 
-const ASSET_FIELDS = `a.id, a.pack_id AS packId, p.name AS packName, a.ref, a.name, a.dir, a.ext, a.kind, a.type, a.role, a.size, a.formats, a.licence,
-  EXISTS (SELECT 1 FROM collection_items f WHERE f.collection_id = '${FAVOURITES}' AND f.pack_id = a.pack_id AND f.ref = a.ref) AS fav`;
+const ASSET_FIELDS = `a.id, a.pack_id AS packId, p.name AS packName, a.ref, a.name, a.dir, a.ext, a.kind, a.type, a.role, a.size, a.formats, a.license,
+  EXISTS (SELECT 1 FROM collection_items f WHERE f.collection_id = '${FAVORITES}' AND f.pack_id = a.pack_id AND f.ref = a.ref) AS fav`;
 type RawAsset = Omit<AssetRow, 'formats' | 'fav'> & { formats: string; fav: number };
 const toAsset = (r: RawAsset): AssetRow => ({ ...r, formats: r.formats ? r.formats.split(' ') : [r.ext], fav: !!r.fav });
 
@@ -100,12 +100,12 @@ export class LibraryQueries {
     if (q.archived === 'only') out.push({ sql: 'p.archived = 1', params: [] });
     else if (q.scope === 'library') out.push({ sql: 'p.archived = 0', params: [] });
     if (q.packIds) out.push(inList('p.id', q.packIds.length ? q.packIds : ['']));
-    if (q.favourites) {
-      // A starred asset is one in the Favourites collection; a starred pack says so in its own record.
+    if (q.favorites) {
+      // A starred asset is one in the Favorites collection; a starred pack says so in its own record.
       out.push(
         mode === 'assets'
-          ? { sql: `EXISTS (SELECT 1 FROM collection_items f WHERE f.collection_id = ? AND f.pack_id = a.pack_id AND f.ref = a.ref)`, params: [FAVOURITES] }
-          : { sql: 'EXISTS (SELECT 1 FROM collection_packs f WHERE f.collection_id = ? AND f.pack_id = p.id)', params: [FAVOURITES] },
+          ? { sql: `EXISTS (SELECT 1 FROM collection_items f WHERE f.collection_id = ? AND f.pack_id = a.pack_id AND f.ref = a.ref)`, params: [FAVORITES] }
+          : { sql: 'EXISTS (SELECT 1 FROM collection_packs f WHERE f.collection_id = ? AND f.pack_id = p.id)', params: [FAVORITES] },
       );
     }
     if (q.collectionId) {
@@ -315,7 +315,7 @@ export class LibraryQueries {
   }
 
   /**
-   * Library assets of exactly this size, for recognising a file a game already has. Size throws
+   * Library assets of exactly this size, for recognizing a file a game already has. Size throws
    * away almost everything for nothing, so only what survives it is ever opened and hashed.
    */
   bySize(size: number): (AssetRow & { packName: string })[] {
@@ -378,25 +378,25 @@ export class LibraryQueries {
     return out;
   }
 
-  /** Library packs whose licence needs attention (see LicenceHealth). */
-  health(): LicenceHealth {
-    const rows = this.all<{ id: string; name: string; licence: string | null; attribution: string | null; site: string | null; sourceName: string | null; url: string | null }>(
-      `SELECT id, name, licence,
-         json_extract(meta_json, '$.licence.attribution') AS attribution,
+  /** Library packs whose license needs attention (see LicenseHealth). */
+  health(): LicenseHealth {
+    const rows = this.all<{ id: string; name: string; license: string | null; attribution: string | null; site: string | null; sourceName: string | null; url: string | null }>(
+      `SELECT id, name, license,
+         json_extract(meta_json, '$.license.attribution') AS attribution,
          json_extract(meta_json, '$.source.site') AS site,
          json_extract(meta_json, '$.source.name') AS sourceName,
          json_extract(meta_json, '$.source.url') AS url
        FROM packs WHERE status = 'library' AND archived = 0 ORDER BY name COLLATE NOCASE`,
     );
-    const out: LicenceHealth = { noLicence: [], noSource: [], noCreditLine: [], restricted: [] };
+    const out: LicenseHealth = { noLicense: [], noSource: [], noCreditLine: [], restricted: [] };
     for (const r of rows) {
-      const info = licenceInfo(r.licence);
-      // Missing facts are faults. A licence that forbids selling is a decision, and belongs to
+      const info = licenseInfo(r.license);
+      // Missing facts are faults. A license that forbids selling is a decision, and belongs to
       // the game that uses it, not to a list of things wrong with the library.
-      if (!r.licence) out.noLicence.push({ id: r.id, name: r.name, licence: r.licence });
-      if (!r.site && !r.sourceName && !r.url) out.noSource.push({ id: r.id, name: r.name, licence: r.licence });
-      if (info?.attribution && !r.attribution) out.noCreditLine.push({ id: r.id, name: r.name, licence: r.licence });
-      if (r.licence && (!info || !info.commercial)) out.restricted.push({ id: r.id, name: r.name, licence: r.licence });
+      if (!r.license) out.noLicense.push({ id: r.id, name: r.name, license: r.license });
+      if (!r.site && !r.sourceName && !r.url) out.noSource.push({ id: r.id, name: r.name, license: r.license });
+      if (info?.attribution && !r.attribution) out.noCreditLine.push({ id: r.id, name: r.name, license: r.license });
+      if (r.license && (!info || !info.commercial)) out.restricted.push({ id: r.id, name: r.name, license: r.license });
     }
     return out;
   }
@@ -467,7 +467,7 @@ export class LibraryQueries {
       status: r.status,
       source: r.source,
       creator: r.creator,
-      licence: r.licence,
+      license: r.license,
       addedAt: r.addedAt,
       fileCount: r.fileCount,
       assetCount: r.assetCount,
@@ -494,7 +494,7 @@ interface RawPack {
   status: PackRow['status'];
   source: string | null;
   creator: string | null;
-  licence: string | null;
+  license: string | null;
   addedAt: string;
   fileCount: number;
   assetCount: number;
@@ -507,7 +507,7 @@ interface RawPack {
   away: number;
 }
 
-const PACK_FIELDS = `p.id, p.name, p.folder, p.status, p.source, p.creator, p.licence, p.added_at AS addedAt,
+const PACK_FIELDS = `p.id, p.name, p.folder, p.status, p.source, p.creator, p.license, p.added_at AS addedAt,
   p.file_count AS fileCount, p.asset_count AS assetCount, p.size, p.cover_ref AS coverRef, p.problems, p.archived,
   p.kept_where AS keptWhere, p.away,
-  EXISTS (SELECT 1 FROM collection_packs f WHERE f.collection_id = '${FAVOURITES}' AND f.pack_id = p.id) AS fav`;
+  EXISTS (SELECT 1 FROM collection_packs f WHERE f.collection_id = '${FAVORITES}' AND f.pack_id = p.id) AS fav`;

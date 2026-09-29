@@ -20,7 +20,7 @@ const confirm = (title: string, body: string, yes: string) =>
 
 /**
  * A line about the games using these things. Nothing is blocked: the copies in a game stay where
- * they are, and Tessera writes the pack's licence and proof beside them before anything goes.
+ * they are, and Tessera writes the pack's license and proof beside them before anything goes.
  */
 export async function usedIn(packIds: string[], refs?: { packId: string; ref: string }[]): Promise<string> {
   const use = await call('projects:usage', packIds, refs).catch(() => [] as ProjectUse[]);
@@ -28,7 +28,7 @@ export async function usedIn(packIds: string[], refs?: { packId: string; ref: st
   // A game whose record could not be read is named without a count, because "0 files" would read
   // as "this pack is not used there" and that is precisely what is not known.
   const names = use.map((u) => (u.unknown ? `${u.name} (its record could not be read)` : `${u.name} (${u.files} file${u.files === 1 ? '' : 's'})`)).join(', ');
-  return `\n\nIn use by ${names}. Those copies stay where they are, and their licence and proof are kept beside them in the game.`;
+  return `\n\nIn use by ${names}. Those copies stay where they are, and their license and proof are kept beside them in the game.`;
 }
 
 /** Put back everything a delete put in the bin, newest first. */
@@ -96,8 +96,8 @@ export async function removePacks(ids: string[], name?: string): Promise<boolean
   const first = await confirm(
     many ? `Delete ${ids.length} packs?` : `Delete ${name ?? 'this pack'}?`,
     many
-      ? `Their folders move to the library’s bin, licences and all, where they wait until you empty it or the time set in Settings runs out.${used}`
-      : `Its folder moves to the library’s bin, licence and all, where it waits until you empty it or the time set in Settings runs out.${used}`,
+      ? `Their folders move to the library’s bin, licenses and all, where they wait until you empty it or the time set in Settings runs out.${used}`
+      : `Its folder moves to the library’s bin, license and all, where it waits until you empty it or the time set in Settings runs out.${used}`,
     'Delete',
   );
   if (!first) return false;

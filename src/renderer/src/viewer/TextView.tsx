@@ -4,7 +4,7 @@ import { md, SHAPE } from '../theme';
 
 const MAX = 512 * 1024;
 
-/** Plain text: readmes, licences, spritesheet maps. Long files are cut, with a note. */
+/** Plain text: readmes, licenses, spritesheet maps. Long files are cut, with a note. */
 export function TextView({ url }: { url: string }) {
   const [text, setText] = useState<string | null>(null);
   const [cut, setCut] = useState(false);

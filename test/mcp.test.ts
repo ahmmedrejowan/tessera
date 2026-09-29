@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TOOL_GROUPS } from '../src/shared/mcp';
-import { catalogue, fromHere, said, toolsOn } from '../src/main/mcp/server';
+import { catalog, fromHere, said, toolsOn } from '../src/main/mcp/server';
 import { TOOLS, TOOL_BY_NAME } from '../src/main/mcp/tools';
 import { skillMarkdown } from '../src/main/mcp/skill';
 
@@ -17,7 +17,7 @@ describe('the tools an agent is offered', () => {
   });
 
   it('says what it does and what it takes, so an agent can choose without guessing', () => {
-    for (const t of catalogue(ALL_ON)) {
+    for (const t of catalog(ALL_ON)) {
       expect(t.summary.length).toBeGreaterThan(20);
       expect(t.schema).toMatchObject({ type: 'object' });
     }
@@ -37,7 +37,7 @@ describe('the tools an agent is offered', () => {
     expect(withoutRemove.some((t) => t.group === 'remove')).toBe(false);
     expect(withoutRemove.some((t) => t.name === 'search')).toBe(true);
     expect(toolsOn({ ...ALL_ON, off: ['search'] }).some((t) => t.name === 'search')).toBe(false);
-    expect(catalogue({ ...ALL_ON, off: ['search'] }).find((t) => t.name === 'search')?.on).toBe(false);
+    expect(catalog({ ...ALL_ON, off: ['search'] }).find((t) => t.name === 'search')?.on).toBe(false);
   });
 
   it('keeps the dangerous groups off until they are asked for', () => {
@@ -61,7 +61,7 @@ describe('the tools an agent is offered', () => {
 
 describe('what a tool says it gives back', () => {
   it('has an answer and an example for every tool', () => {
-    for (const t of catalogue(ALL_ON)) {
+    for (const t of catalog(ALL_ON)) {
       expect(t.returns, t.name).toBeTruthy();
       expect(t.example, t.name).toBeTruthy();
       expect(() => JSON.parse(t.example!), t.name).not.toThrow();
@@ -118,7 +118,7 @@ describe('the skill file', () => {
   });
 
   it('teaches the rules that matter', () => {
-    expect(text.toLowerCase()).toContain('never guess a licence');
+    expect(text.toLowerCase()).toContain('never guess a license');
     expect(text.toLowerCase()).toContain('review');
     expect(text.toLowerCase()).toContain('bin');
   });
@@ -169,6 +169,6 @@ describe('what an agent asked for, put into words', () => {
   });
 
   it('writes an object out as itself', () => {
-    expect(said({ rules: { licences: ['CC0-1.0'] } })).toContain('licences');
+    expect(said({ rules: { licenses: ['CC0-1.0'] } })).toContain('licenses');
   });
 });

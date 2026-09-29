@@ -19,7 +19,7 @@ async function onlyPack(root: string) {
   return readPack(join(root, DIRS.packs, folder!), folder!);
 }
 
-const rule = (host: string, licence: string | null, creator: string | null = null): SiteRule => ({ host, licence, creator, addedAt: '2026-01-01T00:00:00.000Z' });
+const rule = (host: string, license: string | null, creator: string | null = null): SiteRule => ({ host, license, creator, addedAt: '2026-01-01T00:00:00.000Z' });
 
 describe('a site the user has settled', () => {
   it('reads the host out of whatever the user typed', () => {
@@ -32,13 +32,13 @@ describe('a site the user has settled', () => {
 
   it('covers subdomains, and the most exact host wins', () => {
     const rules = [rule('itch.io', 'CC-BY-4.0'), rule('kaylousberg.itch.io', 'CC0-1.0')];
-    expect(ruleFor(rules, 'https://someone.itch.io/pack')?.licence).toBe('CC-BY-4.0');
-    expect(ruleFor(rules, 'https://kaylousberg.itch.io/kaykit')?.licence).toBe('CC0-1.0');
+    expect(ruleFor(rules, 'https://someone.itch.io/pack')?.license).toBe('CC-BY-4.0');
+    expect(ruleFor(rules, 'https://kaylousberg.itch.io/kaykit')?.license).toBe('CC0-1.0');
     expect(ruleFor(rules, 'https://kenney.nl/assets/x')).toBeNull();
     expect(ruleFor(rules, null)).toBeNull();
   });
 
-  it('fills in the licence and creator for a site Tessera doesn’t know', async () => {
+  it('fills in the license and creator for a site Tessera doesn’t know', async () => {
     const root = join(tempDir(), 'lib');
     await createLibrary(root, 'lib');
     const d = tempDir('tessera-rules-');
@@ -51,13 +51,13 @@ describe('a site the user has settled', () => {
     // The user said this site is CC0, so it needn't wait in Review.
     expect(out.added[0]!.status).toBe('library');
     const pack = await onlyPack(root);
-    expect(pack.meta.licence.id).toBe('CC0-1.0');
+    expect(pack.meta.license.id).toBe('CC0-1.0');
     expect(pack.meta.source.url).toBe('https://free-stones.example/packs/stone-set');
     expect(pack.meta.source.creator).toBe('Stone Person');
 
     const { files } = await listPackFiles(pack.dir);
     const found = await detectPack(pack.dir, files, { downloadName: 'stone-set.zip', rules });
-    expect(found.licenceFrom).toBe('your rule for free-stones.example');
+    expect(found.licenseFrom).toBe('your rule for free-stones.example');
   });
 
   it('never overrules what the pack’s own files say', async () => {
@@ -69,6 +69,6 @@ describe('a site the user has settled', () => {
     const index = new LibraryIndex(':memory:');
     const out = await runImport(items, { root, index, skipInboxWhenSure: true, siteRules: [rule('free-stones.example', 'CC0-1.0')], onProgress: () => undefined });
     const pack = await onlyPack(root);
-    expect(pack.meta.licence.id).toBe('CC-BY-4.0');
+    expect(pack.meta.license.id).toBe('CC-BY-4.0');
   });
 });

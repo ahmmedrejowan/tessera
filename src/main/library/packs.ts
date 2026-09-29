@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { PackMeta, type PackEdit } from '@shared/pack';
+import { eitherSpelling, PackMeta, type PackEdit } from '@shared/pack';
 import { readJson, writeJson } from '../fsx';
 import { DIRS, PACK_DIRS, PACK_FILE } from './layout';
 import { safeFolderName, uniqueName } from './names';
@@ -37,7 +37,9 @@ export interface PackProblem {
 export async function readPack(dir: string, folder: string): Promise<PackRecord> {
   const raw = await readJson(join(dir, PACK_FILE));
   if (raw === null) throw new Error('pack.json is missing');
-  const parsed = PackMeta.safeParse(raw);
+  // A record written before the spelling was settled says `license` and `licenses`. Either is
+  // read; the American one is kept, and the next save moves the file over on its own.
+  const parsed = PackMeta.safeParse(eitherSpelling(raw));
   if (!parsed.success) {
     throw new Error(`pack.json is invalid: ${parsed.error.issues.map((i) => `${i.path.join('.')} ${i.message}`).join('; ')}`);
   }
@@ -52,7 +54,7 @@ export async function readPack(dir: string, folder: string): Promise<PackRecord>
  * Records a sync tool kept because two computers disagreed about this pack.
  *
  * Syncthing keeps the version that lost beside the one that won, and nothing else in Tessera ever
- * opens those files. A licence somebody recorded on the other computer can be sitting in one,
+ * opens those files. A license somebody recorded on the other computer can be sitting in one,
  * unread and unmentioned, while the game's credits are written from the version that happened to
  * win. Rare, and silent, which is the bad combination.
  */
@@ -88,11 +90,11 @@ export async function writePack(dir: string, meta: PackMeta): Promise<PackMeta> 
   return next;
 }
 
-/** Apply a user's edit to a pack's record. Nested source and licence fields merge rather than replace. */
+/** Apply a user's edit to a pack's record. Nested source and license fields merge rather than replace. */
 export async function editPack(record: PackRecord, edit: PackEdit): Promise<PackRecord> {
   const merged: PackMeta = { ...record.meta, ...edit } as PackMeta;
   if (edit.source) merged.source = { ...record.meta.source, ...edit.source };
-  if (edit.licence) merged.licence = { ...record.meta.licence, ...edit.licence };
+  if (edit.license) merged.license = { ...record.meta.license, ...edit.license };
   return { ...record, meta: await writePack(record.dir, PackMeta.parse(merged)) };
 }
 
@@ -104,7 +106,7 @@ export async function createPack(root: string, name: string, init: Partial<PackM
   const folder = uniqueName(safeFolderName(name), (c) => existing.has(c.toLowerCase()));
   const dir = join(packsDir, folder);
   await mkdir(join(dir, PACK_DIRS.original), { recursive: true });
-  await mkdir(join(dir, PACK_DIRS.licence), { recursive: true });
+  await mkdir(join(dir, PACK_DIRS.license), { recursive: true });
   const now = new Date().toISOString();
   const meta = PackMeta.parse({ ...init, id: randomUUID(), name: name.trim() || folder, addedAt: now, updatedAt: now });
   await writeJson(join(dir, PACK_FILE), meta);

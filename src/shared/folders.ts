@@ -28,7 +28,7 @@ export function folderPathProblem(path: string): string | null {
   return null;
 }
 
-/** Services that sync a folder to the cloud, recognised from where it is. */
+/** Services that sync a folder to the cloud, recognized from where it is. */
 const CLOUD: [RegExp, string][] = [
   [/[\\/]Library[\\/]Mobile Documents[\\/]|[\\/]iCloud Drive([\\/]|$)/i, 'iCloud Drive'],
   [/[\\/]OneDrive( - [^\\/]+)?([\\/]|$)/i, 'OneDrive'],

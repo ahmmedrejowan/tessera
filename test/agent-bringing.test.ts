@@ -143,7 +143,7 @@ describe('taking things away', () => {
   });
 
   it('throws away a pack still waiting in Review', async () => {
-    const app = await running([{ name: 'No Papers', files: { 'Models/m.obj': 'o m\n' }, licence: null, source: null }]);
+    const app = await running([{ name: 'No Papers', files: { 'Models/m.obj': 'o m\n' }, license: null, source: null }]);
     const waiting = app.library.require().queries.packs({ scope: 'inbox', text: '', filters: {} }, 'added', 0, 10).rows[0]!;
     await callTool(app, 'discard_review_pack', { packId: waiting.id });
     expect(app.library.require().queries.pack(waiting.id)).toBeNull();

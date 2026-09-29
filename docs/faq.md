@@ -6,7 +6,7 @@ want to know before they trust an app with a collection they have spent years bu
 ## Getting started
 
 **What is Tessera for?**
-Keeping the game assets you collect, with their licences and sources on record, so you can find a
+Keeping the game assets you collect, with their licenses and sources on record, so you can find a
 piece in seconds and drop it into a game with its credits written for you.
 
 **Does it work offline?**
@@ -86,8 +86,8 @@ bought with.
 
 **Is it an asset manager like Eagle or Bridge?**
 It is close, but built for game assets and their terms: models with their formats and triangle
-counts, sounds, fonts, HDRIs, licences, credits, and a way into Unity, Godot and Unreal. It is not
-a general image organiser.
+counts, sounds, fonts, HDRIs, licenses, credits, and a way into Unity, Godot and Unreal. It is not
+a general image organizer.
 
 **Does it work with version control?**
 Yes, because it changes nothing about your project except the files it copies in. Those are
@@ -109,7 +109,7 @@ unpacked. What Tessera adds is a small `pack.json` beside each pack.
 
 **I already have hundreds of gigabytes of assets. Do I have to copy them all in?**
 No. On the Add page, choose **Index where they are**. Tessera reads the files where they already
-sit and keeps the record in the library: the licence, the tags, the collections, all of it. Not a
+sit and keeps the record in the library: the license, the tags, the collections, all of it. Not a
 byte is copied or moved, and Tessera never writes in that folder, so a read-only drive or a
 network share is fine. The one cost, and it is a real one: those files are not backed up or
 synced, because they are not in the library. The record is. A pack's page has **Take it into the
@@ -126,7 +126,7 @@ Not if you tell it what is there. Open the game and choose **Find assets already
 matches what is in a folder against your library by content, and records what matches at the path
 the game already uses. Nothing is copied, no path changes, and your credits file then covers what
 the game actually ships. An asset you re-exported or edited will not match, because it is no
-longer the file the licence was recorded against.
+longer the file the license was recorded against.
 
 **Is my download moved or copied?**
 Copied, by default. The file you dropped in stays exactly where it was, and Tessera works on its
@@ -145,7 +145,7 @@ your decision to make by hand, not something an assistant should do while doing 
 
 **So the same file can exist more than once?**
 Yes, and on purpose. Your original download, the copy in the library, and a copy in each game you
-send it to. The library copy is what your licence record is attached to; the copies in your games
+send it to. The library copy is what your license record is attached to; the copies in your games
 are what make a project build on a computer that has never heard of Tessera. Moving instead of
 copying removes the first of those three.
 
@@ -165,7 +165,7 @@ Bigger than you will make it. A test library of 400 packs and 120,000 files sear
 tenth of a second and opens in under three seconds.
 
 **Do I need to keep the zips?**
-Tessera keeps them, on purpose: the original download is the thing your licence was granted for,
+Tessera keeps them, on purpose: the original download is the thing your license was granted for,
 and a zip read from the inside costs nothing.
 
 ## Formats
@@ -173,8 +173,8 @@ and a zip read from the inside costs nothing.
 **Which kinds of file does it understand?**
 Models in glTF, GLB, FBX, OBJ, DAE and STL; images and sprites in PNG, JPEG, WebP, SVG, TGA and
 PSD; textures in the usual PBR sets; audio in OGG, WAV, MP3 and FLAC; fonts in TTF, OTF and WOFF;
-HDRIs in HDR and EXR; and documents such as licences and readmes. Anything else is kept and listed
-as a file: nothing is thrown away because it was not recognised.
+HDRIs in HDR and EXR; and documents such as licenses and readmes. Anything else is kept and listed
+as a file: nothing is thrown away because it was not recognized.
 
 **Can it preview a model without a game engine?**
 Yes. Models turn in 3D in the window, with their triangle and vertex counts, materials, size and
@@ -188,32 +188,32 @@ contents are not searchable. glTF, FBX and the other interchange formats are.
 They are one asset with its formats listed, not three. When a game takes it, Tessera sends the
 format that engine prefers.
 
-## Licences
+## Licenses
 
 **Why does a pack wait in Review?**
-Because it has no licence, or nothing saying where it came from. A pack in Review cannot be copied
+Because it has no license, or nothing saying where it came from. A pack in Review cannot be copied
 into a game, which is the point: the app should never be the reason you shipped something you
 could not account for.
 
-**Where does the licence come from?**
+**Where does the license come from?**
 Read from the pack's own files where possible (`LICENSE.txt`, a readme, the site's page), or from
 a rule you set for a site, or typed in by you. It says which of those it was.
 
 **Can one file in a pack have different terms?**
-Yes. A file or a folder can carry its own licence, and the most exact rule wins for any file.
+Yes. A file or a folder can carry its own license, and the most exact rule wins for any file.
 
 **What happens when I put an asset in a game?**
-The files are copied in, a licence file goes beside them, and `CREDITS.md` is kept up to date with
-what each pack asks for. A licence that forbids commercial use is not blocked, but it is flagged,
+The files are copied in, a license file goes beside them, and `CREDITS.md` is kept up to date with
+what each pack asks for. A license that forbids commercial use is not blocked, but it is flagged,
 because that is a choice only you can make.
 
-**Does Tessera check licences for me legally?**
+**Does Tessera check licenses for me legally?**
 No. It records what the pack says and shows it to you plainly. It is a filing system, not a lawyer.
 
 ## Games
 
 **Which engines does it work with?**
-Unity, Godot and Unreal are recognised by their own project files, and anything else can be linked
+Unity, Godot and Unreal are recognized by their own project files, and anything else can be linked
 as a plain folder. Assets land in `Assets/ThirdParty`, `assets/third_party`, `Content/ThirdParty`
 or `assets`, and you can change that per game.
 
@@ -224,7 +224,7 @@ code.
 
 **Are assets moved into my game, or copied?**
 Always copied. There is no move option for a game, because the library has to keep the pack whole
-for the licence record to mean anything. Tessera tells you where the files are about to go before
+for the license record to mean anything. Tessera tells you where the files are about to go before
 it writes anything.
 
 **Which file do I get when a pack ships several formats?**
@@ -300,7 +300,7 @@ No. Tessera listens on 127.0.0.1 only. Nothing on your network and nothing on th
 and it only answers while Tessera is open.
 
 **What sort of thing can I ask it?**
-"Find every CC0 footstep sound", "what is in Food Kit and under what licence", "file this pack
+"Find every CC0 footstep sound", "what is in Food Kit and under what license", "file this pack
 under CC BY 4.0 from opengameart.org", "copy the arcade pack into Bunny Dash", "which games use
 Food Kit". Anything the window can do has a tool behind it.
 
@@ -345,7 +345,7 @@ Every release publishes the SHA-256 of every file, and the install page shows ea
 download. Each file also carries a signed record of the commit and the workflow that produced it,
 which `gh attestation verify <file> -R ahmmedrejowan/tessera` checks.
 
-**What licence is Tessera itself under?**
+**What license is Tessera itself under?**
 GPL-3.0-or-later. You can read it, change it, and pass it on under the same terms.
 
 **How do I get updates?**

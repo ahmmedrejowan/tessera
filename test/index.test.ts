@@ -129,7 +129,7 @@ describe('index and queries', () => {
     const city = await createPack(root, 'City Kit', {
       status: 'library',
       source: { site: 'kenney', name: null, url: null, creator: 'Kenney', creatorUrl: null },
-      licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' },
+      license: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' },
       genres: ['City'],
       tags: ['roads'],
     });
@@ -181,19 +181,19 @@ describe('index and queries', () => {
     expect(q.sum('packs', packs.map((p) => p.id))).toBe(packs.reduce((n, p) => n + p.size, 0));
   });
 
-  it('gives a file the licence of the part of the pack it is in', async () => {
-    expect(new Set(q.assets(base, 'name', 0, 100).rows.map((r) => r.licence))).toEqual(new Set(['CC0-1.0', null]));
+  it('gives a file the license of the part of the pack it is in', async () => {
+    expect(new Set(q.assets(base, 'name', 0, 100).rows.map((r) => r.license))).toEqual(new Set(['CC0-1.0', null]));
     // The bundle's Models folder came under different terms.
     const city = (await listPacks(root)).packs.find((p) => p.meta.name === 'City Kit')!;
     // Paths are as the app shows them: an archive is a folder, so the rule names it too.
-    const meta = await editPack(city, { licences: [{ path: 'kenney_city-kit.zip/Models', licence: { id: 'CC-BY-4.0', attribution: 'By Kenney', proof: [], notes: '' } }] });
+    const meta = await editPack(city, { licenses: [{ path: 'kenney_city-kit.zip/Models', license: { id: 'CC-BY-4.0', attribution: 'By Kenney', proof: [], notes: '' } }] });
     await index.syncPack(meta, index.known(city.meta.id));
-    const byName = new Map(q.assets(base, 'name', 0, 100).rows.map((r) => [r.name, r.licence]));
+    const byName = new Map(q.assets(base, 'name', 0, 100).rows.map((r) => [r.name, r.license]));
     expect(byName.get('car_sedan.fbx')).toBe('CC-BY-4.0');
     expect(byName.get('car_crash.ogg')).toBe(null);
-    // And it can be browsed by that licence, a pack included.
-    expect(q.assets({ ...base, filters: { licence: ['CC-BY-4.0'] } }, 'name', 0, 100).rows.map((r) => r.name)).toEqual(['car_sedan.fbx', 'car_taxi.fbx']);
-    expect(q.packs({ ...base, filters: { licence: ['CC-BY-4.0'] } }, 'name', 0, 10).rows.map((p) => p.name)).toEqual(['City Kit']);
+    // And it can be browsed by that license, a pack included.
+    expect(q.assets({ ...base, filters: { license: ['CC-BY-4.0'] } }, 'name', 0, 100).rows.map((r) => r.name)).toEqual(['car_sedan.fbx', 'car_taxi.fbx']);
+    expect(q.packs({ ...base, filters: { license: ['CC-BY-4.0'] } }, 'name', 0, 10).rows.map((p) => p.name)).toEqual(['City Kit']);
   });
 
   it('scopes to the library or the inbox', () => {
@@ -226,7 +226,7 @@ describe('index and queries', () => {
     const f = q.facets(query, 'assets');
     expect(f.type).toEqual([{ value: 'sfx', count: 2 }, { value: 'model', count: 2 }].sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)));
     expect(f.source).toEqual([{ value: 'kenney', count: 2 }]);
-    expect(f.licence).toEqual([{ value: 'CC0-1.0', count: 2 }]);
+    expect(f.license).toEqual([{ value: 'CC0-1.0', count: 2 }]);
     expect(f.genre).toEqual([{ value: 'city', count: 2 }]);
     const packsFacets = q.facets({ ...base, filters: { tag: ['impact'] } }, 'packs');
     expect(packsFacets.type).toEqual([{ value: 'sfx', count: 1 }]);
@@ -271,14 +271,14 @@ describe('index and queries', () => {
   });
 });
 
-describe('licence health', () => {
+describe('license health', () => {
   it('lists library packs missing a credit line or not fit for commercial games', async () => {
     const root = tempDir();
     await createLibrary(root, 'lib');
-    await createPack(root, 'Icons', { status: 'library', licence: { id: 'CC-BY-3.0', attribution: null, proof: [], notes: '' } });
-    await createPack(root, 'Credited', { status: 'library', licence: { id: 'CC-BY-4.0', attribution: 'By someone', proof: [], notes: '' } });
-    await createPack(root, 'Hobby', { status: 'library', licence: { id: 'CC-BY-NC-4.0', attribution: 'x', proof: [], notes: '' } });
-    await createPack(root, 'Free', { status: 'library', licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' } });
+    await createPack(root, 'Icons', { status: 'library', license: { id: 'CC-BY-3.0', attribution: null, proof: [], notes: '' } });
+    await createPack(root, 'Credited', { status: 'library', license: { id: 'CC-BY-4.0', attribution: 'By someone', proof: [], notes: '' } });
+    await createPack(root, 'Hobby', { status: 'library', license: { id: 'CC-BY-NC-4.0', attribution: 'x', proof: [], notes: '' } });
+    await createPack(root, 'Free', { status: 'library', license: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' } });
     const index = new LibraryIndex(':memory:');
     await index.sync(root);
     const h = new LibraryQueries(index.db).health();
@@ -313,7 +313,7 @@ describe('finding a file by the way people type its name', () => {
     // Game assets are named in camelCase constantly and people type in lower case.
     const root = tempDir();
     await createLibrary(root, 'Effects library');
-    const pack = await createPack(root, 'Effects', { licence: { id: 'CC0-1.0' }, source: { url: 'https://example.test/e' } } as never);
+    const pack = await createPack(root, 'Effects', { license: { id: 'CC0-1.0' }, source: { url: 'https://example.test/e' } } as never);
     for (const name of ['FireBall.png', 'IceShard.png', 'plainname.png']) writeFileSync(join(pack.dir, 'original', name), 'x');
     const index = new LibraryIndex(':memory:');
     const q = new LibraryQueries(index.db);
@@ -335,7 +335,7 @@ describe('an asset id, after the pack it belongs to is read again', () => {
     // agent wrote down, pointed at some other file and "remove these" removed the wrong things.
     const root = tempDir();
     await createLibrary(root, 'Ids');
-    const pack = await createPack(root, 'Kit', { licence: { id: 'CC0-1.0' }, source: { url: 'https://example.test/k' } } as never);
+    const pack = await createPack(root, 'Kit', { license: { id: 'CC0-1.0' }, source: { url: 'https://example.test/k' } } as never);
     for (const n of ['a.png', 'b.png', 'c.png']) writeFileSync(join(pack.dir, 'original', n), 'x');
     const index = new LibraryIndex(':memory:');
     const q = new LibraryQueries(index.db);

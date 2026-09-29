@@ -69,7 +69,7 @@ export function createAppTheme(scheme: Scheme, dark: boolean): Theme {
           },
           '*::-webkit-scrollbar-thumb:hover': { backgroundColor: mdAlpha('onSurface', 0.35) },
           '*::-webkit-scrollbar-corner': { background: 'transparent' },
-          // Hover state layer for grid tiles and list rows (selected ones keep their container colour).
+          // Hover state layer for grid tiles and list rows (selected ones keep their container color).
           '.tile:hover:not([aria-selected="true"])': { backgroundColor: mdAlpha('onSurface', STATE.hover) },
         },
       },

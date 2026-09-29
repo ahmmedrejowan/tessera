@@ -14,7 +14,7 @@ import { UserError } from '../errors';
  *     packs/<Pack name>/
  *       pack.json              the pack's record (see shared/pack.ts)
  *       original/              the download exactly as it arrived: archives and files
- *       licence/               licence text, receipts and other proof
+ *       license/               license text, receipts and other proof
  *     collections/<id>.json    user collections
  *
  * Nothing else is written into a library: indexes and thumbnails live in the app's data folder.
@@ -24,7 +24,9 @@ export const MARKER = 'tessera-library.json';
 export const LIBRARY_FORMAT = 1;
 export const DIRS = { packs: 'packs', collections: 'collections', bin: 'bin' } as const;
 export const PACK_FILE = 'pack.json';
-export const PACK_DIRS = { original: 'original', licence: 'licence' } as const;
+// `license` is what the code calls it; `license` is the folder name already inside every pack in
+// everybody's library, and renaming that is a migration rather than a spelling change.
+export const PACK_DIRS = { original: 'original', license: 'licence' } as const;
 
 export const LibraryInfo = z.object({
   format: z.number().int(),

@@ -9,7 +9,7 @@ import { define, scope, filters, packOut, assetOut, ASSET_SORTS, PACK_SORTS, que
 /**
  * Filter values that match nothing in this library.
  *
- * Filtering by `licence: ['CC0']` returns an empty list, because the id is `CC0-1.0`. Empty is a
+ * Filtering by `license: ['CC0']` returns an empty list, because the id is `CC0-1.0`. Empty is a
  * true answer to the question asked and a useless one: an agent reports "you have no CC0 assets"
  * when the library is full of them. So when a filter narrows to nothing, the values that exist
  * are named. Only when nothing was found, because that is the only time it can mislead, and
@@ -59,7 +59,7 @@ export const READ: Tool[] = [
         bytes: stats.size,
         archived: stats.archived,
         waitingInReview: stats.inbox,
-        needsAttention: { noLicence: health.noLicence.length, noSource: health.noSource.length, noCreditLine: health.noCreditLine.length },
+        needsAttention: { noLicense: health.noLicense.length, noSource: health.noSource.length, noCreditLine: health.noCreditLine.length },
       };
     },
   }),
@@ -95,7 +95,7 @@ export const READ: Tool[] = [
     name: 'get_pack',
     group: 'read',
     title: 'One pack in full',
-    summary: 'Everything recorded about a pack: its licence (and any part of it under different terms), where it came from, its description, tags and proof files.',
+    summary: 'Everything recorded about a pack: its license (and any part of it under different terms), where it came from, its description, tags and proof files.',
     input: z.object({ packId: z.string() }),
     run: async (args, ctx) => {
       const pack = ctx.library.require().queries.pack(args.packId);
@@ -109,8 +109,8 @@ export const READ: Tool[] = [
         notes: pack.meta.notes,
         addedAt: pack.addedAt,
         sourceUrl: pack.meta.source.url,
-        creditLine: pack.meta.licence.attribution,
-        partsWithTheirOwnLicence: pack.meta.licences.map((r) => ({ path: r.path, licence: r.licence.id, creditLine: r.licence.attribution })),
+        creditLine: pack.meta.license.attribution,
+        partsWithTheirOwnLicense: pack.meta.licenses.map((r) => ({ path: r.path, license: r.license.id, creditLine: r.license.attribution })),
         proof: proof.map((f) => f.name),
         problems: pack.problems,
       };
@@ -120,7 +120,7 @@ export const READ: Tool[] = [
     name: 'list_files',
     group: 'read',
     title: 'The files in a pack',
-    summary: 'Every file of one pack, one by one, with the licence covering each. Use it when you need a particular file rather than the pack.',
+    summary: 'Every file of one pack, one by one, with the license covering each. Use it when you need a particular file rather than the pack.',
     input: z.object({
       packId: z.string(),
       only: z.enum(['assets', 'everything']).default('assets').describe('assets: the files that count as assets. everything: supporting files and documents too.'),
@@ -137,7 +137,7 @@ export const READ: Tool[] = [
     name: 'get_asset',
     group: 'read',
     title: 'One file in full',
-    summary: 'What is known about a single file, including which pack it belongs to and the licence covering it.',
+    summary: 'What is known about a single file, including which pack it belongs to and the license covering it.',
     input: z.object({ assetId: z.number().int().describe('From a search result.') }),
     run: async (args, ctx) => {
       const asset = ctx.library.require().queries.asset(args.assetId);
@@ -150,7 +150,7 @@ export const READ: Tool[] = [
     name: 'list_facets',
     group: 'read',
     title: 'What the library is filed under',
-    summary: 'The kinds, formats, sources, creators, licences, genres, styles and tags in use, with how many things carry each. Use it to pick filter values that exist.',
+    summary: 'The kinds, formats, sources, creators, licenses, genres, styles and tags in use, with how many things carry each. Use it to pick filter values that exist.',
     input: z.object({ of: z.enum(['assets', 'packs']).default('assets'), text: z.string().default(''), filters, scope }),
     run: async (args, ctx) => ctx.library.require().queries.facets(query(args), args.of),
   }),
@@ -196,11 +196,11 @@ export const READ: Tool[] = [
     name: 'list_review',
     group: 'read',
     title: 'What is waiting in Review',
-    summary: 'Packs that cannot join the library yet, and what each still needs. A pack needs both a licence and a source.',
+    summary: 'Packs that cannot join the library yet, and what each still needs. A pack needs both a license and a source.',
     input: z.object({}),
     run: async (_args, ctx) => {
       const page = ctx.library.require().queries.packs({ scope: 'inbox', text: '', filters: {} }, 'added', 0, 200);
-      return page.rows.map((p) => ({ ...packOut(p), needs: [p.licence ? null : 'licence', p.source ? null : 'source'].filter(Boolean) }));
+      return page.rows.map((p) => ({ ...packOut(p), needs: [p.license ? null : 'license', p.source ? null : 'source'].filter(Boolean) }));
     },
   }),
   define({
@@ -215,10 +215,10 @@ export const READ: Tool[] = [
     name: 'project_files',
     group: 'read',
     title: 'What a game has taken',
-    summary: 'The assets already linked into a game, with the licence and credit line recorded for each.',
+    summary: 'The assets already linked into a game, with the license and credit line recorded for each.',
     input: z.object({ projectId: z.string() }),
     run: async (args, ctx) =>
-      (await ctx.projects.entries(args.projectId, ctx.libraryId())).map((e) => ({ packId: e.packId, pack: e.packName, path: assetPath(e.ref), files: e.files, licence: e.licence, creditLine: e.attribution, copiedAt: e.copiedAt })),
+      (await ctx.projects.entries(args.projectId, ctx.libraryId())).map((e) => ({ packId: e.packId, pack: e.packName, path: assetPath(e.ref), files: e.files, license: e.license, creditLine: e.attribution, copiedAt: e.copiedAt })),
   }),
   define({
     name: 'list_downloads',
@@ -247,7 +247,7 @@ export const READ: Tool[] = [
       return {
         total: page.total,
         offset: args.offset,
-        packs: page.rows.map((p) => ({ id: p.id, name: p.name, licence: p.licence, creator: p.creator, assets: p.assetCount, bytes: p.size, kinds: p.types, status: p.status, archived: p.archived })),
+        packs: page.rows.map((p) => ({ id: p.id, name: p.name, license: p.license, creator: p.creator, assets: p.assetCount, bytes: p.size, kinds: p.types, status: p.status, archived: p.archived })),
       };
     },
   }),
@@ -270,7 +270,7 @@ export const READ: Tool[] = [
       return {
         total: page.total,
         offset: args.offset,
-        assets: page.rows.map((a) => ({ id: a.id, name: a.name, packId: a.packId, path: assetPath(a.ref), type: a.type, format: a.ext, bytes: a.size, licence: a.licence })),
+        assets: page.rows.map((a) => ({ id: a.id, name: a.name, packId: a.packId, path: assetPath(a.ref), type: a.type, format: a.ext, bytes: a.size, license: a.license })),
       };
     },
   }),

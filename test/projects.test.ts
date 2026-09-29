@@ -14,9 +14,10 @@ import { dependencies, resolveRef } from '../src/main/projects/deps';
 import { probeProject } from '../src/main/projects/engines';
 import { tempDir } from './helpers';
 import { writeZip } from './zipfixture';
+import { PACK_DIRS } from '../src/main/library/layout';
 
 describe('engine detection', () => {
-  it('recognises Unity, Godot, Unreal and plain folders', async () => {
+  it('recognizes Unity, Godot, Unreal and plain folders', async () => {
     const unity = tempDir();
     mkdirSync(join(unity, 'ProjectSettings'));
     writeFileSync(join(unity, 'ProjectSettings', 'ProjectVersion.txt'), 'm_EditorVersion: 6000.3.24f1\n');
@@ -69,13 +70,13 @@ describe('model dependencies', () => {
 });
 
 describe('copying into a project', () => {
-  it('copies the engine’s preferred format with its textures and licence, records it, writes credits, and removes cleanly', async () => {
+  it('copies the engine’s preferred format with its textures and license, records it, writes credits, and removes cleanly', async () => {
     const root = tempDir();
     await createLibrary(root, 'lib');
     const kit = await createPack(root, 'Car Kit', {
       status: 'library',
       source: { site: 'kenney', name: null, url: 'https://kenney.nl/assets/car-kit', creator: 'Kenney', creatorUrl: null },
-      licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' },
+      license: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' },
     });
     await writeZip(join(kit.dir, 'original', 'kenney_car-kit.zip'), {
       'Models/GLB format/van.glb': 'glb',
@@ -83,7 +84,7 @@ describe('copying into a project', () => {
       'Models/FBX format/Textures/colormap.png': 'png',
       'License.txt': 'CC0',
     });
-    const icons = await createPack(root, 'Icons', { status: 'library', licence: { id: 'CC-BY-3.0', attribution: 'Icons by Lorc, CC BY 3.0', proof: [], notes: '' }, source: { site: 'game-icons', name: null, url: null, creator: 'Lorc', creatorUrl: null } });
+    const icons = await createPack(root, 'Icons', { status: 'library', license: { id: 'CC-BY-3.0', attribution: 'Icons by Lorc, CC BY 3.0', proof: [], notes: '' }, source: { site: 'game-icons', name: null, url: null, creator: 'Lorc', creatorUrl: null } });
     mkdirSync(join(icons.dir, 'original', 'png'));
     writeFileSync(join(icons.dir, 'original', 'png', 'sword.png'), 'png');
 
@@ -114,7 +115,7 @@ describe('copying into a project', () => {
     const base = join(game, 'Assets', 'ThirdParty');
     expect(readFileSync(join(base, 'Car Kit', 'FBX format', 'van.fbx'), 'utf8')).toContain('fbx');
     expect(existsSync(join(base, 'Car Kit', 'FBX format', 'Textures', 'colormap.png'))).toBe(true);
-    expect(readFileSync(join(base, 'Car Kit', 'LICENCE.txt'), 'utf8')).toContain('Creative Commons Zero');
+    expect(readFileSync(join(base, 'Car Kit', 'LICENSE.txt'), 'utf8')).toContain('Creative Commons Zero');
     expect(existsSync(join(base, 'Icons', 'sword.png'))).toBe(true);
     const manifest = await readManifest(game, 'lib-1');
     expect(manifest.entries.map((e) => e.copiedRef.split('/').pop())).toEqual(['van.fbx', 'sword.png']);
@@ -127,8 +128,8 @@ describe('copying into a project', () => {
 
     // Removing takes the files, the empty folders and the credit away.
     writeFileSync(join(base, 'Car Kit', 'FBX format', 'van.fbx.meta'), 'unity');
-    // The pack's licence papers were copied in beside its files.
-    expect(existsSync(join(base, 'Car Kit', 'licence'))).toBe(true);
+    // The pack's license papers were copied in beside its files.
+    expect(existsSync(join(base, 'Car Kit', 'license'))).toBe(true);
     await removeFromProject(project, 'lib-1', items.slice(0, 1));
     expect(existsSync(join(base, 'Car Kit'))).toBe(false);
     expect(existsSync(join(base, 'Icons', 'sword.png'))).toBe(true);
@@ -165,27 +166,27 @@ describe('copying into a project', () => {
 
   it('names the pack on every line, whether or not a credit line was given', () => {
     const entry = (packId: string, packName: string, attribution: string | null) =>
-      ({ packId, packName, ref: 'a.glb', copiedRef: 'a.glb', files: ['x'], licence: 'CC-BY-4.0', attribution, creator: 'Someone', sourceUrl: null, copiedAt: 'now' }) as never;
+      ({ packId, packName, ref: 'a.glb', copiedRef: 'a.glb', files: ['x'], license: 'CC-BY-4.0', attribution, creator: 'Someone', sourceUrl: null, copiedAt: 'now' }) as never;
     const md = creditsMarkdown([entry('p1', 'Ships', 'Nebula Assets'), entry('p2', 'Environment', 'Nebula Assets'), entry('p3', 'Sounds', null)]);
 
     // Two packs sharing one creator's stock credit line must not come out as two identical
-    // lines that name neither: the line the licence asks for is added, not substituted.
+    // lines that name neither: the line the license asks for is added, not substituted.
     expect(md).toContain('“Ships” — Nebula Assets ([CC BY 4.0]');
     expect(md).toContain('“Environment” — Nebula Assets ([CC BY 4.0]');
     expect(md).toContain("“Sounds” by Someone ([CC BY 4.0]");
-    // A credit line that already names the pack and its licence is left exactly as it is.
+    // A credit line that already names the pack and its license is left exactly as it is.
     const whole = creditsMarkdown([
-      { packId: 'p', packName: 'Icons', ref: 'a.png', copiedRef: 'a.png', files: ['x'], licence: 'CC-BY-3.0', attribution: 'Icons by Lorc, CC BY 3.0', creator: 'Lorc', sourceUrl: null, copiedAt: 'now' } as never,
+      { packId: 'p', packName: 'Icons', ref: 'a.png', copiedRef: 'a.png', files: ['x'], license: 'CC-BY-3.0', attribution: 'Icons by Lorc, CC BY 3.0', creator: 'Lorc', sourceUrl: null, copiedAt: 'now' } as never,
     ]);
     expect(whole).toContain('- Icons by Lorc, CC BY 3.0\n');
     expect(md.split('\n').filter((l) => l.trim() === '- Nebula Assets')).toHaveLength(0);
   });
 
-  it('says so plainly when no licence is on record', () => {
+  it('says so plainly when no license is on record', () => {
     const md = creditsMarkdown([
-      { packId: 'p', packName: 'Mystery', ref: 'a.glb', copiedRef: 'a.glb', files: ['x'], licence: null, attribution: null, creator: null, sourceUrl: null, copiedAt: 'now' } as never,
+      { packId: 'p', packName: 'Mystery', ref: 'a.glb', copiedRef: 'a.glb', files: ['x'], license: null, attribution: null, creator: null, sourceUrl: null, copiedAt: 'now' } as never,
     ]);
-    expect(md).toContain('“Mystery” (licence not recorded)');
+    expect(md).toContain('“Mystery” (license not recorded)');
   });
 });
 

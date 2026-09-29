@@ -27,27 +27,27 @@ export const PackSource = z.object({
 });
 export type PackSource = z.infer<typeof PackSource>;
 
-export const PackLicence = z.object({
-  /** An id from `LICENCES`, or null while unknown. */
+export const PackLicense = z.object({
+  /** An id from `LICENSES`, or null while unknown. */
   id: z.string().nullable().default(null),
-  /** The credit line to use in a game's credits, when the licence asks for one. */
+  /** The credit line to use in a game's credits, when the license asks for one. */
   attribution: shortText.nullable().default(null),
-  /** Files in the pack's `licence/` folder that prove it: licence text, receipt, screenshot. */
+  /** Files in the pack's `license/` folder that prove it: license text, receipt, screenshot. */
   proof: z.array(z.string()).default([]),
   notes: text.default(''),
 });
-export type PackLicence = z.infer<typeof PackLicence>;
+export type PackLicense = z.infer<typeof PackLicense>;
 
 /**
- * A licence for part of a pack. Bundles often ship a folder with terms of its own, so a rule says
+ * A license for part of a pack. Bundles often ship a folder with terms of its own, so a rule says
  * "everything under this path is licensed like this" and the most exact rule for a file wins.
  */
-export const PackLicenceRule = z.object({
+export const PackLicenseRule = z.object({
   /** A folder or a single file inside the pack, as it is shown (no `original/`, archives as folders). */
   path: z.string().trim().min(1).max(400),
-  licence: PackLicence,
+  license: PackLicense,
 });
-export type PackLicenceRule = z.infer<typeof PackLicenceRule>;
+export type PackLicenseRule = z.infer<typeof PackLicenseRule>;
 
 export const PackPurchase = z.object({
   price: z.number().nonnegative().nullable().default(null),
@@ -58,10 +58,10 @@ export const PackPurchase = z.object({
 
 /**
  * A pack whose files were never brought into the library: they stay where their owner keeps them
- * and Tessera only reads them. The record, the licence proof and everything else still live in
+ * and Tessera only reads them. The record, the license proof and everything else still live in
  * the library, so they are backed up and synced; the files are not, because they are not here.
  *
- * Tessera never writes inside `where`. Not a preview, not a licence file, not a note. That is
+ * Tessera never writes inside `where`. Not a preview, not a license file, not a note. That is
  * what makes this safe to point at a read-only drive, a network share, or a game somebody ships.
  */
 export const PackKept = z.object({
@@ -73,6 +73,32 @@ export const PackKept = z.object({
 });
 export type PackKept = z.infer<typeof PackKept>;
 
+/**
+ * Records written before the spelling was settled say `license` and `licenses`. Read either, keep
+ * the American one, and the next save quietly moves the file over. Nobody has to migrate anything
+ * and an older Tessera can still read what this one writes, because the old keys are left alone.
+ */
+export const eitherSpelling = (o: unknown): unknown => {
+  if (!o || typeof o !== 'object') return o;
+  const r = o as Record<string, unknown>;
+  const out = { ...r };
+  // The old key, written out so a spelling sweep cannot quietly turn it into the new one and make
+  // this function a no-op that still looks right.
+  const wasLicense = 'licence';
+  const wasLicenses = 'licences';
+  if (out.license === undefined && r[wasLicense] !== undefined) out.license = r[wasLicense];
+  const rules = out.licenses ?? r[wasLicenses];
+  // Each part rule carries a license of its own, spelled the way the record was.
+  if (Array.isArray(rules)) {
+    out.licenses = rules.map((rule) => {
+      if (!rule || typeof rule !== 'object') return rule;
+      const one = rule as Record<string, unknown>;
+      return one.license === undefined && one[wasLicense] !== undefined ? { ...one, license: one[wasLicense] } : one;
+    });
+  }
+  return out;
+};
+
 export const PackMeta = z
   .object({
     format: z.literal(PACK_FORMAT).default(PACK_FORMAT),
@@ -82,9 +108,9 @@ export const PackMeta = z
     addedAt: z.string(),
     updatedAt: z.string(),
     source: PackSource.default(() => PackSource.parse({})),
-    licence: PackLicence.default(() => PackLicence.parse({})),
-    /** Parts of the pack with terms of their own; the pack's own licence covers the rest. */
-    licences: z.array(PackLicenceRule).default([]),
+    license: PackLicense.default(() => PackLicense.parse({})),
+    /** Parts of the pack with terms of their own; the pack's own license covers the rest. */
+    licenses: z.array(PackLicenseRule).default([]),
     purchase: PackPurchase.nullable().default(null),
     version: shortText.nullable().default(null),
     description: text.default(''),
@@ -106,8 +132,8 @@ export type PackMeta = z.infer<typeof PackMeta>;
 export const PackEdit = PackMeta.pick({
   name: true,
   source: true,
-  licence: true,
-  licences: true,
+  license: true,
+  licenses: true,
   purchase: true,
   version: true,
   description: true,
@@ -123,24 +149,24 @@ export type PackEdit = z.infer<typeof PackEdit>;
 const tidy = (path: string) => path.replace(/^\/+|\/+$/g, '').toLowerCase();
 
 /**
- * The licence that covers one file: the most exact rule whose path contains it, or the pack's own
+ * The license that covers one file: the most exact rule whose path contains it, or the pack's own
  * when no rule does. `path` is the file as it is shown (see `assetPath`).
  */
-export function licenceForPath(meta: Pick<PackMeta, 'licence' | 'licences'>, path: string): PackLicence {
+export function licenseForPath(meta: Pick<PackMeta, 'license' | 'licenses'>, path: string): PackLicense {
   const file = tidy(path);
-  let best: PackLicenceRule | undefined;
-  for (const rule of meta.licences ?? []) {
+  let best: PackLicenseRule | undefined;
+  for (const rule of meta.licenses ?? []) {
     const at = tidy(rule.path);
     if (!at || !(file === at || file.startsWith(`${at}/`))) continue;
     if (!best || tidy(rule.path).length > tidy(best.path).length) best = rule;
   }
-  return best?.licence ?? meta.licence;
+  return best?.license ?? meta.license;
 }
 
 /** What still stands between a pack and the library: empty when it may leave the Inbox. */
-export function missingForLibrary(meta: Pick<PackMeta, 'licence' | 'source'>): ('licence' | 'source')[] {
-  const missing: ('licence' | 'source')[] = [];
-  if (!meta.licence.id) missing.push('licence');
+export function missingForLibrary(meta: Pick<PackMeta, 'license' | 'source'>): ('license' | 'source')[] {
+  const missing: ('license' | 'source')[] = [];
+  if (!meta.license.id) missing.push('license');
   if (!meta.source.site && !meta.source.name && !meta.source.url) missing.push('source');
   return missing;
 }

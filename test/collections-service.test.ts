@@ -4,7 +4,7 @@
  * A collection is a folder of its own on disk, and what it holds has to survive being read back.
  * The parts worth holding to account are the ones that decide something: rules that turn a pack
  * away and say why, a saved search that counts what matches now rather than what was put in it,
- * and the proof kept beside a licence.
+ * and the proof kept beside a license.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -12,10 +12,11 @@ import { describe, expect, it } from 'vitest';
 
 import { NO_RULES } from '@shared/collection';
 import { PIXEL, running, type PackFixture, type Running } from './library';
+import { PACK_DIRS } from '../src/main/library/layout';
 
 const PACKS: PackFixture[] = [
   { name: 'Free Kit', files: { 'Models/free.obj': 'o free\n', 'Textures/free.png': PIXEL } },
-  { name: 'Credited Kit', files: { 'Models/credited.obj': 'o credited\n' }, licence: 'CC-BY-4.0' },
+  { name: 'Credited Kit', files: { 'Models/credited.obj': 'o credited\n' }, license: 'CC-BY-4.0' },
 ];
 
 /** The library, with the two packs' ids to hand. */
@@ -28,11 +29,11 @@ async function ready(): Promise<Running & { free: string; credited: string }> {
 describe('a collection with rules', () => {
   it('takes what fits, turns away what does not, and says which it was and why', async () => {
     const app = await ready();
-    const id = await app.library.createCollection('Only free things', { rules: { ...NO_RULES, licences: ['CC0-1.0'] } });
+    const id = await app.library.createCollection('Only free things', { rules: { ...NO_RULES, licenses: ['CC0-1.0'] } });
 
     const done = await app.library.changeCollection(id, { addPacks: [app.free, app.credited] });
     expect(done.addedPacks).toBe(1);
-    expect(done.refused).toEqual([{ name: 'Credited Kit', why: 'its licence' }]);
+    expect(done.refused).toEqual([{ name: 'Credited Kit', why: 'its license' }]);
 
     const [summary] = await app.library.collections();
     expect(summary).toMatchObject({ name: 'Only free things', packCount: 1 });
@@ -42,7 +43,7 @@ describe('a collection with rules', () => {
 
   it('judges a single file by the pack it came from', async () => {
     const app = await ready();
-    const id = await app.library.createCollection('Only free things', { rules: { ...NO_RULES, licences: ['CC0-1.0'] } });
+    const id = await app.library.createCollection('Only free things', { rules: { ...NO_RULES, licenses: ['CC0-1.0'] } });
     const done = await app.library.changeCollection(id, {
       add: [
         { packId: app.free, ref: 'original/Models/free.obj' },
@@ -50,14 +51,14 @@ describe('a collection with rules', () => {
       ],
     });
     expect(done.added).toBe(1);
-    expect(done.refused.map((r) => r.why)).toEqual(['its licence']);
+    expect(done.refused.map((r) => r.why)).toEqual(['its license']);
   });
 
   it('judges what joins by the rules it is being given, not the ones it had', async () => {
     const app = await ready();
     const id = await app.library.createCollection('Anything', {});
     // The rules and the pack arrive together: the new rules are the ones that decide.
-    const done = await app.library.changeCollection(id, { rules: { ...NO_RULES, licences: ['CC0-1.0'] }, addPacks: [app.credited] });
+    const done = await app.library.changeCollection(id, { rules: { ...NO_RULES, licenses: ['CC0-1.0'] }, addPacks: [app.credited] });
     expect(done.addedPacks).toBe(0);
     expect(done.refused).toHaveLength(1);
   });
@@ -91,7 +92,7 @@ describe('changing a collection', () => {
 
   it('counts what a saved search matches now, not what was put in it', async () => {
     const app = await ready();
-    await app.library.createCollection('Every model', { query: { text: '', filters: { type: ['model'] }, includeSupport: false, favourites: false } });
+    await app.library.createCollection('Every model', { query: { text: '', filters: { type: ['model'] }, includeSupport: false, favorites: false } });
     const [smart] = await app.library.collections();
     expect(smart).toMatchObject({ kind: 'smart', packCount: 0 });
     expect(smart!.count).toBe(2);
@@ -100,23 +101,23 @@ describe('changing a collection', () => {
   });
 });
 
-describe('proof kept with a licence', () => {
-  it('writes the file beside the licence, records it, and never overwrites another', async () => {
+describe('proof kept with a license', () => {
+  it('writes the file beside the license, records it, and never overwrites another', async () => {
     const app = await ready();
     const first = await app.library.saveProof(app.free, 'page.pdf', Buffer.from('%PDF-1.4\nfirst\n'), 'Saved from the download page');
     const second = await app.library.saveProof(app.free, 'page.pdf', Buffer.from('%PDF-1.4\nsecond\n'));
     expect(second).not.toBe(first);
 
-    const dir = join(app.root, 'packs', 'Free Kit', 'licence');
+    const dir = join(app.root, 'packs', 'Free Kit', PACK_DIRS.license);
     expect(existsSync(join(dir, first))).toBe(true);
     expect(readFileSync(join(dir, second), 'utf8')).toContain('second');
 
-    const meta = JSON.parse(readFileSync(join(app.root, 'packs', 'Free Kit', 'pack.json'), 'utf8')) as { licence: { proof: string[]; notes: string } };
-    expect(meta.licence.proof).toEqual([first, second]);
-    expect(meta.licence.notes).toContain('Saved from the download page');
+    const meta = JSON.parse(readFileSync(join(app.root, 'packs', 'Free Kit', 'pack.json'), 'utf8')) as { license: { proof: string[]; notes: string } };
+    expect(meta.license.proof).toEqual([first, second]);
+    expect(meta.license.notes).toContain('Saved from the download page');
 
-    await app.library.addLicenceNote(app.free, 'Also kept at the Internet Archive');
-    const after = JSON.parse(readFileSync(join(app.root, 'packs', 'Free Kit', 'pack.json'), 'utf8')) as { licence: { notes: string } };
-    expect(after.licence.notes.split('\n')).toHaveLength(2);
+    await app.library.addLicenseNote(app.free, 'Also kept at the Internet Archive');
+    const after = JSON.parse(readFileSync(join(app.root, 'packs', 'Free Kit', 'pack.json'), 'utf8')) as { license: { notes: string } };
+    expect(after.license.notes.split('\n')).toHaveLength(2);
   });
 });

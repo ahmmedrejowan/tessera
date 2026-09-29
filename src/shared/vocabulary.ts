@@ -15,4 +15,4 @@ export const STYLES = [
 ];
 
 /** Tidy a word the user typed: trimmed, lower-case, single spaces. */
-export const normaliseTerm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+export const normalizeTerm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');

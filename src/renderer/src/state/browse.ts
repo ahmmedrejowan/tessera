@@ -15,7 +15,7 @@ interface BrowseState {
   packSort: PackSort;
   includeSupport: boolean;
   /** Show only what has been starred. */
-  favourites: boolean;
+  favorites: boolean;
   /** Show only packs read from a folder outside the library. */
   kept: boolean;
   /** Tile edge in pixels. */
@@ -71,7 +71,7 @@ export const useBrowse = create<BrowseState>((set, get) => ({
   assetSort: 'relevance',
   packSort: 'name',
   includeSupport: false,
-  favourites: false,
+  favorites: false,
   kept: false,
   tileSize: 160,
   filtersOpen: true,
@@ -94,7 +94,7 @@ export const useBrowse = create<BrowseState>((set, get) => ({
   setAssetSort: (assetSort) => set({ assetSort }),
   setPackSort: (packSort) => set({ packSort }),
   setIncludeSupport: (includeSupport) => set({ includeSupport }),
-  setFavourites: (favourites) => set({ favourites, selection: new Set(), anchor: null }),
+  setFavourites: (favorites) => set({ favorites, selection: new Set(), anchor: null }),
   setKept: (kept) => set({ kept, selection: new Set(), anchor: null }),
   setTileSize: (tileSize) => set({ tileSize: Math.max(TILE_MIN, Math.min(TILE_MAX, Math.round(tileSize))) }),
   setFiltersOpen: (filtersOpen) => set({ filtersOpen }),
@@ -121,7 +121,7 @@ useBrowse.subscribe((s) => {
 });
 
 /** The query the current browse state describes. */
-export function browseQuery(s: Pick<BrowseState, 'text' | 'filters' | 'includeSupport' | 'favourites'> & { kept?: boolean }): BrowseQuery {
+export function browseQuery(s: Pick<BrowseState, 'text' | 'filters' | 'includeSupport' | 'favorites'> & { kept?: boolean }): BrowseQuery {
   const filters: Filters = {};
   for (const [k, v] of Object.entries(s.filters)) if (v?.length) filters[k as Facet] = v;
   return {
@@ -129,7 +129,7 @@ export function browseQuery(s: Pick<BrowseState, 'text' | 'filters' | 'includeSu
     text: s.text.trim(),
     filters,
     includeSupport: s.includeSupport,
-    ...(s.favourites ? { favourites: true } : {}),
+    ...(s.favorites ? { favorites: true } : {}),
     ...(s.kept ? { kept: true as const } : {}),
   };
 }

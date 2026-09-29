@@ -1,5 +1,5 @@
 /**
- * What an agent can change about a library: stars, collections, a pack's details, its licence, and
+ * What an agent can change about a library: stars, collections, a pack's details, its license, and
  * putting it away. Every one of these writes to somebody's own files, so each is checked on both
  * sides: what the tool answered, and what the library says afterwards.
  */
@@ -68,12 +68,12 @@ describe('collections', () => {
       name: 'For the jam',
       description: 'What the first level needs',
       assetIds: [file.id],
-      rules: { licences: ['CC0-1.0'] },
+      rules: { licenses: ['CC0-1.0'] },
     })) as { id: string };
 
     const summary = (await app.library.collections()).find((c) => c.id === made.id)!;
     expect(summary.description).toBe('What the first level needs');
-    expect(summary.rules.licences).toEqual(['CC0-1.0']);
+    expect(summary.rules.licenses).toEqual(['CC0-1.0']);
     expect(summary.count).toBe(1);
 
     // Adding and taking away a single file, by the id the library gives it.
@@ -81,10 +81,10 @@ describe('collections', () => {
     await callTool(app, 'remove_from_collection', { collectionId: made.id, assetIds: [file.id] });
     expect((await app.library.collections()).find((c) => c.id === made.id)!.count).toBe(0);
 
-    await callTool(app, 'edit_collection', { collectionId: made.id, description: 'Changed', forGame: null, rules: { licences: [] } });
+    await callTool(app, 'edit_collection', { collectionId: made.id, description: 'Changed', forGame: null, rules: { licenses: [] } });
     const after = (await app.library.collections()).find((c) => c.id === made.id)!;
     expect(after.description).toBe('Changed');
-    expect(after.rules.licences).toEqual([]);
+    expect(after.rules.licenses).toEqual([]);
     void arcade;
   });
 
@@ -102,7 +102,7 @@ describe('what a pack says about itself', () => {
     await callTool(app, 'set_pack_details', {
       packId: arcade.id,
       name: 'Arcade Deluxe',
-      licence: 'CC-BY-4.0',
+      license: 'CC-BY-4.0',
       attribution: 'By Someone',
       creator: 'Someone',
       sourceUrl: 'https://example.test/arcade',
@@ -113,7 +113,7 @@ describe('what a pack says about itself', () => {
 
     const row = pack(app, arcade.id)!;
     expect(row.name).toBe('Arcade Deluxe');
-    expect(row.licence).toBe('CC-BY-4.0');
+    expect(row.license).toBe('CC-BY-4.0');
     expect(row.creator).toBe('Someone');
     expect(row.genres).toContain('arcade');
     expect(row.tags).toContain('retro');
@@ -133,20 +133,20 @@ describe('what a pack says about itself', () => {
     expect(row.meta.description).toBe('Little arcade machines');
     expect(row.meta.notes).toBe('Bought in the sale');
     expect(row.meta.version).toBe('2.0');
-    expect(row.meta.licence.attribution).toBe('Arcade Deluxe by Someone');
+    expect(row.meta.license.attribution).toBe('Arcade Deluxe by Someone');
     expect(row.meta.source.name).toBe('A site with no rules of its own');
   });
 
   it('gives one folder of a pack terms of its own', async () => {
     const { app, arcade } = await ready();
-    const done = (await callTool(app, 'set_file_licence', { packId: arcade.id, path: 'Models', licence: 'CC-BY-4.0' })) as { files: number };
+    const done = (await callTool(app, 'set_file_license', { packId: arcade.id, path: 'Models', license: 'CC-BY-4.0' })) as { files: number };
     expect(done.files).toBeGreaterThan(0);
-    expect(pack(app, arcade.id)!.meta.licences.some((r) => r.path === 'Models')).toBe(true);
+    expect(pack(app, arcade.id)!.meta.licenses.some((r) => r.path === 'Models')).toBe(true);
   });
 
   it('refuses a rule that would cover nothing, rather than reading as done', async () => {
     const { app, arcade } = await ready();
-    await expect(callTool(app, 'set_file_licence', { packId: arcade.id, path: 'Nowhere', licence: 'CC0-1.0' })).rejects.toThrow(/Nothing in this pack/);
+    await expect(callTool(app, 'set_file_license', { packId: arcade.id, path: 'Nowhere', license: 'CC0-1.0' })).rejects.toThrow(/Nothing in this pack/);
   });
 
   it('chooses the picture a pack is shown by', async () => {
@@ -169,16 +169,16 @@ describe('what a pack says about itself', () => {
   });
 
   it('moves a pack out of Review once its papers are in order', async () => {
-    const app = await running([{ name: 'No Papers', files: { 'Models/m.obj': 'o m\n' }, licence: null, source: null }]);
+    const app = await running([{ name: 'No Papers', files: { 'Models/m.obj': 'o m\n' }, license: null, source: null }]);
     const waiting = app.library.require().queries.packs({ scope: 'inbox', text: '', filters: {} }, 'added', 0, 10).rows[0]!;
 
-    // It cannot join the library until it has both a licence and a source: a batch says which
+    // It cannot join the library until it has both a license and a source: a batch says which
     // were refused rather than failing the lot.
     const first = (await callTool(app, 'move_to_library', { packIds: [waiting.id] })) as { moved: string[]; refused: { why: string }[] };
     expect(first.moved).toEqual([]);
     expect(first.refused[0]!.why).toBeTruthy();
 
-    await callTool(app, 'set_pack_details', { packId: waiting.id, licence: 'CC0-1.0', sourceName: 'Somewhere' });
+    await callTool(app, 'set_pack_details', { packId: waiting.id, license: 'CC0-1.0', sourceName: 'Somewhere' });
     const second = (await callTool(app, 'move_to_library', { packIds: [waiting.id] })) as { moved: string[] };
     expect(second.moved).toEqual([waiting.id]);
     expect(app.library.require().queries.pack(waiting.id)?.status).toBe('library');

@@ -34,7 +34,7 @@ export interface BinEntry {
 
 export interface Settings {
   theme: ThemeMode;
-  /** Seed for the Material 3 colour scheme, as #rrggbb. */
+  /** Seed for the Material 3 color scheme, as #rrggbb. */
   seedColor: string;
   /** The open library folder (opened again at start), or null. */
   libraryPath: string | null;
@@ -51,7 +51,7 @@ export interface Settings {
   /** How many downloads may run at once (1-5). */
   downloadsAtOnce: number;
   /**
-   * What happens when a download finishes, whichever library is open: add it (a clear licence
+   * What happens when a download finishes, whichever library is open: add it (a clear license
    * goes into the library, the rest wait in Review), send every one to Review, or leave it in
    * Downloads for the user.
    */
@@ -81,12 +81,12 @@ export interface Settings {
   confirmCopyToGame: boolean;
 }
 
-/** A site the user has set the licence for, so packs from it fill themselves in. */
+/** A site the user has set the license for, so packs from it fill themselves in. */
 export interface SiteRule {
   /** The host it covers, without "www."; subdomains count. */
   host: string;
-  /** The licence its packs carry, as a licence id. */
-  licence: string | null;
+  /** The license its packs carry, as a license id. */
+  license: string | null;
   /** Who to credit, when the site is one creator. */
   creator: string | null;
   addedAt: string;
@@ -204,7 +204,7 @@ export interface LibraryRecord {
   path: string;
   lastOpenedAt: string;
   /**
-   * Imported packs whose download names their licence and comes from a known site go straight
+   * Imported packs whose download names their license and comes from a known site go straight
    * into the library; the rest wait in the Inbox. Off: every import waits in the Inbox.
    */
   skipInboxWhenSure: boolean;
@@ -313,11 +313,11 @@ export interface RenderResult {
 
 /** What Tessera worked out about a pack from its files: suggestions, never applied silently. */
 export interface Detected {
-  licence: string | null;
-  /** Where the licence was found, e.g. "License.txt". */
-  licenceFrom: string | null;
-  /** The licence was read in the pack or set by the user's rule for the site, not merely usual there. */
-  licenceSure?: boolean;
+  license: string | null;
+  /** Where the license was found, e.g. "License.txt". */
+  licenseFrom: string | null;
+  /** The license was read in the pack or set by the user's rule for the site, not merely usual there. */
+  licenseSure?: boolean;
   site: string | null;
   url: string | null;
   /** Where the link came from: "a link in the pack", "the file name". */
@@ -334,7 +334,7 @@ export interface Suggestion<T> {
   sure: boolean;
 }
 
-/** What a pack's files suggest for its details, beyond the licence and source already applied. */
+/** What a pack's files suggest for its details, beyond the license and source already applied. */
 export interface PackSuggestions {
   name?: Suggestion<string>;
   version?: Suggestion<string>;

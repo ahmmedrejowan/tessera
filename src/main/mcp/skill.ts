@@ -25,7 +25,7 @@ export function skillMarkdown(url: string): string {
 
   return `---
 name: tessera-library
-description: Work with a Tessera asset library: find game assets, keep their licences straight, gather them into collections and link them into a game. Use when the person mentions their asset library, packs, or needs assets for a game.
+description: Work with a Tessera asset library: find game assets, keep their licenses straight, gather them into collections and link them into a game. Use when the person mentions their asset library, packs, or needs assets for a game.
 ---
 
 # Working in a Tessera library
@@ -36,14 +36,14 @@ appears in their window as you do it, so work as though they are watching, becau
 
 ## The words
 
-- **Pack** — how assets arrive: a download, a bundle, a folder. A pack carries the licence, the
+- **Pack** — how assets arrive: a download, a bundle, a folder. A pack carries the license, the
   source and the proof. It is the unit that can be archived or deleted.
 - **Asset** — one file inside a pack. It can be starred, collected, linked and deleted on its own.
 - **Collection** — a gathering of packs and assets for one game or one job. It can carry rules
   ("only CC0") and refuse anything that doesn't fit.
 - **Linking** — copying an asset into a game's folder, in the format that engine prefers, with its
-  textures, its licence papers and the game's credits file kept up to date.
-- **Review** — where a pack waits until it has both a licence and a source. It cannot be browsed
+  textures, its license papers and the game's credits file kept up to date.
+- **Review** — where a pack waits until it has both a license and a source. It cannot be browsed
   until it does.
 - **Game** — a project folder the library copies into. The tools call it \`projectId\`, the window
   and the person call it a game. They are the same thing.
@@ -53,12 +53,12 @@ appears in their window as you do it, so work as though they are watching, becau
 
 ## The rules that matter
 
-1. **Never guess a licence.** If a pack has none recorded, say so and ask, or record what the
-   pack's own files say. A wrong licence is worse than a missing one.
-2. **A pack leaves Review only when it has a licence and a source.** Use \`set_pack_details\`, then
+1. **Never guess a license.** If a pack has none recorded, say so and ask, or record what the
+   pack's own files say. A wrong license is worse than a missing one.
+2. **A pack leaves Review only when it has a license and a source.** Use \`set_pack_details\`, then
    \`move_to_library\`.
 3. **Check \`usage\` before archiving or deleting.** Files already linked into a game stay there,
-   with their licence beside them, but the person should know.
+   with their license beside them, but the person should know.
 4. **Deleting means the bin, and the bin can be emptied.** \`delete_to_bin\` can be undone with
    \`restore_from_bin\`. \`empty_bin\` cannot be undone by anyone, and it is offered to you only
    when the person has switched on "Deleting for good". Never call it to tidy up; call it only
@@ -70,11 +70,11 @@ appears in their window as you do it, so work as though they are watching, becau
 6. **Say the whole list before acting on many things.** A tool that takes an array will happily
    take fifty. Name them, or count them and say what they have in common, before you call it.
 7. **Prefer \`search\` with filters over reading everything.** The library can hold a hundred
-   thousand files. Filter values are ids, not names: the licence is \`CC0-1.0\`, not \`CC0\`. Use
+   thousand files. Filter values are ids, not names: the license is \`CC0-1.0\`, not \`CC0\`. Use
    \`list_facets\` to see the values that exist, and if a search comes back empty it will tell you
    which of your filter values matched nothing.
-8. **Linking tells you what is wrong with the licences.** \`link_to_game\` returns
-   \`licenceWarnings\` when a pack has no licence recorded, forbids commercial use, needs a credit
+8. **Linking tells you what is wrong with the licenses.** \`link_to_game\` returns
+   \`licenseWarnings\` when a pack has no license recorded, forbids commercial use, needs a credit
    line, or is still in Review. It copies anyway. Read them out; the person may want it undone.
 9. **Say what you did in the app's words**: starred, collected, linked, archived, in the bin.
 

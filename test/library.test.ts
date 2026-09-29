@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { missingForLibrary } from '@shared/pack';
+import { eitherSpelling, missingForLibrary, PackMeta } from '@shared/pack';
 import { createLibrary, inspectFolder, MARKER, readLibraryInfo } from '../src/main/library/layout';
 import { safeFolderName, uniqueName } from '../src/main/library/names';
 import { createPack, editPack, listPacks } from '../src/main/library/packs';
@@ -94,16 +94,16 @@ describe('packs', () => {
     expect(problems.map((p) => p.folder)).toEqual(['Broken', 'No record']);
   });
 
-  it('merges edits to source and licence and keeps unknown fields', async () => {
+  it('merges edits to source and license and keeps unknown fields', async () => {
     const root = tempDir();
     await createLibrary(root, 'lib');
     const pack = await createPack(root, 'Pack', { source: { site: 'kenney', name: null, url: 'https://kenney.nl', creator: 'Kenney', creatorUrl: null } });
     const file = join(pack.dir, 'pack.json');
     writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), futureField: 42 }));
     const [reread] = (await listPacks(root)).packs;
-    const edited = await editPack(reread!, { licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' }, tags: ['city'] });
+    const edited = await editPack(reread!, { license: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' }, tags: ['city'] });
     expect(edited.meta.source.site).toBe('kenney');
-    expect(edited.meta.licence.id).toBe('CC0-1.0');
+    expect(edited.meta.license.id).toBe('CC0-1.0');
     expect(JSON.parse(readFileSync(file, 'utf8')).futureField).toBe(42);
     expect(missingForLibrary(edited.meta)).toEqual([]);
   });
@@ -112,6 +112,36 @@ describe('packs', () => {
     const root = tempDir();
     await createLibrary(root, 'lib');
     const pack = await createPack(root, 'Pack');
-    expect(missingForLibrary(pack.meta)).toEqual(['licence', 'source']);
+    expect(missingForLibrary(pack.meta)).toEqual(['license', 'source']);
+  });
+});
+
+describe('a record written before the spelling was settled', () => {
+  it('is read, and keeps its license and its part rules', () => {
+    // Everything the app writes now says "license". A library made by an older Tessera spells it
+    // the British way, and it is somebody's real library, so it is read either way and moves over
+    // on its next save rather than needing a migration.
+    const old = {
+      format: 1,
+      id: 'bbbbbbbb-old-pack',
+      name: 'Old Kit',
+      status: 'library',
+      addedAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+      source: { url: 'https://example.test/old', site: null, creator: 'Someone', name: null },
+      licence: { id: 'CC-BY-4.0', attribution: 'by Someone' },
+      licences: [{ path: 'Music', licence: { id: 'CC0-1.0', attribution: null } }],
+    };
+    const meta = PackMeta.parse(eitherSpelling(old));
+    expect(meta.license.id).toBe('CC-BY-4.0');
+    expect(meta.license.attribution).toBe('by Someone');
+    expect(meta.licenses).toHaveLength(1);
+    expect(meta.licenses[0]!.path).toBe('Music');
+    expect(meta.licenses[0]!.license.id).toBe('CC0-1.0');
+  });
+
+  it('leaves a record that already says license alone', () => {
+    const now = { licence: { id: 'CC0-1.0' }, license: { id: 'MIT' } };
+    expect((eitherSpelling(now) as { license: { id: string } }).license.id).toBe('MIT');
   });
 });

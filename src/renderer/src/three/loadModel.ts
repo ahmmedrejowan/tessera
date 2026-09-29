@@ -98,7 +98,7 @@ async function parse(url: string, ext: string, m: TrackedManager): Promise<THREE
     case 'fbx':
       return new FBXLoader(m).loadAsync(url);
     case 'obj': {
-      // The .mtl named inside the .obj gives its colours and textures.
+      // The .mtl named inside the .obj gives its colors and textures.
       const text = await (await fetch(url)).text();
       const lib = /^mtllib\s+(.+)$/m.exec(text)?.[1]?.trim();
       const obj = new OBJLoader(m);

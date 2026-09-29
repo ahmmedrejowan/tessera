@@ -28,7 +28,7 @@ function when(at: number): string {
 
 function Row({ n }: { n: Notice }) {
   const { icon: Icon } = LEVELS[n.level];
-  const colour = n.level === 'error' ? md('error') : n.level === 'warning' ? md('tertiary') : md('primary');
+  const color = n.level === 'error' ? md('error') : n.level === 'warning' ? md('tertiary') : md('primary');
   const openable = !!(n.details || n.body);
   return (
     <ButtonBase
@@ -47,7 +47,7 @@ function Row({ n }: { n: Notice }) {
         '&:hover': { backgroundColor: md('surfaceContainer') },
       }}
     >
-      <Icon sx={{ fontSize: 20, color: colour, mt: '2px' }} />
+      <Icon sx={{ fontSize: 20, color: color, mt: '2px' }} />
       <span style={{ flex: 1, minWidth: 0 }}>
         <Typography variant="titleSmall" component="div" sx={{ color: md('onSurface') }}>
           {n.title}

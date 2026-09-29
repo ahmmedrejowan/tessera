@@ -16,7 +16,7 @@ import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { BUILT_WITH, CREATOR, HELPERS, LICENCE, LINKS } from '@shared/about';
+import { BUILT_WITH, CREATOR, HELPERS, LICENSE, LINKS } from '@shared/about';
 import { parseChangelog, plainLine, releaseFor, type Release } from '@shared/changelog';
 import { call, on } from '../api';
 import { Logo } from '../components/Logo';
@@ -31,7 +31,7 @@ import { dateTimeText } from '../components/labels';
 const open = (url: string) => void call('app:openExternal', url);
 const when = (iso: string | null) => (iso ? dateTimeText(iso) : 'never');
 
-/** A link that opens in the browser, in the app's own colour. */
+/** A link that opens in the browser, in the app's own color. */
 function Link({ href, children }: { href: string; children: string }) {
   return (
     <a
@@ -48,7 +48,7 @@ function Link({ href, children }: { href: string; children: string }) {
 }
 
 /** One of Tessera's own documents, read in the app rather than taken on trust. */
-function Document({ name, title, onClose }: { name: 'licence' | 'privacy'; title: string; onClose: () => void }) {
+function Document({ name, title, onClose }: { name: 'license' | 'privacy'; title: string; onClose: () => void }) {
   const text = useQuery({ queryKey: ['document', name], queryFn: () => call('app:document', name) });
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth slotProps={{ paper: { sx: { borderRadius: `${SHAPE.lg}px`, backgroundColor: md('surfaceContainerHigh'), backgroundImage: 'none' } } }}>
@@ -264,7 +264,7 @@ function Versions({ version }: { version: string }) {
 const SECTIONS: SideSection[] = [
   { id: 'updates', title: 'Updates' },
   { id: 'version', title: 'Version' },
-  { id: 'licence', title: 'Licence and privacy' },
+  { id: 'license', title: 'License and privacy' },
   { id: 'credits', title: 'Credits' },
   { id: 'creator', title: 'Who makes it' },
   { id: 'computer', title: 'This computer' },
@@ -274,7 +274,7 @@ const at = (id: string) => sectionAnchor('about', id);
 
 export function AboutPage() {
   const info = useAppInfo().data;
-  const [document, setDocument] = useState<'licence' | 'privacy' | null>(null);
+  const [document, setDocument] = useState<'license' | 'privacy' | null>(null);
   const [creator, setCreator] = useState(false);
   const version = info?.version ?? '';
   const scroller = useRef<HTMLDivElement>(null);
@@ -295,7 +295,7 @@ export function AboutPage() {
             Tessera {version}
           </Typography>
           <Typography variant="bodyMedium" component="div" sx={{ color: md('onSurfaceVariant') }}>
-            A desktop library for game assets: every pack in one place, with its licence and source on record.
+            A desktop library for game assets: every pack in one place, with its license and source on record.
           </Typography>
           {info && (
             <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5 }}>
@@ -312,10 +312,10 @@ export function AboutPage() {
       <Versions version={version} />
       </div>
 
-      <div {...at('licence')}>
-      <Group title="Licence and privacy" note="Tessera’s own terms, not the ones your packs carry.">
-        <Row title={LICENCE.name} body={LICENCE.summary}>
-          <Button onClick={() => setDocument('licence')}>Read it</Button>
+      <div {...at('license')}>
+      <Group title="License and privacy" note="Tessera’s own terms, not the ones your packs carry.">
+        <Row title={LICENSE.name} body={LICENSE.summary}>
+          <Button onClick={() => setDocument('license')}>Read it</Button>
         </Row>
         <Row title="Privacy" body="What stays on this computer, what leaves it only when you ask, and what Tessera never does.">
           <Button onClick={() => setDocument('privacy')}>Read it</Button>
@@ -336,7 +336,7 @@ export function AboutPage() {
       <div {...at('credits')}>
       <Group title="Credits" note="Tessera stands on other people’s work.">
         {HELPERS.map((h) => (
-          <Row key={h.name} title={<Link href={h.url}>{h.name}</Link>} body={`${h.what} · ${h.licence} · a separate program Tessera can fetch and drive`} />
+          <Row key={h.name} title={<Link href={h.url}>{h.name}</Link>} body={`${h.what} · ${h.license} · a separate program Tessera can fetch and drive`} />
         ))}
         <Row
           title="Built with"
@@ -345,7 +345,7 @@ export function AboutPage() {
               {BUILT_WITH.map((b, i) => (
                 <span key={b.name}>
                   {i > 0 && ' · '}
-                  <Link href={b.url}>{b.name}</Link> ({b.licence})
+                  <Link href={b.url}>{b.name}</Link> ({b.license})
                 </span>
               ))}
             </>
@@ -396,7 +396,7 @@ export function AboutPage() {
       </div>
 
       {creator && <Creator onClose={() => setCreator(false)} />}
-      {document && <Document name={document} title={document === 'licence' ? LICENCE.name : 'Privacy'} onClose={() => setDocument(null)} />}
+      {document && <Document name={document} title={document === 'license' ? LICENSE.name : 'Privacy'} onClose={() => setDocument(null)} />}
     </Page>
   );
 }

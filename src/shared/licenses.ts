@@ -1,9 +1,9 @@
 /**
- * Licences Tessera knows. Each says what a game may do with an asset under it, which drives the
- * licence health checks and the credits file. Ids follow SPDX where one exists.
+ * Licenses Tessera knows. Each says what a game may do with an asset under it, which drives the
+ * license health checks and the credits file. Ids follow SPDX where one exists.
  */
 
-export interface LicenceInfo {
+export interface LicenseInfo {
   id: string;
   name: string;
   short: string;
@@ -12,7 +12,7 @@ export interface LicenceInfo {
   commercial: boolean;
   /** Must the author be credited? */
   attribution: boolean;
-  /** Must changed versions of the asset be shared under the same licence? */
+  /** Must changed versions of the asset be shared under the same license? */
   shareAlike: boolean;
   /** May the asset be modified? */
   modify: boolean;
@@ -20,11 +20,11 @@ export interface LicenceInfo {
   free: boolean;
 }
 
-const cc = (id: string, name: string, short: string, url: string, o: Partial<LicenceInfo>): LicenceInfo => ({
+const cc = (id: string, name: string, short: string, url: string, o: Partial<LicenseInfo>): LicenseInfo => ({
   id, name, short, url, commercial: true, attribution: true, shareAlike: false, modify: true, free: true, ...o,
 });
 
-export const LICENCES: LicenceInfo[] = [
+export const LICENSES: LicenseInfo[] = [
   cc('CC0-1.0', 'Creative Commons Zero 1.0 (public domain)', 'CC0', 'https://creativecommons.org/publicdomain/zero/1.0/', { attribution: false }),
   cc('CC-BY-4.0', 'Creative Commons Attribution 4.0', 'CC BY 4.0', 'https://creativecommons.org/licenses/by/4.0/', {}),
   cc('CC-BY-3.0', 'Creative Commons Attribution 3.0', 'CC BY 3.0', 'https://creativecommons.org/licenses/by/3.0/', {}),
@@ -37,7 +37,7 @@ export const LICENCES: LicenceInfo[] = [
   // says a work may be changed. It may not, and for game assets that is the clause most likely to
   // be broken by accident: rescaling a texture is a derivative.
   cc('CC-BY-NC-ND-4.0', 'Creative Commons Attribution-NonCommercial-NoDerivatives 4.0', 'CC BY-NC-ND 4.0', 'https://creativecommons.org/licenses/by-nc-nd/4.0/', { commercial: false, modify: false }),
-  // The OFL asks that its copyright notice and the licence itself travel with the font, so a
+  // The OFL asks that its copyright notice and the license itself travel with the font, so a
   // credits line is the least it needs. Marked as needing no attribution, it was never mentioned
   // in the credits or in the warnings before a copy.
   cc('OFL-1.1', 'SIL Open Font License 1.1', 'OFL', 'https://openfontlicense.org', {}),
@@ -48,32 +48,32 @@ export const LICENCES: LicenceInfo[] = [
   { id: 'fab-standard', name: 'Fab Standard License', short: 'Fab', url: 'https://www.fab.com/eula', commercial: true, attribution: false, shareAlike: false, modify: true, free: false },
   { id: 'subscription', name: 'Subscription (while subscribed)', short: 'Subscription', url: null, commercial: true, attribution: false, shareAlike: false, modify: true, free: false },
   { id: 'personal', name: 'Personal use only', short: 'Personal', url: null, commercial: false, attribution: false, shareAlike: false, modify: true, free: true },
-  { id: 'custom', name: 'Custom licence (see proof)', short: 'Custom', url: null, commercial: false, attribution: false, shareAlike: false, modify: true, free: true },
+  { id: 'custom', name: 'Custom license (see proof)', short: 'Custom', url: null, commercial: false, attribution: false, shareAlike: false, modify: true, free: true },
   // Your own work: nobody to credit, nothing to check, and no terms to keep to.
   { id: 'own-work', name: 'My own work', short: 'Mine', url: null, commercial: true, attribution: false, shareAlike: false, modify: true, free: true },
 ];
 
-/** The licence for something you made yourself. */
+/** The license for something you made yourself. */
 export const OWN_WORK = 'own-work';
 
-const BY_ID = new Map(LICENCES.map((l) => [l.id.toLowerCase(), l]));
+const BY_ID = new Map(LICENSES.map((l) => [l.id.toLowerCase(), l]));
 
-export function licenceInfo(id: string | null | undefined): LicenceInfo | null {
+export function licenseInfo(id: string | null | undefined): LicenseInfo | null {
   return id ? (BY_ID.get(id.toLowerCase()) ?? null) : null;
 }
 
 /**
- * Recognise a licence from the text of a licence or readme file. Checks the most specific wording
+ * Recognize a license from the text of a license or readme file. Checks the most specific wording
  * first, so "Attribution-NonCommercial" is never read as plain "Attribution".
  */
-export function detectLicence(text: string): string | null {
+export function detectLicense(text: string): string | null {
   const t = text
     .replace(/\s+/g, ' ')
-    // Every Creative Commons 4.0 legal text ends by dedicating the text of the licence itself to
-    // the public domain under CC0. That sentence is about the wording of the licence, not about
-    // the work it covers, and reading it as the work's licence turned the official text of
+    // Every Creative Commons 4.0 legal text ends by dedicating the text of the license itself to
+    // the public domain under CC0. That sentence is about the wording of the license, not about
+    // the work it covers, and reading it as the work's license turned the official text of
     // CC BY-NC into "public domain, no credit needed". Which is this application's worst possible
-    // mistake, made on the most ordinary input there is: a pack that ships the real licence file.
+    // mistake, made on the most ordinary input there is: a pack that ships the real license file.
     .replace(/the text of the creative commons public licen[cs]es is dedicated to the public domain under the cc0 public domain dedication\.?/gi, ' ')
     .replace(/creative commons has dedicated[^.]*cc0[^.]*\./gi, ' ');
   const version = (re: RegExp) => (re.exec(t)?.[1] === '3.0' ? '3.0' : '4.0');
@@ -91,7 +91,7 @@ export function detectLicence(text: string): string | null {
   const by = (rest: string) => new RegExp(`\\b(?:cc[ -]?)?by[ -]?(?:${rest})\\b|attribution[ -](?:${rest})\\b`, 'i');
   if (by(`(?:${NC})[ -](?:${ND})`).test(t)) return 'CC-BY-NC-ND-4.0';
   if (by(`(?:${NC})[ -](?:${SA})`).test(t)) return 'CC-BY-NC-SA-4.0';
-  // Only the licence's own wording: "free for commercial and non-commercial use" is not NC.
+  // Only the license's own wording: "free for commercial and non-commercial use" is not NC.
   if (by(NC).test(t)) return 'CC-BY-NC-4.0';
   if (by(ND).test(t)) return 'CC-BY-ND-4.0';
   if (by(SA).test(t)) return `CC-BY-SA-${version(/(?:by[ -]?sa|share[ -]?alike)[ /]*(\d\.\d)/i)}`;
@@ -100,7 +100,7 @@ export function detectLicence(text: string): string | null {
   // the family are tested above, so by this point "Attribution" on its own means plain BY.
   if (/creativecommons\.org\/licenses\/by\/|creative commons attribution|\bcc[- ]by\b|\battribution[ -]\d\.\d international\b/i.test(t))
     return `CC-BY-${version(/(?:licenses\/by\/|attribution[ -]|cc[- ]by[ -])(\d\.\d)/i)}`;
-  // \bcc0\b, not cc0: a stylesheet colour of #cc0000 in a readme used to make a pack public domain.
+  // \bcc0\b, not cc0: a stylesheet color of #cc0000 in a readme used to make a pack public domain.
   if (/creative ?commons zero|\bcc0\b|public ?domain dedication|publicdomain\/zero/i.test(t)) return 'CC0-1.0';
   if (/sil open font license|\bOFL\b/i.test(t)) return 'OFL-1.1';
   if (/apache license,? version 2\.0/i.test(t)) return 'Apache-2.0';

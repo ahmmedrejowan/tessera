@@ -33,7 +33,7 @@ import { PreviewPacks } from './settings/PreviewPacks';
 import { SideSections, sectionAnchor, useSectionSpy, type SideSection } from './settings/SideSections';
 
 
-/** Seeds for the colour scheme; each gives a full Material 3 palette in light and dark. */
+/** Seeds for the color scheme; each gives a full Material 3 palette in light and dark. */
 const SEEDS = ['#3f6f8f', '#4758a9', '#6750a4', '#a4506b', '#a0522d', '#8a6d1f', '#3b7a4a', '#2f7a78'];
 
 type Section = SideSection & { part: 'library' | 'app' };
@@ -133,7 +133,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                 <Row title="Folder" body={lib ? tidyPath(lib.path) : undefined}>
                   <Button onClick={() => lib && void call('fs:reveal', lib.path)}>{window.tessera.platform === 'darwin' ? 'Show in Finder' : 'Show'}</Button>
                 </Row>
-                <Row title="Packs Tessera is sure about" body="A licence read in the pack itself, or set by your rule for its site, skips Review. Off: everything waits there.">
+                <Row title="Packs Tessera is sure about" body="A license read in the pack itself, or set by your rule for its site, skips Review. Off: everything waits there.">
                   <Switch checked={record?.skipInboxWhenSure ?? true} onChange={(_, v) => void call('library:setPrefs', { skipInboxWhenSure: v }).catch(failed)} slotProps={{ input: { 'aria-label': 'Add sure packs straight to the library' } }} />
                 </Row>
                 <Row title="Close this library" body="Back to the start, to open or make another. Its backups and sync carry on as set.">
@@ -264,7 +264,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                     ]}
                   />
                 </Row>
-                <Row title="Colour" body="Every colour in the app is derived from this one.">
+                <Row title="Color" body="Every color in the app is derived from this one.">
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {SEEDS.map((seed) => {
                       const sc = schemeFromSeed(seed, false);
@@ -272,12 +272,12 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                       return (
                         <ButtonBase
                           key={seed}
-                          aria-label={`Colour ${seed}`}
+                          aria-label={`Color ${seed}`}
                           aria-pressed={on}
                           onClick={() => update.mutate({ seedColor: seed })}
                           sx={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', outline: on ? `2px solid ${md('onSurface')}` : 'none', outlineOffset: 2 }}
                         >
-                          {/* A button can't be a grid itself, so the colours sit in one. */}
+                          {/* A button can't be a grid itself, so the colors sit in one. */}
                           <span style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }}>
                             <span style={{ background: sc.primary, gridRow: 'span 2' }} />
                             <span style={{ background: sc.secondaryContainer }} />
@@ -293,14 +293,14 @@ export function SettingsPage({ section }: { section?: string } = {}) {
             </div>
 
             <div {...at('sites')}>
-              <Group part="app" title="Sites" note="Licences Tessera should assume for the sites you download from.">
+              <Group part="app" title="Sites" note="Licenses Tessera should assume for the sites you download from.">
                 <SiteRules />
               </Group>
             </div>
 
             <div {...at('downloads')}>
               <Group part="app" title="Downloads" note="What Tessera does with the links you bring, whichever library is open.">
-                <Row title="When a download finishes" body={settings.afterDownload === 'ask' ? 'They wait in Downloads with an Add button.' : settings.afterDownload === 'review' ? 'Every one goes to Review, whatever its licence says.' : 'A clear licence goes into the library; anything unclear waits in Review.'}>
+                <Row title="When a download finishes" body={settings.afterDownload === 'ask' ? 'They wait in Downloads with an Add button.' : settings.afterDownload === 'review' ? 'Every one goes to Review, whatever its license says.' : 'A clear license goes into the library; anything unclear waits in Review.'}>
                   <SegmentedButton<AfterDownload>
                     label="When a download finishes"
                     value={settings.afterDownload}
@@ -344,7 +344,7 @@ export function SettingsPage({ section }: { section?: string } = {}) {
                   body={
                     settings.confirmCopyToGame
                       ? 'Shows how much is going and where it will land before anything is written.'
-                      : 'Assets go straight into the game. Anything wrong with a licence still stops for an answer.'
+                      : 'Assets go straight into the game. Anything wrong with a license still stops for an answer.'
                   }
                 >
                   <Switch

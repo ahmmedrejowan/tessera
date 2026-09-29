@@ -32,10 +32,10 @@ import { HelpFooter } from './HelpFooter';
 /** The icon each topic is shown with. */
 export const TOPIC_ICONS: Record<HelpTopic['icon'], ComponentType<{ sx?: object }>> = {
   start: RocketLaunchOutlined,
-  licence: GavelOutlined,
+  license: GavelOutlined,
   add: AddRounded,
   download: DownloadOutlined,
-  organise: TravelExploreOutlined,
+  organize: TravelExploreOutlined,
   project: SportsEsportsOutlined,
   agents: SmartToyOutlined,
   safety: ShieldOutlined,
@@ -63,7 +63,7 @@ function Status() {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: md('primary'), padding: '4px 2px' }}>
         <CheckCircleRounded sx={{ fontSize: 20 }} />
-        <Typography variant="bodyMedium">Your library is in good order: nothing waiting, every licence on record, backups up to date.</Typography>
+        <Typography variant="bodyMedium">Your library is in good order: nothing waiting, every license on record, backups up to date.</Typography>
       </div>
     );
   }
@@ -130,7 +130,7 @@ function TopicCard({ topic }: { topic: HelpTopic }) {
 }
 
 /**
- * The help centre: search, the topics, how this library is doing, and the ways to reach a person.
+ * The help center: search, the topics, how this library is doing, and the ways to reach a person.
  * Every topic opens a page of its own; the same footer ends all of them.
  */
 export function HelpPage() {
@@ -144,7 +144,7 @@ export function HelpPage() {
         fullWidth
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Search help: licences, downloads, backups…"
+        placeholder="Search help: licenses, downloads, backups…"
         slotProps={{
           input: {
             sx: { borderRadius: `${SHAPE.full}px`, backgroundColor: md('surfaceContainerLowest') },

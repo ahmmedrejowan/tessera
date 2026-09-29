@@ -1,13 +1,13 @@
 import Typography from '@mui/material/Typography';
-import { licenceInfo } from '@shared/licences';
+import { licenseInfo } from '@shared/licenses';
 import { md, SHAPE } from '../theme';
 
 /**
- * A licence at a glance, coloured by what it asks of you: free to use as-is, needs a credit,
+ * A license at a glance, colored by what it asks of you: free to use as-is, needs a credit,
  * can't be sold in a game, or unknown.
  */
-export function licenceTone(id: string | null): 'free' | 'credit' | 'restricted' | 'unknown' {
-  const l = licenceInfo(id);
+export function licenseTone(id: string | null): 'free' | 'credit' | 'restricted' | 'unknown' {
+  const l = licenseInfo(id);
   if (!l) return 'unknown';
   if (!l.commercial) return 'restricted';
   if (l.attribution || l.shareAlike) return 'credit';
@@ -21,27 +21,27 @@ const TONES = {
   unknown: { bg: 'surfaceContainerHighest', fg: 'onSurfaceVariant' },
 } as const;
 
-export function LicenceChip({ id }: { id: string | null }) {
-  const tone = TONES[licenceTone(id)];
+export function LicenseChip({ id }: { id: string | null }) {
+  const tone = TONES[licenseTone(id)];
   return (
     <Typography
       component="span"
       variant="labelMedium"
       sx={{ display: 'inline-block', px: 1, py: '2px', borderRadius: `${SHAPE.sm}px`, backgroundColor: md(tone.bg), color: md(tone.fg), whiteSpace: 'nowrap' }}
     >
-      {licenceInfo(id)?.short ?? (id || 'No licence')}
+      {licenseInfo(id)?.short ?? (id || 'No license')}
     </Typography>
   );
 }
 
-/** One sentence on what the licence means for a game. */
-export function licenceSummary(id: string | null): string {
-  const l = licenceInfo(id);
-  if (!l) return id ? 'A licence Tessera doesn’t know. Check the proof files.' : 'No licence recorded yet. Add one before using this pack in a game.';
+/** One sentence on what the license means for a game. */
+export function licenseSummary(id: string | null): string {
+  const l = licenseInfo(id);
+  if (!l) return id ? 'A license Tessera doesn’t know. Check the proof files.' : 'No license recorded yet. Add one before using this pack in a game.';
   const parts: string[] = [];
   parts.push(l.commercial ? 'Fine in commercial games' : 'Not for commercial games');
   if (l.attribution) parts.push('credit the author');
-  if (l.shareAlike) parts.push('share changed versions under the same licence');
+  if (l.shareAlike) parts.push('share changed versions under the same license');
   if (!l.modify) parts.push('don’t modify it');
   return `${parts.join('; ')}.`;
 }

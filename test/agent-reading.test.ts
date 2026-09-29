@@ -18,7 +18,7 @@ import { tempDir } from './helpers';
 const PACKS: PackFixture[] = [
   { name: 'Mini Arcade', files: { 'Models/arcade.obj': 'o arcade\n', 'arcade.png': PIXEL } },
   { name: 'Interface Sounds', files: { 'Audio/click.wav': 'RIFF....WAVE' } },
-  { name: 'No Papers', files: { 'Models/mystery.obj': 'o mystery\n' }, licence: null, source: null },
+  { name: 'No Papers', files: { 'Models/mystery.obj': 'o mystery\n' }, license: null, source: null },
 ];
 
 describe('what an agent can read', () => {
@@ -78,7 +78,7 @@ describe('what an agent can read', () => {
     const waiting = (await callTool(app, 'list_review', {})) as { name: string; needs: string[] }[];
     const mystery = waiting.find((p) => p.name === 'No Papers');
     expect(mystery).toBeTruthy();
-    expect(mystery!.needs.sort()).toEqual(['licence', 'source']);
+    expect(mystery!.needs.sort()).toEqual(['license', 'source']);
   });
 
   it('lists the folders inside a pack', async () => {

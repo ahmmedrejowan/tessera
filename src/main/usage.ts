@@ -4,7 +4,7 @@
  * Kept beside the library's other working files rather than in the library itself: it is a record
  * of what one person does, not of what the pack is, so it neither syncs between computers nor
  * belongs in `pack.json`. It also survives the index being rebuilt, which is the point: the index
- * can be thrown away and remade, but nobody wants to be told their favourite pack is a stranger
+ * can be thrown away and remade, but nobody wants to be told their favorite pack is a stranger
  * again afterwards.
  */
 import { join } from 'node:path';

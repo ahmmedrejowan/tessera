@@ -56,13 +56,13 @@ export interface ManifestEntry {
   copiedRef: string;
   /** Every file written for it, relative to the project root. */
   files: string[];
-  licence: string | null;
+  license: string | null;
   attribution: string | null;
   creator: string | null;
   sourceUrl: string | null;
   copiedAt: string;
   /**
-   * The files were already in the game and Tessera only recognised them. It never wrote them, so
+   * The files were already in the game and Tessera only recognized them. It never wrote them, so
    * it must never delete them: taking this out of the game forgets the record and nothing else.
    */
   adopted?: boolean;
@@ -103,7 +103,7 @@ export interface CopyPlan {
   assets: number;
   files: number;
   bytes: number;
-  /** Licence problems, e.g. a non-commercial pack, or one with no licence recorded. */
+  /** License problems, e.g. a non-commercial pack, or one with no license recorded. */
   warnings: string[];
   /** Assets already in the project, which will be updated. */
   updating: number;

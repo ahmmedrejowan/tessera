@@ -10,7 +10,7 @@ My Library/
     food-kit/
       pack.json            the record: name, license, source, creator, tags, version
       original/            your download, exactly as it arrived (archives stay archives)
-      licence/             proof: license files, the page snapshot, receipts
+      license/             proof: license files, the page snapshot, receipts
   collections/             each collection as its own small file
 ```
 

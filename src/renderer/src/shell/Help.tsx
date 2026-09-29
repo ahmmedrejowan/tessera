@@ -7,7 +7,7 @@ import { md } from '../theme';
 
 /**
  * The question mark in the top bar: straight to Help, with a dot when something in the library
- * wants seeing to (packs in Review, a licence without its credit, a backup going stale).
+ * wants seeing to (packs in Review, a license without its credit, a backup going stale).
  */
 export function HelpButton() {
   const go = useNav((s) => s.go);

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Collection, CollectionRules, FAVOURITES, FAVOURITES_NAME, type CollectionItem, type SmartQuery } from '@shared/collection';
+import { Collection, CollectionRules, eitherSpelling, FAVORITES, FAVORITES_NAME, type CollectionItem, type SmartQuery } from '@shared/collection';
 import { readJson, writeJson } from '../fsx';
 import { DIRS } from './layout';
 
@@ -12,14 +12,14 @@ export async function listCollections(root: string): Promise<Collection[]> {
   const out: Collection[] = [];
   for (const name of await readdir(dir).catch(() => [] as string[])) {
     if (!name.endsWith('.json')) continue;
-    const parsed = Collection.safeParse(await readJson(join(dir, name)).catch(() => null));
+    const parsed = Collection.safeParse(eitherSpelling(await readJson(join(dir, name)).catch(() => null)));
     if (parsed.success) out.push(parsed.data);
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function readCollection(root: string, id: string): Promise<Collection | null> {
-  const parsed = Collection.safeParse(await readJson(fileOf(root, id)).catch(() => null));
+  const parsed = Collection.safeParse(eitherSpelling(await readJson(fileOf(root, id)).catch(() => null)));
   return parsed.success ? parsed.data : null;
 }
 
@@ -50,12 +50,12 @@ export async function createCollection(root: string, name: string, init: { descr
   );
 }
 
-/** The library's Favourites collection, made the first time something is starred. */
-export async function favourites(root: string): Promise<Collection> {
-  const existing = await readCollection(root, FAVOURITES);
+/** The library's Favorites collection, made the first time something is starred. */
+export async function favorites(root: string): Promise<Collection> {
+  const existing = await readCollection(root, FAVORITES);
   if (existing) return existing;
   const now = new Date().toISOString();
-  return save(root, Collection.parse({ id: FAVOURITES, name: FAVOURITES_NAME, kind: 'manual', createdAt: now, updatedAt: now }));
+  return save(root, Collection.parse({ id: FAVORITES, name: FAVORITES_NAME, kind: 'manual', createdAt: now, updatedAt: now }));
 }
 
 export async function updateCollection(root: string, id: string, change: (c: Collection) => Collection): Promise<Collection> {

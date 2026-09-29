@@ -10,7 +10,7 @@ import ViewInArOutlined from '@mui/icons-material/ViewInArOutlined';
 import WidgetsOutlined from '@mui/icons-material/WidgetsOutlined';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { TYPE_LABELS, type AssetType } from '@shared/assets';
-import { licenceInfo } from '@shared/licences';
+import { licenseInfo } from '@shared/licenses';
 import type { Facet } from '@shared/query';
 import { sourceInfo } from '@shared/sources';
 
@@ -38,15 +38,15 @@ export function facetLabel(facet: Facet, value: string): string {
       return value ? value.toUpperCase() : 'No extension';
     case 'source':
       return sourceInfo(value)?.name ?? value;
-    case 'licence':
-      return licenceInfo(value)?.short ?? value;
+    case 'license':
+      return licenseInfo(value)?.short ?? value;
     default:
       return capital(value);
   }
 }
 
 export const sourceName = (source: string | null) => (source ? (sourceInfo(source)?.name ?? source) : null);
-export const licenceShort = (id: string | null) => (id ? (licenceInfo(id)?.short ?? id) : null);
+export const licenseShort = (id: string | null) => (id ? (licenseInfo(id)?.short ?? id) : null);
 
 export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;

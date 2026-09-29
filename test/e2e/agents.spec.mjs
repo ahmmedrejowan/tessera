@@ -38,7 +38,7 @@ export async function run(ok) {
     const found = await said('search', { text: 'arcade', of: 'packs' });
     const pack = found.json.packs[0];
     await said('star', { packIds: [pack.id] });
-    await waitFor(t, async () => (await t.call('browse:packs', { scope: 'library', text: '', filters: {}, favourites: true }, 'name', 0, 5)).total === 1, 'the star to show');
+    await waitFor(t, async () => (await t.call('browse:packs', { scope: 'library', text: '', filters: {}, favorites: true }, 'name', 0, 5)).total === 1, 'the star to show');
     ok('what it does shows in the window at once', true);
     ok('and is written down as an agent doing it', (await t.call('activity:list', 5)).some((e) => e.kind === 'agent'));
     ok('a tool that is off is refused, with where to turn it on', (await said('empty_bin', {})).text.includes('switched off in Tessera'));

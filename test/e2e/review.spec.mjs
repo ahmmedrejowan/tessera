@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { startApp, waitFor } from './harness.mjs';
 
-export const name = 'A pack with no licence waits in Review';
+export const name = 'A pack with no license waits in Review';
 
 export async function run(ok) {
   const t = await startApp();
@@ -21,10 +21,10 @@ export async function run(ok) {
     ok('and it cannot be browsed', (await t.call('browse:packs', { scope: 'library', text: '', filters: {} }, 'name', 0, 5)).total === 0);
 
     const id = waiting[0].id;
-    await t.call('pack:edit', id, { licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' } });
+    await t.call('pack:edit', id, { license: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' } });
     let refused = null;
     await t.call('pack:status', id, 'library').catch((e) => (refused = e));
-    ok('a licence alone is not enough to let it out', !!refused, String(refused).slice(0, 60));
+    ok('a license alone is not enough to let it out', !!refused, String(refused).slice(0, 60));
 
     await t.call('pack:edit', id, { source: { site: null, name: 'A friend', url: null, creator: null, creatorUrl: null } });
     await t.call('pack:status', id, 'library');

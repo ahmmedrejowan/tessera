@@ -60,7 +60,7 @@ export function AudioView({ url, onInfo }: { url: string; onInfo?: (i: AudioInfo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
-  // Draw the waveform, played part in the accent colour.
+  // Draw the waveform, played part in the accent color.
   useEffect(() => {
     const c = canvas.current;
     if (!c || !peaks) return;

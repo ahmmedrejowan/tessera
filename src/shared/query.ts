@@ -2,7 +2,7 @@ import type { AssetType, Kind, Role } from './assets';
 import type { PackStatus } from './pack';
 
 /** The facets a library can be filtered by. Within one facet values are OR'ed; facets are AND'ed. */
-export const FACETS = ['type', 'format', 'source', 'creator', 'licence', 'genre', 'style', 'tag'] as const;
+export const FACETS = ['type', 'format', 'source', 'creator', 'license', 'genre', 'style', 'tag'] as const;
 export type Facet = (typeof FACETS)[number];
 
 export const FACET_LABELS: Record<Facet, string> = {
@@ -10,7 +10,7 @@ export const FACET_LABELS: Record<Facet, string> = {
   format: 'Format',
   source: 'Source',
   creator: 'Creator',
-  licence: 'Licence',
+  license: 'License',
   genre: 'Genre',
   style: 'Style',
   tag: 'Tags',
@@ -35,8 +35,8 @@ export interface BrowseQuery {
   includeSupport?: boolean;
   /** Only the items of this manual collection (any role), in the order they were added. */
   collectionId?: string;
-  /** Only what its owner starred: assets in the Favourites collection, or starred packs. */
-  favourites?: boolean;
+  /** Only what its owner starred: assets in the Favorites collection, or starred packs. */
+  favorites?: boolean;
   /**
    * Packs that were put away are left out of browsing; `only` shows those instead. Collections and
    * a pack's own page still show everything, so nothing goes missing where it was put by hand.
@@ -64,8 +64,8 @@ export interface AssetRow {
   formats: string[];
   /** Starred by its owner. */
   fav: boolean;
-  /** The licence covering this file: the pack's own, or the rule for the part of the pack it is in. */
-  licence: string | null;
+  /** The license covering this file: the pack's own, or the rule for the part of the pack it is in. */
+  license: string | null;
 }
 
 export interface PackRow {
@@ -76,7 +76,7 @@ export interface PackRow {
   /** Known site id, or the free-text source name. */
   source: string | null;
   creator: string | null;
-  licence: string | null;
+  license: string | null;
   addedAt: string;
   fileCount: number;
   /** Files counted as assets (role `main`). */
@@ -127,14 +127,14 @@ export interface LibraryStats {
   keptAway: number;
 }
 
-/** Packs in the library whose licence needs attention before shipping. */
-export interface LicenceHealth {
-  /** No licence on record at all: the one thing that must be fixed. */
-  noLicence: { id: string; name: string; licence: string | null }[];
+/** Packs in the library whose license needs attention before shipping. */
+export interface LicenseHealth {
+  /** No license on record at all: the one thing that must be fixed. */
+  noLicense: { id: string; name: string; license: string | null }[];
   /** Nothing on record about where it came from. */
-  noSource: { id: string; name: string; licence: string | null }[];
-  /** The licence asks for credit, but no credit line is recorded. */
-  noCreditLine: { id: string; name: string; licence: string | null }[];
+  noSource: { id: string; name: string; license: string | null }[];
+  /** The license asks for credit, but no credit line is recorded. */
+  noCreditLine: { id: string; name: string; license: string | null }[];
   /** Not allowed in commercial games, or terms Tessera can't judge: a choice for the game to make. */
-  restricted: { id: string; name: string; licence: string | null }[];
+  restricted: { id: string; name: string; license: string | null }[];
 }

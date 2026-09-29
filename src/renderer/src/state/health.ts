@@ -4,7 +4,7 @@ import { useIndexVersion, useLibraryId, useStats } from './library';
 
 const days = (iso: string | null) => (iso ? Math.floor((Date.now() - Date.parse(iso)) / 86_400_000) : null);
 
-/** What the open library is worth seeing to: Review, licences, backups, sync. */
+/** What the open library is worth seeing to: Review, licenses, backups, sync. */
 export function useHealth() {
   const stats = useStats().data;
   // Which library, and which version of it. Without those in the key, the dot in the top bar was

@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import { memo, useState, type MouseEvent } from 'react';
 import type { PackRow } from '@shared/query';
 import { AssetThumb, checker } from '../../components/AssetThumb';
-import { licenceShort, sourceName, typeSummary } from '../../components/labels';
+import { licenseShort, sourceName, typeSummary } from '../../components/labels';
 import { fileUrl } from '../../state/library';
 import { md, mdAlpha, SHAPE } from '../../theme';
 import { starPack, StarButton } from './StarButton';
@@ -77,7 +77,7 @@ export const PackCard = memo(function PackCard({ pack, width, selected, onClick,
   const hold = useHold(() => pack && onHold?.(pack));
   const height = coverHeight(width) + PACK_LABEL_HEIGHT + 12;
   if (!pack) return <div style={{ height, borderRadius: SHAPE.md, background: md('surfaceContainerLow') }} />;
-  const meta = [sourceName(pack.source), licenceShort(pack.licence)].filter(Boolean).join(' · ');
+  const meta = [sourceName(pack.source), licenseShort(pack.license)].filter(Boolean).join(' · ');
   return (
     <div
       role="option"

@@ -29,7 +29,7 @@ export async function run(ok) {
     ok('the pack is read from their own folder', pack?.keptWhere === theirs, pack?.keptWhere);
     ok('and nothing of ours was written there', readdirSync(theirs).sort().join(',') === 'LICENSE.txt,Models');
     ok('the library holds the record but no copy of the files', !existsSync(join(lib, 'packs', readdirSync(join(lib, 'packs'))[0], 'original')));
-    ok('its licence was read out of their folder', pack?.licence === 'CC0-1.0', String(pack?.licence));
+    ok('its license was read out of their folder', pack?.license === 'CC0-1.0', String(pack?.license));
 
     const refs = (await t.call('pack:files', pack.id)).map((f) => f.ref);
     ok('its files are indexed, with no original/ in the way', refs.includes('Models/tree.glb'), refs.slice(0, 3).join(', '));
@@ -74,14 +74,14 @@ export async function run(ok) {
     await t.call('projects:add', await t.call('projects:probe', game));
     const project = (await t.call('projects:list'))[0];
 
-    // Only packs that have made it out of Review are matched against: an unconfirmed licence is
+    // Only packs that have made it out of Review are matched against: an unconfirmed license is
     // not something to go writing into somebody's credits file.
-    await t.call('pack:edit', pack.id, { licence: { id: 'CC0-1.0' }, source: { name: 'Their own files' } });
+    await t.call('pack:edit', pack.id, { license: { id: 'CC0-1.0' }, source: { name: 'Their own files' } });
     await t.call('pack:status', pack.id, 'library');
     await waitFor(t, async () => (await t.call('library:stats')).packs === 1, 'the pack to join the library');
 
     const scan = await t.call('projects:findAlreadyHere', project.id, 'Assets/Art');
-    ok('a game’s own assets are recognised by content, not by name', scan.matches.length === 1 && scan.matches[0].path === 'Assets/Art/renamed-tree.glb', `${scan.matches.length} of ${scan.looked}`);
+    ok('a game’s own assets are recognized by content, not by name', scan.matches.length === 1 && scan.matches[0].path === 'Assets/Art/renamed-tree.glb', `${scan.matches.length} of ${scan.looked}`);
     const recorded = await t.call('projects:adopt', project.id, scan.matches);
     ok('recording them copies nothing', recorded === 1 && !existsSync(join(game, 'Assets', 'ThirdParty')));
     await waitFor(t, () => existsSync(join(game, 'CREDITS.md')), 'the credits to be written');

@@ -22,7 +22,7 @@ things to your disk:
   and has been read back. Not offered for a folder you pointed at: adding a folder never empties
   it.
 - **Index where they are.** Nothing is copied and nothing moves. Tessera reads the files where
-  they sit and keeps the record here: the licence, the tags, the collections, all of it. It never
+  they sit and keeps the record here: the license, the tags, the collections, all of it. It never
   writes in that folder, ever, so it works on a read-only drive or a network share.
 
 That third answer is for somebody who already has a lot of assets arranged the way they like
@@ -55,7 +55,7 @@ offers to find the folder again. Nothing is deleted because a drive was away.
 ## What happens next
 
 Before anything is copied, Tessera shows you the plan: every pack it is about to add, what is
-inside each, and anything it already recognises. A download that is already in the library is
+inside each, and anything it already recognizes. A download that is already in the library is
 flagged so you do not add it twice.
 
 While it copies, it reads each pack:

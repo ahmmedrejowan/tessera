@@ -39,7 +39,7 @@ async function item(path: string): Promise<ImportItem | null> {
   return { id: randomUUID(), name: nameFromDownload(file), sources: [path], kind: ARCHIVE.test(file) ? 'archive' : 'files', size: s.size, files: 1, duplicateOf: null };
 }
 
-/** Readmes, licences and shortcuts that sit beside the packs in a folder of downloads. */
+/** Readmes, licenses and shortcuts that sit beside the packs in a folder of downloads. */
 const NOTE = /\.(txt|md|url|html?|pdf|nfo|rtf)$/i;
 
 /**

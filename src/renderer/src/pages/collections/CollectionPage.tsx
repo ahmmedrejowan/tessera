@@ -19,8 +19,8 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { FAVOURITES, hasRules } from '@shared/collection';
-import { licenceInfo } from '@shared/licences';
+import { FAVORITES, hasRules } from '@shared/collection';
+import { licenseInfo } from '@shared/licenses';
 import type { AssetRow, BrowseQuery, Filters, PackRow } from '@shared/query';
 import { call } from '../../api';
 import { EmptyState } from '../../components/EmptyState';
@@ -96,7 +96,7 @@ export function CollectionPage({ id }: { id: string }) {
   const query: BrowseQuery = useMemo(
     () =>
       collection?.query
-        ? { scope: 'library', text: collection.query.text, filters: collection.query.filters as Filters, includeSupport: collection.query.includeSupport, favourites: collection.query.favourites }
+        ? { scope: 'library', text: collection.query.text, filters: collection.query.filters as Filters, includeSupport: collection.query.includeSupport, favorites: collection.query.favorites }
         : { scope: 'all', text: '', filters: {}, collectionId: id },
     [collection?.query, id],
   );
@@ -141,7 +141,7 @@ export function CollectionPage({ id }: { id: string }) {
   const held = rows.total + inPacks.reduce((n, p) => n + p.assetCount, 0);
   const forProject = projects.find((p) => p.id === collection.projectId) ?? null;
   const ruleChips = [
-    ...collection.rules.licences.map((l) => licenceInfo(l)?.short ?? l),
+    ...collection.rules.licenses.map((l) => licenseInfo(l)?.short ?? l),
     ...collection.rules.creators,
     ...collection.rules.styles,
     ...collection.rules.tags,
@@ -154,7 +154,7 @@ export function CollectionPage({ id }: { id: string }) {
   };
   const smart = collection.kind === 'smart';
   // The library's own collection: starred things. It keeps its name and stays.
-  const own = collection.id === FAVOURITES;
+  const own = collection.id === FAVORITES;
 
   const remove = async (ids: number[]) => {
     try {
@@ -184,7 +184,7 @@ export function CollectionPage({ id }: { id: string }) {
     for (const [facet, values] of Object.entries(collection.query?.filters ?? {})) s.setFilter(facet as never, values);
     s.setText(collection.query?.text ?? '');
     s.setIncludeSupport(collection.query?.includeSupport ?? false);
-    s.setFavourites(collection.query?.favourites ?? false);
+    s.setFavourites(collection.query?.favorites ?? false);
     go({ to: 'browse' });
   };
 

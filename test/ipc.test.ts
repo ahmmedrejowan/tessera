@@ -25,6 +25,7 @@ import { asked, forget, handlers } from './fake-electron';
 import { PIXEL } from './library';
 import { writeZip } from './zipfixture';
 import { UsageStore } from '../src/main/usage';
+import { PACK_DIRS } from '../src/main/library/layout';
 
 /** A folder that lasts as long as this file does, rather than as long as one test. */
 const mine: string[] = [];
@@ -85,7 +86,7 @@ beforeAll(async () => {
   mkdirSync(join(pack, 'original', 'Models'), { recursive: true });
   writeFileSync(join(pack, 'original', 'Models', 'arcade.obj'), 'o arcade\n');
   writeFileSync(join(pack, 'original', 'cover.png'), PIXEL);
-  mkdirSync(join(pack, 'licence'), { recursive: true });
+  mkdirSync(join(pack, PACK_DIRS.license), { recursive: true });
   writeFileSync(
     join(pack, 'pack.json'),
     JSON.stringify({
@@ -93,7 +94,7 @@ beforeAll(async () => {
       id: 'id-mini-arcade',
       name: 'Mini Arcade',
       status: 'library',
-      licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' },
+      license: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' },
       source: { site: null, name: 'Test', url: null, creator: null, creatorUrl: null },
       addedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -222,7 +223,7 @@ describe('browsing and reading', () => {
     const pack = await ok('pack:get', packId());
     expect(pack?.meta.name).toBe('Mini Arcade');
     expect((await ok('pack:files', packId())).length).toBeGreaterThan(0);
-    expect(Array.isArray(await ok('pack:partLicences', packId()))).toBe(true);
+    expect(Array.isArray(await ok('pack:partLicenses', packId()))).toBe(true);
     expect(await ok('pack:detect', packId())).toBeTruthy();
     expect(Array.isArray(await ok('pack:folders', packId()))).toBe(true);
     expect(Array.isArray(await ok('pack:proof', packId()))).toBe(true);
@@ -256,11 +257,11 @@ describe('changing things', () => {
   });
 
   it('stars a pack, archives it, and puts both back', async () => {
-    await ok('favourites:pack', packId(), true);
-    expect((await ok('browse:packs', { scope: 'library', text: '', filters: {}, favourites: true }, 'added', 0, 10)).rows[0]?.fav).toBe(true);
-    await ok('favourites:pack', packId(), false);
+    await ok('favorites:pack', packId(), true);
+    expect((await ok('browse:packs', { scope: 'library', text: '', filters: {}, favorites: true }, 'added', 0, 10)).rows[0]?.fav).toBe(true);
+    await ok('favorites:pack', packId(), false);
     await ok('library:refresh');
-    expect((await ok('browse:packs', { scope: 'library', text: '', filters: {}, favourites: true }, 'added', 0, 10)).total).toBe(0);
+    expect((await ok('browse:packs', { scope: 'library', text: '', filters: {}, favorites: true }, 'added', 0, 10)).total).toBe(0);
 
     await ok('pack:archive', packId(), true);
     expect((await ok('pack:get', packId()))?.archived).toBe(true);
@@ -273,9 +274,9 @@ describe('changing things', () => {
   it('stars single files, and takes the star off again', async () => {
     const one = (await ok('pack:files', packId()))[0]!;
     const item = { packId: packId(), ref: one.ref };
-    await ok('favourites:assets', [item], true);
+    await ok('favorites:assets', [item], true);
     expect((await ok('collections:holding', packId(), one.ref)).length).toBeGreaterThan(0);
-    await ok('favourites:assets', [item], false);
+    await ok('favorites:assets', [item], false);
   });
 
   it('refuses to edit a pack that is not there, with a code rather than a crash', async () => {
@@ -384,7 +385,7 @@ describe('bringing packs in', () => {
 
     const done = await ok('import:run', plan);
     expect(done.failed).toEqual([]);
-    // One knows its licence and joins the library; the other has to be looked at first.
+    // One knows its license and joins the library; the other has to be looked at first.
     expect(done.added.map((a) => [a.name, a.status]).sort()).toEqual([
       ['Mystery', 'inbox'],
       ['Space Kit', 'library'],
@@ -464,7 +465,7 @@ describe('settings, activity and documents', () => {
   });
 
   it('hands over a document the app ships', async () => {
-    expect(await ok('app:document', 'licence')).toContain('licence');
+    expect(await ok('app:document', 'license')).toContain('license');
   });
 });
 

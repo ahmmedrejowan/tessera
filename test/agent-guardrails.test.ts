@@ -52,14 +52,14 @@ describe('the credits file an agent may choose', () => {
 });
 
 describe('what an agent is told when it links', () => {
-  it('hears the licence problems the window would have shown', async () => {
-    // The window will not copy a pack with no licence without saying so. The agent used to be
+  it('hears the license problems the window would have shown', async () => {
+    // The window will not copy a pack with no license without saying so. The agent used to be
     // told only how many files moved, which is the one thing this application exists to prevent.
     const { app, projectId, pack, file } = await ready();
-    await callTool(app, 'set_pack_details', { packId: pack.id, licence: null });
-    const said = (await callTool(app, 'link_to_game', { projectId, assetIds: [file.id] })) as { linked: number; licenceWarnings?: string[] };
+    await callTool(app, 'set_pack_details', { packId: pack.id, license: null });
+    const said = (await callTool(app, 'link_to_game', { projectId, assetIds: [file.id] })) as { linked: number; licenseWarnings?: string[] };
     expect(said.linked).toBe(1);
-    expect(said.licenceWarnings?.join(' ')).toMatch(/licence/i);
+    expect(said.licenseWarnings?.join(' ')).toMatch(/license/i);
   });
 });
 
@@ -68,18 +68,18 @@ describe('a filter value that matches nothing', () => {
     // "CC0" is the obvious thing to ask for and the id is "CC0-1.0". An empty answer is true and
     // useless: the agent reports a library with no CC0 in it.
     const { app } = await ready();
-    const said = (await callTool(app, 'search', { text: '', of: 'packs', filters: { licence: ['CC0'] } })) as {
+    const said = (await callTool(app, 'search', { text: '', of: 'packs', filters: { license: ['CC0'] } })) as {
       total: number;
       unknownFilterValues?: Record<string, { youAsked: string[]; theseTheLibraryHas: string[] }>;
     };
     expect(said.total).toBe(0);
-    expect(said.unknownFilterValues?.licence?.youAsked).toEqual(['CC0']);
-    expect(said.unknownFilterValues?.licence?.theseTheLibraryHas.length).toBeGreaterThan(0);
+    expect(said.unknownFilterValues?.license?.youAsked).toEqual(['CC0']);
+    expect(said.unknownFilterValues?.license?.theseTheLibraryHas.length).toBeGreaterThan(0);
   });
 
   it('says nothing when the filter matched', async () => {
     const { app } = await ready();
-    const said = (await callTool(app, 'search', { text: '', of: 'packs', filters: { licence: ['CC0-1.0'] } })) as { unknownFilterValues?: unknown };
+    const said = (await callTool(app, 'search', { text: '', of: 'packs', filters: { license: ['CC0-1.0'] } })) as { unknownFilterValues?: unknown };
     expect(said.unknownFilterValues).toBeUndefined();
   });
 
@@ -90,7 +90,7 @@ describe('a filter value that matches nothing', () => {
     const said = (await callTool(app, 'search', {
       text: '',
       of: 'packs',
-      filters: { licence: ['CC0-1.0'], tag: ['not-a-real-tag'] },
+      filters: { license: ['CC0-1.0'], tag: ['not-a-real-tag'] },
     })) as { total: number; unknownFilterValues?: unknown };
     if (said.total > 0) expect(said.unknownFilterValues).toBeUndefined();
   });
@@ -113,7 +113,7 @@ describe('settings an agent changes', () => {
 
 describe('a pack whose record two computers disagreed about', () => {
   it('says so, rather than showing the winner in silence', async () => {
-    // Syncthing keeps the losing version beside the winner and nothing read it. A licence
+    // Syncthing keeps the losing version beside the winner and nothing read it. A license
     // recorded on the other computer could sit in one of those files, unread and unmentioned,
     // and the game's credits would be written from the version that happened to win.
     const { app } = await ready();
@@ -129,11 +129,11 @@ describe('a pack whose record two computers disagreed about', () => {
 
 describe('a collection rule an agent gets slightly wrong', () => {
   it('fails, rather than making a collection that refuses nothing', async () => {
-    // The field is "licences". A collection made with "licence" kept the name "Only CC0" and let
+    // The field is "licenses". A collection made with "license" kept the name "Only CC0" and let
     // a non-commercial pack straight in, which is the opposite of what it was asked for.
     const { app } = await ready();
-    await expect(callTool(app, 'create_collection', { name: 'Only CC0', rules: { licence: ['CC0-1.0'] } })).rejects.toThrow();
-    const made = (await callTool(app, 'create_collection', { name: 'Only CC0', rules: { licences: ['CC0-1.0'] } })) as { id: string };
+    await expect(callTool(app, 'create_collection', { name: 'Only CC0', rules: { license: ['CC0-1.0'] } })).rejects.toThrow();
+    const made = (await callTool(app, 'create_collection', { name: 'Only CC0', rules: { licenses: ['CC0-1.0'] } })) as { id: string };
     expect(made.id).toBeTruthy();
   });
 
@@ -141,17 +141,17 @@ describe('a collection rule an agent gets slightly wrong', () => {
     // edit_collection offered needsCreditLine, which is not one of a collection's rules, so it
     // was accepted and quietly dropped.
     const { app } = await ready();
-    const made = (await callTool(app, 'create_collection', { name: 'Gathering', rules: { licences: ['CC0-1.0'] } })) as { id: string };
+    const made = (await callTool(app, 'create_collection', { name: 'Gathering', rules: { licenses: ['CC0-1.0'] } })) as { id: string };
     await expect(callTool(app, 'edit_collection', { collectionId: made.id, rules: { needsCreditLine: true } })).rejects.toThrow();
   });
 
   it('changes only the rule it was given, and leaves the others', async () => {
     const { app } = await ready();
-    const made = (await callTool(app, 'create_collection', { name: 'Gathering', rules: { licences: ['CC0-1.0'], tags: ['trees'] } })) as { id: string };
-    await callTool(app, 'edit_collection', { collectionId: made.id, rules: { licences: ['CC-BY-4.0'] } });
-    const all = (await callTool(app, 'list_collections', {})) as { id: string; rules: { licences: string[]; tags: string[] } }[];
+    const made = (await callTool(app, 'create_collection', { name: 'Gathering', rules: { licenses: ['CC0-1.0'], tags: ['trees'] } })) as { id: string };
+    await callTool(app, 'edit_collection', { collectionId: made.id, rules: { licenses: ['CC-BY-4.0'] } });
+    const all = (await callTool(app, 'list_collections', {})) as { id: string; rules: { licenses: string[]; tags: string[] } }[];
     const now = all.find((c) => c.id === made.id)!;
-    expect(now.rules.licences).toEqual(['CC-BY-4.0']);
+    expect(now.rules.licenses).toEqual(['CC-BY-4.0']);
     expect(now.rules.tags).toEqual(['trees']);
   });
 });

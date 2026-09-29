@@ -21,6 +21,7 @@ import { asked, forget, handlers } from './fake-electron';
 import { PIXEL } from './library';
 import { writeZip } from './zipfixture';
 import { UsageStore } from '../src/main/usage';
+import { PACK_DIRS } from '../src/main/library/layout';
 
 async function invoke<K extends InvokeChannel>(channel: K, ...args: Parameters<Invokes[K]>): Promise<Wire<Awaited<ReturnType<Invokes[K]>>>> {
   const fn = handlers.get(channel);
@@ -63,11 +64,11 @@ beforeAll(async () => {
   const pack = (id: string, folder: string, build: (dir: string) => void | Promise<void>) => {
     const dir = join(root, 'packs', folder);
     mkdirSync(join(dir, 'original'), { recursive: true });
-    mkdirSync(join(dir, 'licence'), { recursive: true });
+    mkdirSync(join(dir, PACK_DIRS.license), { recursive: true });
     const made = build(dir);
     writeFileSync(
       join(dir, 'pack.json'),
-      JSON.stringify({ format: 1, id, name: folder, status: 'library', licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' }, source: { site: null, name: 'Test', url: 'https://example.test/pack', creator: null, creatorUrl: null }, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }),
+      JSON.stringify({ format: 1, id, name: folder, status: 'library', license: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' }, source: { site: null, name: 'Test', url: 'https://example.test/pack', creator: null, creatorUrl: null }, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }),
     );
     return made;
   };
@@ -185,7 +186,7 @@ describe('a pack on disk', () => {
 });
 
 describe('proof kept with a pack', () => {
-  it('takes files into the licence folder, lists them, and opens one', async () => {
+  it('takes files into the license folder, lists them, and opens one', async () => {
     const from = ownDir();
     writeFileSync(join(from, 'receipt.txt'), 'paid for it');
     asked.files = [join(from, 'receipt.txt')];

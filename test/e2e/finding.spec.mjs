@@ -25,7 +25,7 @@ export async function run(ok) {
     const models = await t.call('browse:assets', { scope: 'library', text: '', filters: { type: ['model'] } }, 'name', 0, 5);
     ok('a filter narrows to one kind', models.total === 20, `${models.total} models`);
     const facets = await t.call('browse:facets', { scope: 'library', text: '', filters: {} }, 'assets');
-    ok('the facets say what there is to filter by', facets.type.length >= 2 && facets.licence.length >= 1);
+    ok('the facets say what there is to filter by', facets.type.length >= 2 && facets.license.length >= 1);
 
     // The viewer, from the grid, with the keyboard. A cold machine can take a while to draw the
     // grid, so it is waited for rather than assumed.
@@ -72,7 +72,7 @@ export async function run(ok) {
     // press that lasts 400 ms is "pick this one" rather than "open it", and the gap between a
     // synthetic press and release on a loaded runner is long enough to trip that.
     await hit.dblclick({ force: true });
-    // "THIS FILE" is the viewer's own licence heading, so it appears whether or not the machine
+    // "THIS FILE" is the viewer's own license heading, so it appears whether or not the machine
     // can draw the model: a runner with no WebGL shows the panel's "can't be shown here" instead.
     const opened = await t.page
       .getByText('THIS FILE', { exact: false })

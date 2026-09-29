@@ -24,7 +24,7 @@ describe('folder names and places', () => {
     expect(folderPathProblem('Art/a:b')).toMatch(/“a:b”: can’t contain/);
   });
 
-  it('recognises folders a cloud service syncs', () => {
+  it('recognizes folders a cloud service syncs', () => {
     expect(cloudService('/Users/sam/Library/Mobile Documents/com~apple~CloudDocs/Assets')).toBe('iCloud Drive');
     expect(cloudService('C:\\Users\\Sam\\OneDrive - Studio\\Assets')).toBe('OneDrive');
     expect(cloudService('/Users/sam/Dropbox/Assets')).toBe('Dropbox');

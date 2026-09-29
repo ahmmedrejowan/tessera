@@ -11,8 +11,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { assetPath } from '@shared/assets';
-import { LICENCES, licenceInfo } from '@shared/licences';
-import { PackLicence, type PackMeta } from '@shared/pack';
+import { LICENSES, licenseInfo } from '@shared/licenses';
+import { PackLicense, type PackMeta } from '@shared/pack';
 import type { AssetRow } from '@shared/query';
 import { call } from '../api';
 import { failed, notify } from '../notices/store';
@@ -26,22 +26,22 @@ const folderOf = (ref: string) => {
 };
 
 /**
- * The licence for this one file, when it isn't the pack's. It is written as a rule on the pack:
+ * The license for this one file, when it isn't the pack's. It is written as a rule on the pack:
  * either for this file alone, or for the folder it sits in, which is how bundles usually differ.
  */
-export function FileLicence({ open, asset, meta, onClose }: { open: boolean; asset: AssetRow; meta: PackMeta; onClose: () => void }) {
-  const [licence, setLicence] = useState<(typeof LICENCES)[number] | null>(licenceInfo(asset.licence) ?? null);
+export function FileLicense({ open, asset, meta, onClose }: { open: boolean; asset: AssetRow; meta: PackMeta; onClose: () => void }) {
+  const [license, setLicense] = useState<(typeof LICENSES)[number] | null>(licenseInfo(asset.license) ?? null);
   const [credit, setCredit] = useState('');
   const [covers, setCovers] = useState<'file' | 'folder'>('folder');
   const path = covers === 'file' ? assetPath(asset.ref) : folderOf(asset.ref);
 
   const save = async () => {
     try {
-      const rules = (meta.licences ?? []).filter((r) => r.path.toLowerCase() !== path.toLowerCase());
+      const rules = (meta.licenses ?? []).filter((r) => r.path.toLowerCase() !== path.toLowerCase());
       await call('pack:edit', asset.packId, {
-        licences: [...rules, { path, licence: PackLicence.parse({ id: licence?.id ?? null, attribution: credit.trim() || null }) }].sort((a, b) => a.path.localeCompare(b.path)),
+        licenses: [...rules, { path, license: PackLicense.parse({ id: license?.id ?? null, attribution: credit.trim() || null }) }].sort((a, b) => a.path.localeCompare(b.path)),
       });
-      notify.success(`${path} is ${licenceInfo(licence?.id)?.short ?? 'recorded'} from now on.`);
+      notify.success(`${path} is ${licenseInfo(license?.id)?.short ?? 'recorded'} from now on.`);
       onClose();
     } catch (e) {
       failed(e);
@@ -57,29 +57,29 @@ export function FileLicence({ open, asset, meta, onClose }: { open: boolean; ass
       slotProps={{
         transition: {
           onEnter: () => {
-            setLicence(licenceInfo(asset.licence) ?? null);
+            setLicense(licenseInfo(asset.license) ?? null);
             setCredit('');
             setCovers('folder');
           },
         },
       }}
     >
-      <DialogTitle>The licence for this file</DialogTitle>
+      <DialogTitle>The license for this file</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
           A pack can hold parts that came under different terms. This is written as a rule on the pack, so anything else in the same place is covered too.
         </Typography>
         <Autocomplete
-          options={LICENCES}
-          value={licence}
-          onChange={(_, v) => setLicence(v)}
+          options={LICENSES}
+          value={license}
+          onChange={(_, v) => setLicense(v)}
           getOptionLabel={(l) => l.name}
           filterOptions={(options, { inputValue }) => {
             const q = inputValue.trim().toLowerCase().replace(/[\s-]+/g, '');
             return q ? options.filter((l) => `${l.name} ${l.short} ${l.id}`.toLowerCase().replace(/[\s-]+/g, '').includes(q)) : options;
           }}
           isOptionEqualToValue={(a, b) => a.id === b.id}
-          renderInput={(p) => <TextField {...p} autoFocus label="Licence" sx={{ mt: 1 }} />}
+          renderInput={(p) => <TextField {...p} autoFocus label="License" sx={{ mt: 1 }} />}
         />
         <TextField label="Credit line (optional)" value={credit} onChange={(e) => setCredit(e.target.value)} />
         <div>
@@ -94,7 +94,7 @@ export function FileLicence({ open, asset, meta, onClose }: { open: boolean; ass
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" disabled={!licence} onClick={() => void save()}>
+        <Button variant="contained" disabled={!license} onClick={() => void save()}>
           Save
         </Button>
       </DialogActions>

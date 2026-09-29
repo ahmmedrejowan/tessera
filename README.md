@@ -4,7 +4,7 @@
 <h3>A desktop library for game assets</h3>
 
   <p>
-    Keep every pack you collect, with its licence and source on record. Find the piece you need in
+    Keep every pack you collect, with its license and source on record. Find the piece you need in
     seconds, and copy it into your game with the credits written for you.
   </p>
 
@@ -28,9 +28,9 @@
 ## Features
 
 - **Packs kept whole** - your download is copied in as it came, zips included, and read inside for what it holds
-- **Licence and source on record** - read from the pack's own files where possible, with a page snapshot kept as proof
-- **Review** - anything without a licence or a source waits there, and cannot reach a game until it has both
-- **Find anything** - search across packs, assets and tags, with filters by type, format, site, creator, licence, genre, style and tags
+- **License and source on record** - read from the pack's own files where possible, with a page snapshot kept as proof
+- **Review** - anything without a license or a source waits there, and cannot reach a game until it has both
+- **Find anything** - search across packs, assets and tags, with filters by type, format, site, creator, license, genre, style and tags
 - **See it properly** - 3D models, images, HDRIs, sprites, sounds and fonts previewed in the app
 - **Collections** - gather packs and files for one game, with rules that refuse what does not fit
 - **Games** - link assets into Unity, Godot, Unreal or any folder, in the format that engine prefers, with a CREDITS.md kept up to date
@@ -183,14 +183,14 @@ gh attestation verify Tessera-*.dmg -R ahmmedrejowan/tessera
    packs go in `packs/`, one folder each, exactly as they were downloaded.
 2. **Put something in it.** Drag a zip or a folder onto the window, use the + button, or paste a
    link into Downloads. Tessera reads the pack, including inside archives, and fills in what it can.
-3. **Answer the licence question.** A pack with no licence or no source waits in Review until it
+3. **Answer the license question.** A pack with no license or no source waits in Review until it
    has both. That is the whole point: it can never leave for a game unaccounted for.
 4. **Find things.** Search across packs, files and tags, or narrow by kind, format, creator,
-   licence, style. Double-click anything to see it properly.
+   license, style. Double-click anything to see it properly.
 5. **Gather.** A collection holds packs and files for one game, and can refuse anything that does
    not fit its rules.
 6. **Link it into a game.** Tell Tessera where the game folder is; it copies the assets in, in the
-   format that engine prefers, with a licence file beside them and CREDITS.md kept up to date.
+   format that engine prefers, with a license file beside them and CREDITS.md kept up to date.
 
 Then, when you want it: [the guide](docs/guide/) with pictures, the
 [questions people ask](docs/faq.md), and the [wiki](https://github.com/ahmmedrejowan/tessera/wiki).
@@ -225,13 +225,13 @@ src/
 │       ├── components/        # The shared pieces every page is built from
 │       ├── viewer/            # The full-screen file viewer
 │       ├── state/             # Zustand stores and TanStack Query hooks
-│       └── theme/             # Material 3 tokens, light and dark, from one seed colour
+│       └── theme/             # Material 3 tokens, light and dark, from one seed color
 │
 └── shared/                    # What both sides agree on
     ├── ipc.ts                 # The contract: every channel, typed
-    ├── pack.ts                # What a pack is, and what its licence says
+    ├── pack.ts                # What a pack is, and what its license says
     ├── assets.ts              # Kinds, types, classifying
-    └── licences.ts            # The licences Tessera knows
+    └── licenses.ts            # The licenses Tessera knows
 ```
 
 **How it fits together.** The window asks; the main process answers. Nothing in the renderer opens
@@ -248,7 +248,7 @@ be thrown away and built again at any time, and is, if it ever will not open.
 
 - **Shell**: Electron 44 with electron-vite, three processes (main, preload, renderer)
 - **Language**: TypeScript, strict, with the IPC contract typed end to end
-- **UI**: React 19, MUI 9, Material 3 tokens generated from one seed colour
+- **UI**: React 19, MUI 9, Material 3 tokens generated from one seed color
 - **State**: Zustand for what the window remembers, TanStack Query for what it asks for
 - **Index**: `node:sqlite` with FTS5, one index per library
 - **3D**: three.js, with a hidden window for thumbnails
@@ -326,7 +326,7 @@ what a change should look like; open an issue first if it is more than a small f
 
 ---
 
-## Licence
+## License
 
 ```
 Copyright (C) 2026 K M Rejowan Ahmmed
@@ -343,9 +343,9 @@ GNU General Public License for more details.
 ```
 
 > **Note**
-> This is a copyleft licence. Anything built on it stays free in the same way.
+> This is a copyleft license. Anything built on it stays free in the same way.
 
-The separate programs Tessera can fetch (Kopia, rclone, Syncthing) keep their own licences, and so
+The separate programs Tessera can fetch (Kopia, rclone, Syncthing) keep their own licenses, and so
 do the assets you keep in your library.
 
 ---

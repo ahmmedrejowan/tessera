@@ -6,12 +6,12 @@
  * Copying the same assets in again from the library would give them a second copy at a new path
  * that nothing references, and leave the originals as unlicensed as they were.
  *
- * So: recognise what is there, and record it. Not a byte moves, no path changes, and the credits
+ * So: recognize what is there, and record it. Not a byte moves, no path changes, and the credits
  * file then covers what the game actually ships.
  *
  * Matching is by content, never by name alone. A file called `tree.glb` is not evidence of
  * anything; the same bytes are. That means an asset somebody re-exported or edited will not be
- * recognised, which is correct: it is no longer the asset the licence was recorded against.
+ * recognized, which is correct: it is no longer the asset the license was recorded against.
  */
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
@@ -179,8 +179,8 @@ export function adoptEntries(project: Project, matches: AdoptMatch[], src: CopyS
       ref: m.ref,
       copiedRef: m.ref,
       files: [posix.normalize(m.path)],
-      licence: pack.meta.licence.id,
-      attribution: pack.meta.licence.attribution,
+      license: pack.meta.license.id,
+      attribution: pack.meta.license.attribution,
       creator: pack.meta.source.creator,
       sourceUrl: pack.meta.source.url,
       copiedAt: now,

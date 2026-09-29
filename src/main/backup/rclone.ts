@@ -15,7 +15,7 @@ interface Step {
 
 /** rclone's sign-in failures, said plainly. */
 export function signInError(stderr: string): string {
-  if (/AADSTS65001|AADSTS90094|admin(istrator)? (approval|consent)|needs admin/i.test(stderr)) return 'Your organisation needs an administrator to approve this app for your Microsoft account. Ask your IT admin, or use another place.';
+  if (/AADSTS65001|AADSTS90094|admin(istrator)? (approval|consent)|needs admin/i.test(stderr)) return 'Your organization needs an administrator to approve this app for your Microsoft account. Ask your IT admin, or use another place.';
   if (/access_denied|user denied|consent_required/i.test(stderr)) return 'Signing in was cancelled in the browser.';
   const last = stderr.trim().split('\n').at(-1) ?? '';
   return `Signing in didn’t finish: ${last.replace(/^\S+ \S+ (NOTICE|ERROR|CRITICAL): /, '')}`;

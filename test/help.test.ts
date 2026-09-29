@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_QUESTIONS, HELP, searchHelp, topicById } from '../src/shared/help';
 
-describe('the help centre', () => {
+describe('the help center', () => {
   it('has topics whose questions are all reachable and unique', () => {
     expect(HELP.length).toBeGreaterThan(5);
     const ids = ALL_QUESTIONS.map(({ topic, question }) => `${topic.id}/${question.id}`);

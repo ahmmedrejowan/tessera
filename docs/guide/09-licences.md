@@ -12,7 +12,7 @@ For every pack:
   and creator, and you can write your own.
 - **The source**: the page it came from, the site, and the creator.
 - **The proof**: the license files that shipped inside the pack, a snapshot of the page it came
-  from, and an archive.org copy where one exists. They live in the pack's `licence/` folder.
+  from, and an archive.org copy where one exists. They live in the pack's `license/` folder.
 
 ## What "needs credit" means
 

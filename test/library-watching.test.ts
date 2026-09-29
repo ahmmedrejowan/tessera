@@ -15,6 +15,7 @@ vi.mock('electron', () => import('./fake-electron'));
 
 import { Jobs } from '../src/main/jobs';
 import { LibraryService } from '../src/main/libraryService';
+import { PACK_DIRS } from '../src/main/library/layout';
 
 const windows = process.platform === 'win32';
 
@@ -58,11 +59,11 @@ async function watching() {
 function packOnDisk(root: string, name: string, id: string): void {
   const dir = join(root, 'packs', name);
   mkdirSync(join(dir, 'original'), { recursive: true });
-  mkdirSync(join(dir, 'licence'), { recursive: true });
+  mkdirSync(join(dir, PACK_DIRS.license), { recursive: true });
   writeFileSync(join(dir, 'original', 'thing.obj'), 'o thing\n');
   writeFileSync(
     join(dir, 'pack.json'),
-    JSON.stringify({ format: 1, id, name, status: 'library', licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' }, source: { site: null, name: 'Test', url: null, creator: null, creatorUrl: null }, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }),
+    JSON.stringify({ format: 1, id, name, status: 'library', license: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' }, source: { site: null, name: 'Test', url: null, creator: null, creatorUrl: null }, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }),
   );
 }
 

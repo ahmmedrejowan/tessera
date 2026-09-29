@@ -11,14 +11,14 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
-import { licenceInfo, LICENCES } from '@shared/licences';
+import { licenseInfo, LICENSES } from '@shared/licenses';
 import type { PackEdit, PackMeta } from '@shared/pack';
 import { sourceInfo, SOURCES } from '@shared/sources';
 import type { Detected } from '@shared/types';
-import { GENRES, normaliseTerm, STYLES } from '@shared/vocabulary';
+import { GENRES, normalizeTerm, STYLES } from '@shared/vocabulary';
 import { call } from '../../api';
 import { failed } from '../../notices/store';
-import { licenceSummary } from '../../components/LicenceChip';
+import { licenseSummary } from '../../components/LicenseChip';
 import { useLibraryId } from '../../state/library';
 import { md } from '../../theme';
 
@@ -47,7 +47,7 @@ function TermsField({ label, value, onChange, field, starter }: { label: string;
       options={options}
       value={value}
       filterSelectedOptions
-      onChange={(_, v) => onChange([...new Set(v.map((x) => normaliseTerm(String(x))).filter(Boolean))])}
+      onChange={(_, v) => onChange([...new Set(v.map((x) => normalizeTerm(String(x))).filter(Boolean))])}
       renderValue={(v, getItemProps) => v.map((t, i) => <Chip size="small" label={t} {...getItemProps({ index: i })} key={t} />)}
       renderInput={(params) => <TextField {...params} label={label} placeholder={value.length ? '' : 'Type and press Enter'} />}
     />
@@ -61,9 +61,9 @@ interface Draft {
   url: string;
   creator: string;
   creatorUrl: string;
-  licence: string;
+  license: string;
   attribution: string;
-  licenceNotes: string;
+  licenseNotes: string;
   genres: string[];
   styles: string[];
   tags: string[];
@@ -79,9 +79,9 @@ const fromMeta = (m: PackMeta): Draft => ({
   url: m.source.url ?? '',
   creator: m.source.creator ?? '',
   creatorUrl: m.source.creatorUrl ?? '',
-  licence: m.licence.id ?? '',
-  attribution: m.licence.attribution ?? '',
-  licenceNotes: m.licence.notes,
+  license: m.license.id ?? '',
+  attribution: m.license.attribution ?? '',
+  licenseNotes: m.license.notes,
   genres: m.genres,
   styles: m.styles,
   tags: m.tags,
@@ -96,7 +96,7 @@ function toEdit(d: Draft, m: PackMeta): PackEdit {
   return {
     name: d.name.trim(),
     source: { site: d.site && d.site !== OTHER ? d.site : null, name: d.site === OTHER ? orNull(d.sourceName) : null, url: orNull(d.url), creator: orNull(d.creator), creatorUrl: orNull(d.creatorUrl) },
-    licence: { ...m.licence, id: orNull(d.licence), attribution: orNull(d.attribution), notes: d.licenceNotes.trim() },
+    license: { ...m.license, id: orNull(d.license), attribution: orNull(d.attribution), notes: d.licenseNotes.trim() },
     genres: d.genres,
     styles: d.styles,
     tags: d.tags,
@@ -106,14 +106,14 @@ function toEdit(d: Draft, m: PackMeta): PackEdit {
   };
 }
 
-/** A suggested credit line for licences that ask for one. */
+/** A suggested credit line for licenses that ask for one. */
 function suggestedCredit(d: Draft): string {
   const who = d.creator.trim() || (sourceInfo(d.site)?.creator ?? 'the author');
-  const lic = licenceInfo(d.licence)?.short ?? d.licence;
+  const lic = licenseInfo(d.license)?.short ?? d.license;
   return `"${d.name.trim()}" by ${who}, licensed under ${lic}${d.url.trim() ? ` (${d.url.trim()})` : ''}`;
 }
 
-/** Edit a pack's record: where it came from, its licence and how it's organised. */
+/** Edit a pack's record: where it came from, its license and how it's organized. */
 export function PackEditor({ packId, meta, open, onClose }: { packId: string; meta: PackMeta; open: boolean; onClose: () => void }) {
   const client = useQueryClient();
   const [d, setD] = useState<Draft>(() => fromMeta(meta));
@@ -131,7 +131,7 @@ export function PackEditor({ packId, meta, open, onClose }: { packId: string; me
   }, [open, meta]);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
-  const info = licenceInfo(d.licence);
+  const info = licenseInfo(d.license);
 
   const detect = async () => {
     setDetecting(true);
@@ -140,7 +140,7 @@ export function PackEditor({ packId, meta, open, onClose }: { packId: string; me
       setDetected(found);
       setD((x) => ({
         ...x,
-        licence: x.licence || found.licence || '',
+        license: x.license || found.license || '',
         site: x.site || found.site || '',
         url: x.url || found.url || '',
         creator: x.creator || found.creator || '',
@@ -200,9 +200,9 @@ export function PackEditor({ packId, meta, open, onClose }: { packId: string; me
           {/* Always two lines tall, so the fields below stay put when a result comes in. */}
           <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), height: 36, overflow: 'hidden', mt: -1 }}>
             {!detected
-              ? 'Reads the licence and readme files inside the pack.'
-              : detected.licence || detected.site
-                ? `Found ${[detected.licence && `${licenceInfo(detected.licence)?.short ?? detected.licence} in ${detected.licenceFrom}`, detected.site && `a ${sourceInfo(detected.site)?.name} pack`].filter(Boolean).join(', ')}. Empty fields were filled in; check them before saving.`
+              ? 'Reads the license and readme files inside the pack.'
+              : detected.license || detected.site
+                ? `Found ${[detected.license && `${licenseInfo(detected.license)?.short ?? detected.license} in ${detected.licenseFrom}`, detected.site && `a ${sourceInfo(detected.site)?.name} pack`].filter(Boolean).join(', ')}. Empty fields were filled in; check them before saving.`
                 : 'Nothing found in the pack’s files. Fill these in from where you got it.'}
           </Typography>
           <TextField select label="Source" value={d.site} onChange={(e) => set('site', e.target.value)}>
@@ -222,19 +222,19 @@ export function PackEditor({ packId, meta, open, onClose }: { packId: string; me
           <TextField label="Creator’s link" value={d.creatorUrl} onChange={(e) => set('creatorUrl', e.target.value)} placeholder="https://" />
         </Section>
 
-        <Section title="Licence">
-          <TextField select label="Licence" value={d.licence} onChange={(e) => set('licence', e.target.value)} helperText={licenceSummary(d.licence || null)} slotProps={{ formHelperText: { sx: { minHeight: 36 } } }}>
+        <Section title="License">
+          <TextField select label="License" value={d.license} onChange={(e) => set('license', e.target.value)} helperText={licenseSummary(d.license || null)} slotProps={{ formHelperText: { sx: { minHeight: 36 } } }}>
             <MenuItem value="">
               <em>Unknown</em>
             </MenuItem>
             <ListSubheader>Free</ListSubheader>
-            {LICENCES.filter((l) => l.free).map((l) => (
+            {LICENSES.filter((l) => l.free).map((l) => (
               <MenuItem key={l.id} value={l.id}>
                 {l.name}
               </MenuItem>
             ))}
             <ListSubheader>Bought or subscribed</ListSubheader>
-            {LICENCES.filter((l) => !l.free).map((l) => (
+            {LICENSES.filter((l) => !l.free).map((l) => (
               <MenuItem key={l.id} value={l.id}>
                 {l.name}
               </MenuItem>
@@ -245,7 +245,7 @@ export function PackEditor({ packId, meta, open, onClose }: { packId: string; me
             value={d.attribution}
             onChange={(e) => set('attribution', e.target.value)}
             multiline
-            helperText={info?.attribution ? 'This licence asks for credit. The line goes into your game’s credits.' : 'Optional. Goes into your game’s credits.'}
+            helperText={info?.attribution ? 'This license asks for credit. The line goes into your game’s credits.' : 'Optional. Goes into your game’s credits.'}
             slotProps={{
               input: {
                 endAdornment: (
@@ -256,10 +256,10 @@ export function PackEditor({ packId, meta, open, onClose }: { packId: string; me
               },
             }}
           />
-          <TextField label="Licence notes" value={d.licenceNotes} onChange={(e) => set('licenceNotes', e.target.value)} multiline minRows={2} placeholder="Order number, conditions, anything worth remembering" />
+          <TextField label="License notes" value={d.licenseNotes} onChange={(e) => set('licenseNotes', e.target.value)} multiline minRows={2} placeholder="Order number, conditions, anything worth remembering" />
         </Section>
 
-        <Section title="Organise">
+        <Section title="Organize">
           <TermsField label="Genre" field="genre" value={d.genres} onChange={(v) => set('genres', v)} starter={GENRES} />
           <TermsField label="Style" field="style" value={d.styles} onChange={(v) => set('styles', v)} starter={STYLES} />
           <TermsField label="Tags" field="tag" value={d.tags} onChange={(v) => set('tags', v)} />

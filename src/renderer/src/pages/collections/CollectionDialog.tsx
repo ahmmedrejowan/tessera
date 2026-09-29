@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { create } from 'zustand';
 import { hasRules, NO_RULES, type CollectionItem, type CollectionRules } from '@shared/collection';
-import { LICENCES, licenceInfo } from '@shared/licences';
+import { LICENSES, licenseInfo } from '@shared/licenses';
 import { call } from '../../api';
 import { newCollection } from '../../state/collections';
 import { useIndexVersion, useLibraryId } from '../../state/library';
@@ -68,7 +68,7 @@ function Rule({ label, note, options, value, onChange, labelOf }: { label: strin
 
 /**
  * Making or editing a collection: what it is called, the game it is for, and what it will take.
- * The rules are the point: a collection for one game's licence should refuse anything else, so a
+ * The rules are the point: a collection for one game's license should refuse anything else, so a
  * mistake is caught as it is made rather than at the end of the project.
  */
 export function CollectionDialog({
@@ -142,12 +142,12 @@ export function CollectionDialog({
           {showRules && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Rule
-                label="Licence"
+                label="License"
                 note="CC0, CC BY 4.0…"
-                options={LICENCES.map((l) => l.id)}
-                labelOf={(id) => licenceInfo(id)?.short ?? id}
-                value={draft.rules.licences}
-                onChange={(licences) => rule({ licences })}
+                options={LICENSES.map((l) => l.id)}
+                labelOf={(id) => licenseInfo(id)?.short ?? id}
+                value={draft.rules.licenses}
+                onChange={(licenses) => rule({ licenses })}
               />
               <Rule label="Creator" note="Kenney…" options={creators.map((t) => t.value)} value={draft.rules.creators} onChange={(creators) => rule({ creators })} />
               <Rule label="Style" note="Low poly, pixel…" options={styles.map((t) => t.value)} value={draft.rules.styles} onChange={(styles) => rule({ styles })} />

@@ -14,7 +14,7 @@ export async function run(ok) {
     writeFileSync(join(folder, 'ProjectSettings', 'ProjectVersion.txt'), 'm_EditorVersion: 6000.3.24f1\n');
     await t.call('projects:add', await t.call('projects:probe', folder));
     const game = (await t.call('projects:list'))[0];
-    ok('a game folder is recognised, engine and all', game?.engine === 'unity', `${game?.name} (${game?.engine})`);
+    ok('a game folder is recognized, engine and all', game?.engine === 'unity', `${game?.name} (${game?.engine})`);
 
     const pack = (await t.call('browse:packs', { scope: 'library', text: 'arcade', filters: {} }, 'name', 0, 1)).rows[0];
     const files = (await t.call('pack:files', pack.id)).filter((f) => f.role === 'main').slice(0, 5);
@@ -23,9 +23,9 @@ export async function run(ok) {
 
     await waitFor(t, () => existsSync(join(folder, 'CREDITS.md')), 'the credits to be written');
     const credits = readFileSync(join(folder, 'CREDITS.md'), 'utf8');
-    ok('the credits name the pack and its licence', credits.includes(pack.name) && /CC0/i.test(credits));
+    ok('the credits name the pack and its license', credits.includes(pack.name) && /CC0/i.test(credits));
     const entries = await t.call('projects:entries', game.id);
-    ok('the game lists what it has taken, with the licence for each', entries.length === files.length && !!entries[0].licence);
+    ok('the game lists what it has taken, with the license for each', entries.length === files.length && !!entries[0].license);
 
     const removed = await t.call('projects:remove', game.id, entries.map((e) => ({ packId: e.packId, ref: e.ref })));
     ok('and it can all be taken back out', removed === entries.length && (await t.call('projects:entries', game.id)).length === 0);

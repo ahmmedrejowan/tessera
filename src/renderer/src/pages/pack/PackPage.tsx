@@ -25,7 +25,7 @@ import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { TYPE_LABELS, type AssetType } from '@shared/assets';
-import { licenceInfo } from '@shared/licences';
+import { licenseInfo } from '@shared/licenses';
 import { missingForLibrary } from '@shared/pack';
 import type { AssetRow } from '@shared/query';
 import { sourceInfo } from '@shared/sources';
@@ -34,7 +34,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { Page } from '../Placeholder';
 import { failed, notify } from '../../notices/store';
 import { formatBytes, formatCount, sourceName, typeSummary, mainAssetsOf } from '../../components/labels';
-import { LicenceChip, licenceSummary } from '../../components/LicenceChip';
+import { LicenseChip, licenseSummary } from '../../components/LicenseChip';
 import { VirtualGrid } from '../../components/VirtualGrid';
 import { useIndexVersion, useLibraryId } from '../../state/library';
 import { useNav } from '../../state/nav';
@@ -68,7 +68,7 @@ import { addToThisPack, droppedOnPack } from './AddAssetsPage';
 
 const Viewer = lazy(() => import('../../viewer/Viewer').then((m) => ({ default: m.Viewer })));
 
-type TabId = 'assets' | 'files' | 'licence' | 'about';
+type TabId = 'assets' | 'files' | 'license' | 'about';
 /** How the files inside one pack are ordered. */
 type PackSort = 'name' | 'folder' | 'type' | 'size' | 'format';
 
@@ -116,7 +116,7 @@ function Row({ label, note, children }: { label: string; note?: string; children
   );
 }
 
-/** One pack: its assets, all its files, its licence and what's known about it. */
+/** One pack: its assets, all its files, its license and what's known about it. */
 export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   const lib = useLibraryId();
   const version = useIndexVersion();
@@ -145,7 +145,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   const asked = useQuery({ queryKey: ['pack', lib, version, id], queryFn: () => call('pack:get', id), enabled: !!lib, placeholderData: (p) => p });
   const pack = asked.data;
   const files = useQuery({ queryKey: ['pack-files', lib, version, id], queryFn: () => call('pack:files', id), enabled: !!lib }).data ?? [];
-  const proof = useQuery({ queryKey: ['proof', lib, version, id], queryFn: () => call('pack:proof', id), enabled: !!lib && tab === 'licence' }).data ?? [];
+  const proof = useQuery({ queryKey: ['proof', lib, version, id], queryFn: () => call('pack:proof', id), enabled: !!lib && tab === 'license' }).data ?? [];
 
   const assets = useMemo(() => {
     const needle = find.trim().toLowerCase();
@@ -216,7 +216,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
   // The creator and the site are often the same name; say it once.
   const where = [...new Set([pack.creator, sourceName(pack.source), pack.meta.version].filter(Boolean))].join(' · ') || 'No creator recorded';
   const missing = missingForLibrary(pack.meta);
-  const info = licenceInfo(pack.licence);
+  const info = licenseInfo(pack.license);
   const site = sourceInfo(pack.meta.source.site);
   const link = pack.meta.source.url ?? site?.url ?? null;
 
@@ -291,11 +291,11 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
             {formatBytes(pack.size)}
           </Typography>
         }
-        licence={
+        license={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
-            <LicenceChip id={pack.licence} />
-            {pack.meta.licences.length > 0 && (
-              <Chip size="small" variant="outlined" label={`${pack.meta.licences.length} part${pack.meta.licences.length === 1 ? '' : 's'} differ`} onClick={() => setTab('licence')} />
+            <LicenseChip id={pack.license} />
+            {pack.meta.licenses.length > 0 && (
+              <Chip size="small" variant="outlined" label={`${pack.meta.licenses.length} part${pack.meta.licenses.length === 1 ? '' : 's'} differ`} onClick={() => setTab('license')} />
             )}
             {pack.status === 'inbox' && <Chip size="small" icon={<InboxOutlined />} label="In Review" sx={{ backgroundColor: md('tertiaryContainer'), color: md('onTertiaryContainer') }} />}
             {pack.meta.archived && <Chip size="small" icon={<ArchiveOutlined />} label="Archived" sx={{ backgroundColor: md('surfaceContainerHighest'), color: md('onSurfaceVariant') }} />}
@@ -350,7 +350,7 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
       <Tabs value={tab} onChange={(_, v: TabId) => setTab(v)} sx={{ px: 3, borderBottom: `1px solid ${md('outlineVariant')}`, minHeight: 44, '& .MuiTab-root': { minHeight: 44, textTransform: 'none', typography: 'titleSmall' } }}>
         <Tab value="assets" label={`Assets · ${formatCount(pack.assetCount)}`} />
         <Tab value="files" label={`Files · ${formatCount(pack.fileCount)}`} />
-        <Tab value="licence" label="Licence" />
+        <Tab value="license" label="License" />
         <Tab value="about" label="About" />
       </Tabs>
 
@@ -411,13 +411,13 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
           </div>
         )}
         {tab === 'files' && <FileTree files={files} onOpen={(f) => setViewing({ packId: f.packId, ref: f.ref })} />}
-        {tab === 'licence' && (
+        {tab === 'license' && (
           <div style={{ height: '100%', overflowY: 'auto', padding: '16px 32px 32px' }}>
             <div style={{ maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <LicenceChip id={pack.licence} />
+                <LicenseChip id={pack.license} />
                 <Typography variant="titleMedium" sx={{ color: md('onSurface') }}>
-                  {info?.name ?? (pack.licence ? pack.licence : 'No licence recorded')}
+                  {info?.name ?? (pack.license ? pack.license : 'No license recorded')}
                 </Typography>
                 {info?.url && (
                   <a href={info.url} target="_blank" rel="noreferrer" style={{ color: md('primary') }}>
@@ -430,20 +430,20 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
                   <Yes ok={info.commercial}>{info.commercial ? 'Can be used in commercial games' : 'Not for commercial games'}</Yes>
                   <Yes ok={!info.attribution}>{info.attribution ? 'The author must be credited' : 'No credit required'}</Yes>
                   <Yes ok={info.modify}>{info.modify ? 'Can be modified' : 'Must not be modified'}</Yes>
-                  {info.shareAlike && <Yes ok={false}>Changed versions must be shared under the same licence</Yes>}
+                  {info.shareAlike && <Yes ok={false}>Changed versions must be shared under the same license</Yes>}
                 </div>
               ) : (
                 <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-                  {licenceSummary(pack.licence)}
+                  {licenseSummary(pack.license)}
                 </Typography>
               )}
-              {pack.meta.licence.attribution && (
+              {pack.meta.license.attribution && (
                 <div style={{ padding: 16, borderRadius: SHAPE.md, background: md('surfaceContainerLow'), display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                   <Typography variant="bodyMedium" sx={{ flex: 1, color: md('onSurface'), userSelect: 'text' }}>
-                    {pack.meta.licence.attribution}
+                    {pack.meta.license.attribution}
                   </Typography>
                   <Tooltip title="Copy credit line">
-                    <IconButton aria-label="Copy the credit line" size="small" onClick={() => void navigator.clipboard.writeText(pack.meta.licence.attribution ?? '')}>
+                    <IconButton aria-label="Copy the credit line" size="small" onClick={() => void navigator.clipboard.writeText(pack.meta.license.attribution ?? '')}>
                       <ContentCopyOutlined fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -472,12 +472,12 @@ export function PackPage({ id, edit = false }: { id: string; edit?: boolean }) {
                   ))
                 ) : (
                   <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-                    Keep the licence text, a receipt or a screenshot of the download page here. It’s your evidence if anyone ever asks.
+                    Keep the license text, a receipt or a screenshot of the download page here. It’s your evidence if anyone ever asks.
                   </Typography>
                 )}
               </div>
               <PackParts id={id} meta={pack.meta} files={files} />
-              {pack.meta.licence.notes && <Fact label="Notes">{pack.meta.licence.notes}</Fact>}
+              {pack.meta.license.notes && <Fact label="Notes">{pack.meta.license.notes}</Fact>}
             </div>
           </div>
         )}

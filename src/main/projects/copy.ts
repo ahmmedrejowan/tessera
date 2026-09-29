@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readdir, rm, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
-import { licenceInfo } from '@shared/licences';
-import { licenceForPath, type PackMeta } from '@shared/pack';
+import { licenseInfo } from '@shared/licenses';
+import { licenseForPath, type PackMeta } from '@shared/pack';
 import { assetPath, baseName } from '@shared/assets';
 import type { CopyPlan, Manifest, ManifestEntry, Project } from '@shared/project';
 import type { AssetRow } from '@shared/query';
@@ -160,13 +160,13 @@ export async function planCopy(
     const sizes = new Map(variants.map((v) => [v.ref, v.size]));
     const files: FileJob[] = [...placed].map(([ref, dest]) => ({ packId: item.packId, ref, dest, size: sizes.get(ref) ?? 0 }));
     const m = pack.meta;
-    // The licence covering this very file: a bundle can hold parts with terms of their own.
-    const licence = licenceForPath(m, assetPath(item.ref));
-    const part = licence !== m.licence ? ` (the part of it this asset is in)` : '';
-    const info = licenceInfo(licence.id);
-    if (!licence.id) warnings.add(`“${m.name}”${part} has no licence recorded.`);
+    // The license covering this very file: a bundle can hold parts with terms of their own.
+    const license = licenseForPath(m, assetPath(item.ref));
+    const part = license !== m.license ? ` (the part of it this asset is in)` : '';
+    const info = licenseInfo(license.id);
+    if (!license.id) warnings.add(`“${m.name}”${part} has no license recorded.`);
     else if (info && !info.commercial) warnings.add(`“${m.name}”${part} is ${info.short}: not allowed in commercial games.`);
-    if (info?.attribution && !licence.attribution) warnings.add(`“${m.name}”${part} needs a credit line and has none yet; the credits file will use its name and creator.`);
+    if (info?.attribution && !license.attribution) warnings.add(`“${m.name}”${part} needs a credit line and has none yet; the credits file will use its name and creator.`);
     if (m.status === 'inbox') warnings.add(`“${m.name}” is still in the Inbox.`);
     jobs.push({
       entry: {
@@ -176,8 +176,8 @@ export async function planCopy(
         packName: m.name,
         ref: item.ref,
         copiedRef: chosen.ref,
-        licence: licence.id,
-        attribution: licence.attribution,
+        license: license.id,
+        attribution: license.attribution,
         creator: m.source.creator,
         sourceUrl: m.source.url ?? sourceInfo(m.source.site)?.url ?? null,
       },
@@ -205,38 +205,38 @@ export async function planCopy(
   };
 }
 
-/** A pack's licence, written beside its files in the project. */
-function licenceText(meta: PackMeta, proof: string[]): string {
-  const info = licenceInfo(meta.licence.id);
+/** A pack's license, written beside its files in the project. */
+function licenseText(meta: PackMeta, proof: string[]): string {
+  const info = licenseInfo(meta.license.id);
   const lines = [
     `${meta.name}`,
     '',
-    `Licence: ${info?.name ?? meta.licence.id ?? 'not recorded'}${info?.url ? `: ${info.url}` : ''}`,
+    `License: ${info?.name ?? meta.license.id ?? 'not recorded'}${info?.url ? `: ${info.url}` : ''}`,
     meta.source.creator ? `Creator: ${meta.source.creator}` : null,
     meta.source.url ? `Source: ${meta.source.url}` : null,
-    meta.licence.attribution ? `Credit: ${meta.licence.attribution}` : null,
+    meta.license.attribution ? `Credit: ${meta.license.attribution}` : null,
   ];
-  // Parts of the pack that came under their own terms are spelled out, not summarised away.
-  for (const rule of meta.licences ?? []) {
-    const part = licenceInfo(rule.licence.id);
-    lines.push('', `${rule.path}: ${part?.name ?? rule.licence.id ?? 'not recorded'}${part?.url ? `: ${part.url}` : ''}`, rule.licence.attribution ? `Credit: ${rule.licence.attribution}` : null);
+  // Parts of the pack that came under their own terms are spelled out, not summarized away.
+  for (const rule of meta.licenses ?? []) {
+    const part = licenseInfo(rule.license.id);
+    lines.push('', `${rule.path}: ${part?.name ?? rule.license.id ?? 'not recorded'}${part?.url ? `: ${part.url}` : ''}`, rule.license.attribution ? `Credit: ${rule.license.attribution}` : null);
   }
   lines.push(
     '',
-    proof.length ? `The pack's own licence files are in licence/ beside this one: ${proof.join(', ')}.` : 'The pack shipped no licence file of its own.',
+    proof.length ? `The pack's own license files are in license/ beside this one: ${proof.join(', ')}.` : 'The pack shipped no license file of its own.',
     'Copied from a Tessera library. This folder holds everything needed to show what these files are licensed under,',
     'so it stands on its own if the pack ever leaves the library.',
   );
   return `${lines.filter((l) => l !== null).join('\n')}\n`;
 }
 
-/** A licence, readme or terms file, wherever it sits in the pack. */
-const LICENCE_FILE = /^(licen[cs]e|copying|eula|terms|notice)/i;
+/** A license, readme or terms file, wherever it sits in the pack. */
+const LICENSE_FILE = /^(licen[cs]e|copying|eula|terms|notice)/i;
 const PROOF_MAX = 512 * 1024;
 
 /**
- * The pack's licence papers, copied into the game beside the assets: what Tessera keeps as proof
- * (receipts, screenshots, licence texts) and the pack's own licence files, archives included. A
+ * The pack's license papers, copied into the game beside the assets: what Tessera keeps as proof
+ * (receipts, screenshots, license texts) and the pack's own license files, archives included. A
  * game that holds these does not depend on the library still having the pack.
  */
 async function copyProof(packDir: string, refs: string[], destDir: string): Promise<string[]> {
@@ -246,14 +246,14 @@ async function copyProof(packDir: string, refs: string[], destDir: string): Prom
     for (let i = 2; kept.includes(out); i++) out = wanted.replace(/(\.[^.]*)?$/, ` (${i})$1`);
     return out;
   };
-  const from = join(packDir, PACK_DIRS.licence);
+  const from = join(packDir, PACK_DIRS.license);
   for (const e of (await readdir(from, { withFileTypes: true }).catch(() => [])).filter((x) => x.isFile() && !x.name.startsWith('.'))) {
     const to = name(e.name);
     await mkdir(destDir, { recursive: true });
     await copyFile(join(from, e.name), join(destDir, to));
     kept.push(to);
   }
-  for (const ref of refs.filter((r) => LICENCE_FILE.test(baseName(assetPath(r)))).slice(0, 20)) {
+  for (const ref of refs.filter((r) => LICENSE_FILE.test(baseName(assetPath(r)))).slice(0, 20)) {
     try {
       const data = await readPackFile(packDir, ref, PROOF_MAX);
       const to = name(baseName(assetPath(ref)));
@@ -261,22 +261,22 @@ async function copyProof(packDir: string, refs: string[], destDir: string): Prom
       await writeFile(join(destDir, to), data);
       kept.push(to);
     } catch {
-      // unreadable: the summary beside it still records the licence
+      // unreadable: the summary beside it still records the license
     }
   }
   return kept;
 }
 
 /**
- * Write a pack's licence, its own licence files included, into the game that uses it. Returns
+ * Write a pack's license, its own license files included, into the game that uses it. Returns
  * false when the library no longer has the pack to read from.
  */
-export async function writePackLicence(project: Project, packId: string, src: CopySource): Promise<boolean> {
+export async function writePackLicense(project: Project, packId: string, src: CopySource): Promise<boolean> {
   const pack = src.pack(packId);
   if (!pack) return false;
   const packRoot = join(project.path, ...posix.join(project.target, safeFolderName(pack.folder)).split('/'));
-  const proof = await copyProof(src.packDir(packId), src.packRefs(packId), join(packRoot, 'licence'));
-  await writeFileAtomic(join(packRoot, 'LICENCE.txt'), licenceText(pack.meta, proof));
+  const proof = await copyProof(src.packDir(packId), src.packRefs(packId), join(packRoot, 'license'));
+  await writeFileAtomic(join(packRoot, 'LICENSE.txt'), licenseText(pack.meta, proof));
   return true;
 }
 
@@ -285,7 +285,7 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
   const total = jobs.reduce((n, j) => n + j.files.length, 0);
   let done = 0;
   const written: ManifestEntry[] = [];
-  const licencesWritten = new Set<string>();
+  const licensesWritten = new Set<string>();
   // If the disk gives out halfway, whatever this run put there and nothing else goes back, so the
   // game folder is left as it was found rather than holding files no manifest knows about. The
   // folders are tracked apart from the files: the very first file can fail after its folder has
@@ -313,7 +313,7 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
         // A file we did not write is somebody else's work, and it is left exactly as it is. The
         // asset still comes in; the one file that clashed keeps the version already in the game,
         // and is named in what comes back so nobody has to discover it later. Writing over it and
-        // apologising afterwards was the old behaviour and it destroyed people's edits.
+        // apologizing afterwards was the old behavior and it destroyed people's edits.
         if (there && (!ours.has(f.dest) || knownTheirs.has(f.dest))) {
           clashed.push(f.dest);
           ours.add(f.dest);
@@ -331,13 +331,13 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
       }
       const pack = src.pack(job.entry.packId);
       const packRoot = pack ? posix.join(project.target, safeFolderName(pack.folder)) : '';
-      if (pack && !licencesWritten.has(packRoot)) {
-        licencesWritten.add(packRoot);
-        const proof = await copyProof(packDir, src.packRefs(job.entry.packId), join(project.path, ...packRoot.split('/'), 'licence'));
-        const licence = join(project.path, ...packRoot.split('/'), 'LICENCE.txt');
-        made.push(dirname(licence));
-        if (!existsSync(licence)) fresh.push(licence);
-        await writeFileAtomic(licence, licenceText(pack.meta, proof));
+      if (pack && !licensesWritten.has(packRoot)) {
+        licensesWritten.add(packRoot);
+        const proof = await copyProof(packDir, src.packRefs(job.entry.packId), join(project.path, ...packRoot.split('/'), 'license'));
+        const license = join(project.path, ...packRoot.split('/'), 'LICENSE.txt');
+        made.push(dirname(license));
+        if (!existsSync(license)) fresh.push(license);
+        await writeFileAtomic(license, licenseText(pack.meta, proof));
       }
       const entry: ManifestEntry = {
         ...job.entry,
@@ -410,10 +410,15 @@ export async function removeFromProject(project: Project, libraryId: string, ite
   }
   manifest.entries = keep;
   await writeJson(join(project.path, MANIFEST), manifest);
-  // Remove folders left empty, deepest first. A pack's licence papers go with its last asset:
+  // Remove folders left empty, deepest first. A pack's license papers go with its last asset:
   // they are the proof for files that are no longer there.
   const targetRoot = join(project.path, ...project.target.split('/'));
-  const notes = (n: string) => n === 'LICENCE.txt' || n === 'LICENCE.txt.meta' || n === 'licence' || n === 'licence.meta' || n === '.DS_Store';
+  // Games written before the spelling was settled hold LICENSE.txt and a license/ folder; both
+  // spellings count as the pack's papers rather than as something the person put there.
+  const notes = (n: string) =>
+    n === 'LICENSE.txt' || n === 'LICENSE.txt.meta' || n === 'license' || n === 'license.meta' ||
+    n === 'LICENCE.txt' || n === 'LICENCE.txt.meta' || n === 'licence' || n === 'licence.meta' ||
+    n === '.DS_Store';
   for (const d of [...dirs].sort((a, b) => b.length - a.length)) {
     let dir = d;
     while (dir.startsWith(targetRoot) && dir !== targetRoot) {

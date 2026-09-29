@@ -29,7 +29,7 @@ export function AppThemeProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     for (const [name, value] of Object.entries(schemeCss(scheme))) root.style.setProperty(name, value);
     root.style.colorScheme = dark ? 'dark' : 'light';
-    // Windows and Linux draw their window buttons over the app bar: keep them in its colours.
+    // Windows and Linux draw their window buttons over the app bar: keep them in its colors.
     void call('window:chrome', { background: scheme.surfaceContainer, foreground: scheme.onSurfaceVariant }).catch(() => undefined);
   }, [scheme, dark]);
 

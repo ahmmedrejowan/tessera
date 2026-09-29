@@ -75,7 +75,7 @@ const SIDES: Record<Mode, { icon: ComponentType<{ sx?: object }>; title: string;
   },
 };
 
-/** The coloured side of a setup dialog: what this is, and a few things worth knowing. */
+/** The colored side of a setup dialog: what this is, and a few things worth knowing. */
 export function Side({ icon: Icon, title, lead, children }: { icon: ComponentType<{ sx?: object }>; title: string; lead: ReactNode; children?: ReactNode }) {
   return (
     <div

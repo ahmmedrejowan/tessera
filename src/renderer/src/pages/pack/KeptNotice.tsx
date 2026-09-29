@@ -70,7 +70,7 @@ export function KeptNotice({ pack }: { pack: PackRow }) {
         <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.25, wordBreak: 'break-all' }}>
           {away
             ? `Tessera reads this pack from ${pack.keptWhere}, and cannot get to it. Its files are still listed here, and nothing has been lost: connect the drive, or find the folder again.`
-            : `Tessera reads this pack from ${pack.keptWhere} and never writes there. Its record, licence and tags are in the library and are backed up; the files are not, because they are not in the library.`}
+            : `Tessera reads this pack from ${pack.keptWhere} and never writes there. Its record, license and tags are in the library and are backed up; the files are not, because they are not in the library.`}
         </Typography>
         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           <Button size="small" variant={away ? 'contained' : 'outlined'} disabled={busy} onClick={() => void again()}>

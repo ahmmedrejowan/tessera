@@ -49,7 +49,7 @@ export function libraryStatus(l: LibrarySummary): string {
 /** Whether something about a library wants attention. */
 export const needsAttention = (l: LibrarySummary) => l.backup.failing || !l.found;
 
-/** A library's mark: its initial on a colour picked from its id, so each keeps its look. */
+/** A library's mark: its initial on a color picked from its id, so each keeps its look. */
 const TONES: [Role, Role][] = [
   ['primaryContainer', 'onPrimaryContainer'],
   ['secondaryContainer', 'onSecondaryContainer'],

@@ -11,6 +11,7 @@ import { LibraryService } from '../src/main/libraryService';
 import { ProjectService } from '../src/main/projects/service';
 import { tempDir } from './helpers';
 import { UsageStore } from '../src/main/usage';
+import { PACK_DIRS } from '../src/main/library/layout';
 
 export interface Running {
   /** The library's folder. */
@@ -45,7 +46,7 @@ export interface PackFixture {
   name: string;
   /** Path inside the pack to its contents, without the leading original/. */
   files: Record<string, string | Buffer>;
-  licence?: string | null;
+  license?: string | null;
   source?: string | null;
 }
 
@@ -109,16 +110,16 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
       mkdirSync(join(file, '..'), { recursive: true });
       writeFileSync(file, body);
     }
-    mkdirSync(join(dir, 'licence'), { recursive: true });
+    mkdirSync(join(dir, PACK_DIRS.license), { recursive: true });
     writeFileSync(
       join(dir, 'pack.json'),
       JSON.stringify({
         format: 1,
         id: `id-${pack.name.toLowerCase().replace(/\W+/g, '-')}`,
         name: pack.name,
-        // A pack without both a licence and a source waits in Review, as it would in the app.
-        status: pack.licence === null || pack.source === null ? 'inbox' : 'library',
-        licence: { id: pack.licence === undefined ? 'CC0-1.0' : pack.licence, attribution: null, proof: [], notes: '' },
+        // A pack without both a license and a source waits in Review, as it would in the app.
+        status: pack.license === null || pack.source === null ? 'inbox' : 'library',
+        license: { id: pack.license === undefined ? 'CC0-1.0' : pack.license, attribution: null, proof: [], notes: '' },
         source: { site: null, name: pack.source === undefined ? 'Test' : pack.source, url: null, creator: null, creatorUrl: null },
         addedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

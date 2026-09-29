@@ -17,7 +17,7 @@ export interface Found {
 /** What the add page shows for one pack: its details, as the user will save them. */
 export interface AddForm {
   name: string;
-  licence: string | null;
+  license: string | null;
   attribution: string;
   site: string | null;
   url: string;
@@ -42,7 +42,7 @@ export interface AddForm {
  */
 export type AddMode = 'copy' | 'move' | 'keep';
 
-export type FoundField = 'name' | 'licence' | 'source' | 'creator' | 'description' | 'version' | 'styles' | 'tags';
+export type FoundField = 'name' | 'license' | 'source' | 'creator' | 'description' | 'version' | 'styles' | 'tags';
 
 export interface Draft {
   item: ImportItem;
@@ -59,10 +59,10 @@ export interface Draft {
 export const I_DONT_KNOW = 'Unknown';
 export const I_MADE_IT = 'Made by me';
 
-/** Licence and source are what a pack needs to go into the library. */
-export const isReady = (f: AddForm) => !!f.licence && (!!f.site || !!f.url.trim() || !!f.sourceName);
+/** License and source are what a pack needs to go into the library. */
+export const isReady = (f: AddForm) => !!f.license && (!!f.site || !!f.url.trim() || !!f.sourceName);
 
-const blank = (item: ImportItem): AddForm => ({ name: item.name, licence: null, attribution: '', site: null, url: '', sourceName: null, creator: '', description: '', version: '', styles: [], tags: [], snapshot: true, archive: true });
+const blank = (item: ImportItem): AddForm => ({ name: item.name, license: null, attribution: '', site: null, url: '', sourceName: null, creator: '', description: '', version: '', styles: [], tags: [], snapshot: true, archive: true });
 
 /** The form as the pack's record and what its files suggest fill it in, with where each came from. */
 function filled(item: ImportItem, meta: PackMeta, detected: Detected, s: PackSuggestions): Pick<Draft, 'form' | 'found'> {
@@ -73,14 +73,14 @@ function filled(item: ImportItem, meta: PackMeta, detected: Detected, s: PackSug
     form.name = s.name.value;
     found.name = { from: s.name.from, sure: true };
   } else found.name = { from: 'the file name', sure: false };
-  form.licence = meta.licence.id;
-  form.attribution = meta.licence.attribution ?? '';
-  if (meta.licence.id && detected.licenceFrom) found.licence = { from: detected.licenceFrom, sure: !!detected.licenceSure };
+  form.license = meta.license.id;
+  form.attribution = meta.license.attribution ?? '';
+  if (meta.license.id && detected.licenseFrom) found.license = { from: detected.licenseFrom, sure: !!detected.licenseSure };
   form.site = meta.source.site;
   form.url = meta.source.url ?? '';
   form.sourceName = meta.source.name;
   if (meta.source.url && detected.url) found.source = { from: detected.urlFrom ?? 'a link in the pack', sure: detected.urlFrom !== 'the file name' };
-  else if (meta.source.site) found.source = { from: `${sourceInfo(meta.source.site)?.name ?? 'the site'}, recognised from the pack`, sure: true };
+  else if (meta.source.site) found.source = { from: `${sourceInfo(meta.source.site)?.name ?? 'the site'}, recognized from the pack`, sure: true };
   form.creator = meta.source.creator ?? s.creator?.value ?? '';
   if (form.creator) found.creator = s.creator ? { from: s.creator.from, sure: s.creator.sure } : { from: 'the site', sure: true };
   form.description = meta.description || s.description?.value || '';
@@ -216,10 +216,10 @@ async function write(d: Draft, toLibrary: boolean, move: boolean): Promise<'libr
     description: f.description.trim(),
     styles: f.styles,
     tags: f.tags,
-    licence: { ...d.meta.licence, id: f.licence, attribution: f.attribution.trim() || null },
+    license: { ...d.meta.license, id: f.license, attribution: f.attribution.trim() || null },
     source: { ...d.meta.source, site, url: f.url.trim() || null, name: f.sourceName, creator: f.creator.trim() || null },
   });
-  const complete = !missingForLibrary({ licence: { ...d.meta.licence, id: f.licence }, source: { ...d.meta.source, site, url: f.url.trim() || null, name: f.sourceName } }).length;
+  const complete = !missingForLibrary({ license: { ...d.meta.license, id: f.license }, source: { ...d.meta.source, site, url: f.url.trim() || null, name: f.sourceName } }).length;
   if (f.url.trim() && (f.snapshot || f.archive)) void call('pack:recordPage', d.packId, { snapshot: f.snapshot, archive: f.archive }).catch(() => undefined);
   // Kept, either in the library or in Review, so whatever it was made from may go now. It could
   // not go earlier: until this point the person could still cancel and get nothing.

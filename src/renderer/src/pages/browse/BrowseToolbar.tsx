@@ -66,14 +66,14 @@ export function BrowseControls({ total, stale }: { total: number; stale: boolean
       <Typography variant="bodyMedium" noWrap sx={{ width: 104, textAlign: 'right', color: md('onSurfaceVariant'), opacity: stale ? 0.5 : 1, transition: 'opacity 150ms' }}>
         {formatCount(total)} {s.mode === 'assets' ? (total === 1 ? 'asset' : 'assets') : total === 1 ? 'pack' : 'packs'}
       </Typography>
-      <Tooltip title={s.favourites ? 'Showing only what you starred' : 'Show only what you starred'}>
+      <Tooltip title={s.favorites ? 'Showing only what you starred' : 'Show only what you starred'}>
         <IconButton
           aria-label="Only what you starred"
-          aria-pressed={s.favourites}
-          onClick={() => s.setFavourites(!s.favourites)}
-          sx={{ color: s.favourites ? md('tertiary') : md('onSurfaceVariant'), backgroundColor: s.favourites ? md('tertiaryContainer') : 'transparent' }}
+          aria-pressed={s.favorites}
+          onClick={() => s.setFavourites(!s.favorites)}
+          sx={{ color: s.favorites ? md('tertiary') : md('onSurfaceVariant'), backgroundColor: s.favorites ? md('tertiaryContainer') : 'transparent' }}
         >
-          {s.favourites ? <StarRounded /> : <StarOutlineRounded />}
+          {s.favorites ? <StarRounded /> : <StarOutlineRounded />}
         </IconButton>
       </Tooltip>
       <SortButton<string>
@@ -164,7 +164,7 @@ export function BrowseFilters() {
           </Button>
         </div>
       )}
-      <SaveSearchDialog open={saving} onClose={() => setSaving(false)} query={{ text: q.text, filters: q.filters as Record<string, string[]>, includeSupport: !!q.includeSupport, favourites: !!q.favourites }} suggested={suggested} />
+      <SaveSearchDialog open={saving} onClose={() => setSaving(false)} query={{ text: q.text, filters: q.filters as Record<string, string[]>, includeSupport: !!q.includeSupport, favorites: !!q.favorites }} suggested={suggested} />
     </div>
   );
 }

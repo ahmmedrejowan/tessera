@@ -147,7 +147,7 @@ export function Welcome({ state }: { state: LibraryState }) {
               <span style={{ color: md('primary') }}>One library.</span>
             </Typography>
             <Typography variant="bodyLarge" sx={{ color: md('onSurfaceVariant'), fontSize: 18, lineHeight: '28px' }}>
-              Your packs, their licences and your game’s credits, kept together.
+              Your packs, their licenses and your game’s credits, kept together.
             </Typography>
           </div>
 

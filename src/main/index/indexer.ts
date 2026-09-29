@@ -4,8 +4,8 @@ import { readdir, stat } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
 import { assetPath, baseName, classify, extOf, kindOf, pathWords, preference, variantKey } from '@shared/assets';
-import { licenceInfo } from '@shared/licences';
-import { licenceForPath, type PackMeta } from '@shared/pack';
+import { licenseInfo } from '@shared/licenses';
+import { licenseForPath, type PackMeta } from '@shared/pack';
 import { sourceInfo } from '@shared/sources';
 import { DIRS, PACK_DIRS } from '../library/layout';
 import { conflictsIn, filesRootOf, listPacks, walkRootOf, type PackProblem, type PackRecord } from '../library/packs';
@@ -60,7 +60,7 @@ export function packWords(meta: PackMeta): string {
     source?.name,
     meta.source.name,
     meta.source.creator,
-    licenceInfo(meta.licence.id)?.short,
+    licenseInfo(meta.license.id)?.short,
     ...meta.genres,
     ...meta.styles,
     ...meta.tags,
@@ -98,10 +98,10 @@ export class LibraryIndex {
     const p = (sql: string) => this.db.prepare(sql);
     this.st = {
       known: p('SELECT id, folder, meta_sig AS metaSig, files_sig AS filesSig, away FROM packs'),
-      upsertPack: p(`INSERT INTO packs (id, folder, name, status, source, creator, licence, added_at, updated_at, meta_json, meta_sig, archived, kept_where)
-        VALUES ($id, $folder, $name, $status, $source, $creator, $licence, $addedAt, $updatedAt, $metaJson, $metaSig, $archived, $keptWhere)
+      upsertPack: p(`INSERT INTO packs (id, folder, name, status, source, creator, license, added_at, updated_at, meta_json, meta_sig, archived, kept_where)
+        VALUES ($id, $folder, $name, $status, $source, $creator, $license, $addedAt, $updatedAt, $metaJson, $metaSig, $archived, $keptWhere)
         ON CONFLICT(id) DO UPDATE SET folder = excluded.folder, name = excluded.name, status = excluded.status, source = excluded.source,
-          creator = excluded.creator, licence = excluded.licence, added_at = excluded.added_at, updated_at = excluded.updated_at,
+          creator = excluded.creator, license = excluded.license, added_at = excluded.added_at, updated_at = excluded.updated_at,
           meta_json = excluded.meta_json, meta_sig = excluded.meta_sig, archived = excluded.archived, kept_where = excluded.kept_where`),
       setAway: p('UPDATE packs SET away = ? WHERE id = ?'),
       deleteTerms: p('DELETE FROM pack_terms WHERE pack_id = ?'),
@@ -218,12 +218,12 @@ export class LibraryIndex {
       this.st.setAway!.run(away ? 1 : 0, pack.meta.id);
       if (listing) {
         const said = conflicts.map(
-          (c) => `two computers changed this pack while they were apart, and sync kept the other version as ${c}. What you see is the version that won, so compare them before trusting the licence.`,
+          (c) => `two computers changed this pack while they were apart, and sync kept the other version as ${c}. What you see is the version that won, so compare them before trusting the license.`,
         );
         this.writePackFiles(pack.meta.id, filesSig!, listing.files, [...said, ...listing.problems]);
       }
-      // Each file carries the licence covering it, so a pack whose parts differ can be browsed by licence.
-      this.relicence(pack.meta);
+      // Each file carries the license covering it, so a pack whose parts differ can be browsed by license.
+      this.relicense(pack.meta);
     });
     return true;
   }
@@ -237,7 +237,7 @@ export class LibraryIndex {
       $status: m.status,
       $source: m.source.site ?? m.source.name ?? null,
       $creator: m.source.creator ?? null,
-      $licence: m.licence.id ?? null,
+      $license: m.license.id ?? null,
       $addedAt: m.addedAt,
       $updatedAt: m.updatedAt,
       $metaJson: JSON.stringify(m),
@@ -253,15 +253,15 @@ export class LibraryIndex {
     this.st.insertPackFts!.run(m.id, packWords(m));
   }
 
-  /** Write the licence covering each of a pack's files: its own, or the rule for that part of it. */
-  private relicence(meta: PackMeta): void {
-    if (!meta.licences.length) {
-      this.db.prepare('UPDATE assets SET licence = ? WHERE pack_id = ?').run(meta.licence.id ?? null, meta.id);
+  /** Write the license covering each of a pack's files: its own, or the rule for that part of it. */
+  private relicense(meta: PackMeta): void {
+    if (!meta.licenses.length) {
+      this.db.prepare('UPDATE assets SET license = ? WHERE pack_id = ?').run(meta.license.id ?? null, meta.id);
       return;
     }
-    const set = this.db.prepare('UPDATE assets SET licence = ? WHERE id = ?');
+    const set = this.db.prepare('UPDATE assets SET license = ? WHERE id = ?');
     for (const r of this.db.prepare('SELECT id, ref FROM assets WHERE pack_id = ?').all(meta.id) as { id: number; ref: string }[]) {
-      set.run(licenceForPath(meta, assetPath(r.ref)).id ?? null, r.id);
+      set.run(licenseForPath(meta, assetPath(r.ref)).id ?? null, r.id);
     }
   }
 

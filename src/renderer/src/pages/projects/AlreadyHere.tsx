@@ -94,7 +94,7 @@ export function AlreadyHere({ project, open, onClose }: { project: ProjectSummar
             )}
             {scan.matches.length === 0 ? (
               <Typography variant="bodyMedium" sx={{ color: md('onSurface') }}>
-                Nothing of your library’s is in there. Looked at {formatCount(scan.looked)} file{scan.looked === 1 ? '' : 's'}. An asset that was re-exported or edited will not match, because it is no longer the file the licence was recorded against.
+                Nothing of your library’s is in there. Looked at {formatCount(scan.looked)} file{scan.looked === 1 ? '' : 's'}. An asset that was re-exported or edited will not match, because it is no longer the file the license was recorded against.
               </Typography>
             ) : (
               <>

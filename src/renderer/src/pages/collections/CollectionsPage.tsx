@@ -5,7 +5,7 @@ import StarRounded from '@mui/icons-material/StarRounded';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { useState } from 'react';
-import { FAVOURITES, type CollectionSummary } from '@shared/collection';
+import { FAVORITES, type CollectionSummary } from '@shared/collection';
 import { AssetThumb } from '../../components/AssetThumb';
 import { formatCount } from '../../components/labels';
 import { SortButton } from '../../components/SortButton';
@@ -31,7 +31,7 @@ import { CollectionDialog, type CollectionDraft } from './CollectionDialog';
 
 type CollectionSort = 'name' | 'updated' | 'size';
 
-/** How the collections are ordered; Favourites is always first, whatever is chosen. */
+/** How the collections are ordered; Favorites is always first, whatever is chosen. */
 const by: Record<CollectionSort, (a: CollectionSummary, b: CollectionSummary) => number> = {
   name: (a, b) => a.name.localeCompare(b.name),
   updated: (a, b) => b.updatedAt.localeCompare(a.updatedAt),
@@ -42,7 +42,7 @@ export function CollectionCard({ c }: { c: CollectionSummary }) {
   const go = useNav((s) => s.go);
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const [editing, setEditing] = useState(false);
-  const own = c.id === FAVOURITES;
+  const own = c.id === FAVORITES;
   return (
     <div className="tile" onClick={() => go({ to: 'collection', id: c.id })} style={{ position: 'relative', padding: 8, borderRadius: SHAPE.lg, background: md('surfaceContainerLow'), cursor: 'default' }}>
       <Tooltip title="More">
@@ -141,13 +141,13 @@ export function CollectionCard({ c }: { c: CollectionSummary }) {
           ))
         ) : (
           <div style={{ display: 'grid', placeItems: 'center', color: md('onSurfaceVariant') }}>
-            {c.id === FAVOURITES ? <StarRounded sx={{ fontSize: 40, opacity: 0.6 }} /> : c.kind === 'smart' ? <AutoAwesomeOutlined sx={{ fontSize: 40, opacity: 0.6 }} /> : <CollectionsBookmarkOutlined sx={{ fontSize: 40, opacity: 0.6 }} />}
+            {c.id === FAVORITES ? <StarRounded sx={{ fontSize: 40, opacity: 0.6 }} /> : c.kind === 'smart' ? <AutoAwesomeOutlined sx={{ fontSize: 40, opacity: 0.6 }} /> : <CollectionsBookmarkOutlined sx={{ fontSize: 40, opacity: 0.6 }} />}
           </div>
         )}
       </div>
       <div style={{ padding: '10px 6px 4px' }}>
         <Typography variant="titleSmall" noWrap sx={{ color: md('onSurface'), display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          {c.id === FAVOURITES && <StarRounded sx={{ fontSize: 16, color: md('tertiary') }} />}
+          {c.id === FAVORITES && <StarRounded sx={{ fontSize: 16, color: md('tertiary') }} />}
           {c.kind === 'smart' && <AutoAwesomeOutlined sx={{ fontSize: 16, color: md('tertiary') }} />}
           {c.name}
         </Typography>
@@ -163,10 +163,10 @@ export function CollectionCard({ c }: { c: CollectionSummary }) {
 /** Your own groupings of assets across packs, and saved searches. */
 export function CollectionsPage() {
   const collections = useCollections().data;
-  // Favourites is kept as a collection because that is the simplest way to store it, but it is
+  // Favorites is kept as a collection because that is the simplest way to store it, but it is
   // not one somebody made: it has its own row on Home and its own filter in Browse, and listing
   // it here among the sets they built only muddles what a collection is.
-  const made = (collections ?? []).filter((c) => c.id !== FAVOURITES);
+  const made = (collections ?? []).filter((c) => c.id !== FAVORITES);
   const go = useNav((s) => s.go);
   const [naming, setNaming] = useState(false);
   const [sort, setSort] = useState<CollectionSort>('name');

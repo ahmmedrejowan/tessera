@@ -117,7 +117,7 @@ export function ItemHeader({
   star,
   name,
   facts,
-  licence,
+  license,
   games,
   collections,
   actions,
@@ -130,8 +130,8 @@ export function ItemHeader({
   name: string;
   /** What it is made of: files, kinds, size. */
   facts: ReactNode;
-  /** Its licence, creator and where it came from. */
-  licence: ReactNode;
+  /** Its license, creator and where it came from. */
+  license: ReactNode;
   games: { names: string[]; total: number; onOpen: () => void };
   collections: { names: string[]; total: number; onOpen: () => void };
   actions: ItemAction[];
@@ -164,7 +164,7 @@ export function ItemHeader({
           </Typography>
         </Scrolling>
         <Scrolling>{facts}</Scrolling>
-        <div style={{ minWidth: 0 }}>{licence}</div>
+        <div style={{ minWidth: 0 }}>{license}</div>
         <Belongs icon={ProjectIcon} names={games.names} total={games.total} word="game" empty="In no game yet" onOpen={games.onOpen} />
         <Belongs icon={CollectionIcon} names={collections.names} total={collections.total} word="collection" empty="In no collection" onOpen={collections.onOpen} />
       </div>

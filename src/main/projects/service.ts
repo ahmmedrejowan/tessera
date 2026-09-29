@@ -7,7 +7,7 @@ import { UserError } from '../errors';
 import { readJson, writeJson } from '../fsx';
 import type { Jobs } from '../jobs';
 import { adoptEntries, scanForAdoption, type AdoptDeps, type AdoptMatch, type AdoptScan } from './adopt';
-import { entryLibrary, MANIFEST, planCopy, readManifest, readManifestIfReadable, removeFromProject, runCopy, writeAdopted, writePackLicence, type CopySource } from './copy';
+import { entryLibrary, MANIFEST, planCopy, readManifest, readManifestIfReadable, removeFromProject, runCopy, writeAdopted, writePackLicense, type CopySource } from './copy';
 import { writeCredits } from './credits';
 import { probeProject } from './engines';
 
@@ -204,20 +204,20 @@ export class ProjectService {
   }
 
   /**
-   * A pack's licence, credit line or name changed: update what every project that uses it has on
+   * A pack's license, credit line or name changed: update what every project that uses it has on
    * record, and rewrite their credits files.
    */
   async packChanged(
     libraryId: string,
     packId: string,
-    info: Pick<ManifestEntry, 'packName' | 'licence' | 'attribution' | 'creator' | 'sourceUrl'>,
+    info: Pick<ManifestEntry, 'packName' | 'license' | 'attribution' | 'creator' | 'sourceUrl'>,
     /**
-     * The licence covering one particular file of the pack, where the pack has parts under terms
-     * of their own. Without it, a bundle whose `Music/` folder is CC BY had that folder's licence
+     * The license covering one particular file of the pack, where the pack has parts under terms
+     * of their own. Without it, a bundle whose `Music/` folder is CC BY had that folder's license
      * replaced by the pack's own the next time anybody added a tag to the pack, and the game's
-     * credits lost a required attribution for a change that had nothing to do with licences.
+     * credits lost a required attribution for a change that had nothing to do with licenses.
      */
-    licenceFor?: (ref: string) => { licence: string | null; attribution: string | null },
+    licenseFor?: (ref: string) => { license: string | null; attribution: string | null },
   ): Promise<void> {
     for (const project of await this.load()) {
       if (!existsSync(project.path)) continue;
@@ -227,7 +227,7 @@ export class ProjectService {
       if (damaged) continue;
       const mine = (e: ManifestEntry) => e.packId === packId && entryLibrary(e, manifest) === libraryId;
       if (!manifest.entries.some(mine)) continue;
-      manifest.entries = manifest.entries.map((e) => (mine(e) ? { ...e, ...info, ...(licenceFor ? licenceFor(e.ref) : {}) } : e));
+      manifest.entries = manifest.entries.map((e) => (mine(e) ? { ...e, ...info, ...(licenseFor ? licenseFor(e.ref) : {}) } : e));
       await writeJson(join(project.path, MANIFEST), manifest);
       if (project.creditsFile) await writeCredits(join(project.path, ...project.creditsFile.split('/')), manifest.entries);
     }
@@ -257,10 +257,10 @@ export class ProjectService {
   }
 
   /**
-   * Make sure every game using these packs has their licence and proof beside the copied files, so
+   * Make sure every game using these packs has their license and proof beside the copied files, so
    * deleting or archiving a pack in the library can never cost a project its record.
    */
-  async keepLicences(libraryId: string, packIds: string[], src: CopySource): Promise<{ done: number; failed: string[] }> {
+  async keepLicenses(libraryId: string, packIds: string[], src: CopySource): Promise<{ done: number; failed: string[] }> {
     let done = 0;
     // Which games could not be given the record. The promise above is the whole point of this
     // method, so a failure to keep it has to reach the person, not just the log.
@@ -270,21 +270,21 @@ export class ProjectService {
       const { manifest, damaged } = await readManifestIfReadable(project.path, libraryId);
       if (damaged) {
         // Named as failed, so archiving or deleting the pack still tells the person which game
-        // did not get its licence kept. Throwing here skipped every game after it, and the pack
+        // did not get its license kept. Throwing here skipped every game after it, and the pack
         // was archived anyway.
         if (!failed.includes(project.name)) failed.push(project.name);
         continue;
       }
       for (const packId of new Set(packIds)) {
         if (!manifest.entries.some((e) => e.packId === packId && entryLibrary(e, manifest) === libraryId)) continue;
-        if (await writePackLicence(project, packId, src).catch(() => false)) done++;
+        if (await writePackLicense(project, packId, src).catch(() => false)) done++;
         else if (!failed.includes(project.name)) failed.push(project.name);
       }
     }
     return { done, failed };
   }
 
-  /** Write the credits file again (after a pack's licence or credit line changed). */
+  /** Write the credits file again (after a pack's license or credit line changed). */
   async refreshCredits(id: string, libraryId: string): Promise<string | null> {
     const project = await this.get(id);
     if (!project.creditsFile) return null;

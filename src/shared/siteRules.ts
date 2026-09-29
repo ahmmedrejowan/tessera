@@ -1,6 +1,6 @@
 /**
  * What the user has told Tessera about a site: "everything on this one is CC0". Packs from that
- * site then arrive with their licence and creator already filled in, whatever their files say.
+ * site then arrive with their license and creator already filled in, whatever their files say.
  */
 
 import type { SiteRule } from './types';

@@ -5,7 +5,7 @@
 import { BRING } from './bring';
 import { DANGER } from './danger';
 import { LINK } from './link';
-import { ORGANISE } from './organise';
+import { ORGANISE } from './organize';
 import { READ } from './read';
 import { REMOVE } from './remove';
 import { SYSTEM } from './system';
@@ -18,7 +18,7 @@ export const TOOLS: Tool[] = [...READ, ...ORGANISE, ...LINK, ...BRING, ...REMOVE
 
 export const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 
-/** The catalogue as the window and the skill file see it. */
+/** The catalog as the window and the skill file see it. */
 export const toolCatalogue = () =>
   TOOLS.map((t) => ({
     name: t.name,

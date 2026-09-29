@@ -8,13 +8,13 @@ import { failed } from '../../notices/store';
 import { md, mdAlpha } from '../../theme';
 
 /** Star assets, or take the star off. */
-export const starAssets = (items: { packId: string; ref: string }[], on: boolean) => void call('favourites:assets', items, on).catch(failed);
+export const starAssets = (items: { packId: string; ref: string }[], on: boolean) => void call('favorites:assets', items, on).catch(failed);
 
 /** Star one asset, by where it lives. */
 export const starAsset = (packId: string, ref: string, on: boolean) => starAssets([{ packId, ref }], on);
 
 /** Star a whole pack, or take the star off. */
-export const starPack = (id: string, on: boolean) => void call('favourites:pack', id, on).catch(failed);
+export const starPack = (id: string, on: boolean) => void call('favorites:pack', id, on).catch(failed);
 
 /**
  * The star in a tile's corner. It stays showing once it is on, and appears on hover when it is

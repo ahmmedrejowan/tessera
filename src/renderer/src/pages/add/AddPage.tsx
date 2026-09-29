@@ -39,7 +39,7 @@ import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { LICENCES, licenceInfo, OWN_WORK } from '@shared/licences';
+import { LICENSES, licenseInfo, OWN_WORK } from '@shared/licenses';
 import { hostOf, ruleFor } from '@shared/siteRules';
 import { SOURCES, sourceFromUrl, sourceInfo } from '@shared/sources';
 import { call } from '../../api';
@@ -106,23 +106,23 @@ function Card({ title, grow, found, children }: { title: string; grow?: boolean;
 /** The needed-field look: an amber outline until it's filled. */
 const needSx = (need: boolean): SxProps<Theme> => (need ? { '& .MuiOutlinedInput-notchedOutline': { borderColor: md('tertiary'), borderStyle: 'dashed' } } : {});
 
-function LicenceField({ form, onEdit, found, compact }: { form: AddForm; onEdit: Edit; found?: Found; compact?: boolean }) {
-  const value = LICENCES.find((l) => l.id === form.licence) ?? null;
+function LicenseField({ form, onEdit, found, compact }: { form: AddForm; onEdit: Edit; found?: Found; compact?: boolean }) {
+  const value = LICENSES.find((l) => l.id === form.license) ?? null;
   return (
     <div>
-      <Label needed={!form.licence} found={form.licence ? found : undefined}>Licence</Label>
+      <Label needed={!form.license} found={form.license ? found : undefined}>License</Label>
       <Autocomplete
-        options={LICENCES}
+        options={LICENSES}
         value={value}
-        onChange={(_, v) => onEdit({ licence: v?.id ?? null })}
+        onChange={(_, v) => onEdit({ license: v?.id ?? null })}
         getOptionLabel={(l) => l.name}
         isOptionEqualToValue={(a, b) => a.id === b.id}
-        renderInput={(p) => <TextField {...p} placeholder="Not found in the pack" sx={needSx(!form.licence)} />}
+        renderInput={(p) => <TextField {...p} placeholder="Not found in the pack" sx={needSx(!form.license)} />}
       />
-      {!form.licence && (
+      {!form.license && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
           {QUICK.map((id) => (
-            <Chip key={id} label={compact ? licenceInfo(id)!.short : licenceInfo(id)!.id === 'royalty-free' ? 'Royalty-free (bought)' : licenceInfo(id)!.short} variant="outlined" onClick={() => onEdit({ licence: id })} />
+            <Chip key={id} label={compact ? licenseInfo(id)!.short : licenseInfo(id)!.id === 'royalty-free' ? 'Royalty-free (bought)' : licenseInfo(id)!.short} variant="outlined" onClick={() => onEdit({ license: id })} />
           ))}
         </div>
       )}
@@ -152,9 +152,9 @@ function SourceField({ form, onEdit, found }: { form: AddForm; onEdit: Edit; fou
             note.creator = { from: rule?.creator ? `your rule for ${rule.host}` : 'the site', sure: true };
           }
           // The user has already settled what this site's packs carry.
-          if (rule?.licence && !form.licence) {
-            patch.licence = rule.licence;
-            note.licence = { from: `your rule for ${rule.host}`, sure: true };
+          if (rule?.license && !form.license) {
+            patch.license = rule.license;
+            note.license = { from: `your rule for ${rule.host}`, sure: true };
           }
           onEdit(patch, note);
         }}
@@ -182,11 +182,11 @@ function SourceField({ form, onEdit, found }: { form: AddForm; onEdit: Edit; fou
                     sourceName: off ? null : (v as string),
                     url: '',
                     site: null,
-                    // Your own work carries its own licence, and nobody to credit.
-                    ...(mine ? { licence: form.licence ?? OWN_WORK, creator: '', attribution: '' } : {}),
-                    ...(off && form.licence === OWN_WORK ? { licence: null } : {}),
+                    // Your own work carries its own license, and nobody to credit.
+                    ...(mine ? { license: form.license ?? OWN_WORK, creator: '', attribution: '' } : {}),
+                    ...(off && form.license === OWN_WORK ? { license: null } : {}),
                   },
-                  mine ? { licence: { from: 'you: it is your own work', sure: true } } : {},
+                  mine ? { license: { from: 'you: it is your own work', sure: true } } : {},
                 );
               }}
             />
@@ -198,15 +198,15 @@ function SourceField({ form, onEdit, found }: { form: AddForm; onEdit: Edit; fou
 }
 
 /**
- * The licence and the site are both filled in: offer to keep that pairing. Once a site is
- * remembered, its next packs arrive with the licence (and creator) already there.
+ * The license and the site are both filled in: offer to keep that pairing. Once a site is
+ * remembered, its next packs arrive with the license (and creator) already there.
  */
 function RememberSite({ form }: { form: AddForm }) {
   const rules = useSettings().data?.siteRules ?? [];
   const update = useUpdateSettings();
   const [saved, setSaved] = useState<string | null>(null);
   const host = hostOf(form.url);
-  const lic = licenceInfo(form.licence);
+  const lic = licenseInfo(form.license);
   if (!host || !lic) return null;
   const known = ruleFor(rules, form.url);
   if (known && known.host !== saved) return null;
@@ -214,7 +214,7 @@ function RememberSite({ form }: { form: AddForm }) {
   const set = (next: typeof rules) => update.mutate({ siteRules: next });
   const remember = () => {
     setSaved(host);
-    set([...rules.filter((r) => r.host !== host), { host, licence: lic.id, creator: form.creator.trim() || null, addedAt: new Date().toISOString() }]);
+    set([...rules.filter((r) => r.host !== host), { host, license: lic.id, creator: form.creator.trim() || null, addedAt: new Date().toISOString() }]);
   };
   const undo = () => {
     setSaved(null);
@@ -242,12 +242,12 @@ function RememberSite({ form }: { form: AddForm }) {
 /** The two things a pack cannot join the library without, and what follows from them. */
 function TermsCard({ d, onEdit, grow }: { d: Draft; onEdit: Edit; grow?: boolean }) {
   const f = d.form;
-  const lic = licenceInfo(f.licence);
+  const lic = licenseInfo(f.license);
   const mine = f.sourceName === I_MADE_IT;
   return (
-    <Card title="Licence and source" grow={grow}>
+    <Card title="License and source" grow={grow}>
       <SourceField form={f} onEdit={onEdit} found={d.found.source} />
-      <LicenceField form={f} onEdit={onEdit} found={d.found.licence} />
+      <LicenseField form={f} onEdit={onEdit} found={d.found.license} />
       {!mine && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div>
@@ -256,7 +256,7 @@ function TermsCard({ d, onEdit, grow }: { d: Draft; onEdit: Edit; grow?: boolean
           </div>
           <div>
             <Label>Credit line</Label>
-            <TextField fullWidth value={f.attribution} onChange={(e) => onEdit({ attribution: e.target.value })} disabled={!!lic && !lic.attribution} placeholder={lic && !lic.attribution ? `Not needed for ${lic.short}` : 'If the licence asks'} />
+            <TextField fullWidth value={f.attribution} onChange={(e) => onEdit({ attribution: e.target.value })} disabled={!!lic && !lic.attribution} placeholder={lic && !lic.attribution ? `Not needed for ${lic.short}` : 'If the license asks'} />
           </div>
         </div>
       )}
@@ -313,7 +313,7 @@ function RecordCard({ d, onEdit }: { d: Draft; onEdit: Edit }) {
     <Card title="Proof">
       <div style={{ border: `1px solid ${md('outlineVariant')}`, borderRadius: SHAPE.lg, background: md('surfaceContainerLowest'), padding: '2px 14px' }}>
         {[
-          ['snapshot', <PhotoCameraOutlined key="c" />, 'Save a snapshot of the page', 'Kept with the pack, as proof of its licence'],
+          ['snapshot', <PhotoCameraOutlined key="c" />, 'Save a snapshot of the page', 'Kept with the pack, as proof of its license'],
           ['archive', <AccountBalanceOutlined key="a" />, 'Save it on archive.org', 'A public copy in the Wayback Machine, in the background'],
         ].map(([key, icon, title, sub], i) => (
           <label key={key as string} style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, borderTop: i ? `1px solid ${md('surfaceContainerHigh')}` : 'none', cursor: hasUrl ? 'pointer' : 'default' }}>
@@ -500,7 +500,7 @@ function SinglePage({ d }: { d: Draft }) {
         </div>
         <HowKeptBar />
       </div>
-      <Footer tone={ready ? 'ok' : 'warn'} note={d.state === 'copying' ? 'Reading the pack…' : ready ? 'Everything needed is filled in' : 'Add a licence and source now, or finish later from Review.'}>
+      <Footer tone={ready ? 'ok' : 'warn'} note={d.state === 'copying' ? 'Reading the pack…' : ready ? 'Everything needed is filled in' : 'Add a license and source now, or finish later from Review.'}>
         <Button onClick={() => void cancel()} disabled={busy}>
           Cancel
         </Button>
@@ -515,7 +515,7 @@ function SinglePage({ d }: { d: Draft }) {
   );
 }
 
-/** One quick setting for every selected pack: a licence or a source from a list, or a creator. */
+/** One quick setting for every selected pack: a license or a source from a list, or a creator. */
 function BulkBar({ count }: { count: number }) {
   const editSelected = useAdding((s) => s.editSelected);
   const [licAnchor, setLicAnchor] = useState<HTMLElement | null>(null);
@@ -530,7 +530,7 @@ function BulkBar({ count }: { count: number }) {
         {count} selected · fill in once for all
       </Typography>
       <ButtonBase sx={pill} onClick={(e) => setLicAnchor(e.currentTarget)}>
-        Licence ▾
+        License ▾
       </ButtonBase>
       <ButtonBase sx={pill} onClick={(e) => setSrcAnchor(e.currentTarget)}>
         Source ▾
@@ -539,8 +539,8 @@ function BulkBar({ count }: { count: number }) {
         Creator
       </ButtonBase>
       <Menu anchorEl={licAnchor} open={!!licAnchor} onClose={() => setLicAnchor(null)}>
-        {LICENCES.map((l) => (
-          <MenuItem key={l.id} onClick={() => (editSelected({ licence: l.id }), setLicAnchor(null))}>
+        {LICENSES.map((l) => (
+          <MenuItem key={l.id} onClick={() => (editSelected({ license: l.id }), setLicAnchor(null))}>
             {l.name}
           </MenuItem>
         ))}
@@ -568,7 +568,7 @@ function ListRow({ d, selected, primary, onClick }: { d: Draft; selected: boolea
   const files = useQuery({ queryKey: ['add-files', d.packId], queryFn: () => call('pack:files', d.packId!), enabled: !!d.packId }).data ?? [];
   const pic = files.find((a) => a.kind === 'model' || a.kind === 'image');
   const ready = isReady(d.form);
-  const why = !d.form.licence && !d.form.site && !d.form.url && !d.form.sourceName ? 'No licence or source' : !d.form.licence ? 'No licence' : 'No source';
+  const why = !d.form.license && !d.form.site && !d.form.url && !d.form.sourceName ? 'No license or source' : !d.form.license ? 'No license' : 'No source';
   return (
     <ButtonBase
       onClick={onClick}
@@ -591,7 +591,7 @@ function ListRow({ d, selected, primary, onClick }: { d: Draft; selected: boolea
       ) : ready ? (
         <>
           <Typography variant="bodySmall" noWrap sx={{ color: md('onSurfaceVariant') }}>
-            {[sourceInfo(d.form.site)?.name ?? d.form.sourceName, licenceInfo(d.form.licence)?.short].filter(Boolean).join(' · ')}
+            {[sourceInfo(d.form.site)?.name ?? d.form.sourceName, licenseInfo(d.form.license)?.short].filter(Boolean).join(' · ')}
           </Typography>
           <CheckRounded sx={{ fontSize: 18, color: md('primary') }} />
         </>

@@ -4,9 +4,9 @@ Notes for anyone, person or agent, changing this repository.
 
 ## What it is
 
-A cross-platform desktop app (macOS, Windows, Linux) that stores and organises game asset packs,
-records each pack's licence and source, previews what's inside, and copies assets into game
-projects with their licences and credits.
+A cross-platform desktop app (macOS, Windows, Linux) that stores and organizes game asset packs,
+records each pack's license and source, previews what's inside, and copies assets into game
+projects with their licenses and credits.
 
 ## Running it
 
@@ -29,7 +29,7 @@ touch an installed copy. `TESSERA_USER_DATA=<folder>` points the app at any data
 
 - **`src/main`**, the Electron main process.
   - `library/`, the library folder format (`tessera-library.json`, `packs/<name>/{pack.json,
-    original/, licence/}`, `collections/*.json`), pack records, and detecting a pack's licence
+    original/, license/}`, `collections/*.json`), pack records, and detecting a pack's license
     and source from its own files.
   - `index/`, the SQLite index (`node:sqlite`, no native modules) mirroring the library:
     classifying files, grouping variants, facets, full-text search, reading files inside zips
@@ -60,8 +60,8 @@ touch an installed copy. `TESSERA_USER_DATA=<folder>` points the app at any data
 - **`src/preload`**: `index.ts` exposes the typed bridge (`window.tessera`); `worker.ts` is the
   render window's bridge.
 - **`src/shared`**: types and pure logic used on both sides: the IPC contract (`ipc.ts`), pack
-  and collection schemas (zod), licences, sources, asset classification.
-- **`src/renderer`**, the React app (MUI themed with Material 3 tokens from a seed colour).
+  and collection schemas (zod), licenses, sources, asset classification.
+- **`src/renderer`**, the React app (MUI themed with Material 3 tokens from a seed color).
   `src/worker/` is the hidden render window (three.js) that draws thumbnails.
 
 ### Messages to the user

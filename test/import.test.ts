@@ -45,7 +45,7 @@ describe('planning an import', () => {
 });
 
 describe('running an import', () => {
-  it('copies downloads untouched, reads their licence and files sure packs into the library', async () => {
+  it('copies downloads untouched, reads their license and files sure packs into the library', async () => {
     const { root, downloads, index, queries } = await setup();
     const kit = join(downloads, 'kenney_city-kit.zip');
     await writeZip(kit, { 'License.txt': 'www.kenney.nl  License: (Creative Commons Zero, CC0)', 'Models/car.glb': 'x' });
@@ -63,10 +63,10 @@ describe('running an import', () => {
     // The user's files are still where they were.
     expect(existsSync(kit)).toBe(true);
     const city = queries.pack(result.added[0]!.id)!;
-    expect(city).toMatchObject({ source: 'kenney', licence: 'CC0-1.0', creator: 'Kenney', assetCount: 1 });
-    expect(city.meta.licence.notes).toBe('Licence found in License.txt.');
+    expect(city).toMatchObject({ source: 'kenney', license: 'CC0-1.0', creator: 'Kenney', assetCount: 1 });
+    expect(city.meta.license.notes).toBe('License found in License.txt.');
     expect(readdirSync(join(root, 'packs', 'City Kit', 'original'))).toEqual(['kenney_city-kit.zip']);
-    // The same download again is recognised.
+    // The same download again is recognized.
     expect(queries.findDownload('kenney_city-kit.zip', items[0]!.size, false)).toBe('City Kit');
   });
 

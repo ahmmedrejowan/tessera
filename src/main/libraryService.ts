@@ -4,7 +4,7 @@ import { copyFile, mkdir, readdir, rename, rm, stat, writeFile } from 'node:fs/p
 import { basename, extname, join } from 'node:path';
 import { isIgnored } from '@shared/assets';
 import { missingForLibrary, type PackEdit, type PackStatus } from '@shared/pack';
-import { FAVOURITES, refuses, type CollectionItem, type CollectionRules, type CollectionSummary, type SmartQuery } from '@shared/collection';
+import { FAVORITES, refuses, type CollectionItem, type CollectionRules, type CollectionSummary, type SmartQuery } from '@shared/collection';
 import type { BrowseQuery, Filters, PackRow } from '@shared/query';
 import type { BinEntry, CollectionChange, CollectionResult, Detected, FolderKind, ImportItem, ImportResult, LibraryState, PackSuggestions, SiteRule } from '@shared/types';
 import { UserError } from './errors';
@@ -14,8 +14,8 @@ import { planImport } from './import/plan';
 import { copyTree, movable, runImport, type ImportDeps } from './import/run';
 import { LibraryQueries } from './index/query';
 import type { Jobs } from './jobs';
-import { createCollection, deleteCollection, favourites, listCollections, updateCollection, withItems, withoutItems, withPacks, withoutPacks } from './library/collections';
-import { detectPack, partLicences, packTexts } from './library/detect';
+import { createCollection, deleteCollection, favorites, listCollections, updateCollection, withItems, withoutItems, withPacks, withoutPacks } from './library/collections';
+import { detectPack, partLicenses, packTexts } from './library/detect';
 import { suggestDetails } from './import/suggest';
 import { createLibrary, DIRS, inspectFolder, MARKER, PACK_DIRS, readLibraryInfo } from './library/layout';
 import { safeFolderName, uniqueName } from './library/names';
@@ -30,7 +30,7 @@ interface Deps {
   onState: (state: LibraryState) => void;
   /** The index changed: anything showing library data should reload. */
   onIndexChanged: () => void;
-  /** The user's own rules for sites, read whenever a pack's licence is worked out. */
+  /** The user's own rules for sites, read whenever a pack's license is worked out. */
   siteRules: () => SiteRule[];
   /** How long deleted things wait in the library's bin before they go for good; 0 keeps them. */
   binKeepDays: () => number;
@@ -315,15 +315,15 @@ export class LibraryService {
     return detectPack(pack.dir, files, { rules: this.d.siteRules(), url: pack.meta.source.url });
   }
 
-  /** Licence files inside a pack: parts of it that may come under terms of their own. */
-  async partLicences(id: string): Promise<{ path: string; licence: string; from: string }[]> {
+  /** License files inside a pack: parts of it that may come under terms of their own. */
+  async partLicenses(id: string): Promise<{ path: string; license: string; from: string }[]> {
     const pack = await this.packRecord(id);
     const { files } = await listPackFiles(pack.dir);
-    return partLicences(pack.dir, files);
+    return partLicenses(pack.dir, files);
   }
 
   /**
-   * What was found in a pack and what it suggests, for the add page: the licence and source (as
+   * What was found in a pack and what it suggests, for the add page: the license and source (as
    * detected, with where from) and details worth filling in (name, version, description, style, tags).
    */
   async details(id: string): Promise<{ detected: Detected; suggestions: PackSuggestions }> {
@@ -353,29 +353,29 @@ export class LibraryService {
     this.d.onIndexChanged();
   }
 
-  /** Keep a file made for a pack (a snapshot of its download page, say) with its licence proof. */
+  /** Keep a file made for a pack (a snapshot of its download page, say) with its license proof. */
   async saveProof(id: string, name: string, data: Buffer, note?: string): Promise<string> {
     const lib = this.require();
     const pack = await this.packRecord(id);
-    const dir = join(pack.dir, PACK_DIRS.licence);
+    const dir = join(pack.dir, PACK_DIRS.license);
     await mkdir(dir, { recursive: true });
     const taken = new Set((await readdir(dir)).map((n) => n.toLowerCase()));
     const ext = extname(name);
     const file = uniqueName(safeFolderName(basename(name, ext)), (c) => taken.has(`${c}${ext}`.toLowerCase())) + ext;
     await writeFile(join(dir, file), data);
     const fresh = await this.packRecord(id);
-    const notes = note ? [fresh.meta.licence.notes, note].filter(Boolean).join('\n') : fresh.meta.licence.notes;
-    const meta = await writePack(fresh.dir, { ...fresh.meta, licence: { ...fresh.meta.licence, notes, proof: [...new Set([...fresh.meta.licence.proof, file])] } });
+    const notes = note ? [fresh.meta.license.notes, note].filter(Boolean).join('\n') : fresh.meta.license.notes;
+    const meta = await writePack(fresh.dir, { ...fresh.meta, license: { ...fresh.meta.license, notes, proof: [...new Set([...fresh.meta.license.proof, file])] } });
     await lib.index.syncPack({ ...fresh, meta }, lib.index.known(id));
     this.d.onIndexChanged();
     return file;
   }
 
-  /** Add a line to a pack's licence notes (where an archived copy of its page is, say). */
-  async addLicenceNote(id: string, line: string): Promise<void> {
+  /** Add a line to a pack's license notes (where an archived copy of its page is, say). */
+  async addLicenseNote(id: string, line: string): Promise<void> {
     const lib = this.require();
     const pack = await this.packRecord(id);
-    const meta = await writePack(pack.dir, { ...pack.meta, licence: { ...pack.meta.licence, notes: [pack.meta.licence.notes, line].filter(Boolean).join('\n') } });
+    const meta = await writePack(pack.dir, { ...pack.meta, license: { ...pack.meta.license, notes: [pack.meta.license.notes, line].filter(Boolean).join('\n') } });
     await lib.index.syncPack({ ...pack, meta }, lib.index.known(id));
     this.d.onIndexChanged();
   }
@@ -403,7 +403,7 @@ export class LibraryService {
     const out: CollectionSummary[] = [];
     for (const c of await listCollections(lib.root)) {
       const q: BrowseQuery = c.query
-        ? { scope: 'library', text: c.query.text, filters: c.query.filters as Filters, includeSupport: c.query.includeSupport, favourites: c.query.favourites }
+        ? { scope: 'library', text: c.query.text, filters: c.query.filters as Filters, includeSupport: c.query.includeSupport, favorites: c.query.favorites }
         : { scope: 'all', text: '', filters: {}, collectionId: c.id };
       const page = lib.queries.assets(q, 'relevance', 0, 4);
       const samples = page.rows.map((r) => ({ packId: r.packId, ref: r.ref, ext: r.ext, kind: r.kind, type: r.type }));
@@ -501,7 +501,7 @@ export class LibraryService {
         for (const id of ids) {
           const p = pack(id);
           if (!p) continue;
-          const why = refuses(rules, { name: p.name, licence: p.licence, creator: p.creator, styles: p.styles, tags: p.tags, types: Object.keys(p.types) });
+          const why = refuses(rules, { name: p.name, license: p.license, creator: p.creator, styles: p.styles, tags: p.tags, types: Object.keys(p.types) });
           if (why) refused.push({ name: p.name, why });
           else taken.push(id);
         }
@@ -517,8 +517,8 @@ export class LibraryService {
             taken.push(item);
             continue;
           }
-          // An asset carries the licence of the part of the pack it is in, which may not be the pack's.
-          const why = refuses(rules, { name: a.name, licence: a.licence, creator: p.creator, styles: p.styles, tags: p.tags, types: [a.type] });
+          // An asset carries the license of the part of the pack it is in, which may not be the pack's.
+          const why = refuses(rules, { name: a.name, license: a.license, creator: p.creator, styles: p.styles, tags: p.tags, types: [a.type] });
           if (why) refused.push({ name: a.name, why });
           else taken.push(item);
         }
@@ -527,19 +527,19 @@ export class LibraryService {
     };
   }
 
-  /** Star assets, or take the star off: they go in and out of the built-in Favourites collection. */
-  async favouriteAssets(items: CollectionItem[], on: boolean): Promise<void> {
+  /** Star assets, or take the star off: they go in and out of the built-in Favorites collection. */
+  async favoriteAssets(items: CollectionItem[], on: boolean): Promise<void> {
     const root = this.require().root;
-    await favourites(root);
-    await updateCollection(root, FAVOURITES, (c) => (on ? withItems(c, items) : withoutItems(c, items)));
+    await favorites(root);
+    await updateCollection(root, FAVORITES, (c) => (on ? withItems(c, items) : withoutItems(c, items)));
     await this.collectionsChanged();
   }
 
-  /** Star a pack: it joins the built-in Favourites collection, as a starred asset does. */
-  async favouritePack(id: string, on: boolean): Promise<void> {
+  /** Star a pack: it joins the built-in Favorites collection, as a starred asset does. */
+  async favoritePack(id: string, on: boolean): Promise<void> {
     const root = this.require().root;
-    await favourites(root);
-    await updateCollection(root, FAVOURITES, (c) => (on ? withPacks(c, [id]) : withoutPacks(c, [id])));
+    await favorites(root);
+    await updateCollection(root, FAVORITES, (c) => (on ? withPacks(c, [id]) : withoutPacks(c, [id])));
     await this.collectionsChanged();
   }
 
@@ -640,7 +640,7 @@ export class LibraryService {
 
   async proofFiles(id: string): Promise<{ name: string; size: number }[]> {
     const pack = await this.packRecord(id);
-    const dir = join(pack.dir, PACK_DIRS.licence);
+    const dir = join(pack.dir, PACK_DIRS.license);
     const out: { name: string; size: number }[] = [];
     for (const e of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
       if (e.isFile() && !e.name.startsWith('.')) out.push({ name: e.name, size: (await stat(join(dir, e.name))).size });
@@ -648,11 +648,11 @@ export class LibraryService {
     return out.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  /** Copy files into a pack's licence/ folder and record them as proof. */
+  /** Copy files into a pack's license/ folder and record them as proof. */
   async addProof(id: string, files: string[]): Promise<number> {
     const lib = this.require();
     const pack = await this.packRecord(id);
-    const dir = join(pack.dir, PACK_DIRS.licence);
+    const dir = join(pack.dir, PACK_DIRS.license);
     await mkdir(dir, { recursive: true });
     const taken = new Set((await readdir(dir)).map((n) => n.toLowerCase()));
     const added: string[] = [];
@@ -664,7 +664,7 @@ export class LibraryService {
       added.push(name);
     }
     if (added.length) {
-      const meta = await writePack(pack.dir, { ...pack.meta, licence: { ...pack.meta.licence, proof: [...new Set([...pack.meta.licence.proof, ...added])] } });
+      const meta = await writePack(pack.dir, { ...pack.meta, license: { ...pack.meta.license, proof: [...new Set([...pack.meta.license.proof, ...added])] } });
       await lib.index.syncPack({ ...pack, meta }, lib.index.known(id));
       this.d.onIndexChanged();
     }
@@ -728,7 +728,7 @@ export class LibraryService {
   async proofPath(id: string, name: string): Promise<string> {
     const pack = await this.packRecord(id);
     if (name.includes('/') || name.includes('\\') || name.startsWith('.')) throw new UserError('bad-name', 'That file is not in the pack.');
-    return join(pack.dir, PACK_DIRS.licence, name);
+    return join(pack.dir, PACK_DIRS.license, name);
   }
 
   /**
@@ -736,7 +736,7 @@ export class LibraryService {
    *
    * Checked before it is accepted: the new folder has to hold a good share of the files the pack
    * is recorded as having. Picking the wrong folder would otherwise replace one pack's contents
-   * with another's, quietly, and the licence on the record would then be describing the wrong
+   * with another's, quietly, and the license on the record would then be describing the wrong
    * files, which is the one mistake this app exists to prevent.
    */
   async findPackAgain(id: string, path: string): Promise<{ matched: number; of: number }> {

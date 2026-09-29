@@ -77,18 +77,18 @@ export const SYSTEM: Tool[] = [
     name: 'set_settings',
     group: 'system',
     title: 'Change Tessera’s settings',
-    summary: 'Change the app’s own settings: theme, colour, what happens when a download finishes, how long the bin keeps things, and the licence rules for sites. Say what you changed.',
+    summary: 'Change the app’s own settings: theme, color, what happens when a download finishes, how long the bin keeps things, and the license rules for sites. Say what you changed.',
     input: z.object({
       theme: z.enum(['system', 'light', 'dark']).optional(),
-      seedColor: z.string().optional().describe('A hex colour, like #3f6f8f.'),
-      afterDownload: z.enum(['add', 'review', 'ask']).optional().describe('add: straight into the library when the licence is clear. review: always to Review. ask: leave it in Downloads.'),
+      seedColor: z.string().optional().describe('A hex color, like #3f6f8f.'),
+      afterDownload: z.enum(['add', 'review', 'ask']).optional().describe('add: straight into the library when the license is clear. review: always to Review. ask: leave it in Downloads.'),
       // The same bound the setting itself has. It used to accept ten years, which the setting
       // then threw away and replaced with the default of 30, so asking for a longer bin quietly
       // made it shorter and the tool still said it had changed it.
       binKeepDays: z.number().int().min(0).max(365).optional().describe('Days to keep deleted things, up to 365. 0 keeps them until you empty the bin.'),
       updateCheck: z.boolean().optional(),
       siteRules: z
-        .array(z.object({ host: z.string(), licence: z.string().nullable(), creator: z.string().nullable().default(null) }))
+        .array(z.object({ host: z.string(), license: z.string().nullable(), creator: z.string().nullable().default(null) }))
         .optional()
         .describe('What to assume for a site you download from. Replaces the list.'),
       downloadsAtOnce: z.number().int().min(1).max(5).optional().describe('How many downloads run at the same time.'),
@@ -117,7 +117,7 @@ export const SYSTEM: Tool[] = [
     name: 'get_library_settings',
     group: 'read',
     title: 'This library’s own settings',
-    summary: 'The preferences that belong to the open library rather than to the app: its name, its folder, and whether a pack with a clear licence skips Review.',
+    summary: 'The preferences that belong to the open library rather than to the app: its name, its folder, and whether a pack with a clear license skips Review.',
     input: z.object({}),
     run: async (_args, ctx) => {
       const prefs = ctx.app.libraryPrefs();
@@ -129,10 +129,10 @@ export const SYSTEM: Tool[] = [
     name: 'set_library_settings',
     group: 'system',
     title: 'Change this library’s settings',
-    summary: 'Rename the open library, or change whether a pack whose licence is certain goes straight in rather than waiting in Review. Say what you changed.',
+    summary: 'Rename the open library, or change whether a pack whose license is certain goes straight in rather than waiting in Review. Say what you changed.',
     input: z.object({
       name: z.string().min(1).optional(),
-      skipInboxWhenSure: z.boolean().optional().describe('true: a pack with a clear licence and a known source goes straight into the library.'),
+      skipInboxWhenSure: z.boolean().optional().describe('true: a pack with a clear license and a known source goes straight into the library.'),
     }),
     run: async (args, ctx) => {
       const patch = Object.fromEntries(Object.entries(args).filter(([, v]) => v !== undefined));
@@ -187,7 +187,7 @@ export const SYSTEM: Tool[] = [
   }),
   define({
     name: 'read_library_again',
-    group: 'organise',
+    group: 'organize',
     title: 'Read the library again',
     summary: 'Read every pack from scratch. Worth it after files have been moved about by hand; Tessera normally notices on its own.',
     input: z.object({}),
@@ -344,7 +344,7 @@ export const SYSTEM: Tool[] = [
   }),
   define({
     name: 'draw_previews',
-    group: 'organise',
+    group: 'organize',
     title: 'Draw previews',
     summary:
       'Draw the small pictures Tessera shows for files, for named packs or for the whole library. Normally they are drawn as tiles come into view; do this before going offline, or after clearing them. It runs in the background and can be stopped.',
@@ -365,7 +365,7 @@ export const SYSTEM: Tool[] = [
   }),
   define({
     name: 'clear_previews',
-    group: 'organise',
+    group: 'organize',
     title: 'Clear previews',
     summary:
       'Throw away the drawn previews, for named packs or the ones that would not draw. Nothing in the library is touched: previews are drawn again when they are next needed.',

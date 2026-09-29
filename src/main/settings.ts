@@ -30,10 +30,10 @@ const libraryRecord = z.object({
     .catch(null),
 });
 
-/** A site the user set the licence for, so its packs fill themselves in. */
+/** A site the user set the license for, so its packs fill themselves in. */
 const siteRule = z.object({
   host: z.string().min(3),
-  licence: z.string().nullable().catch(null),
+  license: z.string().nullable().catch(null),
   creator: z.string().nullable().catch(null),
   addedAt: z.string().catch(new Date(0).toISOString()),
 });

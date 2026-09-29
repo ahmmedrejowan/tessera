@@ -16,7 +16,7 @@ import { StatusSlot, type SlotMessage } from '../../components/StatusSlot';
 import { md, SHAPE } from '../../theme';
 import type { Role } from '../../theme/m3';
 
-/** "/Users/sam/Documents/Assets" → "~/Documents/Assets", where the home folder is recognisable. */
+/** "/Users/sam/Documents/Assets" → "~/Documents/Assets", where the home folder is recognizable. */
 export const tidyPath = (p: string) => p.replace(/^\/(Users|home)\/[^/]+/, '~').replace(/^[A-Z]:\\Users\\[^\\]+/i, '~');
 
 const LOW_SPACE = 5 * 1024 ** 3;

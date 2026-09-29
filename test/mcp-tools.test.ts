@@ -5,13 +5,13 @@ import { callTool, running, PIXEL, type PackFixture, type Running } from './libr
 import { tempDir } from './helpers';
 
 /**
- * What the tools actually do, against a real library. The catalogue is checked elsewhere; this is
- * about behaviour: an agent asks, the library changes, and the next question sees the change.
+ * What the tools actually do, against a real library. The catalog is checked elsewhere; this is
+ * about behavior: an agent asks, the library changes, and the next question sees the change.
  */
 
 const PACKS: PackFixture[] = [
   { name: 'Mini Arcade', files: { 'Models/arcade.obj': 'o arcade\nv 0 0 0\n', 'Models/pinball.obj': 'o pinball\nv 1 0 0\n', 'Textures/wood.png': PIXEL } },
-  { name: 'Rocks', files: { 'rock_a.obj': 'o rock\n', 'rock_b.obj': 'o rock\n' }, licence: null, source: null },
+  { name: 'Rocks', files: { 'rock_a.obj': 'o rock\n', 'rock_b.obj': 'o rock\n' }, license: null, source: null },
 ];
 
 const idOf = async (app: Running, name: string): Promise<string> => {
@@ -24,11 +24,11 @@ const idOf = async (app: Running, name: string): Promise<string> => {
 describe('looking', () => {
   it('says what is in the library, and what wants attention', async () => {
     const app = await running(PACKS);
-    const status = (await callTool(app, 'library_status')) as { open: boolean; packs: number; waitingInReview: number; needsAttention: { noLicence: number } };
+    const status = (await callTool(app, 'library_status')) as { open: boolean; packs: number; waitingInReview: number; needsAttention: { noLicense: number } };
     expect(status.open).toBe(true);
     expect(status.packs).toBe(1);
-    // The pack with no licence and no source waits in Review, and is counted there.
-    expect(status.waitingInReview + status.needsAttention.noLicence).toBeGreaterThan(0);
+    // The pack with no license and no source waits in Review, and is counted there.
+    expect(status.waitingInReview + status.needsAttention.noLicense).toBeGreaterThan(0);
   });
 
   it('finds a pack by a word in its name, and a file by a word in its path', async () => {
@@ -52,8 +52,8 @@ describe('looking', () => {
 
   it('reads one pack in full, and refuses an id that is not there', async () => {
     const app = await running(PACKS);
-    const pack = (await callTool(app, 'get_pack', { packId: await idOf(app, 'Mini Arcade') })) as { name: string; licence: string };
-    expect(pack).toMatchObject({ name: 'Mini Arcade', licence: 'CC0-1.0' });
+    const pack = (await callTool(app, 'get_pack', { packId: await idOf(app, 'Mini Arcade') })) as { name: string; license: string };
+    expect(pack).toMatchObject({ name: 'Mini Arcade', license: 'CC0-1.0' });
     await expect(callTool(app, 'get_pack', { packId: 'nope' })).rejects.toThrow(/No pack/);
   });
 
@@ -62,7 +62,7 @@ describe('looking', () => {
     const review = (await callTool(app, 'list_review')) as { name: string; needs: string[] }[];
     expect(review).toHaveLength(1);
     expect(review[0]!.name).toBe('Rocks');
-    expect(review[0]!.needs.sort()).toEqual(['licence', 'source']);
+    expect(review[0]!.needs.sort()).toEqual(['license', 'source']);
   });
 });
 
@@ -81,15 +81,15 @@ describe('filing', () => {
     const app = await running(PACKS);
     const id = await idOf(app, 'Mini Arcade');
     await callTool(app, 'set_pack_details', { packId: id, tags: ['arcade', 'retro'], creator: 'Someone' });
-    const pack = (await callTool(app, 'get_pack', { packId: id })) as { licence: string; tags: string[]; creator: string; name: string };
-    expect(pack).toMatchObject({ name: 'Mini Arcade', licence: 'CC0-1.0', creator: 'Someone' });
+    const pack = (await callTool(app, 'get_pack', { packId: id })) as { license: string; tags: string[]; creator: string; name: string };
+    expect(pack).toMatchObject({ name: 'Mini Arcade', license: 'CC0-1.0', creator: 'Someone' });
     expect(pack.tags.sort()).toEqual(['arcade', 'retro']);
   });
 
   it('says what a pack in Review still needs, and lets it out once it has both', async () => {
     const app = await running(PACKS);
     const id = await idOf(app, 'Rocks');
-    const half = (await callTool(app, 'set_pack_details', { packId: id, licence: 'CC0-1.0' })) as { stillNeeds: string[] };
+    const half = (await callTool(app, 'set_pack_details', { packId: id, license: 'CC0-1.0' })) as { stillNeeds: string[] };
     expect(half.stillNeeds).toEqual(['source']);
     const refused = (await callTool(app, 'move_to_library', { packIds: [id] })) as { moved: string[]; refused: { why: string }[] };
     expect(refused.moved).toEqual([]);
@@ -100,21 +100,21 @@ describe('filing', () => {
     expect(((await callTool(app, 'list_review')) as unknown[]).length).toBe(0);
   });
 
-  it('refuses a licence rule for a path that covers nothing, and says what the paths are', async () => {
+  it('refuses a license rule for a path that covers nothing, and says what the paths are', async () => {
     const app = await running(PACKS);
     const id = await idOf(app, 'Mini Arcade');
-    await expect(callTool(app, 'set_file_licence', { packId: id, path: 'nowhere.obj', licence: 'CC-BY-4.0' })).rejects.toThrow(/Nothing in this pack/);
-    const done = (await callTool(app, 'set_file_licence', { packId: id, path: 'Models', licence: 'CC-BY-4.0' })) as { files: number };
+    await expect(callTool(app, 'set_file_license', { packId: id, path: 'nowhere.obj', license: 'CC-BY-4.0' })).rejects.toThrow(/Nothing in this pack/);
+    const done = (await callTool(app, 'set_file_license', { packId: id, path: 'Models', license: 'CC-BY-4.0' })) as { files: number };
     expect(done.files).toBe(2);
     // Everything, because a texture on its own counts as supporting a model rather than an asset.
-    const files = (await callTool(app, 'list_files', { packId: id, only: 'everything' })) as { files: { path: string; licence: string }[] };
-    expect(files.files.find((f) => f.path.endsWith('arcade.obj'))?.licence).toBe('CC-BY-4.0');
-    expect(files.files.find((f) => f.path.endsWith('wood.png'))?.licence).toBe('CC0-1.0');
+    const files = (await callTool(app, 'list_files', { packId: id, only: 'everything' })) as { files: { path: string; license: string }[] };
+    expect(files.files.find((f) => f.path.endsWith('arcade.obj'))?.license).toBe('CC-BY-4.0');
+    expect(files.files.find((f) => f.path.endsWith('wood.png'))?.license).toBe('CC0-1.0');
   });
 
   it('gathers a collection, refuses what its rules do not take, and empties again', async () => {
     const app = await running(PACKS);
-    const made = (await callTool(app, 'create_collection', { name: 'CC0 only', rules: { licences: ['CC0-1.0'] } })) as { id: string };
+    const made = (await callTool(app, 'create_collection', { name: 'CC0 only', rules: { licenses: ['CC0-1.0'] } })) as { id: string };
     const arcade = await idOf(app, 'Mini Arcade');
     const added = (await callTool(app, 'add_to_collection', { collectionId: made.id, packIds: [arcade] })) as { addedPacks: number; refused: unknown[] };
     expect(added.addedPacks).toBe(1);
@@ -144,10 +144,10 @@ describe('bringing things in', () => {
     const id = await idOf(app, 'Mini Arcade');
     const from = tempDir();
     writeFileSync(join(from, 'extra.obj'), 'o extra\n');
-    const done = (await callTool(app, 'add_files_to_pack', { packId: id, paths: [join(from, 'extra.obj')], into: 'Extras', licence: 'CC-BY-4.0' })) as { added: number; names: string[] };
+    const done = (await callTool(app, 'add_files_to_pack', { packId: id, paths: [join(from, 'extra.obj')], into: 'Extras', license: 'CC-BY-4.0' })) as { added: number; names: string[] };
     expect(done).toMatchObject({ added: 1, names: ['Extras/extra.obj'] });
-    const files = (await callTool(app, 'list_files', { packId: id })) as { files: { path: string; licence: string }[] };
-    expect(files.files.find((f) => f.path === 'Extras/extra.obj')?.licence).toBe('CC-BY-4.0');
+    const files = (await callTool(app, 'list_files', { packId: id })) as { files: { path: string; license: string }[] };
+    expect(files.files.find((f) => f.path === 'Extras/extra.obj')?.license).toBe('CC-BY-4.0');
   });
 
   it('insists on a full path, because a half one means somewhere it cannot know', async () => {
@@ -157,7 +157,7 @@ describe('bringing things in', () => {
     await expect(callTool(app, 'import_paths', { paths: ['./downloads'] })).rejects.toThrow(/full path/);
   });
 
-  it('adds a folder from this computer as a pack, which waits in Review without a licence', async () => {
+  it('adds a folder from this computer as a pack, which waits in Review without a license', async () => {
     const app = await running();
     const from = join(tempDir(), 'Trees');
     mkdirSync(from, { recursive: true });
@@ -193,7 +193,7 @@ describe('deleting', () => {
 });
 
 describe('linking into a game', () => {
-  it('copies a pack into a game, with its licence and credits, and takes it back out', async () => {
+  it('copies a pack into a game, with its license and credits, and takes it back out', async () => {
     const app = await running(PACKS);
     const folder = join(tempDir(), 'Bunny Dash');
     mkdirSync(folder, { recursive: true });
@@ -201,8 +201,8 @@ describe('linking into a game', () => {
     expect(game.name).toBe('Bunny Dash');
     const linked = (await callTool(app, 'link_to_game', { projectId: game.id, packIds: [await idOf(app, 'Mini Arcade')] })) as { linked: number };
     expect(linked.linked).toBeGreaterThan(0);
-    const inGame = (await callTool(app, 'project_files', { projectId: game.id })) as { pack: string; licence: string }[];
-    expect(inGame[0]).toMatchObject({ pack: 'Mini Arcade', licence: 'CC0-1.0' });
+    const inGame = (await callTool(app, 'project_files', { projectId: game.id })) as { pack: string; license: string }[];
+    expect(inGame[0]).toMatchObject({ pack: 'Mini Arcade', license: 'CC0-1.0' });
     expect(readFileSync(join(folder, 'CREDITS.md'), 'utf8')).toContain('Mini Arcade');
     const out = (await callTool(app, 'unlink_from_game', { projectId: game.id, packIds: [await idOf(app, 'Mini Arcade')] })) as { removed: number };
     expect(out.removed).toBe(linked.linked);

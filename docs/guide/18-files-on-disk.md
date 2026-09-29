@@ -9,7 +9,7 @@ tessera-library.json   marks the folder as a library, and names it
 packs/<pack>/          one folder per pack
   pack.json            its record: license, source, creator, tags, version
   original/            your download, exactly as it arrived
-  licence/             license files, the page snapshot, receipts
+  license/             license files, the page snapshot, receipts
 collections/           one file per collection
 .bin/                  what you deleted, until it is emptied
 ```

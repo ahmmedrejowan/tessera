@@ -37,7 +37,7 @@ export function LinkProjectDialog({ probe, onClose, onLink }: { probe: ProjectPr
           label="Copy assets into"
           value={draft.target}
           onChange={(e) => setDraft({ ...draft, target: e.target.value })}
-          helperText="Where packs go, each in its own folder with its licence."
+          helperText="Where packs go, each in its own folder with its license."
         />
         {draft.notes.map((n) => (
           <div key={n} style={{ display: 'flex', gap: 10 }}>

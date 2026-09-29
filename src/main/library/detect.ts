@@ -2,7 +2,7 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { assetPath, baseName, kindOf, pathWords } from '@shared/assets';
 import type { Detected, SiteRule } from '@shared/types';
-import { detectLicence } from '@shared/licences';
+import { detectLicense } from '@shared/licenses';
 import { ruleFor } from '@shared/siteRules';
 import { sourceFromName, sourceFromText, sourceFromUrl, sourceInfo } from '@shared/sources';
 import { readPackFile, type PackFile } from '../index/files';
@@ -11,7 +11,7 @@ import { PACK_DIRS } from './layout';
 export type { Detected };
 
 const TEXT_MAX = 256 * 1024;
-/** Readmes and licences are usually at the top of a download: prefer shallow, licence-named files. */
+/** Readmes and licenses are usually at the top of a download: prefer shallow, license-named files. */
 const rank = (ref: string) => (/licen[cs]e|copying/i.test(baseName(ref)) ? 0 : /readme|credits?|attribution/i.test(baseName(ref)) ? 1 : 2) * 100 + ref.split(/[/!]/).length;
 const isText = (ref: string) => {
   const name = baseName(ref).toLowerCase();
@@ -19,12 +19,12 @@ const isText = (ref: string) => {
 };
 const URL_RE = /https?:\/\/[^\s"'<>)\]]+/g;
 
-/** A pack's licence and readme texts, most telling first: proof files, then licences, then readmes. */
+/** A pack's license and readme texts, most telling first: proof files, then licenses, then readmes. */
 export async function packTexts(packDir: string, files: PackFile[]): Promise<{ from: string; text: string }[]> {
   const texts: { from: string; text: string }[] = [];
-  const licenceDir = join(packDir, PACK_DIRS.licence);
-  for (const name of await readdir(licenceDir).catch(() => [] as string[])) {
-    const p = join(licenceDir, name);
+  const licenseDir = join(packDir, PACK_DIRS.license);
+  for (const name of await readdir(licenseDir).catch(() => [] as string[])) {
+    const p = join(licenseDir, name);
     if ((await stat(p)).size <= TEXT_MAX && isText(name)) texts.push({ from: name, text: await readFile(p, 'utf8') });
   }
   const candidates = files.filter((f) => f.size <= TEXT_MAX && isText(f.ref) && kindOf(f.ref) !== 'archive').sort((a, b) => rank(a.ref) - rank(b.ref)).slice(0, 8);
@@ -39,24 +39,24 @@ export async function packTexts(packDir: string, files: PackFile[]): Promise<{ f
 }
 
 /**
- * Licence files that sit inside the pack rather than at its top: a bundle often holds folders that
+ * License files that sit inside the pack rather than at its top: a bundle often holds folders that
  * came under different terms. Each one becomes a suggested rule for the folder holding it.
  */
-export async function partLicences(packDir: string, files: PackFile[]): Promise<{ path: string; licence: string; from: string }[]> {
-  const out: { path: string; licence: string; from: string }[] = [];
+export async function partLicenses(packDir: string, files: PackFile[]): Promise<{ path: string; license: string; from: string }[]> {
+  const out: { path: string; license: string; from: string }[] = [];
   const candidates = files
     .filter((f) => f.size <= TEXT_MAX && isText(f.ref) && /licen[cs]e|copying|eula|terms/i.test(baseName(f.ref.replace(/!/g, '/'))))
     .slice(0, 40);
   for (const f of candidates) {
     const shown = assetPath(f.ref);
     const slash = shown.lastIndexOf('/');
-    // A licence at the top of the pack is the pack's own; only the ones inside say something new.
+    // A license at the top of the pack is the pack's own; only the ones inside say something new.
     if (slash < 0) continue;
     const path = shown.slice(0, slash);
     if (out.some((o) => o.path === path)) continue;
     try {
-      const licence = detectLicence((await readPackFile(packDir, f.ref, TEXT_MAX)).toString('utf8'));
-      if (licence) out.push({ path, licence, from: shown });
+      const license = detectLicense((await readPackFile(packDir, f.ref, TEXT_MAX)).toString('utf8'));
+      if (license) out.push({ path, license, from: shown });
     } catch {
       // unreadable: skip
     }
@@ -75,23 +75,23 @@ interface Clues {
 }
 
 /**
- * Read a pack's licence and readme files (and the name it was downloaded as) for its licence,
+ * Read a pack's license and readme files (and the name it was downloaded as) for its license,
  * the site it came from and its creator, with the user's own rules for sites they have already
  * settled. Nothing is applied: the caller shows these as suggestions.
  */
 export async function detectPack(packDir: string, files: PackFile[], clues: Clues = {}): Promise<Detected> {
   const { downloadName, rules = [], url: downloadUrl } = clues;
-  const out: Detected = { licence: null, licenceFrom: null, licenceSure: false, site: null, url: null, creator: null };
+  const out: Detected = { license: null, licenseFrom: null, licenseSure: false, site: null, url: null, creator: null };
   const texts = await packTexts(packDir, files);
 
   for (const { from, text } of texts) {
     const plain = text.replace(/<[^>]+>/g, ' ');
-    if (!out.licence) {
-      const id = detectLicence(plain);
+    if (!out.license) {
+      const id = detectLicense(plain);
       if (id) {
-        out.licence = id;
-        out.licenceFrom = from;
-        out.licenceSure = true;
+        out.license = id;
+        out.licenseFrom = from;
+        out.licenseSure = true;
       }
     }
     if (!out.site) {
@@ -131,15 +131,15 @@ export async function detectPack(packDir: string, files: PackFile[], clues: Clue
   // What the user has settled about this site themselves: it beats what the site usually carries.
   const rule = ruleFor(rules, out.url) ?? ruleFor(rules, info?.url);
   if (rule?.creator) out.creator = rule.creator;
-  if (rule?.licence && !out.licenceSure) {
-    out.licence = rule.licence;
-    out.licenceFrom = `your rule for ${rule.host}`;
-    out.licenceSure = true;
+  if (rule?.license && !out.licenseSure) {
+    out.license = rule.license;
+    out.licenseFrom = `your rule for ${rule.host}`;
+    out.licenseSure = true;
   }
-  // A known site's usual licence, when the files didn't say: free sites only, never a paid store.
-  if (!out.licence && info?.licence) {
-    out.licence = info.licence;
-    out.licenceFrom = `${info.name} (usual licence)`;
+  // A known site's usual license, when the files didn't say: free sites only, never a paid store.
+  if (!out.license && info?.license) {
+    out.license = info.license;
+    out.licenseFrom = `${info.name} (usual license)`;
   }
   return out;
 }

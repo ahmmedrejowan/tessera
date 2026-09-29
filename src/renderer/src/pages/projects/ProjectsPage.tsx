@@ -179,7 +179,7 @@ export function ProjectsPage() {
     <Page
       flush
       title="Projects"
-      subtitle="Games this library links assets into: linking copies the files, with their licences, into the game's own folder"
+      subtitle="Games this library links assets into: linking copies the files, with their licenses, into the game's own folder"
       aside={
         <SortButton
           value={sort}
@@ -202,7 +202,7 @@ export function ProjectsPage() {
         <EmptyState
           icon={SportsEsportsOutlined}
           title="No projects linked"
-          body="Add a Unity, Godot or Unreal project, or any folder. Linking an asset to a game copies its files into that folder, with their textures, licences and credits."
+          body="Add a Unity, Godot or Unreal project, or any folder. Linking an asset to a game copies its files into that folder, with their textures, licenses and credits."
           actions={
             <Button variant="contained" startIcon={<AddLinkOutlined />} onClick={() => void link.start()}>
               Link a project

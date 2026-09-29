@@ -41,7 +41,7 @@ A pack's own page has the same three under **Previews**, for that pack alone.
 
 **Appearance**
 - **Theme**: follow the system, or pin light or dark.
-- **Colour**: the accent the window uses.
+- **Color**: the accent the window uses.
 
 **Sites**: the rules you have settled for each site, with the license and creator to assume.
 Editing or removing one changes what happens to the next pack from that site.
@@ -54,7 +54,7 @@ Editing or removing one changes what happens to the next pack from that site.
 - **Move files into the library**: remove the original once its copy is safely in. Off by default,
   and the tick on the Add page decides for one pack whatever this says.
 - **Ask before copying into a game**: show how much is going and where it will land first. A
-  licence problem stops for an answer either way.
+  license problem stops for an answer either way.
 
 **AI agents** — see [AI agents](/docs/agents).
 

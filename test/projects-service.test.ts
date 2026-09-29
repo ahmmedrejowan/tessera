@@ -51,7 +51,7 @@ describe('taking a folder as a game', () => {
     expect((await projects.get(project.id))?.id).toBe(project.id);
   });
 
-  it('recognises a Godot project, and a folder that is neither', async () => {
+  it('recognizes a Godot project, and a folder that is neither', async () => {
     expect((await withGame('godot')).project.engine).toBe('godot');
     expect((await withGame('plain')).project.engine).toBe('other');
   });
@@ -97,10 +97,10 @@ describe('taking a folder as a game', () => {
     rmSync(path, { recursive: true, force: true });
 
     // None of these can do anything about a folder that is not there, and none of them may throw.
-    await projects.packChanged(libraryId, pack.id, { packName: 'Renamed', licence: 'CC0-1.0', attribution: null, creator: null, sourceUrl: null });
+    await projects.packChanged(libraryId, pack.id, { packName: 'Renamed', license: 'CC0-1.0', attribution: null, creator: null, sourceUrl: null });
     expect(await projects.usage(libraryId, [pack.id])).toEqual([]);
     // A folder that is not there is skipped, so nothing is written and nothing is blamed.
-    expect(await projects.keepLicences(libraryId, [pack.id], app.context().copySource())).toEqual({ done: 0, failed: [] });
+    expect(await projects.keepLicenses(libraryId, [pack.id], app.context().copySource())).toEqual({ done: 0, failed: [] });
   });
 
   it('leaves a file somebody else put there exactly as it is', async () => {
@@ -182,7 +182,7 @@ describe('copying into a game', () => {
     expect(plan.updating).toBe(0);
   });
 
-  it('copies the files in, with a licence beside them and the credits written', async () => {
+  it('copies the files in, with a license beside them and the credits written', async () => {
     const { app, projects, project, path, packs, aFile, libraryId, names } = await withGame();
     const items = [{ packId: packs[0]!.id, ref: aFile.ref }];
     expect(await projects.copy(project.id, items, app.context().copySource())).toBe(1);
@@ -194,7 +194,7 @@ describe('copying into a game', () => {
     const credits = join(path, 'CREDITS.md');
     expect(existsSync(credits)).toBe(true);
     expect(readFileSync(credits, 'utf8')).toContain('Mini Arcade');
-    expect(existsSync(join(path, 'Assets', 'ThirdParty', 'Mini Arcade', 'LICENCE.txt'))).toBe(true);
+    expect(existsSync(join(path, 'Assets', 'ThirdParty', 'Mini Arcade', 'LICENSE.txt'))).toBe(true);
   });
 
   it('says which games use a pack once it has been copied in', async () => {
@@ -226,23 +226,23 @@ describe('copying into a game', () => {
     expect(readFileSync(join(path, 'CREDITS.md'), 'utf8')).not.toContain('arcade.obj');
   });
 
-  it('keeps the licence in the game when a pack is put away in the archive', async () => {
+  it('keeps the license in the game when a pack is put away in the archive', async () => {
     const { app, projects, project, path, packs, aFile, libraryId } = await withGame();
     await projects.copy(project.id, [{ packId: packs[0]!.id, ref: aFile.ref }], app.context().copySource());
-    await projects.keepLicences(libraryId, [packs[0]!.id], app.context().copySource());
-    expect(existsSync(join(path, 'Assets', 'ThirdParty', 'Mini Arcade', 'LICENCE.txt'))).toBe(true);
+    await projects.keepLicenses(libraryId, [packs[0]!.id], app.context().copySource());
+    expect(existsSync(join(path, 'Assets', 'ThirdParty', 'Mini Arcade', 'LICENSE.txt'))).toBe(true);
   });
 
-  it('brings a game up to date when a pack is renamed or its licence changes', async () => {
+  it('brings a game up to date when a pack is renamed or its license changes', async () => {
     const { app, projects, project, path, packs, aFile, libraryId } = await withGame();
     await projects.copy(project.id, [{ packId: packs[0]!.id, ref: aFile.ref }], app.context().copySource());
 
-    await projects.packChanged(libraryId, packs[0]!.id, { packName: 'Arcade Deluxe', licence: 'CC-BY-4.0', attribution: 'Someone', creator: 'Someone', sourceUrl: 'https://example.test/' });
+    await projects.packChanged(libraryId, packs[0]!.id, { packName: 'Arcade Deluxe', license: 'CC-BY-4.0', attribution: 'Someone', creator: 'Someone', sourceUrl: 'https://example.test/' });
 
     // What the game has on record is what changed, and the credits are written from that.
     const entries = await projects.entries(project.id, libraryId, () => 'Library');
     expect(entries[0]!.packName).toBe('Arcade Deluxe');
-    expect(entries[0]!.licence).toBe('CC-BY-4.0');
+    expect(entries[0]!.license).toBe('CC-BY-4.0');
     expect(readFileSync(join(path, 'CREDITS.md'), 'utf8')).toContain('Someone');
   });
 
@@ -261,8 +261,8 @@ describe('copying into a game', () => {
 });
 
 describe('what a copy warns about before it happens', () => {
-  /** A library holding one pack with the licence and status a test wants to try. */
-  async function withPack(over: { licence?: string | null; source?: string | null } = {}) {
+  /** A library holding one pack with the license and status a test wants to try. */
+  async function withPack(over: { license?: string | null; source?: string | null } = {}) {
     const app = await running([{ name: 'One Pack', files: { 'Models/thing.obj': 'o thing\n' }, ...over }]);
     const projects = new ProjectService(tempDir(), new Jobs(() => undefined));
     const path = tempDir();
@@ -272,32 +272,32 @@ describe('what a copy warns about before it happens', () => {
     return { app, projects, project, path, row, file };
   }
 
-  it('says when a pack has no licence recorded', async () => {
-    const { app, projects, project, row, file } = await withPack({ licence: null });
+  it('says when a pack has no license recorded', async () => {
+    const { app, projects, project, row, file } = await withPack({ license: null });
     const plan = await projects.plan(project.id, [{ packId: row.id, ref: file.ref }], app.context().copySource());
-    expect(plan.warnings.join(' ')).toMatch(/no licence/i);
+    expect(plan.warnings.join(' ')).toMatch(/no license/i);
   });
 
   it('says when a pack may not be used in a commercial game', async () => {
-    const { app, projects, project, row, file } = await withPack({ licence: 'CC-BY-NC-4.0' });
+    const { app, projects, project, row, file } = await withPack({ license: 'CC-BY-NC-4.0' });
     const plan = await projects.plan(project.id, [{ packId: row.id, ref: file.ref }], app.context().copySource());
     expect(plan.warnings.join(' ')).toMatch(/commercial/i);
   });
 
   it('says when a pack needs a credit line and has none', async () => {
-    const { app, projects, project, row, file } = await withPack({ licence: 'CC-BY-4.0' });
+    const { app, projects, project, row, file } = await withPack({ license: 'CC-BY-4.0' });
     const plan = await projects.plan(project.id, [{ packId: row.id, ref: file.ref }], app.context().copySource());
     expect(plan.warnings.join(' ')).toMatch(/credit line/i);
   });
 
   it('says when a pack is still waiting in Review', async () => {
-    const { app, projects, project, row, file } = await withPack({ licence: null, source: null });
+    const { app, projects, project, row, file } = await withPack({ license: null, source: null });
     const plan = await projects.plan(project.id, [{ packId: row.id, ref: file.ref }], app.context().copySource());
     expect(plan.warnings.join(' ')).toMatch(/Inbox|Review/i);
   });
 
   it('says nothing at all about a pack whose papers are in order', async () => {
-    const { app, projects, project, row, file } = await withPack({ licence: 'CC0-1.0' });
+    const { app, projects, project, row, file } = await withPack({ license: 'CC0-1.0' });
     const plan = await projects.plan(project.id, [{ packId: row.id, ref: file.ref }], app.context().copySource());
     expect(plan.warnings).toEqual([]);
   });

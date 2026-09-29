@@ -17,6 +17,7 @@ import { tempDir } from './helpers';
 import { PIXEL, running } from './library';
 import { writeZip } from './zipfixture';
 import type { LibraryState } from '../src/shared/types';
+import { PACK_DIRS } from '../src/main/library/layout';
 
 /** A library with one pack already in it, opened and read. */
 async function opened(packs: Record<string, Record<string, string | Buffer>> = { 'Mini Arcade': { 'Models/arcade.obj': 'o arcade\n' } }) {
@@ -42,7 +43,7 @@ async function opened(packs: Record<string, Record<string, string | Buffer>> = {
       mkdirSync(join(file, '..'), { recursive: true });
       writeFileSync(file, body);
     }
-    mkdirSync(join(dir, 'licence'), { recursive: true });
+    mkdirSync(join(dir, PACK_DIRS.license), { recursive: true });
     writeFileSync(
       join(dir, 'pack.json'),
       JSON.stringify({
@@ -50,7 +51,7 @@ async function opened(packs: Record<string, Record<string, string | Buffer>> = {
         id: `id-${name.toLowerCase().replace(/\W+/g, '-')}`,
         name,
         status: 'library',
-        licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' },
+        license: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' },
         source: { site: null, name: 'Test', url: null, creator: null, creatorUrl: null },
         addedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -110,7 +111,7 @@ describe('reading what a pack says about itself', () => {
     const id = only(library).id;
     expect((await library.packRecord(id)).meta.name).toBe('Mini Arcade');
     expect(await library.detect(id)).toBeTruthy();
-    expect(Array.isArray(await library.partLicences(id))).toBe(true);
+    expect(Array.isArray(await library.partLicenses(id))).toBe(true);
     expect(await library.details(id)).toHaveProperty('suggestions');
     expect(Array.isArray(await library.packFolders(id))).toBe(true);
     close();
@@ -135,17 +136,17 @@ describe('reading what a pack says about itself', () => {
     close();
   });
 
-  it('keeps a note about the licence with the pack', async () => {
+  it('keeps a note about the license with the pack', async () => {
     const { library, root, close } = await opened();
     const id = only(library).id;
-    await library.addLicenceNote(id, 'Bought in a bundle, receipt in licence/.');
-    expect(JSON.parse(readFileSync(join(root, 'packs', 'Mini Arcade', 'pack.json'), 'utf8')).licence.notes).toContain('bundle');
+    await library.addLicenseNote(id, 'Bought in a bundle, receipt in license/.');
+    expect(JSON.parse(readFileSync(join(root, 'packs', 'Mini Arcade', 'pack.json'), 'utf8')).license.notes).toContain('bundle');
     close();
   });
 });
 
 describe('proof that a pack is what it says', () => {
-  it('lists the licence folder, takes files into it, and finds one by name', async () => {
+  it('lists the license folder, takes files into it, and finds one by name', async () => {
     const { library, root, close } = await opened();
     const id = only(library).id;
     const from = tempDir();
@@ -156,12 +157,12 @@ describe('proof that a pack is what it says', () => {
 
     const files = await library.proofFiles(id);
     expect(files.map((f) => f.name)).toContain('receipt.txt');
-    expect(existsSync(join(root, 'packs', 'Mini Arcade', 'licence', 'receipt.txt'))).toBe(true);
+    expect(existsSync(join(root, 'packs', 'Mini Arcade', PACK_DIRS.license, 'receipt.txt'))).toBe(true);
     expect(await library.proofPath(id, 'receipt.txt')).toContain('receipt.txt');
     close();
   });
 
-  it('will not hand out a path outside the pack own licence folder', async () => {
+  it('will not hand out a path outside the pack own license folder', async () => {
     const { library, close } = await opened();
     await expect(library.proofPath(only(library).id, '../../pack.json')).rejects.toThrow();
     close();
@@ -277,9 +278,9 @@ describe('the bin', () => {
     await library.create(root, 'Zipped');
     const dir = join(root, 'packs', 'Zipped Pack');
     mkdirSync(join(dir, 'original'), { recursive: true });
-    mkdirSync(join(dir, 'licence'), { recursive: true });
+    mkdirSync(join(dir, PACK_DIRS.license), { recursive: true });
     writeZip(join(dir, 'original', 'kit.zip'), { 'Models/thing.obj': 'o thing\n' });
-    writeFileSync(join(dir, 'pack.json'), JSON.stringify({ format: 1, id: 'id-zipped', name: 'Zipped Pack', status: 'library', licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' }, source: { site: null, name: 'Test', url: null, creator: null, creatorUrl: null }, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }));
+    writeFileSync(join(dir, 'pack.json'), JSON.stringify({ format: 1, id: 'id-zipped', name: 'Zipped Pack', status: 'library', license: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' }, source: { site: null, name: 'Test', url: null, creator: null, creatorUrl: null }, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }));
     await library.sync();
     await library.sync();
 
@@ -357,16 +358,16 @@ describe('collections', () => {
     const { library, close } = await opened();
     const id = only(library).id;
     const ref = 'original/Models/arcade.obj';
-    const starredPacks = () => library.require().queries.packs({ scope: 'library', text: '', filters: {}, favourites: true }, 'added', 0, 10).total;
+    const starredPacks = () => library.require().queries.packs({ scope: 'library', text: '', filters: {}, favorites: true }, 'added', 0, 10).total;
 
-    await library.favouritePack(id, true);
+    await library.favoritePack(id, true);
     expect(starredPacks()).toBe(1);
-    await library.favouritePack(id, false);
+    await library.favoritePack(id, false);
     expect(starredPacks()).toBe(0);
 
-    await library.favouriteAssets([{ packId: id, ref }], true);
+    await library.favoriteAssets([{ packId: id, ref }], true);
     expect((await library.collectionsHolding(id, ref)).length).toBe(1);
-    await library.favouriteAssets([{ packId: id, ref }], false);
+    await library.favoriteAssets([{ packId: id, ref }], false);
     expect(await library.collectionsHolding(id, ref)).toEqual([]);
     close();
   });
@@ -397,7 +398,7 @@ describe('importing', () => {
     expect(done.added.length).toBe(1);
 
     await library.sync();
-    // A pack with no licence and no source waits in Review rather than joining the library.
+    // A pack with no license and no source waits in Review rather than joining the library.
     expect(done.added[0]!.status).toBe('inbox');
     expect(library.require().queries.stats().inbox).toBe(1);
     // The download is kept exactly as it came, inside the pack's own folder.
@@ -446,9 +447,9 @@ describe('when the folder changes underneath it', () => {
     const { library, root, close } = await opened();
     const dir = join(root, 'packs', 'Later Pack');
     mkdirSync(join(dir, 'original'), { recursive: true });
-    mkdirSync(join(dir, 'licence'), { recursive: true });
+    mkdirSync(join(dir, PACK_DIRS.license), { recursive: true });
     writeFileSync(join(dir, 'original', 'thing.obj'), 'o thing\n');
-    writeFileSync(join(dir, 'pack.json'), JSON.stringify({ format: 1, id: 'id-later', name: 'Later Pack', status: 'library', licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' }, source: { site: null, name: 'Test', url: null, creator: null, creatorUrl: null }, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }));
+    writeFileSync(join(dir, 'pack.json'), JSON.stringify({ format: 1, id: 'id-later', name: 'Later Pack', status: 'library', license: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' }, source: { site: null, name: 'Test', url: null, creator: null, creatorUrl: null }, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }));
 
     await library.sync();
     await library.sync();
@@ -493,22 +494,22 @@ describe('when things are not as expected', () => {
     await expect(library.rename('x')).rejects.toMatchObject({ code: 'no-library' });
   });
 
-  it('will not let a pack into the library without both a licence and a source', async () => {
+  it('will not let a pack into the library without both a license and a source', async () => {
     const dataDir = tempDir();
     const root = join(tempDir(), 'Library');
     const library = new LibraryService({ dataDir, jobs: new Jobs(() => undefined), onState: () => undefined, onIndexChanged: () => undefined, siteRules: () => [], binKeepDays: () => 30, watchFiles: false });
     await library.create(root, 'Review');
     const dir = join(root, 'packs', 'No Papers');
     mkdirSync(join(dir, 'original'), { recursive: true });
-    mkdirSync(join(dir, 'licence'), { recursive: true });
+    mkdirSync(join(dir, PACK_DIRS.license), { recursive: true });
     writeFileSync(join(dir, 'original', 'thing.obj'), 'o thing\n');
-    writeFileSync(join(dir, 'pack.json'), JSON.stringify({ format: 1, id: 'id-no-papers', name: 'No Papers', status: 'inbox', licence: { id: null, attribution: null, proof: [], notes: '' }, source: { site: null, name: null, url: null, creator: null, creatorUrl: null }, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }));
+    writeFileSync(join(dir, 'pack.json'), JSON.stringify({ format: 1, id: 'id-no-papers', name: 'No Papers', status: 'inbox', license: { id: null, attribution: null, proof: [], notes: '' }, source: { site: null, name: null, url: null, creator: null, creatorUrl: null }, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }));
     await library.sync();
     await library.sync();
 
     await expect(library.setStatus('id-no-papers', 'library')).rejects.toThrow();
 
-    await library.editPack('id-no-papers', { licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' }, source: { site: null, name: 'Somewhere', url: null, creator: null, creatorUrl: null } });
+    await library.editPack('id-no-papers', { license: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' }, source: { site: null, name: 'Somewhere', url: null, creator: null, creatorUrl: null } });
     await library.setStatus('id-no-papers', 'library');
     expect(library.require().queries.pack('id-no-papers')?.status).toBe('library');
     library.close();
@@ -517,9 +518,9 @@ describe('when things are not as expected', () => {
   it('gives part of a pack terms of its own, and keeps them with it', async () => {
     const { library, root, close } = await opened();
     const id = only(library).id;
-    await library.editPack(id, { licences: [{ path: 'Models', licence: { id: 'CC-BY-4.0', attribution: 'Someone', proof: [], notes: '' } }] });
-    const onDisk = JSON.parse(readFileSync(join(root, 'packs', 'Mini Arcade', 'pack.json'), 'utf8')) as { licences: { path: string }[] };
-    expect(onDisk.licences.map((r) => r.path)).toEqual(['Models']);
+    await library.editPack(id, { licenses: [{ path: 'Models', license: { id: 'CC-BY-4.0', attribution: 'Someone', proof: [], notes: '' } }] });
+    const onDisk = JSON.parse(readFileSync(join(root, 'packs', 'Mini Arcade', 'pack.json'), 'utf8')) as { licenses: { path: string }[] };
+    expect(onDisk.licenses.map((r) => r.path)).toEqual(['Models']);
     close();
   });
 
@@ -556,7 +557,7 @@ describe('when things are not as expected', () => {
     const { library, close } = await opened();
     const id = only(library).id;
     // A collection that will only take CC-BY packs; this one is CC0.
-    const made = await library.createCollection('Only CC-BY', { rules: { licences: ['CC-BY-4.0'], creators: [], styles: [], tags: [], types: [] } });
+    const made = await library.createCollection('Only CC-BY', { rules: { licenses: ['CC-BY-4.0'], creators: [], styles: [], tags: [], types: [] } });
     const result = await library.changeCollection(made, { addPacks: [id] });
     expect(result.refused.length).toBeGreaterThan(0);
     expect(result.addedPacks).toBe(0);

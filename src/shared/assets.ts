@@ -6,7 +6,7 @@
  *   kind plus where it sits and what's around it;
  * - a `role`: `main` for the assets themselves, `support` for files that exist to serve them
  *   (a model's textures and buffers, .mtl files), `preview` for the pack's own screenshots, and
- *   `doc` for readmes and licences. Browsing shows main assets unless asked otherwise.
+ *   `doc` for readmes and licenses. Browsing shows main assets unless asked otherwise.
  */
 
 export const KINDS = ['model', 'image', 'audio', 'font', 'material', 'data', 'doc', 'archive', 'other'] as const;
@@ -74,7 +74,7 @@ export function kindOf(path: string): Kind {
   return EXT[extOf(path)] ?? 'other';
 }
 
-/** Words in a path that mark what it holds. Tested against the path with separators normalised to spaces. */
+/** Words in a path that mark what it holds. Tested against the path with separators normalized to spaces. */
 const PREVIEW = /\b(preview|previews|thumbnail|thumb|screenshot|screenshots|cover|sample|showcase|promo|banner)\b/;
 const UI = /\b(ui|gui|hud|icon|icons|button|buttons|cursor|cursors|panel|panels|menu|interface|crosshairs?)\b/;
 const PBR = /\b(albedo|basecolor|base color|diffuse|normal|normalgl|normaldx|nrm|rough|roughness|metal|metallic|metalness|ao|ambientocclusion|occlusion|height|displacement|disp|opacity|alpha|emission|emissive|specular|gloss|col|color|colormap|arm|orm|mask|bump)\b/;
@@ -82,7 +82,7 @@ const MUSIC = /\b(music|song|songs|soundtrack|ost|bgm|theme|themes|ambient|ambie
 const SKY = /\b(hdri|hdr|sky|skies|skybox|skydome|panorama|equirect)\b/;
 /** Plain "sky" is often a 2D background layer, so ordinary images need a stronger word to count as an HDRI. */
 const SKY_STRONG = /\b(hdri|skybox|skydome|panorama|equirect)\b/;
-const LICENCE_DOC = /\b(licen[cs]e|copying|credits?|readme|attribution)\b/;
+const LICENSE_DOC = /\b(licen[cs]e|copying|credits?|readme|attribution)\b/;
 
 /** Lower-case words of a path: separators, underscores, dashes and camelCase humps become spaces. */
 export function pathWords(path: string): string {
@@ -143,7 +143,7 @@ export function classify(path: string, size: number, ctx: PackContext): Classifi
       return { kind, type: 'sprite', role: 'main' };
     }
     default: {
-      if (kind === 'other' && LICENCE_DOC.test(name)) return { kind: 'doc', type: 'other', role: 'doc' };
+      if (kind === 'other' && LICENSE_DOC.test(name)) return { kind: 'doc', type: 'other', role: 'doc' };
       const ext = extOf(path);
       // .bin buffers belong to glTF models.
       if (ext === 'bin') return { kind, type: 'other', role: 'support' };

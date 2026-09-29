@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { assetPath } from '@shared/assets';
 import { linksIn } from '@shared/links';
 import { NO_RULES, type CollectionItem } from '@shared/collection';
-import { LICENCES } from '@shared/licences';
+import { LICENSES } from '@shared/licenses';
 import { missingForLibrary, type PackEdit } from '@shared/pack';
 import type { AssetSort, BrowseQuery, Facet, PackSort } from '@shared/query';
 import type { ToolGroup } from '@shared/mcp';
@@ -13,7 +13,7 @@ import type { ToolGroup } from '@shared/mcp';
  * the tools page lists it and the skill file is written from it, so the three can't drift apart.
  *
  * The descriptions carry the rules of the place, because that is what makes an agent competent:
- * a pack needs a licence and a source before it leaves Review, deleting means the bin, archiving
+ * a pack needs a license and a source before it leaves Review, deleting means the bin, archiving
  * keeps everything, and linking copies files into a game's folder.
  */
 
@@ -90,13 +90,13 @@ export const scope = z.enum(['library', 'inbox', 'all']).default('library').desc
 export const filters = z
   .record(z.string(), z.array(z.string()))
   .optional()
-  .describe('Narrow by facet: type, format, source, creator, licence, genre, style, tag. Values within a facet are ORed, facets are ANDed.');
+  .describe('Narrow by facet: type, format, source, creator, license, genre, style, tag. Values within a facet are ORed, facets are ANDed.');
 
 /** A pack as an agent sees it: enough to decide, not the whole record. */
 export const packOut = (p: import('@shared/query').PackRow) => ({
   id: p.id,
   name: p.name,
-  licence: p.licence,
+  license: p.license,
   creator: p.creator,
   source: p.source,
   assets: p.assetCount,
@@ -121,7 +121,7 @@ export const assetOut = (a: import('@shared/query').AssetRow) => ({
   format: a.ext,
   formats: a.formats,
   bytes: a.size,
-  licence: a.licence,
+  license: a.license,
   starred: a.fav,
 });
 
@@ -146,5 +146,5 @@ export const query = (args: { text?: string; filters?: Record<string, string[]>;
   scope: args.scope ?? 'library',
   text: args.text ?? '',
   filters: (args.filters ?? {}) as Partial<Record<Facet, string[]>>,
-  ...(args.starred ? { favourites: true } : {}),
+  ...(args.starred ? { favorites: true } : {}),
 });

@@ -26,7 +26,7 @@ quick way through a folder of downloads from the same site.
 ## Why a pack ends up here
 
 - Its download says nothing about a license.
-- Its license file is there but says something Tessera does not recognise.
+- Its license file is there but says something Tessera does not recognize.
 - It came from a site with no rule yet, so the terms cannot be assumed.
 - You turned off **Packs Tessera is sure about** in Settings, which sends everything here.
 

@@ -7,6 +7,7 @@ import { createLibrary } from '../src/main/library/layout';
 import { createPack } from '../src/main/library/packs';
 import { tempDir } from './helpers';
 import { writeZip } from './zipfixture';
+import { PACK_DIRS } from '../src/main/library/layout';
 
 describe('pack names from downloads', () => {
   it.each([
@@ -27,7 +28,7 @@ describe('pack names from downloads', () => {
 });
 
 describe('detecting a pack', () => {
-  it('reads the licence and site from files in the download', async () => {
+  it('reads the license and site from files in the download', async () => {
     const root = tempDir();
     await createLibrary(root, 'lib');
     const pack = await createPack(root, 'City');
@@ -36,25 +37,25 @@ describe('detecting a pack', () => {
       'Models/car.glb': 'x',
     });
     const { files } = await listPackFiles(pack.dir);
-    expect(await detectPack(pack.dir, files)).toEqual({ licence: 'CC0-1.0', licenceFrom: 'License.txt', licenceSure: true, site: 'kenney', url: null, creator: 'Kenney' });
+    expect(await detectPack(pack.dir, files)).toEqual({ license: 'CC0-1.0', licenseFrom: 'License.txt', licenseSure: true, site: 'kenney', url: null, creator: 'Kenney' });
   });
 
-  it('prefers proof files saved in licence/ and picks up the site link', async () => {
+  it('prefers proof files saved in license/ and picks up the site link', async () => {
     const root = tempDir();
     await createLibrary(root, 'lib');
     const pack = await createPack(root, 'Icons');
-    writeFileSync(join(pack.dir, 'licence', 'license.txt'), 'Icons by Lorc, licensed under CC BY 3.0. https://game-icons.net/1x1/lorc/sword.html');
+    writeFileSync(join(pack.dir, PACK_DIRS.license, 'license.txt'), 'Icons by Lorc, licensed under CC BY 3.0. https://game-icons.net/1x1/lorc/sword.html');
     writeFileSync(join(pack.dir, 'original', 'readme.txt'), 'This pack is public domain (CC0).');
     const { files } = await listPackFiles(pack.dir);
-    expect(await detectPack(pack.dir, files)).toMatchObject({ licence: 'CC-BY-3.0', licenceFrom: 'license.txt', site: 'game-icons', url: 'https://game-icons.net/1x1/lorc/sword.html' });
+    expect(await detectPack(pack.dir, files)).toMatchObject({ license: 'CC-BY-3.0', licenseFrom: 'license.txt', site: 'game-icons', url: 'https://game-icons.net/1x1/lorc/sword.html' });
   });
 
-  it("falls back to a free site's usual licence, and says so", async () => {
+  it("falls back to a free site's usual license, and says so", async () => {
     const root = tempDir();
     await createLibrary(root, 'lib');
     const pack = await createPack(root, 'Nature');
     writeFileSync(join(pack.dir, 'original', 'quaternius_nature.zip'), 'not really a zip');
     const { files } = await listPackFiles(pack.dir);
-    expect(await detectPack(pack.dir, files, { downloadName: 'quaternius_nature.zip' })).toMatchObject({ licence: 'CC0-1.0', licenceFrom: 'Quaternius (usual licence)', site: 'quaternius' });
+    expect(await detectPack(pack.dir, files, { downloadName: 'quaternius_nature.zip' })).toMatchObject({ license: 'CC0-1.0', licenseFrom: 'Quaternius (usual license)', site: 'quaternius' });
   });
 });

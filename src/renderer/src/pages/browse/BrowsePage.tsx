@@ -84,12 +84,12 @@ function BrowseEmpty() {
   const filters = activeFilterCount(s.filters);
   const what = s.mode === 'assets' ? 'assets' : 'packs';
 
-  if (s.favourites) {
+  if (s.favorites) {
     return (
       <EmptyState
         icon={StarOutlineRounded}
         title="Nothing starred yet"
-        body="The star in a tile's corner keeps a thing to hand. Starred assets also gather in a Favourites collection."
+        body="The star in a tile's corner keeps a thing to hand. Starred assets also gather in a Favorites collection."
         actions={
           <Button variant="contained" onClick={() => s.setFavourites(false)}>
             Show everything
@@ -128,7 +128,7 @@ function BrowseEmpty() {
       <EmptyState
         icon={RateReviewOutlined}
         title={stats.inbox === 1 ? 'One pack is waiting in Review' : `${stats.inbox} packs are waiting in Review`}
-        body="They need a licence and a link before their assets show up here."
+        body="They need a license and a link before their assets show up here."
         actions={
           <Button variant="contained" onClick={() => go({ to: 'inbox' })}>
             Open Review
@@ -164,8 +164,8 @@ export function BrowsePage() {
   const go = useNav((n) => n.go);
   const text = useDebounced(s.text, 150);
   const query = useMemo(
-    () => browseQuery({ text, filters: s.filters, includeSupport: s.includeSupport, favourites: s.favourites, kept: s.kept }),
-    [text, s.filters, s.includeSupport, s.favourites, s.kept],
+    () => browseQuery({ text, filters: s.filters, includeSupport: s.includeSupport, favorites: s.favorites, kept: s.kept }),
+    [text, s.filters, s.includeSupport, s.favorites, s.kept],
   );
   // "Best match" without search words means browsing: assets grouped by pack, then folder.
   const assetSort = !text && s.assetSort === 'relevance' ? 'pack' : s.assetSort;
@@ -357,7 +357,7 @@ export function BrowsePage() {
   const stats = useStats().data;
   // The filter pane goes only when there is nothing in the library at all: a star filter is a
   // narrowing like any other, and the facets should follow it.
-  const nothingYet = stats?.assets === 0 && !filtering && !s.favourites;
+  const nothingYet = stats?.assets === 0 && !filtering && !s.favorites;
 
   return (
     <Page title="Browse" flush actions={<BrowseControls total={current.total} stale={current.stale} />}>

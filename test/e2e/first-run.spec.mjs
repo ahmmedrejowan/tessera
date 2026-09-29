@@ -20,7 +20,7 @@ export async function run(ok) {
     await waitFor(t, async () => (await t.call('library:stats')).packs >= 3, 'the packs to be read');
     const stats = await t.call('library:stats');
     ok('three packs go in, with everything inside them counted', stats.packs === 3 && stats.assets > 100, `${stats.packs} packs, ${stats.assets} assets`);
-    ok('their licences were read from the packs themselves', (await t.call('library:health')).noLicence.length === 0);
+    ok('their licenses were read from the packs themselves', (await t.call('library:health')).noLicense.length === 0);
 
     await t.page.waitForTimeout(1200);
     ok('Home shows what the library is made of', await t.page.getByText('Overview', { exact: true }).first().isVisible());

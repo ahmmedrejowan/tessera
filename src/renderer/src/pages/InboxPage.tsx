@@ -20,7 +20,7 @@ import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { LICENCES, licenceInfo, OWN_WORK } from '@shared/licences';
+import { LICENSES, licenseInfo, OWN_WORK } from '@shared/licenses';
 import { missingForLibrary } from '@shared/pack';
 import type { PackRow } from '@shared/query';
 import { sourceFromUrl } from '@shared/sources';
@@ -45,17 +45,17 @@ const ago = (iso: string) => {
 /** The dashed outline that says a field still wants filling in. */
 const needSx = (need: boolean): SxProps<Theme> => (need ? { '& .MuiOutlinedInput-notchedOutline': { borderColor: md('tertiary'), borderStyle: 'dashed' } } : {});
 
-/** The licences worth one click; the rest are in the list. */
+/** The licenses worth one click; the rest are in the list. */
 const QUICK = ['CC0-1.0', 'CC-BY-4.0', 'royalty-free'];
 
 interface Edit {
-  licence?: string | null;
+  license?: string | null;
   url?: string;
   name?: string | null;
 }
 
 /**
- * Fill in one waiting pack and, once it has both a licence and a source, move it into the
+ * Fill in one waiting pack and, once it has both a license and a source, move it into the
  * library. Used by a card and by filling several in at once.
  */
 async function apply(id: string, edit: Edit): Promise<boolean> {
@@ -66,12 +66,12 @@ async function apply(id: string, edit: Edit): Promise<boolean> {
   const found = url ? sourceFromUrl(url) : null;
   const site = edit.url !== undefined ? (found?.id ?? meta.source.site) : meta.source.site;
   const name = edit.name !== undefined ? edit.name : meta.source.name;
-  const licence = edit.licence !== undefined ? edit.licence : meta.licence.id;
+  const license = edit.license !== undefined ? edit.license : meta.license.id;
   await call('pack:edit', id, {
-    licence: { ...meta.licence, id: licence },
+    license: { ...meta.license, id: license },
     source: { ...meta.source, url, site, name, ...(found?.creator && !meta.source.creator ? { creator: found.creator } : {}) },
   });
-  const done = !!licence && !!(url || site || name);
+  const done = !!license && !!(url || site || name);
   if (done) await call('pack:status', id, 'library');
   return done;
 }
@@ -82,11 +82,11 @@ async function apply(id: string, edit: Edit): Promise<boolean> {
  */
 function ReviewCard({ pack, selected, onSelect }: { pack: PackRow; selected: boolean; onSelect: (id: string, on: boolean) => void }) {
   const go = useNav((s) => s.go);
-  const meta = useQuery({ queryKey: ['review-pack', pack.id, pack.licence, pack.source], queryFn: () => call('pack:get', pack.id) }).data?.meta;
+  const meta = useQuery({ queryKey: ['review-pack', pack.id, pack.license, pack.source], queryFn: () => call('pack:get', pack.id) }).data?.meta;
   const [url, setUrl] = useState('');
   useEffect(() => setUrl(meta?.source.url ?? ''), [meta?.source.url]);
 
-  const licence = LICENCES.find((l) => l.id === meta?.licence.id) ?? null;
+  const license = LICENSES.find((l) => l.id === meta?.license.id) ?? null;
   const named = meta?.source.name ?? null;
   const hasSource = !!(meta?.source.site || meta?.source.url || named);
   const mine = named === I_MADE_IT;
@@ -100,7 +100,7 @@ function ReviewCard({ pack, selected, onSelect }: { pack: PackRow; selected: boo
     }
   };
 
-  /** "I made it" or "I don't know": both stand in for a link, and the first sets its own licence. */
+  /** "I made it" or "I don't know": both stand in for a link, and the first sets its own license. */
   const pick = (value: string) => {
     const off = named === value;
     const own = !off && value === I_MADE_IT;
@@ -108,12 +108,12 @@ function ReviewCard({ pack, selected, onSelect }: { pack: PackRow; selected: boo
     void save({
       name: off ? null : value,
       url: '',
-      ...(own ? { licence: meta?.licence.id ?? OWN_WORK } : {}),
-      ...(off && meta?.licence.id === OWN_WORK ? { licence: null } : {}),
+      ...(own ? { license: meta?.license.id ?? OWN_WORK } : {}),
+      ...(off && meta?.license.id === OWN_WORK ? { license: null } : {}),
     });
   };
 
-  const missing = [!meta?.licence.id && 'a licence', !hasSource && 'a source'].filter(Boolean) as string[];
+  const missing = [!meta?.license.id && 'a license', !hasSource && 'a source'].filter(Boolean) as string[];
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 20, borderRadius: SHAPE.lg, background: selected ? md('secondaryContainer') : md('surfaceContainerLow') }}>
@@ -145,21 +145,21 @@ function ReviewCard({ pack, selected, onSelect }: { pack: PackRow; selected: boo
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <Typography variant="labelMedium" sx={{ color: md('onSurfaceVariant') }}>
-          Licence
+          License
         </Typography>
         <Autocomplete
           size="small"
-          options={LICENCES}
-          value={licence}
-          onChange={(_, v) => void save({ licence: v?.id ?? null })}
+          options={LICENSES}
+          value={license}
+          onChange={(_, v) => void save({ license: v?.id ?? null })}
           getOptionLabel={(l) => l.name}
           isOptionEqualToValue={(a, b) => a.id === b.id}
-          renderInput={(p) => <TextField {...p} placeholder="Choose a licence" sx={needSx(!licence)} />}
+          renderInput={(p) => <TextField {...p} placeholder="Choose a license" sx={needSx(!license)} />}
         />
-        {!licence && (
+        {!license && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
             {QUICK.map((id) => (
-              <Chip key={id} size="small" label={licenceInfo(id)!.short} variant="outlined" onClick={() => void save({ licence: id })} />
+              <Chip key={id} size="small" label={licenseInfo(id)!.short} variant="outlined" onClick={() => void save({ license: id })} />
             ))}
           </div>
         )}
@@ -200,7 +200,7 @@ function ReviewCard({ pack, selected, onSelect }: { pack: PackRow; selected: boo
 }
 
 
-/** Filling in several packs at once: the same licence, or the same answer about where they came from. */
+/** Filling in several packs at once: the same license, or the same answer about where they came from. */
 function FillMany({ ids, onDone }: { ids: string[]; onDone: () => void }) {
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const [busy, setBusy] = useState(false);
@@ -240,16 +240,16 @@ function FillMany({ ids, onDone }: { ids: string[]; onDone: () => void }) {
     >
       <Typography variant="labelLarge">{ids.length} picked</Typography>
       <Button disabled={busy} onClick={(e) => setMenu(e.currentTarget)} sx={{ color: md('inversePrimary') }}>
-        Licence
+        License
       </Button>
       <Menu anchorEl={menu} open={!!menu} onClose={() => setMenu(null)} slotProps={{ paper: { sx: { maxHeight: 420 } } }}>
-        {LICENCES.map((l) => (
-          <MenuItem key={l.id} onClick={() => void run({ licence: l.id })}>
+        {LICENSES.map((l) => (
+          <MenuItem key={l.id} onClick={() => void run({ license: l.id })}>
             {l.name}
           </MenuItem>
         ))}
       </Menu>
-      <Button startIcon={<PersonOutlineRounded />} disabled={busy} onClick={() => void run({ name: I_MADE_IT, url: '', licence: OWN_WORK })} sx={{ color: md('inversePrimary') }}>
+      <Button startIcon={<PersonOutlineRounded />} disabled={busy} onClick={() => void run({ name: I_MADE_IT, url: '', license: OWN_WORK })} sx={{ color: md('inversePrimary') }}>
         I made them
       </Button>
       <Button startIcon={<HelpOutlineRounded />} disabled={busy} onClick={() => void run({ name: I_DONT_KNOW, url: '' })} sx={{ color: md('inversePrimary') }}>
@@ -273,14 +273,14 @@ function FillMany({ ids, onDone }: { ids: string[]; onDone: () => void }) {
 }
 
 /**
- * Anything here that already has both a licence and a source was only parked, not undecided: it
+ * Anything here that already has both a license and a source was only parked, not undecided: it
  * goes into the library as the page opens, rather than sitting in a list of things to do.
  */
 function useReadyMoveOn(rows: PackRow[]): void {
   const swept = useRef(new Set<string>());
   useEffect(() => {
-    // A licence is the cheap hint; the pack's own record settles whether a source is there too.
-    const maybe = rows.filter((r) => r.licence && !swept.current.has(r.id));
+    // A license is the cheap hint; the pack's own record settles whether a source is there too.
+    const maybe = rows.filter((r) => r.license && !swept.current.has(r.id));
     if (!maybe.length) return;
     for (const r of maybe) swept.current.add(r.id);
     void (async () => {
@@ -302,7 +302,7 @@ function useReadyMoveOn(rows: PackRow[]): void {
 }
 
 /**
- * Review: packs whose licence or source was not clear. Each has room to fill in the two fields
+ * Review: packs whose license or source was not clear. Each has room to fill in the two fields
  * that matter, and moves into the library by itself once it has both.
  */
 /** How many packs Review draws before asking whether you want the rest. */
@@ -328,7 +328,7 @@ export function InboxPage() {
   return (
     <Page
       title="Review"
-      subtitle={rows.length ? `${rows.length} pack${rows.length === 1 ? '' : 's'} waiting for a licence and a source` : 'Packs waiting for a licence and a source'}
+      subtitle={rows.length ? `${rows.length} pack${rows.length === 1 ? '' : 's'} waiting for a license and a source` : 'Packs waiting for a license and a source'}
       flush
       actions={
         rows.length > 1 ? (
@@ -340,7 +340,7 @@ export function InboxPage() {
         <EmptyState
           icon={RateReviewOutlined}
           title="Nothing to review"
-          body="Packs whose licence or source isn’t clear wait here, so nothing with unknown terms reaches your games."
+          body="Packs whose license or source isn’t clear wait here, so nothing with unknown terms reaches your games."
           actions={
             <>
               <Button variant="contained" startIcon={<AddOutlined />} onClick={() => void choose('files')}>

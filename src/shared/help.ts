@@ -1,5 +1,5 @@
 /**
- * The help centre's own words: topics, and the questions under each. Kept as plain data so the
+ * The help center's own words: topics, and the questions under each. Kept as plain data so the
  * search box, the topic pages and anything else read the same thing.
  */
 
@@ -16,7 +16,7 @@ export interface HelpTopic {
   /** One line under the title. */
   summary: string;
   /** A Material icon name the window maps to a component. */
-  icon: 'start' | 'licence' | 'add' | 'download' | 'organise' | 'project' | 'agents' | 'safety' | 'trouble';
+  icon: 'start' | 'license' | 'add' | 'download' | 'organize' | 'project' | 'agents' | 'safety' | 'trouble';
   questions: HelpQuestion[];
 }
 
@@ -31,7 +31,7 @@ export const HELP: HelpTopic[] = [
         id: 'what-is-tessera',
         q: 'What is Tessera for?',
         a: [
-          'Tessera is a library for the game assets you collect: models, textures, sprites, UI, audio, music, fonts and HDRIs. It keeps your copy of every pack whole, with its licence and where it came from on record, so you can find a piece in seconds and drop it into a game with its credits written for you.',
+          'Tessera is a library for the game assets you collect: models, textures, sprites, UI, audio, music, fonts and HDRIs. It keeps your copy of every pack whole, with its license and where it came from on record, so you can find a piece in seconds and drop it into a game with its credits written for you.',
           'It is a desktop app that works on your own files. Nothing is uploaded, and your library is ordinary folders you can open in Finder or Explorer at any time.',
         ],
       },
@@ -40,7 +40,7 @@ export const HELP: HelpTopic[] = [
         q: 'What is a pack?',
         a: [
           'One download: a zip, a folder, or a few files you got together. Tessera copies it in as it is (archives stay archives) and reads inside to list what it holds.',
-          'A pack carries its own record: name, licence, where it came from, creator, version, style, tags, and any licence files it shipped with.',
+          'A pack carries its own record: name, license, where it came from, creator, version, style, tags, and any license files it shipped with.',
         ],
       },
       {
@@ -62,14 +62,14 @@ export const HELP: HelpTopic[] = [
     ],
   },
   {
-    id: 'licence',
-    title: 'Licences and credits',
+    id: 'license',
+    title: 'Licenses and credits',
     summary: 'Why Tessera asks, what it records, and what it can prove later',
-    icon: 'licence',
+    icon: 'license',
     questions: [
       {
-        id: 'why-licence',
-        q: 'Why does every pack need a licence and a link?',
+        id: 'why-license',
+        q: 'Why does every pack need a license and a link?',
         a: [
           'Because a year from now, when your game ships, you need to know what you were allowed to do with each asset, and be able to show it. A pack without both waits in Review rather than joining the library.',
           'It is the one rule Tessera insists on. Everything else can be filled in later.',
@@ -79,7 +79,7 @@ export const HELP: HelpTopic[] = [
         id: 'credit-line',
         q: 'What is a credit line?',
         a: [
-          'Some licences ask you to name the author. The credit line is the wording to use, such as “Kenney (kenney.nl), CC0”, and Tessera copies it into a project’s CREDITS.md whenever an asset from that pack is used.',
+          'Some licenses ask you to name the author. The credit line is the wording to use, such as “Kenney (kenney.nl), CC0”, and Tessera copies it into a project’s CREDITS.md whenever an asset from that pack is used.',
           'Help shows how many packs still need one, and the pack page is where you fill it in.',
         ],
       },
@@ -87,7 +87,7 @@ export const HELP: HelpTopic[] = [
         id: 'restricted',
         q: 'What counts as restricted terms?',
         a: [
-          'Licences that rule out selling the result (non-commercial), or ones Tessera cannot judge: custom wording, “personal use only”, or nothing at all.',
+          'Licenses that rule out selling the result (non-commercial), or ones Tessera cannot judge: custom wording, “personal use only”, or nothing at all.',
           'Such packs are kept and shown, but marked, so you can decide before they reach a game you sell.',
         ],
       },
@@ -95,7 +95,7 @@ export const HELP: HelpTopic[] = [
         id: 'proof',
         q: 'What proof does Tessera keep?',
         a: [
-          'The licence files the pack shipped with, and, when a pack has a page link, a PDF snapshot of that page as it was when you downloaded it, plus a copy on archive.org if you leave that switch on.',
+          'The license files the pack shipped with, and, when a pack has a page link, a PDF snapshot of that page as it was when you downloaded it, plus a copy on archive.org if you leave that switch on.',
           'Both sit in the pack’s own folder, so they travel with it.',
         ],
       },
@@ -103,7 +103,7 @@ export const HELP: HelpTopic[] = [
         id: 'site-rules',
         q: 'Can I tell Tessera a whole site is CC0?',
         a: [
-          'Yes. When you fill in a pack’s licence and its link, Tessera offers to remember the site; after that its packs fill themselves in. Settings → Sites lists them.',
+          'Yes. When you fill in a pack’s license and its link, Tessera offers to remember the site; after that its packs fill themselves in. Settings → Sites lists them.',
           'What a pack’s own files say always wins over a rule.',
         ],
       },
@@ -127,7 +127,7 @@ export const HELP: HelpTopic[] = [
         id: 'add-page',
         q: 'What is the page that opens when I add something?',
         a: [
-          'The add page: everything Tessera could work out is already filled in (name, licence, source, creator, description, style and tags), with a note under each saying where it came from.',
+          'The add page: everything Tessera could work out is already filled in (name, license, source, creator, description, style and tags), with a note under each saying where it came from.',
           'Add to library when it is right; Finish later to park it in Review; Cancel to drop the copy altogether.',
         ],
       },
@@ -135,7 +135,7 @@ export const HELP: HelpTopic[] = [
         id: 'review',
         q: 'What does Review do?',
         a: [
-          'It holds packs whose licence or source is not clear. Each row takes a licence and a link in place, and moves into the library by itself once it has both.',
+          'It holds packs whose license or source is not clear. Each row takes a license and a link in place, and moves into the library by itself once it has both.',
           'Nothing in Review shows up in Browse, so an unchecked pack cannot slip into a game.',
         ],
       },
@@ -174,7 +174,7 @@ export const HELP: HelpTopic[] = [
         id: 'after-download',
         q: 'What happens when a download finishes?',
         a: [
-          'Settings → Downloads decides: add them (a clear licence goes into the library, anything unclear waits in Review), send every one to Review, or leave them in Downloads with an Add button.',
+          'Settings → Downloads decides: add them (a clear license goes into the library, anything unclear waits in Review), send every one to Review, or leave them in Downloads with an Add button.',
           'Either way the link is recorded as the pack’s source, and the page snapshot and archive.org copy are made.',
         ],
       },
@@ -195,16 +195,16 @@ export const HELP: HelpTopic[] = [
     ],
   },
   {
-    id: 'organise',
-    title: 'Finding and organising',
+    id: 'organize',
+    title: 'Finding and organizing',
     summary: 'Search, filters, collections and tags',
-    icon: 'organise',
+    icon: 'organize',
     questions: [
       {
         id: 'search',
         q: 'How does search work?',
         a: [
-          'The box at the top searches packs, assets and tags at once, and takes you to Browse. Filters down the left narrow by type, format, source, creator, licence, genre, style and tags.',
+          'The box at the top searches packs, assets and tags at once, and takes you to Browse. Filters down the left narrow by type, format, source, creator, license, genre, style and tags.',
           'Browse shows assets or packs (the tabs sit in the title row) and remembers how you left it.',
         ],
       },
@@ -242,7 +242,7 @@ export const HELP: HelpTopic[] = [
         id: 'copy',
         q: 'What happens when I copy an asset to a project?',
         a: [
-          'The asset arrives in the project’s assets folder with the files it needs (a model brings its textures), plus a licence file for the pack it came from, and a CREDITS.md that is kept up to date.',
+          'The asset arrives in the project’s assets folder with the files it needs (a model brings its textures), plus a license file for the pack it came from, and a CREDITS.md that is kept up to date.',
           'The project page lists everything copied, and which library each came from.',
         ],
       },
@@ -290,13 +290,13 @@ export const HELP: HelpTopic[] = [
     id: 'keeping',
     title: 'Starred, archived, deleted',
     summary: 'Keeping what matters to hand, and what happens when you delete something',
-    icon: 'organise',
+    icon: 'organize',
     questions: [
       {
         id: 'star',
         q: 'What does starring do?',
         a: [
-          'A star marks something worth coming back to. Starred packs and files come first in every sort, Home keeps a row of them, and they gather in the Favourites collection.',
+          'A star marks something worth coming back to. Starred packs and files come first in every sort, Home keeps a row of them, and they gather in the Favorites collection.',
           'Star a pack from its page, from the three dots on its card, or by pressing the star on a tile.',
         ],
       },
@@ -337,7 +337,7 @@ export const HELP: HelpTopic[] = [
         id: 'agents-what',
         q: 'What does "answer AI agents" mean?',
         a: [
-          'While Tessera is open it listens on your own computer for AI agents, at an address like http://127.0.0.1:7458/mcp. An agent that connects can do the things this window does: search the library, read a pack, record a licence, gather a collection, link assets into a game, bring new packs in, move something to the bin.',
+          'While Tessera is open it listens on your own computer for AI agents, at an address like http://127.0.0.1:7458/mcp. An agent that connects can do the things this window does: search the library, read a pack, record a license, gather a collection, link assets into a game, bring new packs in, move something to the bin.',
           'It is bound to this computer, so nothing on your network or on the internet can reach it. There is no password, because there is no way in from outside.',
         ],
       },
@@ -346,7 +346,7 @@ export const HELP: HelpTopic[] = [
         q: 'How do I connect one?',
         a: [
           'Home → AI agents → How to connect has the address, the command for Claude Code, and the JSON that config-file agents take. The same page is in Settings → AI agents.',
-          'That page also carries a skill file: a short explanation of the words Tessera uses and the rules that matter. Install it for Claude in one press, save it anywhere, or copy it into a project. An agent that has read it knows not to guess a licence.',
+          'That page also carries a skill file: a short explanation of the words Tessera uses and the rules that matter. Install it for Claude in one press, save it anywhere, or copy it into a project. An agent that has read it knows not to guess a license.',
         ],
       },
       {

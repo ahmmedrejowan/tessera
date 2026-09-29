@@ -12,7 +12,7 @@ export const LINK: Tool[] = [
     name: 'link_to_game',
     group: 'link',
     title: 'Link assets to a game',
-    summary: 'Copy files into a game\'s folder, in the format that game prefers, with their textures, their licence papers and the credits file kept up to date. This is what "linking" means here.',
+    summary: 'Copy files into a game\'s folder, in the format that game prefers, with their textures, their license papers and the credits file kept up to date. This is what "linking" means here.',
     input: z.object({
       projectId: z.string(),
       assetIds: z.array(z.number().int()).default([]),
@@ -22,7 +22,7 @@ export const LINK: Tool[] = [
       const items = args.assetIds.length ? ctx.library.require().queries.refs(args.assetIds) : [];
       for (const packId of args.packIds) items.push(...packAssets(ctx, packId));
       if (!items.length) throw new Error('Nothing to link: give assetIds or packIds.');
-      // The window will not copy without showing what is wrong with the licences first: a pack
+      // The window will not copy without showing what is wrong with the licenses first: a pack
       // with none recorded, one that forbids commercial use, one that needs a credit line, one
       // still in Review. An agent was told none of it, which is the one thing this application
       // exists to prevent. The same plan the window uses is read here and handed back.
@@ -32,7 +32,7 @@ export const LINK: Tool[] = [
       ctx.note(`An agent linked ${n} asset${n === 1 ? '' : 's'} to a game`);
       return {
         linked: n,
-        ...(plan.warnings.length ? { licenceWarnings: plan.warnings } : {}),
+        ...(plan.warnings.length ? { licenseWarnings: plan.warnings } : {}),
         ...(plan.overwriting.length ? { filesWrittenOver: plan.overwriting } : {}),
         ...(plan.warnings.length ? { tellThePerson: 'Say these out loud. They were copied anyway, and the person may want to undo it.' } : {}),
       };

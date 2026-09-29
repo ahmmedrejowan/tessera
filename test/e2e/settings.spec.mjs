@@ -10,7 +10,7 @@ export async function run(ok) {
     root = await withSamples(first);
     await first.call('settings:update', { theme: 'dark', binKeepDays: 7 });
     const pack = (await first.call('browse:packs', { scope: 'library', text: 'arcade', filters: {} }, 'name', 0, 1)).rows[0];
-    await first.call('favourites:pack', pack.id, true);
+    await first.call('favorites:pack', pack.id, true);
     await first.call('collections:create', 'For the platformer', {});
     await first.page.waitForTimeout(1500);
   } finally {
@@ -23,7 +23,7 @@ export async function run(ok) {
     await waitFor(again, async () => (await again.call('library:state')).status === 'ready', 'the library to open by itself');
     await waitFor(again, async () => (await again.call('library:stats')).packs === 3, 'the packs to be read again');
     ok('it opens the library it was last in, with everything in it', (await again.call('library:state')).library.path === root);
-    ok('what was starred is still starred', (await again.call('browse:packs', { scope: 'library', text: '', filters: {}, favourites: true }, 'name', 0, 5)).total === 1);
+    ok('what was starred is still starred', (await again.call('browse:packs', { scope: 'library', text: '', filters: {}, favorites: true }, 'name', 0, 5)).total === 1);
     ok('the collection is still there', (await again.call('collections:list')).some((c) => c.name === 'For the platformer'));
     const settings = await again.call('settings:get');
     ok('and the settings are as they were left', settings.theme === 'dark' && settings.binKeepDays === 7, `${settings.theme}, ${settings.binKeepDays} days`);

@@ -6,7 +6,7 @@
  */
 import type { PackEdit, PackMeta, PackStatus } from './pack';
 import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary, ProjectUse } from './project';
-import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenceHealth, Page, PackRow, PackSort } from './query';
+import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenseHealth, Page, PackRow, PackSort } from './query';
 import type { Provider, StorageTarget } from './storage';
 import type { CollectionItem, CollectionRules, CollectionSummary, SmartQuery } from './collection';
 import type { McpCall, McpClientInfo, McpStatus, McpToolInfo } from './mcp';
@@ -16,7 +16,7 @@ export interface Invokes {
   'app:info': () => AppInfo;
   'settings:get': () => Settings;
   'settings:update': (patch: SettingsPatch) => Settings;
-  /** Colours for the window controls drawn by the OS on Windows and Linux, to match the app bar. */
+  /** Colors for the window controls drawn by the OS on Windows and Linux, to match the app bar. */
   'window:chrome': (colors: { background: string; foreground: string }) => void;
 
   /**
@@ -45,7 +45,7 @@ export interface Invokes {
   'library:close': () => void;
   'library:refresh': () => void;
   'library:stats': () => LibraryStats;
-  'library:health': () => LicenceHealth;
+  'library:health': () => LicenseHealth;
   /** Read every pack again from scratch (after moving files around by hand, say). */
   'library:reindex': () => void;
   /** Size of the thumbnail cache, and throw it away (thumbnails are drawn again as needed). */
@@ -94,10 +94,10 @@ export interface Invokes {
   'pack:get': (id: string) => (PackRow & { meta: PackMeta }) | null;
   'pack:files': (id: string) => AssetRow[];
   'pack:edit': (id: string, edit: PackEdit) => void;
-  /** Licence, source and creator read from the pack's own files. */
+  /** License, source and creator read from the pack's own files. */
   'pack:detect': (id: string) => Detected;
-  /** Licence files inside the pack: parts that may have terms of their own. */
-  'pack:partLicences': (id: string) => { path: string; licence: string; from: string }[];
+  /** License files inside the pack: parts that may have terms of their own. */
+  'pack:partLicenses': (id: string) => { path: string; license: string; from: string }[];
   /** For the add page: what was detected (with where from) and details worth filling in. */
   'pack:details': (id: string) => { detected: Detected; suggestions: PackSuggestions };
   /** Delete a pack that was only just added and isn't in the library yet (the add page's Cancel). */
@@ -110,13 +110,13 @@ export interface Invokes {
   'import:takeOriginals': (packId: string) => void;
   /** Keep a record of the pack's download page, in the background: a snapshot, an archive.org copy. */
   'pack:recordPage': (id: string, what: { snapshot: boolean; archive: boolean }) => void;
-  /** Move a pack between the Inbox and the library; joining the library needs a licence and a source. */
+  /** Move a pack between the Inbox and the library; joining the library needs a license and a source. */
   'pack:status': (id: string, status: PackStatus) => void;
   /** Move a pack to the system trash; returns its name. */
   'pack:remove': (id: string) => string;
-  /** Files in the pack's licence/ folder: licence texts, receipts, screenshots. */
+  /** Files in the pack's license/ folder: license texts, receipts, screenshots. */
   'pack:proof': (id: string) => { name: string; size: number; url: string }[];
-  /** Ask for files and copy them into the pack's licence/ folder; returns how many were added. */
+  /** Ask for files and copy them into the pack's license/ folder; returns how many were added. */
   'pack:addProof': (id: string) => number;
   /** Put more files into a pack that is already in the library, under `into` if one is given. */
   'pack:addFiles': (id: string, paths: string[], into?: string) => { added: number; names: string[] };
@@ -193,10 +193,10 @@ export interface Invokes {
   'collections:change': (id: string, change: CollectionChange) => CollectionResult;
   /** The collections holding this pack, or this one file: what a thing belongs to. */
   'collections:holding': (packId: string, ref?: string) => { id: string; name: string }[];
-  /** Star assets, or take the star off: they go in and out of the built-in Favourites collection. */
-  'favourites:assets': (items: CollectionItem[], on: boolean) => void;
+  /** Star assets, or take the star off: they go in and out of the built-in Favorites collection. */
+  'favorites:assets': (items: CollectionItem[], on: boolean) => void;
   /** Star a pack, in its own record, so the star travels with it. */
-  'favourites:pack': (id: string, on: boolean) => void;
+  'favorites:pack': (id: string, on: boolean) => void;
   /** Put a pack away, or bring it back. An archived pack keeps everything; it just isn't browsed. */
   'pack:archive': (id: string, on: boolean) => void;
 
@@ -315,8 +315,8 @@ export interface Invokes {
   /** Is there a newer Tessera? Nothing is downloaded or installed by the check. */
   'updates:status': () => UpdateStatus;
   'updates:check': () => UpdateStatus;
-  /** One of Tessera's own documents, as written: its licence, changelog or privacy notice. */
-  'app:document': (name: 'licence' | 'changelog' | 'privacy') => string;
+  /** One of Tessera's own documents, as written: its license, changelog or privacy notice. */
+  'app:document': (name: 'license' | 'changelog' | 'privacy') => string;
   /** Fetch the newest version's installer for this computer, ready to open. */
   'updates:download': () => UpdateStatus;
   /** Open the installer that was fetched. */

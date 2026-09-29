@@ -15,8 +15,8 @@ import { call } from '../../api';
 import { AssetThumb } from '../../components/AssetThumb';
 import { formatBytes, formatCount, sourceName, typeSummary } from '../../components/labels';
 import { assetPath } from '@shared/assets';
-import { licenceForPath } from '@shared/pack';
-import { LicenceChip, licenceSummary } from '../../components/LicenceChip';
+import { licenseForPath } from '@shared/pack';
+import { LicenseChip, licenseSummary } from '../../components/LicenseChip';
 import { useBrowse, type Selected } from '../../state/browse';
 import { useIndexVersion, useLibraryId } from '../../state/library';
 import { useNav } from '../../state/nav';
@@ -47,27 +47,27 @@ function usePack(id: string | null) {
 function PackSection({ packId, fileRef }: { packId: string; fileRef?: string }) {
   const pack = usePack(packId).data;
   if (!pack) return null;
-  // An asset shows the licence covering it, which may be a rule for part of the pack.
-  const licence = fileRef ? licenceForPath(pack.meta, assetPath(fileRef)) : pack.meta.licence;
+  // An asset shows the license covering it, which may be a rule for part of the pack.
+  const license = fileRef ? licenseForPath(pack.meta, assetPath(fileRef)) : pack.meta.license;
   const site = sourceInfo(pack.meta.source.site);
   return (
     <>
       <Row label="Source">{sourceName(pack.source) ?? 'Not recorded'}</Row>
       {pack.creator && <Row label="Creator">{pack.creator}</Row>}
-      <Row label="Licence">
+      <Row label="License">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
-          <LicenceChip id={licence.id} />
+          <LicenseChip id={license.id} />
           <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-            {licenceSummary(licence.id)}
+            {licenseSummary(license.id)}
           </Typography>
-          {licence !== pack.meta.licence && (
+          {license !== pack.meta.license && (
             <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
               From the part of the pack this file is in.
             </Typography>
           )}
-          {licence.attribution && (
+          {license.attribution && (
             <Typography variant="bodySmall" sx={{ color: md('onSurface'), fontStyle: 'italic' }}>
-              “{licence.attribution}”
+              “{license.attribution}”
             </Typography>
           )}
         </div>

@@ -27,7 +27,7 @@ import { AssetThumb } from '../../components/AssetThumb';
 import { EmptyState } from '../../components/EmptyState';
 import { Page } from '../Placeholder';
 import { displayName, formatCount } from '../../components/labels';
-import { LicenceChip } from '../../components/LicenceChip';
+import { LicenseChip } from '../../components/LicenseChip';
 import { ask } from '../../notices/dialogs';
 import { failed, notify } from '../../notices/store';
 import { useLibraryId } from '../../state/library';
@@ -187,7 +187,7 @@ export function ProjectPage({ id }: { id: string }) {
         </Setting>
         <Setting
           title="Credits file"
-          body={project.creditsFile ? <>Kept up to date at <code>{project.creditsFile}</code>, with every pack you use and the credit its licence asks for.</> : 'Off. Turn it on to have the credits written for you.'}
+          body={project.creditsFile ? <>Kept up to date at <code>{project.creditsFile}</code>, with every pack you use and the credit its license asks for.</> : 'Off. Turn it on to have the credits written for you.'}
         >
           {project.creditsFile && (
             <Button onClick={() => void call('projects:reveal', id, project.creditsFile!)} startIcon={<FolderOpenOutlined />}>
@@ -204,7 +204,7 @@ export function ProjectPage({ id }: { id: string }) {
           <EmptyState
             icon={SportsEsportsOutlined}
             title="Nothing copied here yet"
-            body={`Pick assets in Browse and copy them to ${project.name}: they land in ${project.target}/ with their textures, licences and credits. If this game is not new, it may already have assets your library knows, and those can be recorded where they are instead.`}
+            body={`Pick assets in Browse and copy them to ${project.name}: they land in ${project.target}/ with their textures, licenses and credits. If this game is not new, it may already have assets your library knows, and those can be recorded where they are instead.`}
             actions={
               <>
                 <Button variant="contained" onClick={() => go({ to: 'browse' })}>
@@ -236,7 +236,7 @@ export function ProjectPage({ id }: { id: string }) {
                   <Typography variant="titleSmall" sx={{ color: md('onSurface'), flex: 1, cursor: here ? 'pointer' : 'default' }} onClick={() => here && go({ to: 'pack', id: first.packId })}>
                     {first.packName}
                   </Typography>
-                  <LicenceChip id={first.licence} />
+                  <LicenseChip id={first.license} />
                   {/* Said, not drawn. A circling arrow and a bin beside a pack name are a guess
                       at best, and one of them takes files out of somebody's game. */}
                   <Button
@@ -325,7 +325,7 @@ export function ProjectPage({ id }: { id: string }) {
         <DialogTitle>Unlink {project.name}?</DialogTitle>
         <DialogContent>
           <Typography variant="bodyMedium" sx={{ color: md('onSurfaceVariant') }}>
-            Tessera forgets the project. Nothing in its folder changes: copied assets, licence files and credits stay.
+            Tessera forgets the project. Nothing in its folder changes: copied assets, license files and credits stay.
           </Typography>
         </DialogContent>
         <DialogActions>

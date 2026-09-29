@@ -1,5 +1,5 @@
 /**
- * Sites Tessera recognises. Knowing where a pack came from fills in its creator, usual licence and
+ * Sites Tessera recognizes. Knowing where a pack came from fills in its creator, usual license and
  * link without the user typing them. Anything else is a free-text source.
  */
 
@@ -11,24 +11,24 @@ export interface SourceInfo {
   hosts: string[];
   /** File or folder names typical of this site's downloads (tested against the download's name). */
   names?: RegExp;
-  /** Words in a readme or licence file that identify the site. */
+  /** Words in a readme or license file that identify the site. */
   text?: RegExp;
   /** Who made the packs, when the site is one creator. */
   creator?: string;
-  /** The licence the site's packs usually carry. Always shown as a suggestion, never applied silently to paid sites. */
-  licence?: string;
+  /** The license the site's packs usually carry. Always shown as a suggestion, never applied silently to paid sites. */
+  license?: string;
 }
 
 export const SOURCES: SourceInfo[] = [
-  { id: 'kenney', name: 'Kenney', url: 'https://kenney.nl', hosts: ['kenney.nl'], names: /^kenney[_ -]/i, text: /kenney\.nl|www\.kenney/i, creator: 'Kenney', licence: 'CC0-1.0' },
-  { id: 'quaternius', name: 'Quaternius', url: 'https://quaternius.com', hosts: ['quaternius.com'], names: /quaternius/i, text: /quaternius/i, creator: 'Quaternius', licence: 'CC0-1.0' },
-  { id: 'kaykit', name: 'KayKit', url: 'https://kaylousberg.com', hosts: ['kaylousberg.com', 'kaylousberg.itch.io'], names: /^kaykit/i, text: /kaylousberg|kaykit/i, creator: 'Kay Lousberg', licence: 'CC0-1.0' },
+  { id: 'kenney', name: 'Kenney', url: 'https://kenney.nl', hosts: ['kenney.nl'], names: /^kenney[_ -]/i, text: /kenney\.nl|www\.kenney/i, creator: 'Kenney', license: 'CC0-1.0' },
+  { id: 'quaternius', name: 'Quaternius', url: 'https://quaternius.com', hosts: ['quaternius.com'], names: /quaternius/i, text: /quaternius/i, creator: 'Quaternius', license: 'CC0-1.0' },
+  { id: 'kaykit', name: 'KayKit', url: 'https://kaylousberg.com', hosts: ['kaylousberg.com', 'kaylousberg.itch.io'], names: /^kaykit/i, text: /kaylousberg|kaykit/i, creator: 'Kay Lousberg', license: 'CC0-1.0' },
   { id: 'poly-pizza', name: 'Poly Pizza', url: 'https://poly.pizza', hosts: ['poly.pizza'], text: /poly\.pizza/i },
-  { id: 'poly-haven', name: 'Poly Haven', url: 'https://polyhaven.com', hosts: ['polyhaven.com'], text: /polyhaven/i, licence: 'CC0-1.0' },
-  { id: 'ambientcg', name: 'ambientCG', url: 'https://ambientcg.com', hosts: ['ambientcg.com'], names: /_(1|2|4|8)K-(JPG|PNG)/, text: /ambientcg/i, creator: 'ambientCG', licence: 'CC0-1.0' },
+  { id: 'poly-haven', name: 'Poly Haven', url: 'https://polyhaven.com', hosts: ['polyhaven.com'], text: /polyhaven/i, license: 'CC0-1.0' },
+  { id: 'ambientcg', name: 'ambientCG', url: 'https://ambientcg.com', hosts: ['ambientcg.com'], names: /_(1|2|4|8)K-(JPG|PNG)/, text: /ambientcg/i, creator: 'ambientCG', license: 'CC0-1.0' },
   { id: 'opengameart', name: 'OpenGameArt', url: 'https://opengameart.org', hosts: ['opengameart.org'], text: /opengameart/i },
-  { id: 'game-icons', name: 'game-icons.net', url: 'https://game-icons.net', hosts: ['game-icons.net'], names: /game-icons/i, text: /game-icons\.net/i, licence: 'CC-BY-3.0' },
-  { id: 'google-fonts', name: 'Google Fonts', url: 'https://fonts.google.com', hosts: ['fonts.google.com'], licence: 'OFL-1.1' },
+  { id: 'game-icons', name: 'game-icons.net', url: 'https://game-icons.net', hosts: ['game-icons.net'], names: /game-icons/i, text: /game-icons\.net/i, license: 'CC-BY-3.0' },
+  { id: 'google-fonts', name: 'Google Fonts', url: 'https://fonts.google.com', hosts: ['fonts.google.com'], license: 'OFL-1.1' },
   { id: 'freesound', name: 'Freesound', url: 'https://freesound.org', hosts: ['freesound.org'], text: /freesound\.org/i },
   { id: 'sketchfab', name: 'Sketchfab', url: 'https://sketchfab.com', hosts: ['sketchfab.com'], text: /sketchfab/i },
   { id: 'itch', name: 'itch.io', url: 'https://itch.io', hosts: ['itch.io'] },
@@ -63,7 +63,7 @@ export function sourceFromName(name: string): SourceInfo | null {
   return SOURCES.find((s) => s.names?.test(name)) ?? null;
 }
 
-/** The known site a readme or licence text mentions. */
+/** The known site a readme or license text mentions. */
 export function sourceFromText(text: string): SourceInfo | null {
   return SOURCES.find((s) => s.text?.test(text)) ?? null;
 }

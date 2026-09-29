@@ -25,7 +25,7 @@ import type { ActivityKind } from '@shared/types';
 import { call, on } from '../api';
 import { formatBytes, formatCount, TYPE_ICONS } from '../components/labels';
 import { SideBlock } from '../components/SideBlock';
-import { FAVOURITES } from '@shared/collection';
+import { FAVORITES } from '@shared/collection';
 import { AgentCard } from './agents/AgentCard';
 import { AgentHistory } from './agents/AgentHistory';
 import { CollectionCard } from './collections/CollectionsPage';
@@ -107,10 +107,10 @@ function Happening() {
 }
 
 /**
- * What needs you: packs waiting in Review, and packs missing a licence, a source or a credit line.
+ * What needs you: packs waiting in Review, and packs missing a license, a source or a credit line.
  * It sits in Home's side column, so each line stacks rather than running along a row.
  */
-function Watcher({ inbox, watching, ready }: { inbox: number; watching: { id: string; name: string; why: string; licence: string | null }[]; ready: boolean }) {
+function Watcher({ inbox, watching, ready }: { inbox: number; watching: { id: string; name: string; why: string; license: string | null }[]; ready: boolean }) {
   const go = useNav((s) => s.go);
   if (!inbox && !watching.length) {
     return ready ? (
@@ -118,7 +118,7 @@ function Watcher({ inbox, watching, ready }: { inbox: number; watching: { id: st
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' }}>
           <CheckCircleOutlined sx={{ fontSize: 20, color: md('onSurfaceVariant'), flexShrink: 0 }} />
           <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-            Every pack has its licence and source on record.
+            Every pack has its license and source on record.
           </Typography>
         </div>
       </SideBlock>
@@ -392,7 +392,7 @@ export function HomePage() {
   // What was starred, first thing: the whole point of a star is that it comes to hand.
   const starredPacks = useQuery({
     queryKey: ['starred-packs', lib, version],
-    queryFn: () => call('browse:packs', { scope: 'library', text: '', filters: {}, favourites: true }, 'name', 0, 6),
+    queryFn: () => call('browse:packs', { scope: 'library', text: '', filters: {}, favorites: true }, 'name', 0, 6),
     enabled: !!lib,
   }).data?.rows ?? [];
   const projects = useProjects().data ?? [];
@@ -403,10 +403,10 @@ export function HomePage() {
   if (stats && stats.packs === 0 && stats.inbox === 0) return <EmptyHome />;
 
   const types = ASSET_TYPES.filter((t) => t !== 'other' && (stats?.byType[t] ?? 0) > 0);
-  // Only what is actually missing. A licence that forbids selling is a choice, and the game that
+  // Only what is actually missing. A license that forbids selling is a choice, and the game that
   // uses it is where that matters.
   const watching = [
-    ...(health?.noLicence ?? []).map((p) => ({ ...p, why: 'has no licence on record' })),
+    ...(health?.noLicense ?? []).map((p) => ({ ...p, why: 'has no license on record' })),
     ...(health?.noSource ?? []).map((p) => ({ ...p, why: 'has nothing on record about where it came from' })),
     ...(health?.noCreditLine ?? []).map((p) => ({ ...p, why: 'needs a credit line' })),
   ];
@@ -466,7 +466,7 @@ export function HomePage() {
 
         {/* Starred packs only. A starred file is one of thousands, and belongs in Browse. */}
         {starredPacks.length > 0 && (
-          <Section title="Favourite" action={<SeeAll onClick={() => go({ to: 'collection', id: FAVOURITES })} />}>
+          <Section title="Favorite" action={<SeeAll onClick={() => go({ to: 'collection', id: FAVORITES })} />}>
             <Row>
               {starredPacks.map((p) => (
                 <div key={p.id} style={CARD}>

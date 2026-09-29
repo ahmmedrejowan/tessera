@@ -19,8 +19,8 @@ const within = <T>(ms: number, p: Promise<T>, what: string) =>
   Promise.race([p, new Promise<never>((_, reject) => setTimeout(() => reject(new UserError('page-timeout', `${what} took too long.`)), ms))]);
 
 /**
- * A pack's download page as a PDF, kept with its licence proof: what the page said about the
- * licence when the pack was downloaded. Opened in a hidden window with its own empty session.
+ * A pack's download page as a PDF, kept with its license proof: what the page said about the
+ * license when the pack was downloaded. Opened in a hidden window with its own empty session.
  */
 export async function snapshotPage(url: string): Promise<Buffer> {
   if (!web(url)) throw new UserError('not-a-page', 'Only web pages can be saved.');

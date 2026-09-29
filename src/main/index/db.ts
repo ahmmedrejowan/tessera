@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
  * deleted and rebuilt; a schema change simply rebuilds it.
  */
 
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 
 const SCHEMA = `
 CREATE TABLE packs (
@@ -19,7 +19,7 @@ CREATE TABLE packs (
   status      TEXT NOT NULL,
   source      TEXT,
   creator     TEXT,
-  licence     TEXT,
+  license     TEXT,
   added_at    TEXT NOT NULL,
   updated_at  TEXT NOT NULL,
   meta_json   TEXT NOT NULL,
@@ -67,16 +67,16 @@ CREATE TABLE assets (
   group_id INTEGER,
   -- On the file that stands for a group: every format in the group, space separated.
   formats TEXT NOT NULL DEFAULT '',
-  -- The licence covering this file: the pack's own, or the rule for the part of the pack it is in.
-  licence TEXT,
+  -- The license covering this file: the pack's own, or the rule for the part of the pack it is in.
+  license TEXT,
   UNIQUE (pack_id, ref)
 );
 CREATE INDEX assets_group ON assets(group_id);
 CREATE INDEX assets_pack ON assets(pack_id, role);
 CREATE INDEX assets_type ON assets(type, role);
 CREATE INDEX assets_ext ON assets(ext);
-CREATE INDEX assets_licence ON assets(licence);
--- Recognising the assets a game already has looks every one of its files up by size first, once
+CREATE INDEX assets_license ON assets(license);
+-- Recognizing the assets a game already has looks every one of its files up by size first, once
 -- per file. Without this that is a full scan of the table each time, which on a large library and
 -- a large project is minutes of it.
 CREATE INDEX assets_size ON assets(size);

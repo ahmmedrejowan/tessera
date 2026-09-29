@@ -11,7 +11,7 @@ import { callTool, running, type Running } from './library';
 describe('an agent setting syncing up', () => {
   let app: Running;
   beforeEach(async () => {
-    app = await running([{ name: 'Arcade', files: { 'Models/a.obj': 'o a\n' }, licence: 'CC0-1.0', source: 'kenney' }]);
+    app = await running([{ name: 'Arcade', files: { 'Models/a.obj': 'o a\n' }, license: 'CC0-1.0', source: 'kenney' }]);
   });
 
   it('reads how syncing stands without changing it', async () => {

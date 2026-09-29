@@ -11,13 +11,13 @@ import { tempDir } from './helpers';
 
 describe('collections', () => {
   it('turns away what does not fit its rules', () => {
-    const rules = { ...NO_RULES, licences: ['CC0-1.0'], styles: ['pixel'] };
-    const fits = { name: 'tile.png', licence: 'CC0-1.0', creator: 'Kenney', styles: ['Pixel'], tags: [], types: ['sprite'] };
+    const rules = { ...NO_RULES, licenses: ['CC0-1.0'], styles: ['pixel'] };
+    const fits = { name: 'tile.png', license: 'CC0-1.0', creator: 'Kenney', styles: ['Pixel'], tags: [], types: ['sprite'] };
     expect(refuses(rules, fits)).toBeNull();
-    expect(refuses(rules, { ...fits, licence: 'CC-BY-4.0' })).toBe('its licence');
+    expect(refuses(rules, { ...fits, license: 'CC-BY-4.0' })).toBe('its license');
     expect(refuses(rules, { ...fits, styles: ['low poly'] })).toBe('its style');
     // Nothing asked for means nothing refused.
-    expect(refuses(NO_RULES, { ...fits, licence: null })).toBeNull();
+    expect(refuses(NO_RULES, { ...fits, license: null })).toBeNull();
     expect(hasRules(NO_RULES)).toBe(false);
     expect(hasRules(rules)).toBe(true);
   });
@@ -38,7 +38,7 @@ describe('collections', () => {
     const root = tempDir();
     await createLibrary(root, 'lib');
     const a = await createCollection(root, 'Tower defense', { items: [{ packId: 'p1', ref: 'original/a.glb' }] });
-    const b = await createCollection(root, 'CC0 trees', { query: { text: 'tree', filters: { licence: ['CC0-1.0'] }, includeSupport: false, favourites: false } });
+    const b = await createCollection(root, 'CC0 trees', { query: { text: 'tree', filters: { license: ['CC0-1.0'] }, includeSupport: false, favorites: false } });
     expect(a.kind).toBe('manual');
     expect(b.kind).toBe('smart');
     expect((await listCollections(root)).map((c) => c.name)).toEqual(['CC0 trees', 'Tower defense']);

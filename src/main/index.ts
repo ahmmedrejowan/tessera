@@ -42,7 +42,7 @@ import { RenderWindow } from './thumbs/renderWindow';
 import { ThumbService } from './thumbs/service';
 import { Activity } from './activity';
 import { TOOL_GROUPS } from '@shared/mcp';
-import { McpService, catalogue, portFree } from './mcp/server';
+import { McpService, catalog, portFree } from './mcp/server';
 import { McpHistory } from './mcp/history';
 import { clients, installFor } from './mcp/clients';
 import { freePort, whoHasPort } from './mcp/port';
@@ -367,13 +367,13 @@ async function addDownloaded(item: DownloadItem): Promise<void> {
     const result = await library.import(planned.map((i) => ({ ...i, url: item.url })), straightIn, false, settings.get().moveIntoLibrary);
     const made = result.added[0];
     downloads.done(item.id, made?.name ?? null);
-    if (made) activity.add('downloaded', `Downloaded “${made.name}” from ${item.host}`, made.status === 'inbox' ? 'Waiting in Review for a licence' : undefined);
+    if (made) activity.add('downloaded', `Downloaded “${made.name}” from ${item.host}`, made.status === 'inbox' ? 'Waiting in Review for a license' : undefined);
   } catch (e) {
     log.error('downloads', `could not add ${item.name}`, e);
   }
 }
 
-const DOCUMENTS = { licence: 'LICENSE', changelog: 'CHANGELOG.md', privacy: 'PRIVACY.md' } as const;
+const DOCUMENTS = { license: 'LICENSE', changelog: 'CHANGELOG.md', privacy: 'PRIVACY.md' } as const;
 
 /** One of Tessera's own documents: beside the packaged app, or in the project while developing. */
 async function readDocument(name: keyof typeof DOCUMENTS): Promise<string> {
@@ -419,7 +419,7 @@ const projectsChanged = () => broadcast(windows, 'projects:changed', ++projectsV
 let pageRecords: Promise<void> = Promise.resolve();
 
 /**
- * Keep a record of a pack's download page: a PDF snapshot with its licence proof, and a public
+ * Keep a record of a pack's download page: a PDF snapshot with its license proof, and a public
  * copy on archive.org, as asked. Either can fail on its own; the job says what happened.
  */
 async function recordPage(id: string, what: { snapshot: boolean; archive: boolean }): Promise<void> {
@@ -443,7 +443,7 @@ async function recordPage(id: string, what: { snapshot: boolean; archive: boolea
       job.update(what.snapshot ? 0.5 : null, 'Asking archive.org to keep a copy');
       try {
         const copy = await archivePage(url);
-        await library.addLicenceNote(id, `${copy.fresh ? 'Archived' : 'Earlier archived copy'}: ${copy.url}`);
+        await library.addLicenseNote(id, `${copy.fresh ? 'Archived' : 'Earlier archived copy'}: ${copy.url}`);
         done.push(copy.fresh ? 'archived' : 'earlier archive found');
       } catch (e) {
         problems.push(`archive.org: ${e instanceof Error ? e.message : String(e)}`);
@@ -516,7 +516,7 @@ if (!onlyCopy && process.env.TESSERA_E2E !== '1') {
     const w = windows()[0];
     if (!w) return;
     // Opening it again is how somebody asks for the window back, so make sure they get it: a
-    // window that is hidden rather than minimised cannot be focused into view.
+    // window that is hidden rather than minimized cannot be focused into view.
     if (w.isMinimized()) w.restore();
     if (!w.isVisible()) w.show();
     w.focus();

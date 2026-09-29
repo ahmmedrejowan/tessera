@@ -6,12 +6,12 @@
  */
 
 /** Tools are switched on and off by what they do, not one by one, unless you want to. */
-export type ToolGroup = 'read' | 'organise' | 'link' | 'bring' | 'remove' | 'system' | 'danger';
+export type ToolGroup = 'read' | 'organize' | 'link' | 'bring' | 'remove' | 'system' | 'danger';
 
 export const TOOL_GROUPS: { id: ToolGroup; title: string; note: string; defaultOn: boolean }[] = [
   { id: 'read', title: 'Looking', note: 'Search the library, read packs, files, collections and games, and read the settings. Changes nothing.', defaultOn: true },
-  { id: 'organise', title: 'Filing', note: 'Star things, make and fill collections, record licences and tags, archive a pack, read the library again.', defaultOn: true },
-  { id: 'link', title: 'Linking to a game', note: 'Copy assets into a game folder, with their licences and credits.', defaultOn: true },
+  { id: 'organize', title: 'Filing', note: 'Star things, make and fill collections, record licenses and tags, archive a pack, read the library again.', defaultOn: true },
+  { id: 'link', title: 'Linking to a game', note: 'Copy assets into a game folder, with their licenses and credits.', defaultOn: true },
   { id: 'bring', title: 'Bringing things in', note: 'Add packs from this computer and fetch links from the web.', defaultOn: true },
   { id: 'remove', title: 'Deleting to the bin', note: 'Move packs or files to the library’s bin, and put them back. Nothing here is permanent.', defaultOn: true },
   { id: 'system', title: 'The app itself', note: 'Open, make and close libraries, and change Tessera’s settings or this library’s. Off until you turn it on. Reading them is under Looking, and needs no permission.', defaultOn: false },

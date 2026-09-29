@@ -12,8 +12,8 @@ export const COLLECTION_FORMAT = 1;
  * The collection every library has: what its owner starred. It is made the first time something is
  * starred, and it can't be renamed or deleted, but otherwise it is an ordinary collection.
  */
-export const FAVOURITES = 'favourites';
-export const FAVOURITES_NAME = 'Favourites';
+export const FAVORITES = 'favorites';
+export const FAVORITES_NAME = 'Favorites';
 
 export const CollectionItem = z.object({ packId: z.string(), ref: z.string() });
 export type CollectionItem = z.infer<typeof CollectionItem>;
@@ -22,17 +22,29 @@ export const SmartQuery = z.object({
   text: z.string().default(''),
   filters: z.record(z.string(), z.array(z.string())).default({}),
   includeSupport: z.boolean().default(false),
-  favourites: z.boolean().default(false),
+  favorites: z.boolean().default(false),
 });
 export type SmartQuery = z.infer<typeof SmartQuery>;
 
 /**
  * What a collection will take. A rule says "only these": anything that doesn't fit is refused when
- * it is added, so a collection meant for one game's licence can't quietly gain something it may
+ * it is added, so a collection meant for one game's license can't quietly gain something it may
  * not ship. An empty list means that side is not fussy.
  */
+/** A collection written before the spelling was settled spells its rule the British way. */
+export const eitherSpelling = (o: unknown): unknown => {
+  if (!o || typeof o !== 'object') return o;
+  const c = o as Record<string, unknown>;
+  const rules = c.rules as Record<string, unknown> | undefined;
+  // Written out, so a spelling sweep cannot turn the old key into the new one and leave this
+  // reading a field that was never there.
+  const wasLicenses = 'licences';
+  if (!rules || rules.licenses !== undefined || rules[wasLicenses] === undefined) return o;
+  return { ...c, rules: { ...rules, licenses: rules[wasLicenses] } };
+};
+
 export const CollectionRules = z.object({
-  licences: z.array(z.string()).default([]),
+  licenses: z.array(z.string()).default([]),
   creators: z.array(z.string()).default([]),
   styles: z.array(z.string()).default([]),
   tags: z.array(z.string()).default([]),
@@ -40,7 +52,7 @@ export const CollectionRules = z.object({
 });
 export type CollectionRules = z.infer<typeof CollectionRules>;
 
-export const NO_RULES: CollectionRules = { licences: [], creators: [], styles: [], tags: [], types: [] };
+export const NO_RULES: CollectionRules = { licenses: [], creators: [], styles: [], tags: [], types: [] };
 
 /** Does a rule ask for anything at all? */
 export const hasRules = (r: CollectionRules | undefined): boolean => !!r && Object.values(r).some((v) => v.length > 0);
@@ -48,7 +60,7 @@ export const hasRules = (r: CollectionRules | undefined): boolean => !!r && Obje
 /** What a thing is, as far as a collection's rules are concerned. */
 export interface Fits {
   name: string;
-  licence: string | null;
+  license: string | null;
   creator: string | null;
   styles: string[];
   tags: string[];
@@ -59,7 +71,7 @@ export interface Fits {
 export function refuses(rules: CollectionRules | undefined, thing: Fits): string | null {
   if (!rules) return null;
   const has = (list: string[], values: (string | null)[]) => list.some((want) => values.some((v) => v?.toLowerCase() === want.toLowerCase()));
-  if (rules.licences.length && !has(rules.licences, [thing.licence])) return 'its licence';
+  if (rules.licenses.length && !has(rules.licenses, [thing.license])) return 'its license';
   if (rules.creators.length && !has(rules.creators, [thing.creator])) return 'its creator';
   if (rules.styles.length && !has(rules.styles, thing.styles)) return 'its style';
   if (rules.tags.length && !has(rules.tags, thing.tags)) return 'its tags';

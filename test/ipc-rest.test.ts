@@ -656,7 +656,7 @@ describe('updates and problem reports', () => {
 });
 
 describe('the window itself', () => {
-  it('takes the colours the window paints itself with', async () => {
+  it('takes the colors the window paints itself with', async () => {
     expect(await ok('window:chrome', { background: '#101418', foreground: '#e3e2e6' })).toBeUndefined();
   });
 });

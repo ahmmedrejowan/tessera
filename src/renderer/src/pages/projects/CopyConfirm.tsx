@@ -24,7 +24,7 @@ type Way = 'copy' | 'already';
  * What is about to be written into a game, before it is written.
  *
  * Copying into someone's project is the one thing Tessera does outside its own folder, so it says
- * plainly how much is going and where it will land. Anything wrong with a licence is shown here
+ * plainly how much is going and where it will land. Anything wrong with a license is shown here
  * too, and that part is never skipped, whatever the setting says.
  */
 export function CopyConfirm() {
@@ -62,7 +62,7 @@ export function CopyConfirm() {
             {
               value: 'copy',
               title: `Copy into ${pending?.projectName ?? 'the game'}`,
-              body: 'The files are copied into your game. Your library keeps its own copy, and nothing there changes. A licence file goes beside them, and CREDITS.md is written again.',
+              body: 'The files are copied into your game. Your library keeps its own copy, and nothing there changes. A license file goes beside them, and CREDITS.md is written again.',
               icon: FolderOpenOutlined,
               adds: plan?.bytes,
               recommended: true,
@@ -119,7 +119,7 @@ export function CopyConfirm() {
         )}
       </DialogContent>
       <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
-        {/* Only offered when nothing is wrong: a licence problem is always worth stopping for. */}
+        {/* Only offered when nothing is wrong: a license problem is always worth stopping for. */}
         {warnings.length === 0 ? (
           <FormControlLabel
             sx={{ ml: 0 }}

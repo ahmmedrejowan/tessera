@@ -67,7 +67,7 @@ export function toolsOn(settings: { off: string[]; groupsOff: string[]; groupsOn
   return TOOLS.filter((t) => groupIsOn(t.group, settings) && !settings.off.includes(t.name));
 }
 
-export function catalogue(settings: { off: string[]; groupsOff: string[]; groupsOn?: string[] }): McpToolInfo[] {
+export function catalog(settings: { off: string[]; groupsOff: string[]; groupsOn?: string[] }): McpToolInfo[] {
   const on = new Set(toolsOn(settings).map((t) => t.name));
   return TOOLS.map((t) => ({
     name: t.name,

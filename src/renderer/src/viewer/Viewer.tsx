@@ -17,11 +17,11 @@ import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { assetPath, TYPE_LABELS } from '@shared/assets';
-import { licenceForPath } from '@shared/pack';
+import { licenseForPath } from '@shared/pack';
 import type { AssetRow } from '@shared/query';
 import { call } from '../api';
 import { dateText, displayName, formatBytes, formatCount, sourceName } from '../components/labels';
-import { LicenceChip, licenceSummary } from '../components/LicenceChip';
+import { LicenseChip, licenseSummary } from '../components/LicenseChip';
 import { CollectionIcon } from '../components/icons';
 import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
@@ -34,7 +34,7 @@ import GridOnOutlined from '@mui/icons-material/GridOnOutlined';
 import { checker } from '../components/AssetThumb';
 import { useBrowse } from '../state/browse';
 import { starAsset } from '../pages/browse/StarButton';
-import { FileLicence } from './FileLicence';
+import { FileLicense } from './FileLicense';
 import { FilmStrip } from './FilmStrip';
 import { fileUrl, useIndexVersion, useLibraryId } from '../state/library';
 import { useNav } from '../state/nav';
@@ -167,16 +167,16 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
   const stage = stageFor(file.ext, file.kind);
   const textures = useQuery({ queryKey: ['textures', lib, version, asset.packId], queryFn: () => call('pack:textures', asset.packId), enabled: !!lib && stage === 'model' }).data;
   const url = fileUrl(file.packId, file.ref);
-  // The licence covering this very file: a pack can hold parts with terms of their own.
-  const part = pack ? licenceForPath(pack.meta, assetPath(file.ref)) : null;
-  const [editingLicence, setEditingLicence] = useState(false);
+  // The license covering this very file: a pack can hold parts with terms of their own.
+  const part = pack ? licenseForPath(pack.meta, assetPath(file.ref)) : null;
+  const [editingLicense, setEditingLicense] = useState(false);
   const [backgroundEl, setBackgroundEl] = useState<HTMLElement | null>(null);
   const background = useBrowse((b) => b.viewerBackground);
   const proof = useQuery({ queryKey: ['proof', lib, version, asset.packId], queryFn: () => call('pack:proof', asset.packId), enabled: !!lib && infoOpen }).data ?? [];
   const shots = proof.filter((f) => /\.(png|jpe?g|webp|gif)$/i.test(f.name));
   const page = pack ? (pack.meta.source.url ?? sourceInfo(pack.meta.source.site)?.url ?? null) : null;
-  // archive.org's copy is written into the licence notes when the page is kept.
-  const archived = pack ? (/https?:\/\/web\.archive\.org\/\S+/.exec(pack.meta.licence.notes)?.[0] ?? null) : null;
+  // archive.org's copy is written into the license notes when the page is kept.
+  const archived = pack ? (/https?:\/\/web\.archive\.org\/\S+/.exec(pack.meta.license.notes)?.[0] ?? null) : null;
 
   // What the last file reported doesn't describe the next one.
   useEffect(() => {
@@ -428,20 +428,20 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
             {pack && part && (
               <>
                 <Group
-                  title="Its licence"
+                  title="Its license"
                   action={
-                    <Button size="small" startIcon={<EditIcon fontSize="small" />} onClick={() => setEditingLicence(true)}>
+                    <Button size="small" startIcon={<EditIcon fontSize="small" />} onClick={() => setEditingLicense(true)}>
                       Change
                     </Button>
                   }
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 8px' }}>
-                    <LicenceChip id={part.id} />
+                    <LicenseChip id={part.id} />
                     <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-                      {licenceSummary(part.id)}
+                      {licenseSummary(part.id)}
                     </Typography>
                   </div>
-                  {part !== pack.meta.licence && (
+                  {part !== pack.meta.license && (
                     <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), pb: 1 }}>
                       This comes from the rule covering the part of the pack this file is in, not from the pack itself.
                     </Typography>
@@ -458,7 +458,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
                       </span>
                     </InfoRow>
                   )}
-                  {pack.meta.licence.notes && <InfoRow label="Notes">{pack.meta.licence.notes}</InfoRow>}
+                  {pack.meta.license.notes && <InfoRow label="Notes">{pack.meta.license.notes}</InfoRow>}
                 </Group>
 
                 <Group title="Its pack" action={<Button size="small" onClick={() => (onClose(), go({ to: 'pack', id: pack.id }))}>Open</Button>}>
@@ -499,7 +499,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
                     ))
                   ) : (
                     <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
-                      Nothing kept yet: the licence text, a receipt or a picture of the download page would go here.
+                      Nothing kept yet: the license text, a receipt or a picture of the download page would go here.
                     </Typography>
                   )}
                   {archived && (
@@ -518,7 +518,7 @@ export function Viewer({ asset, position, onPrev, onNext, onClose, strip }: Prop
           </aside>
         )}
       </div>
-      {pack && <FileLicence open={editingLicence} asset={file} meta={pack.meta} onClose={() => setEditingLicence(false)} />}
+      {pack && <FileLicense open={editingLicense} asset={file} meta={pack.meta} onClose={() => setEditingLicense(false)} />}
       {strip && position && strip.items.length > 1 && (
         <FilmStrip items={strip.items} index={position.index} total={position.total} onPick={strip.onPick} {...(strip.onNeed ? { onNeed: strip.onNeed } : {})} />
       )}

@@ -230,7 +230,7 @@ export function AgentsPage() {
             <div {...at('skill')}>
               <Group
                 title="The skill file"
-                note="A page of plain Markdown that teaches an agent how this place works: the words Tessera uses (pack, asset, collection, linking, Review, the bin) and the rules that matter, first among them never guess a licence. Any agent that reads instruction files can use it."
+                note="A page of plain Markdown that teaches an agent how this place works: the words Tessera uses (pack, asset, collection, linking, Review, the bin) and the rules that matter, first among them never guess a license. Any agent that reads instruction files can use it."
               >
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <Button variant="contained" startIcon={<InstallDesktopOutlined />} onClick={() => void install('claude')}>
@@ -276,7 +276,7 @@ export function AgentsPage() {
             <div {...at('tools')}>
               <Group
                 title="What it may do"
-                note={`${status ? `${status.tools.on} of ${status.tools.all} tools are switched on. ` : ''}An agent can do what this window can: search the library, read a pack, record a licence, gather a collection, link assets into a game, bring new packs in, and move things to the bin. You choose which of those it may reach, by what they do.`}
+                note={`${status ? `${status.tools.on} of ${status.tools.all} tools are switched on. ` : ''}An agent can do what this window can: search the library, read a pack, record a license, gather a collection, link assets into a game, bring new packs in, and move things to the bin. You choose which of those it may reach, by what they do.`}
               >
                 <div>
                   <Button variant="outlined" startIcon={<TuneOutlined />} onClick={() => go({ to: 'agentTools' })}>

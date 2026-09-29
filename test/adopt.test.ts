@@ -18,7 +18,7 @@ const ROCK = 'quite different bytes, for a rock';
 async function setup() {
   const root = tempDir();
   await createLibrary(root, 'lib');
-  const pack = await createPack(root, 'Nature Kit', { status: 'library', licence: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' } });
+  const pack = await createPack(root, 'Nature Kit', { status: 'library', license: { id: 'CC0-1.0', attribution: null, proof: [], notes: '' } });
   mkdirSync(join(pack.dir, 'original', 'Models'), { recursive: true });
   writeFileSync(join(pack.dir, 'original', 'Models', 'tree.glb'), TREE);
   writeFileSync(join(pack.dir, 'original', 'Models', 'rock.glb'), ROCK);
@@ -58,7 +58,7 @@ describe('finding assets a game already has', () => {
     const { game, project, src, queries } = await setup();
     const scan = await scanForAdoption(project.path, 'Assets/Art', { src, bySize: (size) => queries.bySize(size) });
 
-    // Renamed, in a folder of their own, and still recognised.
+    // Renamed, in a folder of their own, and still recognized.
     expect(scan.matches).toHaveLength(1);
     expect(scan.matches[0]!.path).toBe('Assets/Art/Nature/big-tree.glb');
     expect(scan.matches[0]!.ref).toBe('original/Models/tree.glb');
@@ -83,12 +83,12 @@ describe('finding assets a game already has', () => {
     expect(manifest.entries).toHaveLength(1);
     expect(manifest.entries[0]!.files).toEqual(['Assets/Art/Nature/big-tree.glb']);
     expect(manifest.entries[0]!.adopted).toBe(true);
-    expect(manifest.entries[0]!.licence).toBe('CC0-1.0');
+    expect(manifest.entries[0]!.license).toBe('CC0-1.0');
     // Nothing landed in the target folder: that is the whole point.
     expect(existsSync(join(game, 'Assets', 'ThirdParty'))).toBe(false);
   });
 
-  it('never deletes a file it only recognised', async () => {
+  it('never deletes a file it only recognized', async () => {
     const { game, project, src, queries } = await setup();
     const scan = await scanForAdoption(project.path, 'Assets/Art', { src, bySize: (size) => queries.bySize(size) });
     await writeAdopted(project, src.libraryId, adoptEntries(project, scan.matches, src, []));

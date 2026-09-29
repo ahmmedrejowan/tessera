@@ -1,6 +1,6 @@
 import { md } from '../theme';
 
-/** Tessera's mark: four tiles of a mosaic, one set in the accent colour. */
+/** Tessera's mark: four tiles of a mosaic, one set in the accent color. */
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>

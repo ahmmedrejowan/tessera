@@ -47,15 +47,15 @@ describe('a path inside a pack', () => {
 });
 
 describe('a credit line that carries the creator’s own words', () => {
-  it('still names the licence when the creator’s name merely contains it', async () => {
+  it('still names the license when the creator’s name merely contains it', async () => {
     const { writeCredits } = await import('../src/main/projects/credits');
     const dir = tempDir('tessera-credits-');
     const at = join(dir, 'CREDITS.md');
     await writeCredits(at, [
-      { packId: '1', packName: 'Brushes', ref: 'a.png', copiedRef: 'a.png', files: ['a.png'], licence: 'MIT', attribution: 'Art by John Smith', creator: 'John Smith', sourceUrl: null, copiedAt: '2026-01-01T00:00:00Z' },
+      { packId: '1', packName: 'Brushes', ref: 'a.png', copiedRef: 'a.png', files: ['a.png'], license: 'MIT', attribution: 'Art by John Smith', creator: 'John Smith', sourceUrl: null, copiedAt: '2026-01-01T00:00:00Z' },
     ] as never);
     const text = readFileSync(at, 'utf8');
-    // "Smith" contains "MIT", so a substring test used to decide the line already said the licence.
+    // "Smith" contains "MIT", so a substring test used to decide the line already said the license.
     expect(text).toMatch(/MIT/);
     expect(text).toMatch(/Art by John Smith/);
   });

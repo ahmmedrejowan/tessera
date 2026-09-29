@@ -21,7 +21,7 @@ interface Tile {
 }
 
 /**
- * The mosaic the app is named after: tiles in the theme's colours, some carrying the kinds of
+ * The mosaic the app is named after: tiles in the theme's colors, some carrying the kinds of
  * asset Tessera holds. Each tile drifts a little on its own rhythm; with reduced motion they stay put.
  */
 const TILES: Tile[] = [

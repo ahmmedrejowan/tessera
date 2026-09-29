@@ -2,10 +2,10 @@ import { baseName, kindOf, pathWords } from '@shared/assets';
 import type { PackSuggestions } from '@shared/types';
 import type { PackFile } from '../index/files';
 
-/** What a pack's files and download name suggest beyond its licence and source. */
+/** What a pack's files and download name suggest beyond its license and source. */
 interface Input {
   files: PackFile[];
-  /** Licence and readme texts, most telling first (from `packTexts`). */
+  /** License and readme texts, most telling first (from `packTexts`). */
   texts: { from: string; text: string }[];
   /** The file or folder name it was added from. */
   downloadName: string;
@@ -24,7 +24,7 @@ const STYLES: [RegExp, string][] = [
 
 /** Words that say nothing about what a pack is. */
 const GENERIC = new Set(
-  'asset assets pack packs kit kits free file files folder format formats model models texture textures sprite sprites image images sound sounds audio music font fonts preview previews sample samples example examples demo readme license licence credits source sources original originals misc other extra extras version final new old copy default png jpg jpeg webp svg gif tga psd fbx obj glb gltf mtl blend ogg wav mp3 flac ttf otf zip unity unitypackage godot unreal www com net http https kenney kaykit quaternius tile tiles'.split(' '),
+  'asset assets pack packs kit kits free file files folder format formats model models texture textures sprite sprites image images sound sounds audio music font fonts preview previews sample samples example examples demo readme license license credits source sources original originals misc other extra extras version final new old copy default png jpg jpeg webp svg gif tga psd fbx obj glb gltf mtl blend ogg wav mp3 flac ttf otf zip unity unitypackage godot unreal www com net http https kenney kaykit quaternius tile tiles'.split(' '),
 );
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
@@ -38,7 +38,7 @@ const stripExt = (n: string) => n.replace(/\.(zip|7z|rar|tar\.gz|tgz|unitypackag
 export function suggestDetails({ files, texts, downloadName }: Input): PackSuggestions {
   const out: PackSuggestions = {};
 
-  // "Mini Arcade (1.2)" as the first line of a licence file: the pack's own name and version.
+  // "Mini Arcade (1.2)" as the first line of a license file: the pack's own name and version.
   for (const { from, text } of texts) {
     if (!/licen[cs]e/i.test(from)) continue;
     const first = text.split(/\r?\n/).map((l) => l.trim()).find(Boolean) ?? '';
