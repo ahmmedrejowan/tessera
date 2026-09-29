@@ -174,6 +174,41 @@ describe('the ways out of indexing in place', () => {
     await expect(app.library.takePackIn(packId)).rejects.toThrow(/already/);
   });
 
+  it('brings the star, the collection and the games with the files when a pack is taken in', async () => {
+    // Every file of a kept pack is renamed by taking it in: "Models/tree.glb" becomes
+    // "original/Their Art/Models/tree.glb". Everything that remembered the old name pointed at
+    // nothing afterwards: the star went out, the collection lost the asset, and the game that had
+    // copied it could no longer be told where its copy came from.
+    const { app, packId } = await keptInApp();
+    const ref = 'Models/tree.glb';
+    const q = () => app.library.require().queries;
+    expect(q().packRefs(packId)).toContain(ref);
+
+    await app.library.favoriteAssets([{ packId, ref }], true);
+    const collectionId = await app.library.createCollection('Trees', { items: [{ packId, ref }] });
+
+    const game = tempDir('tessera-game-');
+    const projects = app.context().projects;
+    const project = await projects.add(await projects.probe(game));
+    await projects.copy(project.id, [{ packId, ref }], app.context().copySource());
+
+    const { move } = await app.library.takePackIn(packId);
+    const moved = await projects.refsMoved('test-library', packId, move);
+    expect(move(ref)).toBe('original/Their Art/Models/tree.glb');
+
+    // The library's own records followed the files.
+    const asset = q().assets({ scope: 'all', text: 'tree', filters: {} }, 'name', 0, 5).rows.find((a) => a.packId === packId)!;
+    expect(asset.ref).toBe(move(ref));
+    expect(asset.fav).toBe(true);
+    expect((await app.library.collectionsHolding(packId, move(ref))).map((c) => c.id)).toContain(collectionId);
+
+    // And so did the game's record of where its copy came from.
+    expect(moved).toBe(1);
+    const entry = (await projects.entries(project.id, 'test-library', () => null)).find((e) => e.packId === packId)!;
+    expect(entry.ref).toBe(move(ref));
+    expect(entry.copiedRef).toBe(move(ref));
+  });
+
   it('will not put files into somebody else’s folder', async () => {
     const { app, packId } = await keptInApp();
     const loose = join(tempDir(), 'extra.glb');

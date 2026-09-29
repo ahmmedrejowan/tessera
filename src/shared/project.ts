@@ -76,6 +76,12 @@ export interface ManifestEntry {
    * some of them clash.
    */
   wereAlreadyThere?: string[];
+  /**
+   * Files of this entry written to a name of their own because the game already had a different
+   * file under the one they wanted. The game's own file is untouched; these are what Tessera
+   * brought in beside it, and they are in `files` under their new names.
+   */
+  renamed?: { wanted: string; written: string }[];
 }
 
 export interface Manifest {
@@ -98,6 +104,15 @@ export interface ProjectUse {
   files: number;
 }
 
+/**
+ * What to do about a file already in the game at a path this copy wants, whose contents are not
+ * the same as the library's.
+ *
+ * Identical files never reach this question: the same bytes under the same name is not a clash,
+ * and nothing is written.
+ */
+export type ClashChoice = 'skip' | 'overwrite' | 'rename';
+
 /** Checked before copying: what will be written and anything worth a second look. */
 export interface CopyPlan {
   assets: number;
@@ -108,9 +123,15 @@ export interface CopyPlan {
   /** Assets already in the project, which will be updated. */
   updating: number;
   /**
-   * Files already at the paths this copy would write to that Tessera did not put there. They are
-   * somebody else's work, so they are left as they are and the person is told which, rather than
-   * finding out afterwards that their own edit is gone.
+   * Files already at the paths this copy would write to that Tessera did not put there, and whose
+   * contents differ from the library's. They are somebody else's work, so nothing happens to them
+   * until the person says what should: keep theirs, write over it, or bring ours in beside it.
    */
   overwriting: string[];
+  /**
+   * How many files are already there with exactly the library's contents, checked byte for byte
+   * with SHA-256. There is nothing to decide about these: the copy would write the same bytes
+   * back, so it leaves them alone and says so.
+   */
+  identical: number;
 }

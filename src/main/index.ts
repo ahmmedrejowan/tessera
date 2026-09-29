@@ -484,6 +484,7 @@ function copySource(): CopySource {
     },
     variants: (packId, ref) => queries.variantsOf(packId, ref),
     packRefs: (packId) => queries.packRefs(packId),
+    hashOf: (packId, ref) => queries.hashOf(packId, ref),
   };
 }
 const libraryId = () => {

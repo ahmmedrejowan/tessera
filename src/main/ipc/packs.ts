@@ -155,8 +155,12 @@ export function registerPackIpc(c: Deps): void {
     return found;
   });
   handle('pack:takeIn', async (id) => {
-    await library.takePackIn(id);
-    activity.add('added', 'Took a pack into the library', 'Its files were copied in; the folder they came from is untouched');
+    const { move } = await library.takePackIn(id);
+    // Every file of the pack has a new name inside the library now. The games that took from it
+    // recorded the old one, so they are brought with it; otherwise "copy again" and "take out"
+    // would be looking for assets that no longer answer to that name.
+    const moved = await projects.refsMoved(libraryId(), id, move);
+    activity.add('added', 'Took a pack into the library', `Its files were copied in; the folder they came from is untouched${moved ? `. ${moved} record${moved === 1 ? '' : 's'} in games ${moved === 1 ? 'was' : 'were'} brought up to date` : ''}`);
   });
   handle('favorites:assets', (items, on) => library.favoriteAssets(items, on));
   handle('favorites:pack', (id, on) => library.favoritePack(id, on));

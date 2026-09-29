@@ -37,10 +37,11 @@ export function registerProjectIpc(c: Deps): void {
     projectsChanged();
   });
   handle('projects:entries', (id) => projects.entries(id, libraryId(), libraryNameOf));
+  handle('projects:credits', (id) => projects.credits(id, libraryId()));
   handle('projects:usage', (packIds, refs) => projects.usage(libraryId(), packIds, refs));
   handle('projects:plan', (id, items) => projects.plan(id, items, copySource()));
-  handle('projects:copy', async (id, items) => {
-    const n = await projects.copy(id, items, copySource());
+  handle('projects:copy', async (id, items, onClash) => {
+    const n = await projects.copy(id, items, copySource(), onClash);
     // Putting a pack in a game is the strongest sign that it matters to someone.
     for (const packId of new Set(items.map((i) => i.packId))) usage.record(packId, 'linked');
     projectsChanged();

@@ -76,7 +76,13 @@ appears in their window as you do it, so work as though they are watching, becau
 8. **Linking tells you what is wrong with the licenses.** \`link_to_game\` returns
    \`licenseWarnings\` when a pack has no license recorded, forbids commercial use, needs a credit
    line, or is still in Review. It copies anyway. Read them out; the person may want it undone.
-9. **Say what you did in the app's words**: starred, collected, linked, archived, in the bin.
+9. **A name the game already uses is the person's call.** \`link_to_game\` compares contents with
+   SHA-256 first: a file already there with exactly the library's bytes is left alone and counted
+   in \`alreadyThereUnchanged\`. A different file under the same name comes back in
+   \`nameTakenByADifferentFile\`, and \`ifNameTaken\` decides what happened to it: \`skip\` (the
+   default, the game keeps its own), \`overwrite\`, or \`rename\`. Do not pass \`overwrite\` without
+   being asked for it.
+10. **Say what you did in the app's words**: starred, collected, linked, archived, in the bin.
 
 ## A good first move
 

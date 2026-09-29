@@ -49,6 +49,7 @@ async function setup() {
     pack: () => ({ meta: queries.pack(pack.meta.id)!.meta, folder: pack.folder }),
     variants: (packId, ref) => queries.variantsOf(packId, ref),
     packRefs: (packId) => queries.packRefs(packId),
+    hashOf: (packId, ref) => queries.hashOf(packId, ref),
   };
   return { root, pack, index, queries, game, project, src };
 }

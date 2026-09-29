@@ -17,6 +17,10 @@ export const LINK: Tool[] = [
       projectId: z.string(),
       assetIds: z.array(z.number().int()).default([]),
       packIds: z.array(z.string()).default([]).describe('Every file of these packs is linked.'),
+      ifNameTaken: z
+        .enum(['skip', 'overwrite', 'rename'])
+        .default('skip')
+        .describe('What to do where the game already has a different file under a name this copy wants. A file with exactly the same contents is never a clash and is always left alone. "skip" keeps the game\'s file, "overwrite" replaces it, "rename" brings the library\'s in beside it.'),
     }),
     run: async (args, ctx) => {
       const items = args.assetIds.length ? ctx.library.require().queries.refs(args.assetIds) : [];
@@ -28,12 +32,13 @@ export const LINK: Tool[] = [
       // exists to prevent. The same plan the window uses is read here and handed back.
       const src = ctx.copySource();
       const plan = await ctx.projects.plan(args.projectId, items, src);
-      const n = await ctx.projects.copy(args.projectId, items, src);
+      const n = await ctx.projects.copy(args.projectId, items, src, args.ifNameTaken);
       ctx.note(`An agent linked ${n} asset${n === 1 ? '' : 's'} to a game`);
       return {
         linked: n,
         ...(plan.warnings.length ? { licenseWarnings: plan.warnings } : {}),
-        ...(plan.overwriting.length ? { filesWrittenOver: plan.overwriting } : {}),
+        ...(plan.identical ? { alreadyThereUnchanged: plan.identical } : {}),
+        ...(plan.overwriting.length ? { nameTakenByADifferentFile: plan.overwriting, whatWasDone: args.ifNameTaken } : {}),
         ...(plan.warnings.length ? { tellThePerson: 'Say these out loud. They were copied anyway, and the person may want to undo it.' } : {}),
       };
     },
@@ -60,8 +65,15 @@ export const LINK: Tool[] = [
     name: 'edit_game',
     group: 'link',
     title: 'Change a game',
-    summary: 'Rename a game, or change the folder assets are linked into and the file its credits are written to.',
-    input: z.object({ projectId: z.string(), name: z.string().optional(), target: z.string().optional(), creditsFile: z.string().optional() }),
+    summary: 'Rename a game, or change the folder assets are linked into and the file its credits are written to. Pass creditsFile null to stop writing credits for it.',
+    input: z.object({
+      projectId: z.string(),
+      name: z.string().optional(),
+      target: z.string().optional(),
+      // Null, because a game can keep no credits file at all and the window has always allowed
+      // that. Without it an agent could turn a credits file on and never turn it off again.
+      creditsFile: z.string().nullable().optional().describe('Where the credits are written, relative to the game. Null to write none.'),
+    }),
     run: async (args, ctx) => {
       const { projectId, ...patch } = args;
       await ctx.projects.update(projectId, patch);

@@ -1,14 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
-import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary, ProjectUse } from '@shared/project';
+import type { ClashChoice, CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary, ProjectUse } from '@shared/project';
 import { UserError } from '../errors';
 import { readJson, writeJson } from '../fsx';
 import type { Jobs } from '../jobs';
 import { adoptEntries, scanForAdoption, type AdoptDeps, type AdoptMatch, type AdoptScan } from './adopt';
 import { entryLibrary, MANIFEST, planCopy, readManifest, readManifestIfReadable, removeFromProject, runCopy, writeAdopted, writePackLicense, type CopySource } from './copy';
-import { writeCredits } from './credits';
+import { creditsMarkdown, writeCredits } from './credits';
 import { probeProject } from './engines';
 
 const ProjectSchema = z.object({
@@ -165,12 +166,12 @@ export class ProjectService {
     return (await planCopy(project, items, src, gltf)).plan;
   }
 
-  async copy(id: string, items: { packId: string; ref: string }[], src: CopySource): Promise<number> {
+  async copy(id: string, items: { packId: string; ref: string }[], src: CopySource, onClash: ClashChoice = 'skip'): Promise<number> {
     const project = await this.get(id);
     const { gltf } = await probeProject(project.path);
     return this.jobs.run(`Copying to ${project.name}`, async (job) => {
       const { jobs } = await planCopy(project, items, src, gltf);
-      const written = await runCopy(project, jobs, src, (done, total) => job.update(done / total, `${done} of ${total} files`));
+      const written = await runCopy(project, jobs, src, (done, total) => job.update(done / total, `${done} of ${total} files`), onClash);
       return written.length;
     });
   }
@@ -231,6 +232,55 @@ export class ProjectService {
       await writeJson(join(project.path, MANIFEST), manifest);
       if (project.creditsFile) await writeCredits(join(project.path, ...project.creditsFile.split('/')), manifest.entries);
     }
+  }
+
+  /**
+   * The game's credits file: what is on its disk, or, when it does not keep one, what would be
+   * written if it did.
+   *
+   * Read rather than worked out, because the file is the thing that ships with the game and the
+   * thing somebody may have edited. When it has not been written yet there is still something
+   * worth showing, so the same text the writer would produce comes back with `onDisk` false.
+   */
+  async credits(id: string, libraryId: string): Promise<{ path: string | null; text: string; onDisk: boolean }> {
+    const project = await this.get(id);
+    if (project.creditsFile) {
+      const text = await readFile(join(project.path, ...project.creditsFile.split('/')), 'utf8').catch(() => null);
+      if (text !== null) return { path: project.creditsFile, text, onDisk: true };
+    }
+    const { manifest } = await readManifestIfReadable(project.path, libraryId);
+    return { path: project.creditsFile, text: creditsMarkdown(manifest.entries), onDisk: false };
+  }
+
+  /**
+   * A pack's files moved within the library, so every ref a game recorded for it has a new name.
+   *
+   * The files in the game do not move: what changes is which library file each one came from, and
+   * that is the link "copy again", "is this still in my library" and taking an asset back out all
+   * depend on. Returns how many entries were brought up to date.
+   */
+  async refsMoved(libraryId: string, packId: string, move: (ref: string) => string): Promise<number> {
+    let moved = 0;
+    for (const project of await this.load()) {
+      if (!existsSync(project.path)) continue;
+      const { manifest, damaged } = await readManifestIfReadable(project.path, libraryId);
+      if (damaged) continue;
+      const mine = (e: ManifestEntry) => e.packId === packId && entryLibrary(e, manifest) === libraryId;
+      if (!manifest.entries.some(mine)) continue;
+      let here = 0;
+      manifest.entries = manifest.entries.map((e) => {
+        if (!mine(e)) return e;
+        const ref = move(e.ref);
+        const copiedRef = move(e.copiedRef);
+        if (ref === e.ref && copiedRef === e.copiedRef) return e;
+        here++;
+        return { ...e, ref, copiedRef };
+      });
+      if (!here) continue;
+      moved += here;
+      await writeJson(join(project.path, MANIFEST), manifest);
+    }
+    return moved;
   }
 
   /**

@@ -213,6 +213,7 @@ beforeAll(async () => {
         },
         variants: (packId: string, ref: string) => queries.variantsOf(packId, ref),
         packRefs: (packId: string) => queries.packRefs(packId),
+        hashOf: (packId: string, ref: string) => queries.hashOf(packId, ref),
       };
     },
     openRecord: () => ({ id: 'rest-library', name: 'The rest', path: root, lastOpenedAt: new Date().toISOString(), skipInboxWhenSure: true, sync: { enabled: false, mode: 'full', whileClosed: true }, backup: null }),

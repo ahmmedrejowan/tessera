@@ -4,12 +4,13 @@ import { dirname, join, posix } from 'node:path';
 import { licenseInfo } from '@shared/licenses';
 import { licenseForPath, type PackMeta } from '@shared/pack';
 import { assetPath, baseName } from '@shared/assets';
-import type { CopyPlan, Manifest, ManifestEntry, Project } from '@shared/project';
+import type { ClashChoice, CopyPlan, Manifest, ManifestEntry, Project } from '@shared/project';
 import type { AssetRow } from '@shared/query';
 import { UserError } from '../errors';
 import { sourceInfo } from '@shared/sources';
 import { readJson, writeFileAtomic, writeJson } from '../fsx';
 import { displayPath, parseRef, readPackFile } from '../index/files';
+import { sha256OfFile, sha256OfRef } from '../index/hashes';
 import { PACK_DIRS } from '../library/layout';
 import { safeFolderName } from '../library/names';
 import { writeCredits } from './credits';
@@ -27,6 +28,8 @@ export interface CopySource {
   /** Every file of an asset: the one that stands for it and its other formats. */
   variants(packId: string, ref: string): AssetRow[];
   packRefs(packId: string): string[];
+  /** What a file of a pack contains, if the library has already read it. */
+  hashOf(packId: string, ref: string): string | null;
 }
 
 interface FileJob {
@@ -185,13 +188,9 @@ export async function planCopy(
     });
   }
   const updating = jobs.filter((j) => manifest.entries.some((e) => same(e, manifest, src.libraryId, j.entry.packId, j.entry.ref))).length;
-  // A file at a path this game already records as Tessera's is our own earlier copy, and writing
-  // over it is the refresh being asked for. Anything else at one of these paths belongs to
-  // somebody else, and is worth saying out loud before a single byte moves.
-  const ours = new Set(manifest.entries.flatMap((e) => e.files));
-  const overwriting = [...new Set(jobs.flatMap((j) => j.files.map((f) => f.dest)))]
-    .filter((dest) => !ours.has(dest) && existsSync(join(project.path, ...dest.split('/'))))
-    .sort();
+  const clashes = await clashingFiles(project, jobs, src, manifest);
+  const overwriting = [...clashes].filter(([, c]) => !c.identical).map(([dest]) => dest).sort();
+  const identical = [...clashes.values()].filter((c) => c.identical).length;
   return {
     plan: {
       assets: jobs.length,
@@ -200,9 +199,44 @@ export async function planCopy(
       warnings: [...warnings],
       updating,
       overwriting,
+      identical,
     },
     jobs,
   };
+}
+
+/**
+ * Every file already in the game at a path this copy wants that Tessera did not write, and
+ * whether what is there is byte for byte what the library holds.
+ *
+ * A name taken is not by itself a clash. The same pack copied twice, a texture the person pulled
+ * in by hand from the same download, a game restored from a backup: all of those leave a file
+ * that is exactly what we were about to write, and there is nothing to ask about. So the contents
+ * are compared with SHA-256, and only a genuinely different file under the same name is a
+ * question for the person.
+ *
+ * A file at a path this game already records as Tessera's is our own earlier copy, and writing
+ * over it is the refresh being asked for, so it is not looked at here. Unless an earlier copy
+ * already found somebody else's file at that path: that is recorded, and it stays theirs.
+ */
+async function clashingFiles(project: Project, jobs: EntryJob[], src: CopySource, manifest: Manifest): Promise<Map<string, { identical: boolean }>> {
+  const ours = new Set(manifest.entries.flatMap((e) => e.files));
+  const knownTheirs = new Set(manifest.entries.flatMap((e) => e.wereAlreadyThere ?? []));
+  const out = new Map<string, { identical: boolean }>();
+  for (const job of jobs) {
+    for (const f of job.files) {
+      if (out.has(f.dest)) continue;
+      if (ours.has(f.dest) && !knownTheirs.has(f.dest)) continue;
+      const dest = join(project.path, ...f.dest.split('/'));
+      if (!existsSync(dest)) continue;
+      // Unreadable either side is treated as different: it is the answer that changes nothing
+      // without being asked, and the person is still shown the file.
+      const theirs = await sha256OfFile(dest).catch(() => '');
+      const mine = src.hashOf(f.packId, f.ref) ?? (await sha256OfRef(src.packDir(f.packId), f.ref).catch(() => ''));
+      out.set(f.dest, { identical: !!theirs && theirs === mine });
+    }
+  }
+  return out;
 }
 
 /** A pack's license, written beside its files in the project. */
@@ -280,7 +314,27 @@ export async function writePackLicense(project: Project, packId: string, src: Co
   return true;
 }
 
-export async function runCopy(project: Project, jobs: EntryJob[], src: CopySource, onProgress: (done: number, total: number) => void): Promise<ManifestEntry[]> {
+/**
+ * A name the game is not already using: "wood.png" becomes "wood (2).png". Null when there is no
+ * free name to be had, which is answered by leaving the game's file alone rather than by writing
+ * over the very file this was meant to protect.
+ */
+function freeDest(projectPath: string, dest: string, taken: Set<string>): string | null {
+  for (let i = 2; i < 1000; i++) {
+    const next = dest.replace(/(\.[^./]*)?$/, ` (${i})$1`);
+    if (!taken.has(next) && !existsSync(join(projectPath, ...next.split('/')))) return next;
+  }
+  return null;
+}
+
+export async function runCopy(
+  project: Project,
+  jobs: EntryJob[],
+  src: CopySource,
+  onProgress: (done: number, total: number) => void,
+  /** What to do where the game has a different file under a name this copy wants. */
+  onClash: ClashChoice = 'skip',
+): Promise<ManifestEntry[]> {
   const manifest = await readManifest(project.path, src.libraryId);
   const total = jobs.reduce((n, j) => n + j.files.length, 0);
   let done = 0;
@@ -296,34 +350,59 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
   // copy, and writing over it is the refresh the person asked for. A file at any other path is
   // somebody else's work, and we note it so we never delete it later.
   const ours = new Set(manifest.entries.flatMap((e) => e.files));
-  // What earlier copies already found was somebody else's. This has to survive a second copy:
-  // once a clash is recorded the file is in `ours`, so a re-copy would not notice it again, and
-  // the replacement entry would forget it. Copy, copy again, take out, and the person's own file
-  // was deleted after all.
-  const knownTheirs = new Set(manifest.entries.flatMap((e) => e.wereAlreadyThere ?? []));
+  // Which of the paths this run wants already hold somebody else's file, and whether that file is
+  // byte for byte what we were about to write. Worked out once, before anything moves.
+  const clashes = await clashingFiles(project, jobs, src, manifest);
+  // Names this run has already given out, so two renamed files never land on each other.
+  const taken = new Set<string>();
   try {
     for (const job of jobs) {
       const packDir = src.packDir(job.entry.packId);
       const clashed: string[] = [];
+      const renamed: { wanted: string; written: string }[] = [];
+      /** Where each file of this asset actually ended up. */
+      const landed: string[] = [];
       for (const f of job.files) {
-        const dest = join(project.path, ...f.dest.split('/'));
+        const clash = clashes.get(f.dest);
+        let put = f.dest;
+        if (clash) {
+          // The same bytes under the same name is not a clash at all: the copy would write back
+          // what is already there, so it writes nothing and leaves the file alone. It is still
+          // recorded as the game's own, because Tessera did not put it there and must never take
+          // it away.
+          if (clash.identical || onClash === 'skip') {
+            clashed.push(f.dest);
+            landed.push(f.dest);
+            ours.add(f.dest);
+            onProgress(++done, total);
+            continue;
+          }
+          if (onClash === 'rename') {
+            // Their file stays where it is, untouched and unrecorded, and ours comes in beside it
+            // under a free name. A model's relative path to a texture renamed this way no longer
+            // points at ours, which is the cost of keeping both.
+            const beside = freeDest(project.path, f.dest, taken);
+            if (!beside) {
+              clashed.push(f.dest);
+              landed.push(f.dest);
+              ours.add(f.dest);
+              onProgress(++done, total);
+              continue;
+            }
+            put = beside;
+            taken.add(put);
+            renamed.push({ wanted: f.dest, written: put });
+          }
+          // 'overwrite': their file is written over, because that is what was asked for.
+        }
+        const dest = join(project.path, ...put.split('/'));
         made.push(dirname(dest));
         await mkdir(dirname(dest), { recursive: true });
-        const there = existsSync(dest);
-        // A file we did not write is somebody else's work, and it is left exactly as it is. The
-        // asset still comes in; the one file that clashed keeps the version already in the game,
-        // and is named in what comes back so nobody has to discover it later. Writing over it and
-        // apologizing afterwards was the old behavior and it destroyed people's edits.
-        if (there && (!ours.has(f.dest) || knownTheirs.has(f.dest))) {
-          clashed.push(f.dest);
-          ours.add(f.dest);
-          onProgress(++done, total);
-          continue;
-        }
-        if (!there) fresh.push(dest);
+        if (!existsSync(dest)) fresh.push(dest);
         // Ours from here on, so a texture two assets share is not mistaken for somebody else's
         // work the second time it is written in this same run.
-        ours.add(f.dest);
+        ours.add(put);
+        landed.push(put);
         const { file, inside } = parseRef(f.ref);
         if (inside.length) await writeFile(dest, await readPackFile(packDir, f.ref));
         else await copyFile(join(packDir, ...file.split('/')), dest);
@@ -341,9 +420,10 @@ export async function runCopy(project: Project, jobs: EntryJob[], src: CopySourc
       }
       const entry: ManifestEntry = {
         ...job.entry,
-        files: job.files.map((f) => f.dest),
+        files: landed,
         copiedAt: new Date().toISOString(),
         ...(clashed.length ? { wereAlreadyThere: clashed } : {}),
+        ...(renamed.length ? { renamed } : {}),
       };
       manifest.entries = manifest.entries.filter((e) => !same(e, manifest, src.libraryId, entry.packId, entry.ref));
       manifest.entries.push(entry);

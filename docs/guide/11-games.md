@@ -54,6 +54,20 @@ anything.
 - **The credits**: `CREDITS.md` is rewritten from the record, with the packs that ask for credit
   first and the rest listed as thanks.
 
+## When a file of that name is already there
+
+Nothing is written over without being asked about, and a name being taken is not by itself a
+problem. Tessera reads both files and compares them with SHA-256 first:
+
+- **The same bytes.** Nothing to decide. The file is already what the copy would have written, so
+  it is left alone and counted in the dialog.
+- **A different file.** The dialog names the files and gives you three answers: keep what the game
+  has, write over it with the library's version, or keep both and bring the library's in beside it
+  as `name (2)`. Keeping the game's file is the answer that is offered first.
+
+Whatever you choose, a file Tessera did not write is never deleted later. Taking the asset back
+out of the game leaves it where it is.
+
 ## What is written where
 
 - In your game: the files themselves, the credits file, and `.tessera/manifest.json`, a record of
@@ -62,6 +76,9 @@ anything.
 
 ## Keeping a game up to date
 
-A game's page lists everything copied into it, grouped by pack. From there you can copy a pack
-again after it changed, remove assets you no longer use, or unlink the game entirely, which leaves
-your project exactly as it is and only forgets it here.
+A game's page has three tabs. **Assets** lists everything copied into it, grouped by pack: from
+there you can copy a pack again after it changed, or take assets out that you no longer use. The
+**credits** tab shows the credits file two ways at once, the markdown on the left and what it comes
+out as on the right, so you can check a credit line before anybody else reads it. **Settings** is
+where the folder assets go into, the credits file, and unlinking the game, which leaves your
+project exactly as it is and only forgets it here.

@@ -74,6 +74,26 @@ export const withoutItems = (c: Collection, items: CollectionItem[]): Collection
 export const withPacks = (c: Collection, ids: string[]): Collection => ({ ...c, packs: [...c.packs, ...ids.filter((id, n) => !c.packs.includes(id) && ids.indexOf(id) === n)] });
 export const withoutPacks = (c: Collection, ids: string[]): Collection => ({ ...c, packs: c.packs.filter((id) => !ids.includes(id)) });
 
+/**
+ * Rewrite every item of one pack after that pack's files moved within the library.
+ *
+ * A collection and the Favorites star both remember an asset as its pack and its ref, so a pack
+ * whose files move (taking a kept pack in copies them under `original/<folder>/`) leaves every
+ * one of them pointing at a name that no longer exists. Returns how many items were moved.
+ */
+export async function moveCollectionRefs(root: string, packId: string, move: (ref: string) => string): Promise<number> {
+  let moved = 0;
+  for (const c of await listCollections(root)) {
+    if (!c.items.some((i) => i.packId === packId)) continue;
+    const items = c.items.map((i) => (i.packId === packId ? { ...i, ref: move(i.ref) } : i));
+    const changed = items.filter((i, n) => i.ref !== c.items[n]!.ref).length;
+    if (!changed) continue;
+    moved += changed;
+    await save(root, { ...c, items });
+  }
+  return moved;
+}
+
 export async function deleteCollection(root: string, id: string): Promise<void> {
   await rm(fileOf(root, id), { force: true });
 }

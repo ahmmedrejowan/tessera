@@ -1,30 +1,35 @@
-import ArrowBack from '@mui/icons-material/ArrowBack';
 import CheckCircle from '@mui/icons-material/CheckCircle';
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
+import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import EditOutlined from '@mui/icons-material/EditOutlined';
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
 import LinkOffOutlined from '@mui/icons-material/LinkOffOutlined';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 import RefreshOutlined from '@mui/icons-material/RefreshOutlined';
 import SportsEsportsOutlined from '@mui/icons-material/SportsEsportsOutlined';
+import TuneOutlined from '@mui/icons-material/TuneOutlined';
 import FindInPageOutlined from '@mui/icons-material/FindInPageOutlined';
+import ViewInArOutlined from '@mui/icons-material/ViewInArOutlined';
 import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
 import Switch from '@mui/material/Switch';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState, type ReactNode } from 'react';
 import { extOf, kindOf, type AssetType } from '@shared/assets';
-import { ENGINE_LABELS, type ManifestEntry } from '@shared/project';
+import { ENGINE_LABELS, type ManifestEntry, type ProjectSummary } from '@shared/project';
 import { call } from '../../api';
 import { AssetThumb } from '../../components/AssetThumb';
 import { EmptyState } from '../../components/EmptyState';
+import { HEADER_SIZE, ItemHeader, type ItemAction } from '../../components/ItemHeader';
+import { Markdown } from '../../components/Markdown';
 import { Page } from '../Placeholder';
 import { displayName, formatCount } from '../../components/labels';
 import { LicenseChip } from '../../components/LicenseChip';
@@ -37,6 +42,8 @@ import { useUpdateSettings } from '../../state/queries';
 import { md, SHAPE } from '../../theme';
 import { AlreadyHere } from './AlreadyHere';
 import { EngineBadge } from './EngineBadge';
+
+type TabId = 'assets' | 'credits' | 'settings';
 
 const TYPE_OF: Record<string, AssetType> = { model: 'model', image: 'sprite', audio: 'sfx', font: 'font' };
 
@@ -52,6 +59,65 @@ function Setting({ title, body, children }: { title: string; body: ReactNode; ch
         </Typography>
       </div>
       {children}
+    </div>
+  );
+}
+
+/**
+ * The credits file two ways at once: what is written on the left, what it comes out as on the
+ * right.
+ *
+ * Both, because both matter. The markdown is the file that ships with the game and gets pasted
+ * into a store page or an itch description, and the preview is what the player will read. Seeing
+ * them side by side is how you notice that a credit line is missing before anybody else does.
+ */
+function Credits({ project }: { project: ProjectSummary }) {
+  const credits = useQuery({
+    queryKey: ['projects', 'credits', project.id, project.assets, project.lastCopy, project.creditsFile],
+    queryFn: () => call('projects:credits', project.id),
+    enabled: project.exists,
+  });
+  const text = credits.data?.text ?? '';
+  const onDisk = credits.data?.onDisk ?? false;
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 32px' }}>
+        <DescriptionOutlined sx={{ fontSize: 20, color: md('onSurfaceVariant') }} />
+        <Typography variant="bodyMedium" component="div" sx={{ flex: 1, minWidth: 0, color: md('onSurfaceVariant') }}>
+          {project.creditsFile ? (
+            onDisk ? (
+              <>Written at <code>{project.creditsFile}</code>, and kept up to date every time this game takes an asset or gives one back.</>
+            ) : (
+              <>It will be at <code>{project.creditsFile}</code>. This is what goes in it; it is written the next time this game takes an asset.</>
+            )
+          ) : (
+            'No credits file is kept for this game. This is what one would say.'
+          )}
+        </Typography>
+        {project.creditsFile && onDisk && (
+          <Button size="small" startIcon={<FolderOpenOutlined />} onClick={() => void call('projects:reveal', project.id, project.creditsFile!)}>
+            Show
+          </Button>
+        )}
+        <Button size="small" onClick={() => void navigator.clipboard.writeText(text)} disabled={!text}>
+          Copy text
+        </Button>
+      </div>
+      {/* Two columns while there is room for two, one underneath the other when there is not. */}
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 1, background: md('outlineVariant'), borderTop: `1px solid ${md('outlineVariant')}` }}>
+        <div style={{ background: md('surface'), padding: '16px 24px', minWidth: 0 }}>
+          <Typography variant="labelMedium" component="div" sx={{ color: md('onSurfaceVariant'), mb: 1 }}>
+            Markdown
+          </Typography>
+          <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: md('onSurface') }}>{text}</pre>
+        </div>
+        <div style={{ background: md('surface'), padding: '16px 24px', minWidth: 0 }}>
+          <Typography variant="labelMedium" component="div" sx={{ color: md('onSurfaceVariant'), mb: 1 }}>
+            Preview
+          </Typography>
+          <Markdown text={text} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -74,6 +140,7 @@ export function ProjectPage({ id }: { id: string }) {
   const [finding, setFinding] = useState(false);
   /** Packs whose every file is being shown, rather than the first screenful. */
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const [tab, setTab] = useState<TabId>('assets');
 
   const openId = useLibraryId();
   // By library (the open one first), then by pack.
@@ -139,47 +206,59 @@ export function ProjectPage({ id }: { id: string }) {
     }
   };
 
-  return (
-    <div style={{ height: '100%', overflowY: 'auto' }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 32px 12px' }}>
-        {back.length > 0 && (
-          <IconButton onClick={goBack} aria-label="Back" sx={{ ml: -1.5 }}>
-            <ArrowBack />
-          </IconButton>
-        )}
-        <EngineBadge engine={project.engine} size={56} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="headlineSmall" component="h1" sx={{ color: md('onSurface') }}>
-            {project.name}
-          </Typography>
-          <Typography variant="bodyMedium" noWrap sx={{ color: project.exists ? md('onSurfaceVariant') : md('error') }} title={project.path}>
-            {ENGINE_LABELS[project.engine]}
-            {project.engineVersion ? ` ${project.engineVersion}` : ''} · {project.exists ? project.path : `Can’t find ${project.path}`}
-          </Typography>
-        </div>
-        {isActive ? (
-          <Button startIcon={<CheckCircle />} disabled sx={{ '&.Mui-disabled': { color: md('primary') } }}>
-            Copies go here
-          </Button>
-        ) : (
-          <Button variant="outlined" onClick={() => updateSettings.mutate({ activeProjectId: id })}>
-            Copy here from now on
-          </Button>
-        )}
-        <Button startIcon={<FindInPageOutlined />} onClick={() => setFinding(true)} disabled={!project.exists}>
-          Find assets already here
-        </Button>
-        {/* Labelled, not bare icons: a folder and a broken chain say nothing about what they do
-            here, and one of them stops Tessera tracking the game. */}
-        <Button startIcon={<FolderOpenOutlined />} onClick={() => void call('projects:reveal', id)}>
-          Open folder
-        </Button>
-        <Button color="error" startIcon={<LinkOffOutlined />} onClick={() => setUnlinking(true)}>
-          Unlink
-        </Button>
-      </header>
+  // The same header an asset and a pack get: what it is on the left, what it is made of in the
+  // middle, and the handful of things to do with it on the right, all at the same size wherever
+  // you are in the app.
+  const actions: ItemAction[] = [
+    { label: 'Pick assets', icon: ViewInArOutlined, primary: true, onClick: () => go({ to: 'browse' }) },
+    { label: 'Find assets here', icon: FindInPageOutlined, hidden: !project.exists, onClick: () => setFinding(true) },
+    { label: 'Send copies here', icon: CheckCircle, hidden: isActive, onClick: () => updateSettings.mutate({ activeProjectId: id }) },
+    { label: 'Open folder', icon: FolderOpenOutlined, manage: true, onClick: () => void call('projects:reveal', id) },
+    { label: 'Settings', icon: TuneOutlined, manage: true, onClick: () => setTab('settings') },
+    { label: 'Unlink', icon: LinkOffOutlined, manage: true, danger: true, onClick: () => setUnlinking(true) },
+  ];
 
-      <div style={{ padding: '0 32px 32px', maxWidth: 1000 }}>
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <ItemHeader
+        {...(back.length > 0 ? { onBack: goBack } : {})}
+        preview={<EngineBadge engine={project.engine} size={HEADER_SIZE} />}
+        name={project.name}
+        facts={
+          <Typography variant="bodyMedium" component="span" sx={{ color: md('onSurfaceVariant') }}>
+            {ENGINE_LABELS[project.engine]}
+            {project.engineVersion ? ` ${project.engineVersion}` : ''} · {formatCount(entries.length)} asset{entries.length === 1 ? '' : 's'} from {formatCount(project.packs)} pack{project.packs === 1 ? '' : 's'} · into <code>{project.target}/</code>
+          </Typography>
+        }
+        license={
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+            {isActive && <Chip size="small" icon={<CheckCircle />} label="Copies go here" sx={{ flexShrink: 0 }} />}
+            <Typography variant="bodySmall" noWrap sx={{ color: project.exists ? md('onSurfaceVariant') : md('error'), minWidth: 0 }} title={project.path}>
+              {project.exists ? project.path : `Can’t find ${project.path}`}
+            </Typography>
+          </div>
+        }
+        belongs={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <DescriptionOutlined sx={{ fontSize: 16, color: md(project.creditsFile ? 'onSurfaceVariant' : 'outline') }} />
+            <Typography variant="bodySmall" noWrap sx={{ color: md('onSurfaceVariant'), opacity: project.creditsFile ? 1 : 0.8 }}>
+              {project.creditsFile ? `Credits written at ${project.creditsFile}` : 'No credits file kept'}
+            </Typography>
+          </div>
+        }
+        actions={actions}
+      />
+
+      <Tabs value={tab} onChange={(_, v: TabId) => setTab(v)} sx={{ px: 3, borderBottom: `1px solid ${md('outlineVariant')}`, minHeight: 44, '& .MuiTab-root': { minHeight: 44, textTransform: 'none', typography: 'titleSmall' } }}>
+        <Tab value="assets" label={`Assets · ${formatCount(entries.length)}`} />
+        <Tab value="credits" label={project.creditsFile?.split('/').pop() ?? 'CREDITS.md'} />
+        <Tab value="settings" label="Settings" />
+      </Tabs>
+
+      <div style={{ flex: 1, minHeight: 0, overflow: tab === 'credits' ? 'hidden' : 'auto' }}>
+      {tab === 'credits' && <Credits project={project} />}
+      {tab === 'settings' && (
+      <div style={{ padding: '16px 32px 32px', maxWidth: 1000 }}>
         <Setting title="Assets go into" body={<code>{project.target}/</code>}>
           <Button startIcon={<EditOutlined />} onClick={() => setEditingTarget(project.target)}>
             Change
@@ -196,10 +275,10 @@ export function ProjectPage({ id }: { id: string }) {
           )}
           <Switch checked={!!project.creditsFile} onChange={(_, on) => void call('projects:update', id, { creditsFile: on ? 'CREDITS.md' : null })} />
         </Setting>
-
-        <Typography variant="titleMedium" sx={{ color: md('onSurface'), mt: 4, mb: 1 }}>
-          Copied into this project · {entries.length}
-        </Typography>
+      </div>
+      )}
+      {tab === 'assets' && (
+      <div style={{ padding: '16px 32px 32px' }}>
         {!entries.length ? (
           <EmptyState
             icon={SportsEsportsOutlined}
@@ -296,6 +375,8 @@ export function ProjectPage({ id }: { id: string }) {
             </div>
           ))
         )}
+      </div>
+      )}
       </div>
 
       <Dialog open={editingTarget !== null} onClose={() => setEditingTarget(null)} maxWidth="xs" fullWidth>

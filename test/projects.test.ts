@@ -101,6 +101,7 @@ describe('copying into a project', () => {
       },
       variants: (packId, ref) => q.variantsOf(packId, ref),
       packRefs: (packId) => q.packRefs(packId),
+      hashOf: (packId, ref) => q.hashOf(packId, ref),
     };
     const game = tempDir('tessera-game-');
     const project: Project = { id: 'p', name: 'Game', path: game, engine: 'unity', engineVersion: null, target: 'Assets/ThirdParty', creditsFile: 'CREDITS.md', addedAt: '' };

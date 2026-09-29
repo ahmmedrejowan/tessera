@@ -332,6 +332,10 @@ export class LibraryIndex {
     for (const f of classified as Item[]) if (!f.groupOf) insert(f);
     for (const f of classified as Item[]) if (f.groupOf) insert(f);
     this.st.selfGroups!.run(packId);
+    // What a file contains is remembered against its name, so a file that has gone (or been
+    // renamed, as every file of a pack is when a kept pack is taken in) leaves a row behind that
+    // nothing will ever ask for again.
+    this.db.prepare('DELETE FROM file_hashes WHERE pack_id = ? AND ref NOT IN (SELECT ref FROM assets WHERE pack_id = ?)').run(packId, packId);
 
     this.st.packFiles!.run({
       $id: packId,
@@ -370,6 +374,7 @@ export class LibraryIndex {
   removePack(id: string): void {
     for (const { id: assetId } of this.st.assetIds!.all(id) as { id: number }[]) this.st.deleteAssetFts!.run(assetId);
     this.st.deletePackFts!.run(id);
+    this.db.prepare('DELETE FROM file_hashes WHERE pack_id = ?').run(id);
     this.st.deletePack!.run(id);
   }
 }

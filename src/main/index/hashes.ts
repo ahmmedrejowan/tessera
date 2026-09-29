@@ -33,7 +33,7 @@ export interface HashDeps {
   onProgress?: (done: number, total: number) => void;
 }
 
-const sha256OfFile = (path: string): Promise<string> =>
+export const sha256OfFile = (path: string): Promise<string> =>
   new Promise((resolve, reject) => {
     const h = createHash('sha256');
     const s = createReadStream(path);
@@ -50,7 +50,13 @@ const sha256OfFile = (path: string): Promise<string> =>
     });
   });
 
-const sha256OfBuffer = (b: Buffer): string => createHash('sha256').update(b).digest('hex');
+export const sha256OfBuffer = (b: Buffer): string => createHash('sha256').update(b).digest('hex');
+
+/** What one file of a pack contains, read now rather than looked up. */
+export const sha256OfRef = async (packDir: string, ref: string): Promise<string> => {
+  const { file, inside } = parseRef(ref);
+  return inside.length ? sha256OfBuffer(await readPackFile(packDir, ref, MAX_BYTES)) : sha256OfFile(join(packDir, ...file.split('/')));
+};
 
 /**
  * Work out the contents of files that have none recorded, or whose recorded one is stale.

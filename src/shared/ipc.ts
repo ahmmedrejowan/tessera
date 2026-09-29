@@ -5,7 +5,7 @@
  * are typed from these two maps, so a channel can't be misspelled or called with the wrong shape.
  */
 import type { PackEdit, PackMeta, PackStatus } from './pack';
-import type { CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary, ProjectUse } from './project';
+import type { ClashChoice, CopyPlan, ManifestEntry, Project, ProjectProbe, ProjectSummary, ProjectUse } from './project';
 import type { AssetRow, AssetSort, BrowseQuery, FacetCounts, LibraryStats, LicenseHealth, Page, PackRow, PackSort } from './query';
 import type { Provider, StorageTarget } from './storage';
 import type { CollectionItem, CollectionRules, CollectionSummary, SmartQuery } from './collection';
@@ -225,8 +225,9 @@ export interface Invokes {
   'projects:entries': (id: string) => ManifestEntry[];
   /** Which games use these packs (or these files), so deleting or archiving can say so. */
   'projects:usage': (packIds: string[], refs?: { packId: string; ref: string }[]) => ProjectUse[];
+  'projects:credits': (id: string) => { path: string | null; text: string; onDisk: boolean };
   'projects:plan': (id: string, items: { packId: string; ref: string }[]) => CopyPlan;
-  'projects:copy': (id: string, items: { packId: string; ref: string }[]) => number;
+  'projects:copy': (id: string, items: { packId: string; ref: string }[], onClash?: ClashChoice) => number;
   'projects:remove': (id: string, items: { packId: string; ref: string; libraryId?: string }[]) => number;
   /**
    * Look through a folder of the game for assets the library already knows. Reads only: nothing

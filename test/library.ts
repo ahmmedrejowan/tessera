@@ -157,13 +157,15 @@ export async function running(packs: PackFixture[] = []): Promise<Running> {
       return {
         libraryId: 'test-library',
         libraryName: 'Test library',
-        packDir: (id: string) => join(root, 'packs', index.known(id)?.folder ?? ''),
+        // A kept pack's files are read where they lie, exactly as the app reads them.
+        packDir: (id: string) => index.keptWhere(id) ?? join(root, 'packs', index.known(id)?.folder ?? ''),
         pack: (id: string) => {
           const row = queries.pack(id);
           return row ? { meta: row.meta, folder: row.folder } : null;
         },
         variants: (packId: string, ref: string) => queries.variantsOf(packId, ref),
         packRefs: (packId: string) => queries.packRefs(packId),
+        hashOf: (packId: string, ref: string) => queries.hashOf(packId, ref),
       };
     },
     libraryId: () => 'test-library',

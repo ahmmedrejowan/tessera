@@ -15,7 +15,7 @@ import { planImport } from './import/plan';
 import { copyTree, movable, runImport, type ImportDeps } from './import/run';
 import { LibraryQueries } from './index/query';
 import type { Jobs } from './jobs';
-import { createCollection, deleteCollection, favorites, listCollections, updateCollection, withItems, withoutItems, withPacks, withoutPacks } from './library/collections';
+import { createCollection, deleteCollection, favorites, listCollections, moveCollectionRefs, updateCollection, withItems, withoutItems, withPacks, withoutPacks } from './library/collections';
 import { detectPack, partLicenses, packTexts } from './library/detect';
 import { suggestDetails } from './import/suggest';
 import { createLibrary, DIRS, inspectFolder, MARKER, PACK_DIRS, readLibraryInfo } from './library/layout';
@@ -827,14 +827,25 @@ export class LibraryService {
    * becomes an ordinary pack: backed up, synced, and no longer at the mercy of a drive.
    *
    * Their folder is left exactly as it was. This only ever adds.
+   *
+   * Every file gets a new name in the process. A kept pack's files are read straight from the
+   * folder they live in, so an asset is "Models/tree.obj"; once they are in the library they sit
+   * under `original/<that folder's name>/`, so the same asset is
+   * "original/Tree Kit/Models/tree.obj". Everything that remembered the old name is brought with
+   * it: collections, the Favorites star, the pack's own part-license rules, and what every game
+   * recorded about where its copies came from. Returns how to move a ref, for the callers that
+   * hold records of their own.
    */
-  async takePackIn(id: string): Promise<void> {
+  async takePackIn(id: string): Promise<{ packId: string; move: (ref: string) => string }> {
     const lib = this.require();
     const pack = await this.packRecord(id);
     const kept = pack.meta.kept;
     if (!kept) throw new UserError('pack-not-kept', 'This pack is already held by the library.');
     if (!existsSync(kept.where)) throw new UserError('folder-missing', `${kept.where} is not there${kept.volume ? `. Connect ${kept.volume} and try again` : ''}.`);
     const original = join(pack.dir, PACK_DIRS.original);
+    // Where the files land inside the pack, and so what every ref of this pack becomes.
+    const under = basename(kept.where);
+    const move = (ref: string) => `${PACK_DIRS.original}/${under}/${ref}`;
     const job = this.d.jobs.start(`Taking ${pack.meta.name} into the library`);
     const writeTurn = await this.takeWriteTurn();
     try {
@@ -851,8 +862,16 @@ export class LibraryService {
       });
       await rm(original, { recursive: true, force: true });
       await rename(staging, original);
-      const meta = await writePack(pack.dir, { ...pack.meta, kept: null });
+      // Part-license rules are written as the path is shown, which is the ref without its
+      // `original/` and with archive separators as slashes, so they move under the same folder.
+      // A rule with no path at all covers everything and is left alone.
+      const licenses = pack.meta.licenses.map((r) => (r.path.trim() ? { ...r, path: `${under}/${r.path}` } : r));
+      const meta = await writePack(pack.dir, { ...pack.meta, kept: null, licenses });
       await lib.index.syncPack({ ...pack, meta });
+      // What the library itself remembers about these files, before anything is told the pack has
+      // changed: a star or a collection pointing at a name that no longer exists is a hole.
+      await moveCollectionRefs(lib.root, id, move);
+      await this.reloadCollections();
       job.done();
     } catch (e) {
       await rm(`${original}.incoming`, { recursive: true, force: true }).catch(() => undefined);
@@ -862,6 +881,7 @@ export class LibraryService {
       writeTurn();
     }
     this.d.onIndexChanged();
+    return { packId: id, move };
   }
 
   /** Take a pack out of the library, into the library's own bin, where it waits to be put back. */

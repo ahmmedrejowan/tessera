@@ -8,7 +8,10 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
 import Typography from '@mui/material/Typography';
+import type { ClashChoice } from '@shared/project';
 import { formatBytes, formatCount } from '../../components/labels';
 import { useEffect, useState } from 'react';
 import { useCopy, useProjects } from '../../state/projects';
@@ -31,19 +34,26 @@ export function CopyConfirm() {
   const { pending, confirm, cancel } = useCopy();
   const [finding, setFinding] = useState(false);
   const [way, setWay] = useState<Way>('copy');
+  // Keeping what the game already has is the answer that changes nothing, so it is the one
+  // offered first. Nothing is written over unless it is chosen here.
+  const [onClash, setOnClash] = useState<ClashChoice>('skip');
   // Every pack starts from the same answer: a game that already has them is the exception.
   useEffect(() => {
-    if (pending) setWay('copy');
+    if (pending) {
+      setWay('copy');
+      setOnClash('skip');
+    }
   }, [pending]);
   const projects = useProjects().data ?? [];
   const update = useUpdateSettings();
   const project = projects.find((p) => p.id === pending?.projectId);
   const plan = pending?.plan;
   const warnings = plan?.warnings ?? [];
-  // Files already at those paths that Tessera did not write are somebody else's work. Saying so
-  // here is the whole protection: the copy still goes ahead if they want it to, but nobody finds
-  // out afterwards that their own edit is gone.
+  // Names the game already uses for a different file. Somebody else's work is at one end of every
+  // one of these, so the copy does not guess: it names them and waits for an answer. Files that
+  // are byte for byte the library's are not in here at all; they are counted separately.
   const overwriting = plan?.overwriting ?? [];
+  const identical = plan?.identical ?? 0;
 
   return (
     <>
@@ -84,20 +94,55 @@ export function CopyConfirm() {
           ]}
         />
 
-        {overwriting.length > 0 && (
+        {/* Files already there with exactly the library's contents. Nothing to decide: the copy
+            would write the same bytes back, so it does not write them. Said anyway, because a
+            count that does not add up is worse than one extra line. */}
+        {identical > 0 && (
+          <Typography variant="bodySmall" sx={{ color: md('onSurfaceVariant') }}>
+            {formatCount(identical)} file{identical === 1 ? '' : 's'} {identical === 1 ? 'is' : 'are'} already in the game with exactly the same contents, checked with SHA-256. {identical === 1 ? 'It is' : 'They are'} left alone.
+          </Typography>
+        )}
+
+        {overwriting.length > 0 && way === 'copy' && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: 12, borderRadius: SHAPE.lg, background: mdAlpha('errorContainer', 0.4) }}>
             <WarningAmberOutlined sx={{ fontSize: 20, color: md('error'), mt: '1px' }} />
-            <div>
+            <div style={{ minWidth: 0 }}>
               <Typography variant="bodyMedium" sx={{ color: md('onSurface') }}>
-                {formatCount(overwriting.length)} file{overwriting.length === 1 ? '' : 's'} already there {overwriting.length === 1 ? 'was' : 'were'} not put there by Tessera, so {overwriting.length === 1 ? 'it is' : 'they are'} left exactly as {overwriting.length === 1 ? 'it is' : 'they are'}.
+                {formatCount(overwriting.length)} file{overwriting.length === 1 ? '' : 's'} already {overwriting.length === 1 ? 'exists' : 'exist'} under {overwriting.length === 1 ? 'this name' : 'these names'} with different contents. Overwrite {overwriting.length === 1 ? 'it' : 'them'}, keep both, or skip {overwriting.length === 1 ? 'it' : 'them'}.
               </Typography>
               <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5, wordBreak: 'break-all' }}>
                 {overwriting.slice(0, 6).join(', ')}
                 {overwriting.length > 6 ? ` and ${formatCount(overwriting.length - 6)} more` : ''}
               </Typography>
-              <Typography variant="bodySmall" component="div" sx={{ color: md('onSurfaceVariant'), mt: 0.5 }}>
-                The rest of the asset still comes in. Move {overwriting.length === 1 ? 'it' : 'them'} aside first if you want Tessera&rsquo;s version instead.
-              </Typography>
+              <RadioGroup value={onClash} onChange={(_, v) => setOnClash(v as ClashChoice)} sx={{ mt: 1 }}>
+                <FormControlLabel
+                  value="skip"
+                  control={<Radio size="small" />}
+                  label={
+                    <Typography variant="bodySmall" sx={{ color: md('onSurface') }}>
+                      Skip {overwriting.length === 1 ? 'it' : 'them'}. The game keeps what it has, and the rest of the asset still comes in.
+                    </Typography>
+                  }
+                />
+                <FormControlLabel
+                  value="overwrite"
+                  control={<Radio size="small" />}
+                  label={
+                    <Typography variant="bodySmall" sx={{ color: md('onSurface') }}>
+                      Overwrite {overwriting.length === 1 ? 'it' : 'them'} with the library&rsquo;s version. Whatever is there now is gone.
+                    </Typography>
+                  }
+                />
+                <FormControlLabel
+                  value="rename"
+                  control={<Radio size="small" />}
+                  label={
+                    <Typography variant="bodySmall" sx={{ color: md('onSurface') }}>
+                      Keep both. The game&rsquo;s file stays and Tessera&rsquo;s comes in beside it as &ldquo;name (2)&rdquo;.
+                    </Typography>
+                  }
+                />
+              </RadioGroup>
             </div>
           </div>
         )}
@@ -120,7 +165,7 @@ export function CopyConfirm() {
       </DialogContent>
       <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
         {/* Only offered when nothing is wrong: a license problem is always worth stopping for. */}
-        {warnings.length === 0 ? (
+        {warnings.length === 0 && overwriting.length === 0 ? (
           <FormControlLabel
             sx={{ ml: 0 }}
             control={<Checkbox size="small" onChange={(_, on) => on && update.mutate({ confirmCopyToGame: false })} />}
@@ -146,7 +191,7 @@ export function CopyConfirm() {
               Look for them
             </Button>
           ) : (
-            <Button variant="contained" onClick={() => void confirm()}>
+            <Button variant="contained" onClick={() => void confirm(onClash)}>
               {warnings.length ? 'Copy anyway' : 'Copy'}
             </Button>
           )}

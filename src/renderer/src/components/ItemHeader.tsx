@@ -120,6 +120,7 @@ export function ItemHeader({
   license,
   games,
   collections,
+  belongs,
   actions,
 }: {
   /** Where you came from, when there is one. */
@@ -132,8 +133,10 @@ export function ItemHeader({
   facts: ReactNode;
   /** Its license, creator and where it came from. */
   license: ReactNode;
-  games: { names: string[]; total: number; onOpen: () => void };
-  collections: { names: string[]; total: number; onOpen: () => void };
+  games?: { names: string[]; total: number; onOpen: () => void };
+  collections?: { names: string[]; total: number; onOpen: () => void };
+  /** Shown in place of the two "belongs to" lines, for a thing that belongs to nothing. */
+  belongs?: ReactNode;
   actions: ItemAction[];
 }) {
   const shown = actions.filter((a) => !a.hidden);
@@ -165,8 +168,9 @@ export function ItemHeader({
         </Scrolling>
         <Scrolling>{facts}</Scrolling>
         <div style={{ minWidth: 0 }}>{license}</div>
-        <Belongs icon={ProjectIcon} names={games.names} total={games.total} word="game" empty="In no game yet" onOpen={games.onOpen} />
-        <Belongs icon={CollectionIcon} names={collections.names} total={collections.total} word="collection" empty="In no collection" onOpen={collections.onOpen} />
+        {belongs}
+        {games && <Belongs icon={ProjectIcon} names={games.names} total={games.total} word="game" empty="In no game yet" onOpen={games.onOpen} />}
+        {collections && <Belongs icon={CollectionIcon} names={collections.names} total={collections.total} word="collection" empty="In no collection" onOpen={collections.onOpen} />}
       </div>
 
       {/* Doing things with it on the left, looking after it on the right, a line between. */}

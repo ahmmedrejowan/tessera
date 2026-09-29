@@ -136,6 +136,51 @@ describe('taking a folder as a game', () => {
     expect(existsSync(mine)).toBe(true);
   });
 
+  it('checks the contents before calling it a clash, and does what it is told about a real one', async () => {
+    // A name already taken is not by itself a problem. The same bytes under the same name is the
+    // copy having already happened; only a genuinely different file is a question for the person,
+    // and then it is their answer that decides, not ours.
+    const { projects, app, project, path, libraryId, names, packs, aFile } = await withGame();
+    const pack = packs[0]!;
+    const ref = aFile.ref;
+    const src = app.context().copySource();
+
+    await projects.copy(project.id, [{ packId: pack.id, ref }], src);
+    const where = (await projects.entries(project.id, libraryId, names)).find((e) => e.ref === ref)!.files[0]!;
+    const mine = join(path, ...where.split('/'));
+    const theSame = readFileSync(mine);
+    await projects.remove(project.id, [{ packId: pack.id, ref }], libraryId);
+
+    // Byte for byte what the library holds, checked with SHA-256: nothing to decide.
+    mkdirSync(dirname(mine), { recursive: true });
+    writeFileSync(mine, theSame);
+    const plan = await projects.plan(project.id, [{ packId: pack.id, ref }], src);
+    expect(plan.overwriting).toEqual([]);
+    expect(plan.identical).toBe(1);
+
+    // Different contents under the same name is a question, and keeping theirs is the default.
+    writeFileSync(mine, 'MY OWN WORK');
+    const clash = await projects.plan(project.id, [{ packId: pack.id, ref }], src);
+    expect(clash.identical).toBe(0);
+    expect(clash.overwriting).toContain(where);
+    await projects.copy(project.id, [{ packId: pack.id, ref }], src, 'skip');
+    expect(readFileSync(mine, 'utf8')).toBe('MY OWN WORK');
+
+    // Keeping both leaves theirs where it is and brings ours in beside it under a free name.
+    await projects.remove(project.id, [{ packId: pack.id, ref }], libraryId);
+    await projects.copy(project.id, [{ packId: pack.id, ref }], src, 'rename');
+    expect(readFileSync(mine, 'utf8')).toBe('MY OWN WORK');
+    const beside = (await projects.entries(project.id, libraryId, names)).find((e) => e.ref === ref)!.files[0]!;
+    expect(beside).not.toBe(where);
+    expect(readFileSync(join(path, ...beside.split('/')))).toEqual(theSame);
+
+    // And writing over it happens only when that is what was asked for.
+    await projects.remove(project.id, [{ packId: pack.id, ref }], libraryId);
+    writeFileSync(mine, 'MY OWN WORK');
+    await projects.copy(project.id, [{ packId: pack.id, ref }], src, 'overwrite');
+    expect(readFileSync(mine)).toEqual(theSame);
+  });
+
   it('still knows a file is theirs after the asset is copied a second time', async () => {
     // The clash is recorded on the first copy, which puts the path in the manifest, so a second
     // copy saw it as ours and the replacement entry forgot. Copy, copy again, take out, and the
