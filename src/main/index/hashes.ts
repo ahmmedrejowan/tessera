@@ -38,8 +38,16 @@ const sha256OfFile = (path: string): Promise<string> =>
     const h = createHash('sha256');
     const s = createReadStream(path);
     s.on('data', (c) => h.update(c));
-    s.on('error', reject);
-    s.on('end', () => resolve(h.digest('hex')));
+    // Closed on the way out either way. Windows will not delete a file something still has open,
+    // so a stream left behind by a failed read stops a pack ever going in the bin.
+    s.on('error', (e) => {
+      s.destroy();
+      reject(e);
+    });
+    s.on('end', () => {
+      s.destroy();
+      resolve(h.digest('hex'));
+    });
   });
 
 const sha256OfBuffer = (b: Buffer): string => createHash('sha256').update(b).digest('hex');

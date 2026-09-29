@@ -100,17 +100,26 @@ export class LibraryService {
       const lib = this.current;
       if (!lib) return;
       for (;;) {
-        // Never while the app itself is writing, and never after the library has been closed or
-        // swapped underneath us.
-        if (this.busyWriting || this.current !== lib) return;
-        const did = await hashSome({
-          db: lib.index.db,
-          packDir: (packId) => {
-            const known = lib.index.known(packId);
-            return known ? join(lib.root, DIRS.packs, known.folder) : null;
-          },
-          keepGoing: () => this.busyWriting === 0 && this.current === lib,
-        });
+        if (this.current !== lib) return;
+        // Each batch takes its turn in the same queue as everything else that touches the library.
+        // Reading a file holds it open, and Windows will not delete a file something has open, so
+        // a batch running alongside a delete stopped a pack ever reaching the bin. Batches are
+        // small, so waiting writes are never held up for long.
+        const turn = await this.takeWriteTurn();
+        let did = 0;
+        try {
+          if (this.current !== lib) return;
+          did = await hashSome({
+            db: lib.index.db,
+            packDir: (packId) => {
+              const known = lib.index.known(packId);
+              return known ? join(lib.root, DIRS.packs, known.folder) : null;
+            },
+            keepGoing: () => this.current === lib,
+          });
+        } finally {
+          turn();
+        }
         if (!did) return;
         // A breath between batches, so a big library does not hold the main process to itself.
         await new Promise((r) => setTimeout(r, 25));
