@@ -24,6 +24,7 @@ import { binFiles, binPack, emptyBin, readBin, restoreFromBin, sweepBin } from '
 import { editPack, filesRootOf, readPack, walkRootOf, writePack, type PackRecord } from './library/packs';
 import { writeJson } from './fsx';
 import { log } from './log';
+import { closeAllZips } from './index/zipCache';
 
 interface Deps {
   dataDir: string;
@@ -149,6 +150,11 @@ export class LibraryService {
       () => mine,
     );
     await before.catch(() => undefined);
+    // Let go of every archive still held open for reading. They are kept open briefly because a
+    // pack's files are usually read in a run, but Windows will not rename or delete a folder
+    // holding an open file, so moving a pack to the bin failed outright while anything had been
+    // reading it. Writes are rare next to reads, so paying for a reopen here costs nothing.
+    closeAllZips();
     this.busyWriting++;
     let letGo = false;
     return () => {
@@ -219,6 +225,7 @@ export class LibraryService {
     // those two lines the answer was yes while the database underneath it was already closed.
     const going = this.current;
     this.current = null;
+    closeAllZips();
     going?.index.close();
     if (this.state.status !== 'none') this.setState({ status: 'none' });
   }
