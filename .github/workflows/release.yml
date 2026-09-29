@@ -2,10 +2,28 @@ name: Release builds
 
 # Installers for every platform, from a version tag (v0.2.0) or by hand. A tag publishes the
 # release, with the files and their checksums; anything below 1.0.0 goes out as a preview.
+#
+# By hand it builds and nothing else, so you can try an installer before anybody else sees it. The
+# files come back as workflow artifacts. To publish from a hand-started run, choose the tag under
+# "Use workflow from" and turn "Publish" on.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: Which computers to build for
+        type: choice
+        default: All three
+        options:
+          - All three
+          - macOS only
+          - Windows only
+          - Linux only
+      publish:
+        description: Publish a release (only works when you chose a tag above)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -14,12 +32,40 @@ permissions:
   attestations: write
 
 jobs:
+  # Which computers this run is for. A tag is always all three; a hand-started run is whatever was
+  # chosen. Publishing part of a release would put out a version some people cannot download, so
+  # that combination stops here rather than half way through.
+  choose:
+    name: What to build
+    runs-on: ubuntu-latest
+    outputs:
+      os: ${{ steps.pick.outputs.os }}
+    steps:
+      - id: pick
+        shell: bash
+        run: |
+          case "${{ inputs.platforms }}" in
+            'macOS only')   os='["macos-latest"]' ;;
+            'Windows only') os='["windows-latest"]' ;;
+            'Linux only')   os='["ubuntu-latest"]' ;;
+            *)              os='["macos-latest","windows-latest","ubuntu-latest"]' ;;
+          esac
+          echo "os=$os" >> "$GITHUB_OUTPUT"
+          echo "Building for $os"
+      - name: A release needs every platform
+        if: inputs.publish && inputs.platforms != 'All three'
+        run: |
+          echo "Publishing was asked for with only ${{ inputs.platforms }} selected."
+          echo "A release missing a platform is a release somebody cannot download."
+          exit 1
+
   build:
     name: ${{ matrix.os }}
+    needs: choose
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        os: ${{ fromJSON(needs.choose.outputs.os) }}
     runs-on: ${{ matrix.os }}
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -93,7 +139,9 @@ jobs:
   publish:
     name: Publish the release
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    # A tag publishes by itself. A hand-started run only publishes when it was asked to, and only
+    # when what it was started from is a tag: there is no version and no release notes otherwise.
+    if: startsWith(github.ref, 'refs/tags/v') && (github.event_name != 'workflow_dispatch' || inputs.publish)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
