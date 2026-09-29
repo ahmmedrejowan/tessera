@@ -18,6 +18,10 @@ on:
       - CHANGELOG.md
       - PRIVACY.md
   workflow_dispatch:
+  # Called by the release workflow once a version is out. A release published by the workflow's own
+  # token raises no event that GitHub will act on, by design, so being asked directly is the only
+  # thing that actually happens on a release.
+  workflow_call:
 
 concurrency:
   group: tell-the-website

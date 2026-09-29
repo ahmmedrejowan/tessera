@@ -1,6 +1,7 @@
 name: Package managers
 
-# When a release is published, tell every package manager about it. Each step is skipped, loudly
+# Tell every package manager about a release. The release workflow calls this as its last step;
+# it also answers a release published by hand, and can be run on its own for an older tag. Each step is skipped, loudly
 # but harmlessly, when the secret it needs is not set, so this workflow is safe to have before any
 # of the accounts exist.
 #
@@ -21,6 +22,15 @@ on:
       tag:
         description: The release to describe, for example v1.0.0
         required: true
+  # Called by the release workflow once a version is out. A release published by the workflow's own
+  # token raises no event that GitHub will act on, by design, so without this the package managers
+  # are told about a release only when somebody remembers to run this by hand.
+  workflow_call:
+    inputs:
+      tag:
+        description: The release to describe, for example v1.0.0
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -118,14 +128,29 @@ jobs:
         run: |
           if [ -z "$TOKEN" ]; then echo "no WINGET_TOKEN; skipping"; echo "go=no" >> "$GITHUB_OUTPUT";
           else echo "go=yes" >> "$GITHUB_OUTPUT"; fi
-      # Opens the pull request against microsoft/winget-pkgs from your fork of it.
+      # Opens the pull request against microsoft/winget-pkgs from your fork of it. This only ever
+      # updates a package that is already there: the first version has to be submitted by hand and
+      # accepted by Microsoft, and until that happens every release fails here. A release is not
+      # broken because winget has not heard of the package yet, so it is said and stepped over.
       - if: steps.gate.outputs.go == 'yes'
+        id: submit
+        continue-on-error: true
         uses: vedantmgoyal9/winget-releaser@main
         with:
           identifier: Rejowan.Tessera
           version: ${{ needs.manifests.outputs.tag }}
           installers-regex: '-win-(x64|arm64)\.exe$'
           token: ${{ secrets.WINGET_TOKEN }}
+      - if: steps.submit.outcome == 'failure'
+        run: |
+          echo "::warning::winget was not updated. The usual reason is that Rejowan.Tessera is not"
+          echo "::warning::in microsoft/winget-pkgs yet: the first version goes in by hand, and"
+          echo "::warning::every release fails here until Microsoft accepts it. Nothing else is wrong."
+          echo "### winget was not updated" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The action only updates a package that already exists. Until the first version of" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`Rejowan.Tessera\` is accepted into microsoft/winget-pkgs, this step cannot do" >> "$GITHUB_STEP_SUMMARY"
+          echo "anything. Everything else about the release is fine." >> "$GITHUB_STEP_SUMMARY"
 
   aur:
     name: Arch User Repository
