@@ -206,7 +206,8 @@ function chocoNuspec() {
     <bugTrackerUrl>${HOME}/issues</bugTrackerUrl>
     <tags>gamedev assets unity godot unreal electron</tags>
     <summary>${DESC}</summary>
-    <description>${DESC}. Keep every pack you collect, with its license and source on record, find the piece you need in seconds, and copy it into your game with the credits written for you.</description>
+    <!-- Not the summary again: Chocolatey shows both, one above the other. -->
+    <description>Tessera keeps every asset pack you collect in one place, with its license and where it came from written down. Search across models, textures, audio and fonts to find the piece you need in seconds, then copy it into your game with the credits written for you. Your library stays ordinary files in a folder you choose, and there is no account and no telemetry.</description>
     <releaseNotes>${HOME}/releases/tag/${tag}</releaseNotes>
   </metadata>
   <files>
