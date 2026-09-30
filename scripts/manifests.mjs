@@ -6,7 +6,7 @@
 // published beside them, and writes a Homebrew cask, a Scoop manifest, an Arch PKGBUILD and a
 // Chocolatey package. Nothing is invented: if a file or its checksum is missing the run fails
 // rather than describing something that is not there.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,6 +14,8 @@ const REPO = process.env.GITHUB_REPOSITORY ?? 'ahmmedrejowan/tessera';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HOME = `https://github.com/${REPO}`;
 const DESC = 'Desktop library for game assets, with their licenses and sources on record';
+// One copyright line for the whole project, the same one the installers are built with.
+const COPYRIGHT = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).build.copyright;
 
 const tag = process.argv[2];
 const outDir = process.argv[3] ?? join(ROOT, 'dist-manifests');
@@ -196,6 +198,7 @@ function chocoNuspec() {
     <projectUrl>https://tessera.rejowan.com</projectUrl>
     <!-- Chocolatey asks for an icon on a CDN, pinned to the tag rather than to a moving branch. -->
     <iconUrl>https://cdn.jsdelivr.net/gh/${REPO}@${tag}/build/icon.png</iconUrl>
+    <copyright>${COPYRIGHT}</copyright>
     <licenseUrl>${HOME}/blob/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <projectSourceUrl>${HOME}</projectSourceUrl>
