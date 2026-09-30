@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <!--
+    The 21:9 cover itch.io asks for when it features a project on its home page. Very wide and
+    always drawn large, so the name sits left with room to breathe and the mosaic runs right,
+    the same palette as the 630 by 500 cover and the site.
+
+    Rendered with: npx electron scripts/make-social.cjs build/itch-devlog.svg build/itch-devlog.png 1600 900
+  -->
+  <defs>
+    <radialGradient id="glowA" cx="0.85" cy="0.1" r="0.9">
+      <stop offset="0" stop-color="#2a2348" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#2a2348" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.08" cy="0.9" r="0.8">
+      <stop offset="0" stop-color="#0f2e44" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#0f2e44" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="markBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2d5670"/>
+      <stop offset="1" stop-color="#16303f"/>
+    </linearGradient>
+    <linearGradient id="markShine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.14"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1600" height="900" fill="#0a141b"/>
+  <rect width="1600" height="900" fill="url(#glowA)"/>
+  <rect width="1600" height="900" fill="url(#glowB)"/>
+
+  <!-- The mosaic, gathered on the right where the text is not. -->
+  <g opacity="0.95">
+    <rect x="960" y="190" width="210" height="210" rx="12" fill="#1f5a7e"/>
+    <rect x="1186" y="190" width="130" height="130" rx="12" fill="#54486c"/>
+    <rect x="1186" y="336" width="130" height="64" rx="12" fill="#234c69" opacity="0.7"/>
+    <rect x="1332" y="190" width="180" height="90" rx="12" fill="#41365f"/>
+    <rect x="1332" y="296" width="180" height="104" rx="12" fill="#1a2c38"/>
+    <rect x="960" y="416" width="112" height="112" rx="12" fill="#41365f" opacity="0.75"/>
+    <rect x="1088" y="416" width="228" height="112" rx="12" fill="#1f5a7e" opacity="0.5"/>
+    <rect x="1332" y="416" width="180" height="112" rx="12" fill="#234c69" opacity="0.6"/>
+    <rect x="960" y="544" width="346" height="84" rx="12" fill="#1f5a7e" opacity="0.3"/>
+    <rect x="1332" y="544" width="180" height="84" rx="12" fill="#54486c" opacity="0.45"/>
+    <rect x="960" y="644" width="542" height="56" rx="12" fill="#41365f" opacity="0.25"/>
+  </g>
+
+  <!-- The app's own icon. -->
+  <g transform="translate(150 226) scale(0.17) translate(-100 -100)">
+    <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#markBg)"/>
+    <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#markShine)"/>
+    <rect x="262" y="262" width="236" height="236" rx="48" fill="#a8d4ee"/>
+    <rect x="526" y="262" width="236" height="236" rx="48" fill="#e6f0f7"/>
+    <rect x="262" y="526" width="236" height="236" rx="48" fill="#e6f0f7"/>
+    <rect x="526" y="526" width="236" height="236" rx="48" fill="#cdb8f0"/>
+  </g>
+
+  <text x="150" y="510" font-family="Figtree, Avenir Next, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="124" font-weight="700" fill="#e8f0f6">Tessera</text>
+  <text x="154" y="576" font-family="Figtree, Avenir Next, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="40" font-weight="600" fill="#8cc6ec">Every game asset you own, with its license on record</text>
+  <rect x="154" y="620" width="300" height="1" fill="#203340"/>
+  <text x="154" y="662" font-family="Figtree, Avenir Next, Helvetica Neue, Helvetica, Arial, sans-serif" font-size="30" font-weight="500" fill="#8a99a6">Free and open source &#183; Mac, Windows, Linux</text>
+</svg>
