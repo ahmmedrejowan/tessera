@@ -84,6 +84,36 @@ describe('thumbnail service', () => {
   });
 });
 
+describe('a job the drawing window keeps throwing out', () => {
+  it('is written off once the restarts run out, so the queue can empty', async () => {
+    const { queries, thumbDir, byName } = await setup();
+    let attempts = 0;
+    const published: Record<string, ThumbState> = {};
+    const svc = new ThumbService({
+      queries: () => queries,
+      thumbDir: () => thumbDir,
+      // Always recycled: this job never meets its file, the way one queued behind a wedged
+      // model never does.
+      render: async () => {
+        attempts++;
+        const e = new Error('recycled');
+        e.name = 'RecycledError';
+        throw e;
+      },
+      publish: (s) => Object.assign(published, s),
+    });
+    await svc.get([byName('a.glb')]);
+    await vi.waitFor(() => expect(published[byName('a.glb')]).toBe('failed'), { timeout: 2000 });
+    // Tried on a fresh window a few times, then marked rather than dropped. Left unmarked it
+    // would be asked for again by the next grid refresh, for ever.
+    expect(attempts).toBe(4);
+    expect(existsSync(join(thumbDir, `${byName('a.glb').slice(0, 8)}`))).toBe(false);
+    const again = await svc.get([byName('a.glb')]);
+    expect(again[byName('a.glb')]).toBe('failed');
+    expect(attempts).toBe(4);
+  });
+});
+
 describe('drawing previews on purpose', () => {
   it('goes through the library and stops when asked', async () => {
     const { queries, thumbDir } = await setup();
