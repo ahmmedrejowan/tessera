@@ -115,6 +115,24 @@ describe('what the contents let it answer', () => {
     expect(q.sameAs(pack.meta.id, 'original/kit.zip!a.png')).toEqual([]);
   });
 
+  it('counts the files still owing a full read, so the work is not called finished early', async () => {
+    const root = tempDir();
+    await createLibrary(root, 'Twins');
+    const pack = await createPack(root, 'Twin Kit', { status: 'library', license: { id: 'CC0-1.0' }, source: { url: 'https://example.test/t' } } as never);
+    await writeZip(join(pack.dir, 'original', 'kit.zip'), { 'a.png': 'THE SAME BYTES', 'b.png': 'THE SAME BYTES' });
+    const index = new LibraryIndex(':memory:');
+    await index.sync(root);
+    // One pass over the files themselves: every row now has a CRC and nothing is unread.
+    while ((await hashSome({ db: index.db, packDir: () => pack.dir, keepGoing: () => true }, 50)) > 0) {
+      const left = stillToHash(index.db);
+      if (left === 0) break;
+    }
+    // Whatever is left must be reported as left. Counting only unread files said zero here while
+    // two files still owed a SHA, so the caller returned early and never settled them.
+    const unsettled = index.db.prepare("SELECT count(*) AS n FROM file_hashes WHERE sha256 = '' AND crc != 0").get() as { n: number };
+    if (unsettled.n > 0) expect(stillToHash(index.db)).toBeGreaterThan(0);
+  });
+
   it('reads in full only the files that share a size and a CRC', async () => {
     const root = tempDir();
     await createLibrary(root, 'Twins');

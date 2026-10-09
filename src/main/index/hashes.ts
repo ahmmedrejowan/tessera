@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { setImmediate as yieldToLoop } from 'node:timers/promises';
 import { createReadStream } from 'node:fs';
-import { readFile, stat } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { crc32 } from 'node:zlib';
@@ -135,7 +135,9 @@ export async function hashSome(d: HashDeps, limit = BATCH): Promise<number> {
         // turns out to share its size and CRC.
         const stamp = await packFileStamp(dir, row.ref);
         if (stamp) {
-          write.run(row.packId, row.ref, stamp.size, row.mtime, stamp.crc32, '');
+          // row.size, not the archive's: the staleness check compares this against assets.size,
+          // and a row that disagrees with its own predicate is re-stamped for ever.
+          write.run(row.packId, row.ref, row.size, row.mtime, stamp.crc32, '');
           done++;
           continue;
         }
@@ -165,6 +167,10 @@ export async function hashSome(d: HashDeps, limit = BATCH): Promise<number> {
       // Unreadable, gone, or an archive that will not open. Recorded as nothing so it is not tried
       // again on every pass; it will be picked up if the file itself changes.
       write.run(row.packId, row.ref, row.size, row.mtime, 0, '');
+      // Counted: the row was written, so this file will not be asked for again. Without it a
+      // batch where every file failed looked like no work left, and the caller stopped for the
+      // session with other packs still unread.
+      done++;
       log.warn('hashes', `could not read ${row.ref}`, e instanceof Error ? e.message : e);
     }
   }
@@ -181,7 +187,20 @@ export function stillToHash(db: DatabaseSync): number {
           AND (h.sha256 IS NULL OR h.size != a.size OR h.mtime != a.mtime)`,
     )
     .get(MAX_BYTES) as { n: number };
-  return row.n;
+  const pending = db
+    .prepare(
+      `SELECT count(*) AS n
+         FROM file_hashes h
+         JOIN (SELECT size, crc FROM file_hashes WHERE sha256 = '' AND crc != 0
+                GROUP BY size, crc HAVING count(*) > 1) g
+           ON g.size = h.size AND g.crc = h.crc
+        WHERE h.sha256 = ''`,
+    )
+    .get() as { n: number };
+  // Files whose size and CRC match something else still owe a full read, and they are the whole
+  // point of taking CRCs. Counting only unread files let the pass finish and return early for
+  // ever, leaving duplicate detection quietly short of an answer.
+  return row.n + pending.n;
 }
 
 /**
@@ -206,6 +225,10 @@ async function settleCollisions(d: HashDeps, limit: number): Promise<number> {
     .all(limit) as { packId: string; ref: string; size: number; mtime: number }[];
   if (!rows.length) return 0;
   const write = d.db.prepare('UPDATE file_hashes SET sha256 = ? WHERE pack_id = ? AND ref = ?');
+  // Not a sentinel in sha256: anything that groups by that column would read it as a hash and
+  // report every unreadable file as a copy of every other. Clearing the CRC takes the row out of
+  // its collision group instead, so it is not asked for again and claims nothing.
+  const giveUp = d.db.prepare('UPDATE file_hashes SET crc = 0 WHERE pack_id = ? AND ref = ?');
   let done = 0;
   for (const row of rows) {
     if (!d.keepGoing()) break;
@@ -220,8 +243,8 @@ async function settleCollisions(d: HashDeps, limit: number): Promise<number> {
       write.run(sha, row.packId, row.ref);
       done++;
     } catch (e) {
-      // Nothing more to try: leave it told apart by size and CRC alone.
-      write.run('-', row.packId, row.ref);
+      giveUp.run(row.packId, row.ref);
+      done++;
       log.warn('hashes', `could not settle ${row.ref}`, e instanceof Error ? e.message : e);
     }
   }
