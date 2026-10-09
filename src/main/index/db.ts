@@ -79,25 +79,11 @@ CREATE TABLE assets (
 -- and rewrites them, and hashing is the one thing here that costs real time: a hash already worked
 -- out is kept and reused as long as the file has not changed. Nothing here is required; an asset
 -- with no row yet simply has not been read.
-CREATE TABLE file_hashes (
-  pack_id TEXT NOT NULL REFERENCES packs(id) ON DELETE CASCADE,
-  ref     TEXT NOT NULL,
-  -- What the file was when it was hashed. If either changes the hash is stale and is worked out again.
-  size    INTEGER NOT NULL,
-  mtime   INTEGER NOT NULL,
-  -- CRC-32 of the contents. An archive hands this over with its table of contents, so for a file
-  -- inside one it costs nothing: no decompressing, no reading. Size and CRC together are enough
-  -- to say two files are *not* the same, which is the answer for almost every pair.
-  crc     INTEGER NOT NULL DEFAULT 0,
-  -- Worked out only for files whose size and CRC match something else, because CRC-32 does
-  -- collide and only this settles it. Empty until then.
-  sha256  TEXT NOT NULL,
-  PRIMARY KEY (pack_id, ref)
-);
+-- (file_hashes is created before this runs: see KEPT below.)
 -- The question this table exists to answer: what else in the library is this same file?
-CREATE INDEX file_hashes_sha ON file_hashes(sha256);
+CREATE INDEX IF NOT EXISTS file_hashes_sha ON file_hashes(sha256);
 -- Finding the few files worth reading in full: the ones that share both size and CRC.
-CREATE INDEX file_hashes_crc ON file_hashes(size, crc);
+CREATE INDEX IF NOT EXISTS file_hashes_crc ON file_hashes(size, crc);
 CREATE INDEX assets_group ON assets(group_id);
 CREATE INDEX assets_pack ON assets(pack_id, role);
 -- "Which packs hold a 3D model?" A pack keeps no type of its own, so the only way to answer is to
@@ -146,7 +132,36 @@ CREATE TABLE hidden (
 CREATE VIRTUAL TABLE packs_fts USING fts5(pack_id UNINDEXED, words, tokenize='unicode61 remove_diacritics 2', prefix='2 3');
 `;
 
+
+/** The one table carried across versions, so it is created before anything indexes it. */
+const KEPT = `CREATE TABLE IF NOT EXISTS file_hashes (
+  pack_id TEXT NOT NULL REFERENCES packs(id) ON DELETE CASCADE,
+  ref     TEXT NOT NULL,
+  -- What the file was when it was hashed. If either changes the hash is stale and is worked out again.
+  size    INTEGER NOT NULL,
+  mtime   INTEGER NOT NULL,
+  -- CRC-32 of the contents. An archive hands this over with its table of contents, so for a file
+  -- inside one it costs nothing: no decompressing, no reading. Size and CRC together are enough
+  -- to say two files are *not* the same, which is the answer for almost every pair.
+  crc     INTEGER NOT NULL DEFAULT 0,
+  -- Worked out only for files whose size and CRC match something else, because CRC-32 does
+  -- collide and only this settles it. Empty until then.
+  sha256  TEXT NOT NULL,
+  PRIMARY KEY (pack_id, ref)
+);`;
+
 const DROP = ['hidden', 'collection_packs', 'collection_items', 'packs_fts', 'assets_fts', 'assets', 'pack_terms', 'packs'];
+
+
+/**
+ * Columns added to a kept table since an older version wrote it. Adding one is cheap and keeps
+ * every hash already worked out; recreating the table would throw away an hour of reading.
+ */
+function addMissingColumns(db: DatabaseSync): void {
+  const have = new Set((db.prepare('PRAGMA table_info(file_hashes)').all() as { name: string }[]).map((c) => c.name));
+  // 16: the CRC an archive already stored, so most files never need reading at all.
+  if (!have.has('crc')) db.exec('ALTER TABLE file_hashes ADD COLUMN crc INTEGER NOT NULL DEFAULT 0');
+}
 
 function open(path: string): DatabaseSync {
   const db = new DatabaseSync(path);
@@ -154,7 +169,16 @@ function open(path: string): DatabaseSync {
   const { user_version: version } = db.prepare('PRAGMA user_version').get() as { user_version: number };
   if (version !== SCHEMA_VERSION) {
     db.exec('BEGIN');
+    // Everything here is derived from the library on disk, so it is cheaper to rebuild than to
+    // migrate. `file_hashes` is the exception: it is what the files contain, it costs an hour to
+    // work out again, and it is not in DROP for that reason. It therefore has to be brought
+    // forward rather than recreated, which is why its table and indexes are IF NOT EXISTS and why
+    // new columns are added here.
     for (const t of DROP) db.exec(`DROP TABLE IF EXISTS ${t}`);
+    // The kept table first, then its new columns, then everything else: an index on a column
+    // added in this upgrade cannot be built before the column is there.
+    db.exec(KEPT);
+    addMissingColumns(db);
     db.exec(SCHEMA);
     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
     db.exec('COMMIT');
