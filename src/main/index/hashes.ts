@@ -178,6 +178,20 @@ export async function hashSome(d: HashDeps, limit = BATCH): Promise<number> {
 }
 
 /** How many files are still to be read. */
+
+/**
+ * Contents recorded for packs the library no longer holds.
+ *
+ * Removing a pack takes its rows with it, so this is normally nothing. It is not nothing after a
+ * version change: the rebuild holds foreign keys off, because the cascade would otherwise empty
+ * this table, and a pack that went away while the app was closed leaves its rows behind with no
+ * pack to point at. Cheap to ask, and unbounded if never asked.
+ */
+export function forgetOrphanHashes(db: DatabaseSync): number {
+  const { changes } = db.prepare('DELETE FROM file_hashes WHERE pack_id NOT IN (SELECT id FROM packs)').run();
+  return Number(changes);
+}
+
 export function stillToHash(db: DatabaseSync): number {
   const row = db
     .prepare(

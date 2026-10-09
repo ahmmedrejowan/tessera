@@ -10,7 +10,7 @@ import type { BinEntry, CollectionChange, CollectionResult, Detected, FolderKind
 import { UserError } from './errors';
 import { listPackFiles, parseRef } from './index/files';
 import { LibraryIndex } from './index/indexer';
-import { hashSome, stillToHash } from './index/hashes';
+import { forgetOrphanHashes, hashSome, stillToHash } from './index/hashes';
 import { planImport } from './import/plan';
 import { copyTree, movable, runImport, type ImportDeps } from './import/run';
 import { LibraryQueries } from './index/query';
@@ -289,6 +289,10 @@ export class LibraryService {
         // decides which files are hidden.
         await sweepBin(lib.root, this.d.binKeepDays()).catch(() => 0);
         lib.index.setHidden((await readBin(lib.root)).filter((e) => e.kind === 'file' && e.hiddenOnly).map((e) => ({ packId: e.packId, ref: e.ref })));
+        // Packs are all back by now, so anything still pointing at one that is not is from a pack
+        // that went away, and nothing will ever match it again.
+        const orphans = forgetOrphanHashes(lib.index.db);
+        if (orphans) log.info('hashes', `forgot the contents of ${orphans} files whose pack has gone`);
         job.done(result.changed || result.removed ? `${result.changed} changed, ${result.removed} removed` : 'Up to date');
         if (this.state.status === 'ready') this.setState({ ...this.state, problems: result.problems });
         if (result.changed || result.removed || collectionsChanged) this.d.onIndexChanged();

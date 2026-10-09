@@ -5,7 +5,7 @@
  * question behind "have I got this already", "did that bundle repeat itself" and "where in my
  * library did this file in my game come from".
  */
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -13,7 +13,7 @@ vi.mock('electron', () => import('./fake-electron'));
 
 import { LibraryIndex } from '../src/main/index/indexer';
 import { LibraryQueries } from '../src/main/index/query';
-import { hashSome, stillToHash } from '../src/main/index/hashes';
+import { hashSome, stillToHash, forgetOrphanHashes } from '../src/main/index/hashes';
 import { createLibrary } from '../src/main/library/layout';
 import { createPack } from '../src/main/library/packs';
 import { tempDir } from './helpers';
@@ -113,6 +113,30 @@ describe('what the contents let it answer', () => {
     expect(crc.sha256).toBe('');
     // And the question it exists to answer still gets an answer.
     expect(q.sameAs(pack.meta.id, 'original/kit.zip!a.png')).toEqual([]);
+  });
+
+  it('forgets the contents of a pack the library no longer holds', async () => {
+    const root = tempDir();
+    await createLibrary(root, 'Gone');
+    const pack = await createPack(root, 'Kit', { status: 'library', license: { id: 'CC0-1.0' }, source: { url: 'https://example.test/g' } } as never);
+    mkdirSync(join(pack.dir, 'original', 'M'), { recursive: true });
+    writeFileSync(join(pack.dir, 'original', 'M', 'a.glb'), 'a');
+    const index = new LibraryIndex(':memory:');
+    await index.sync(root);
+    while ((await hashSome({ db: index.db, packDir: () => pack.dir, keepGoing: () => true }, 50)) > 0);
+    expect((index.db.prepare('SELECT count(*) AS n FROM file_hashes').get() as { n: number }).n).toBeGreaterThan(0);
+
+    // A pack that went away while the app was closed. The rebuild holds foreign keys off, so
+    // nothing clears these on its own any more.
+    // Foreign keys off, as the rebuild has them: with them on the cascade clears these rows, and
+    // it is precisely because the rebuild cannot afford that cascade that orphans can exist.
+    index.db.exec('PRAGMA foreign_keys = OFF');
+    index.db.exec("DELETE FROM packs WHERE id = '" + pack.meta.id + "'");
+    index.db.exec('PRAGMA foreign_keys = ON');
+    expect(forgetOrphanHashes(index.db)).toBeGreaterThan(0);
+    expect((index.db.prepare('SELECT count(*) AS n FROM file_hashes').get() as { n: number }).n).toBe(0);
+    // And asking again when there is nothing to forget costs nothing and removes nothing.
+    expect(forgetOrphanHashes(index.db)).toBe(0);
   });
 
   it('counts the files still owing a full read, so the work is not called finished early', async () => {
