@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
  * deleted and rebuilt; a schema change simply rebuilds it.
  */
 
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 16;
 
 const SCHEMA = `
 CREATE TABLE packs (
@@ -100,6 +100,12 @@ CREATE INDEX file_hashes_sha ON file_hashes(sha256);
 CREATE INDEX file_hashes_crc ON file_hashes(size, crc);
 CREATE INDEX assets_group ON assets(group_id);
 CREATE INDEX assets_pack ON assets(pack_id, role);
+-- "Which packs hold a 3D model?" A pack keeps no type of its own, so the only way to answer is to
+-- look inside it, once per pack. Without the type in the index that is a scan of every asset the
+-- pack holds, and a library whose packs hold thousands of files each makes a click take seconds.
+CREATE INDEX assets_pack_type ON assets(pack_id, role, type);
+-- And the same question for a license carried by part of a pack rather than the pack itself.
+CREATE INDEX assets_pack_license ON assets(pack_id, role, license);
 CREATE INDEX assets_type ON assets(type, role);
 CREATE INDEX assets_ext ON assets(ext);
 CREATE INDEX assets_license ON assets(license);

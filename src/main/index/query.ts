@@ -127,8 +127,21 @@ export class LibraryQueries {
     for (const facet of FACETS) {
       const values = q.filters[facet];
       if (!values?.length || facet === skip) continue;
-      const assetCol = ASSET_COLUMN[facet];
-      const packCol = PACK_COLUMN[facet];
+      const assetCol = mode === 'assets' || !PACK_COLUMN[facet] ? ASSET_COLUMN[facet] : undefined;
+      const packCol = mode === 'assets' && ASSET_COLUMN[facet] ? undefined : PACK_COLUMN[facet];
+      if (mode === 'packs' && PACK_COLUMN[facet] && ASSET_COLUMN[facet]) {
+        // License is the one thing written in both places: on the pack, and on a part of it under
+        // different terms. A pack matches either way. Asking the pack's own column first lets the
+        // common case answer from one column instead of a correlated scan of every asset it holds,
+        // which is what made choosing a license in Packs take seconds.
+        const own = inList(PACK_COLUMN[facet]!, values);
+        const part = inList(ASSET_COLUMN[facet]!.replace(/^a\./, 'a.'), values);
+        out.push({
+          sql: `(${own.sql} OR EXISTS (SELECT 1 FROM assets a WHERE a.pack_id = p.id AND a.role = 'main' AND ${part.sql}))`,
+          params: [...own.params, ...part.params],
+        });
+        continue;
+      }
       if (facet === 'format') {
         // An asset matches when any of its variants is in the format.
         const c = inList('v.ext', values);
@@ -439,8 +452,12 @@ export class LibraryQueries {
       const count = mode === 'assets' ? 'count(*)' : 'count(DISTINCT p.id)';
       let sql: string;
       const params = [...w.params];
-      const assetCol = ASSET_COLUMN[facet];
-      const packCol = PACK_COLUMN[facet];
+      // Browsing packs asks about packs. A pack records its own license, so a license filter in
+      // that mode reads p.license; only reach into its assets when the pack itself has nothing to
+      // say, as for type. Taking the asset column first made "CC0 packs" a correlated scan of
+      // every asset in the library to answer something already written on the pack.
+      const assetCol = mode === 'packs' && PACK_COLUMN[facet] ? undefined : ASSET_COLUMN[facet];
+      const packCol = mode === 'assets' && ASSET_COLUMN[facet] ? undefined : PACK_COLUMN[facet];
       if (facet === 'format') {
         sql = mode === 'assets'
           ? `SELECT v.ext AS value, count(DISTINCT a.id) AS count FROM assets a JOIN packs p ON p.id = a.pack_id JOIN assets v ON v.group_id = a.id ${w.sql} GROUP BY 1`
