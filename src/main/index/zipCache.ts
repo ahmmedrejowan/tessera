@@ -16,7 +16,11 @@ interface Open {
   busy: number;
 }
 
-const MAX_OPEN = 8;
+// Enough that work moving through a library of archives keeps the one it is reading, with room
+// for a grid drawing previews from another. Eight was sized for a handful of packs: a library
+// with hundreds of zips evicted the archive it was halfway through and reparsed it on the next
+// file. An open archive costs a file handle and its entry map, not the archive itself.
+const MAX_OPEN = 32;
 const IDLE_MS = 30_000;
 
 const cache = new Map<string, Promise<Open>>();

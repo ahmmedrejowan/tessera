@@ -75,6 +75,10 @@ export async function hashSome(d: HashDeps, limit = BATCH): Promise<number> {
          LEFT JOIN file_hashes h ON h.pack_id = a.pack_id AND h.ref = a.ref
         WHERE a.size > 0 AND a.size <= ?
           AND (h.sha256 IS NULL OR h.size != a.size OR h.mtime != a.mtime)
+        -- By pack, so a batch stays inside one archive. Unordered, a batch of files scattered
+        -- across a library's packs reopens an archive per file and parses its whole central
+        -- directory again each time, which costs far more than the hashing.
+        ORDER BY a.pack_id, a.ref
         LIMIT ?`,
     )
     .all(MAX_BYTES, limit) as { packId: string; ref: string; size: number; mtime: number }[];
