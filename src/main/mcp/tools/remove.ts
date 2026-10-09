@@ -13,7 +13,10 @@ export const REMOVE: Tool[] = [
     group: 'remove',
     title: 'Delete to the bin',
     summary: 'Move packs or single files to the library\'s bin, where they wait until someone empties it. Nothing is lost and anything already linked into a game stays there. An agent cannot empty the bin.',
-    input: z.object({ packIds: z.array(z.string()).default([]), assetIds: z.array(z.number().int()).default([]) }),
+    input: z.object({
+      packIds: z.array(z.string()).default([]).describe('Whole packs, by the id list_packs gives. Text ids.'),
+      assetIds: z.array(z.number().int()).default([]).describe('Single files, by the numeric id list_files gives in `id`. Not refs, not paths.'),
+    }),
     run: async (args, ctx) => {
       const removed: string[] = [];
       for (const id of args.packIds) removed.push(await ctx.library.removePack(id));

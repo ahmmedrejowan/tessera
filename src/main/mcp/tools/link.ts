@@ -14,7 +14,7 @@ export const LINK: Tool[] = [
     title: 'Link assets to a game',
     summary: 'Copy files into a game\'s folder, in the format that game prefers, with their textures, their license papers and the credits file kept up to date. This is what "linking" means here.',
     input: z.object({
-      projectId: z.string(),
+      projectId: z.string().describe("The game's id, as list_projects gives it in `id`. Called projectId though the tools say game."),
       assetIds: z.array(z.number().int()).default([]),
       packIds: z.array(z.string()).default([]).describe('Every file of these packs is linked.'),
       ifNameTaken: z
@@ -67,7 +67,7 @@ export const LINK: Tool[] = [
     title: 'Change a game',
     summary: 'Rename a game, or change the folder assets are linked into and the file its credits are written to. Pass creditsFile null to stop writing credits for it.',
     input: z.object({
-      projectId: z.string(),
+      projectId: z.string().describe("The game's id, as list_projects gives it in `id`. Called projectId though the tools say game."),
       name: z.string().optional(),
       target: z.string().optional(),
       // Null, because a game can keep no credits file at all and the window has always allowed
@@ -86,7 +86,7 @@ export const LINK: Tool[] = [
     group: 'link',
     title: 'Take assets out of a game',
     summary: 'Remove files this library linked into a game, from the game’s folder and from its credits. The library keeps them.',
-    input: z.object({ projectId: z.string(), assetIds: z.array(z.number().int()).default([]), packIds: z.array(z.string()).default([]) }),
+    input: z.object({ projectId: z.string().describe("The game's id, as list_projects gives it in `id`. Called projectId though the tools say game."), assetIds: z.array(z.number().int()).default([]), packIds: z.array(z.string()).default([]) }),
     run: async (args, ctx) => {
       const items = args.assetIds.length ? ctx.library.require().queries.refs(args.assetIds) : [];
       for (const packId of args.packIds) items.push(...packAssets(ctx, packId));
@@ -103,7 +103,7 @@ export const LINK: Tool[] = [
     summary:
       'Look through a folder of a game for assets this library already knows, matching by content rather than by name. Reads only: nothing is copied, moved or recorded. Use it before linking into a game that is not new, so the same asset is not copied in a second time under a different path.',
     input: z.object({
-      projectId: z.string(),
+      projectId: z.string().describe("The game's id, as list_projects gives it in `id`. Called projectId though the tools say game."),
       folder: z.string().default('').describe('A folder inside the project, e.g. "Assets" or "Content". Leave out for the folder copies normally go to.'),
     }),
     run: async (args, ctx) => {
@@ -131,7 +131,7 @@ export const LINK: Tool[] = [
     summary:
       'Write what find_assets_already_in_game found into the game’s record, pointing at the paths the game already uses. Nothing is copied and no file moves; the credits file is written again so it covers them.',
     input: z.object({
-      projectId: z.string(),
+      projectId: z.string().describe("The game's id, as list_projects gives it in `id`. Called projectId though the tools say game."),
       matches: z
         .array(z.object({ packId: z.string(), packName: z.string().default(''), ref: z.string(), path: z.string(), size: z.number().int().nonnegative().default(0) }))
         .min(1)
@@ -148,7 +148,7 @@ export const LINK: Tool[] = [
     group: 'link',
     title: 'Forget a game',
     summary: 'Stop tracking a game. Its folder and everything already linked into it are left exactly as they are.',
-    input: z.object({ projectId: z.string() }),
+    input: z.object({ projectId: z.string().describe("The game's id, as list_projects gives it in `id`. Called projectId though the tools say game.") }),
     run: async (args, ctx) => {
       await ctx.projects.unlink(args.projectId);
       ctx.note('An agent stopped tracking a game');
