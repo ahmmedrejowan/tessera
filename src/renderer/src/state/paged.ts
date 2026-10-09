@@ -10,7 +10,10 @@ export const PAGE_SIZE = 200;
  * result stays on screen instead of flashing empty.
  */
 export function usePagedRows<T>(key: readonly unknown[], fetchPage: (offset: number, limit: number) => Promise<Page<T>>, enabled = true) {
-  const [visible, setVisible] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  // Which pages are on screen, not which rows. The grid reports a new range every row the scroll
+  // crosses, and each one used to set state, re-render the page and re-render every tile on it.
+  // Only the page numbers are ever read, and those change once every two hundred rows.
+  const [visible, setVisible] = useState<{ from: number; to: number }>({ from: 0, to: 0 });
   const first = useQuery({
     queryKey: [...key, 0],
     queryFn: () => fetchPage(0, PAGE_SIZE),
@@ -20,12 +23,12 @@ export function usePagedRows<T>(key: readonly unknown[], fetchPage: (offset: num
   const total = first.data?.total ?? 0;
   const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
   const pages = useMemo(() => {
-    const from = Math.min(Math.floor(visible.start / PAGE_SIZE), lastPage);
-    const to = Math.min(Math.floor(visible.end / PAGE_SIZE), lastPage);
+    const from = Math.min(visible.from, lastPage);
+    const to = Math.min(visible.to, lastPage);
     const out: number[] = [];
     for (let p = Math.max(1, from); p <= to; p++) out.push(p);
     return out;
-  }, [visible.start, visible.end, lastPage]);
+  }, [visible.from, visible.to, lastPage]);
   const more = useQueries({
     queries: pages.map((p) => ({
       queryKey: [...key, p],
@@ -37,6 +40,10 @@ export function usePagedRows<T>(key: readonly unknown[], fetchPage: (offset: num
       placeholderData: keepPreviousData,
     })),
   });
+  // useQueries hands back a new array every render, so depending on it rebuilt this map, and the
+  // get() below it, on every render: a new get() re-renders every tile on screen. The data behind
+  // it only changes when a page arrives, which is what this signature tracks.
+  const fetched = more.map((m) => m.dataUpdatedAt).join(',');
   const loaded = useMemo(() => {
     const m = new Map<number, T[]>();
     if (first.data) m.set(0, first.data.rows);
@@ -45,10 +52,13 @@ export function usePagedRows<T>(key: readonly unknown[], fetchPage: (offset: num
       if (rows) m.set(p, rows);
     });
     return m;
-  }, [first.data, pages, more]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `fetched` stands in for `more`.
+  }, [first.data, pages, fetched]);
   const get = useCallback((index: number): T | undefined => loaded.get(Math.floor(index / PAGE_SIZE))?.[index % PAGE_SIZE], [loaded]);
   const setRange = useCallback((start: number, end: number) => {
-    setVisible((v) => (v.start === start && v.end === end ? v : { start, end }));
+    const from = Math.floor(start / PAGE_SIZE);
+    const to = Math.floor(end / PAGE_SIZE);
+    setVisible((v) => (v.from === from && v.to === to ? v : { from, to }));
   }, []);
   return {
     total,
