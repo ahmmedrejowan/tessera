@@ -341,6 +341,31 @@ export class LibraryQueries {
     ).map((r) => toAsset(r) as AssetRow & { packName: string });
   }
 
+  /**
+   * Every other place in the library holding this same file.
+   *
+   * Settled by SHA-256 where there was a reason to work one out, and by size and CRC-32 where
+   * there was not: nothing else in the library shares both, which is the whole point of keeping
+   * them. Null when the file has not been looked at yet at all.
+   */
+  sameAs(packId: string, ref: string): (AssetRow & { packName: string })[] | null {
+    const me = this.get<{ sha256: string; size: number; crc: number }>(
+      'SELECT sha256, size, crc FROM file_hashes WHERE pack_id = ? AND ref = ?',
+      [packId, ref],
+    );
+    if (!me) return null;
+    if (me.sha256 && me.sha256 !== '-') return this.byHash(me.sha256).filter((a) => !(a.packId === packId && a.ref === ref));
+    if (!me.crc) return null;
+    return this.all<RawAsset>(
+      `SELECT ${ASSET_FIELDS} FROM assets a
+         JOIN packs p ON p.id = a.pack_id
+         JOIN file_hashes h ON h.pack_id = a.pack_id AND h.ref = a.ref
+        WHERE h.size = ? AND h.crc = ? AND p.status = 'library'
+          AND NOT (h.pack_id = ? AND h.ref = ?)`,
+      [me.size, me.crc, packId, ref],
+    ).map((r) => toAsset(r) as AssetRow & { packName: string });
+  }
+
   /** The recorded contents of one file, or null if it has not been read yet. */
   hashOf(packId: string, ref: string): string | null {
     const row = this.get<{ sha256: string }>('SELECT sha256 FROM file_hashes WHERE pack_id = ? AND ref = ? AND sha256 != \'\'', [packId, ref]);

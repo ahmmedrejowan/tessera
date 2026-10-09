@@ -65,16 +65,8 @@ async function sweep(): Promise<void> {
   }
 }
 
-/**
- * Read one entry. `key` identifies the archive (its path, or its ref when it sits inside another
- * archive); `source` is the path or the archive's bytes.
- */
-export async function readCachedEntry(
-  key: string,
-  source: string | (() => Promise<Buffer>),
-  name: string,
-  maxBytes: number,
-): Promise<Buffer> {
+/** Open an archive, or hand back the one already open, rescanning it if the file changed. */
+async function openArchive(key: string, source: string | (() => Promise<Buffer>)): Promise<Open> {
   // An archive on disk is checked for changes; one inside another archive is keyed by its parent's stamp.
   const stamp = typeof source === 'string' ? await stat(source).then((s) => `${s.size}:${s.mtimeMs}`) : 'nested';
   let pending = cache.get(key);
@@ -93,7 +85,20 @@ export async function readCachedEntry(
     if (!sweeper) sweeper = setInterval(() => void sweep(), 10_000);
     if (cache.size > MAX_OPEN) void sweep();
   }
-  const o = await pending;
+  return pending;
+}
+
+/**
+ * Read one entry. `key` identifies the archive (its path, or its ref when it sits inside another
+ * archive); `source` is the path or the archive's bytes.
+ */
+export async function readCachedEntry(
+  key: string,
+  source: string | (() => Promise<Buffer>),
+  name: string,
+  maxBytes: number,
+): Promise<Buffer> {
+  const o = await openArchive(key, source);
   const entry = o.entries.get(name);
   if (!entry) throw new Error(`${name} isn't in the archive`);
   if (entry.uncompressedSize > maxBytes) throw new Error(`${name} is too large to read at once`);
@@ -108,6 +113,20 @@ export async function readCachedEntry(
     o.busy--;
     o.lastUsed = Date.now();
   }
+}
+
+/**
+ * What an archive already knows about one entry: its size and the CRC-32 it stored when the file
+ * went in. Both come out of the table of contents, so this never reads or decompresses the file.
+ */
+export async function cachedEntryInfo(
+  key: string,
+  source: string | (() => Promise<Buffer>),
+  name: string,
+): Promise<{ size: number; crc32: number } | null> {
+  const o = await openArchive(key, source);
+  const entry = o.entries.get(name);
+  return entry ? { size: entry.uncompressedSize, crc32: entry.crc32 } : null;
 }
 
 /** Close everything (a library closing, tests). */

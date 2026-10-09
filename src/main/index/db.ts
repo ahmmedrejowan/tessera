@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
  * deleted and rebuilt; a schema change simply rebuilds it.
  */
 
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 const SCHEMA = `
 CREATE TABLE packs (
@@ -85,11 +85,19 @@ CREATE TABLE file_hashes (
   -- What the file was when it was hashed. If either changes the hash is stale and is worked out again.
   size    INTEGER NOT NULL,
   mtime   INTEGER NOT NULL,
+  -- CRC-32 of the contents. An archive hands this over with its table of contents, so for a file
+  -- inside one it costs nothing: no decompressing, no reading. Size and CRC together are enough
+  -- to say two files are *not* the same, which is the answer for almost every pair.
+  crc     INTEGER NOT NULL DEFAULT 0,
+  -- Worked out only for files whose size and CRC match something else, because CRC-32 does
+  -- collide and only this settles it. Empty until then.
   sha256  TEXT NOT NULL,
   PRIMARY KEY (pack_id, ref)
 );
 -- The question this table exists to answer: what else in the library is this same file?
 CREATE INDEX file_hashes_sha ON file_hashes(sha256);
+-- Finding the few files worth reading in full: the ones that share both size and CRC.
+CREATE INDEX file_hashes_crc ON file_hashes(size, crc);
 CREATE INDEX assets_group ON assets(group_id);
 CREATE INDEX assets_pack ON assets(pack_id, role);
 CREATE INDEX assets_type ON assets(type, role);

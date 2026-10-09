@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { parseRef, readPackFile } from './files';
+import { crc32 } from 'node:zlib';
+import { packFileStamp, parseRef, readPackFile } from './files';
 import { log } from '../log';
 
 /**
@@ -82,10 +83,10 @@ export async function hashSome(d: HashDeps, limit = BATCH): Promise<number> {
         LIMIT ?`,
     )
     .all(MAX_BYTES, limit) as { packId: string; ref: string; size: number; mtime: number }[];
-  if (!rows.length) return 0;
+  if (!rows.length) return settleCollisions(d, limit);
 
   if (!d.keepGoing()) return 0;
-  const write = d.db.prepare('INSERT OR REPLACE INTO file_hashes (pack_id, ref, size, mtime, sha256) VALUES (?, ?, ?, ?, ?)');
+  const write = d.db.prepare('INSERT OR REPLACE INTO file_hashes (pack_id, ref, size, mtime, crc, sha256) VALUES (?, ?, ?, ?, ?, ?)');
   let done = 0;
   for (const row of rows) {
     if (!d.keepGoing()) break;
@@ -93,16 +94,35 @@ export async function hashSome(d: HashDeps, limit = BATCH): Promise<number> {
     if (!dir) continue;
     try {
       const { file, inside } = parseRef(row.ref);
-      // A file inside an archive is read out of it; a loose file is streamed, so a large one does
-      // not have to be held in memory all at once.
-      const sha = inside.length ? sha256OfBuffer(await readPackFile(dir, row.ref, MAX_BYTES)) : await sha256OfFile(join(dir, ...file.split('/')));
-      const now = inside.length ? row : await stat(join(dir, ...file.split('/'))).catch(() => row);
-      write.run(row.packId, row.ref, row.size, Math.round('mtimeMs' in now ? (now as { mtimeMs: number }).mtimeMs : row.mtime), sha);
+      if (inside.length) {
+        // Inside an archive: the table of contents already holds the CRC, so nothing is read.
+        // Whether this file is worth reading in full is decided later, by whether anything else
+        // turns out to share its size and CRC.
+        const stamp = await packFileStamp(dir, row.ref);
+        if (stamp) {
+          write.run(row.packId, row.ref, stamp.size, row.mtime, stamp.crc32, '');
+          done++;
+          continue;
+        }
+      }
+      // A loose file has to be read to be known at all, so once it is open both are taken in the
+      // same pass: the CRC costs nothing next to the read, and this way it never needs reading twice.
+      const path = join(dir, ...file.split('/'));
+      const buf = inside.length ? await readPackFile(dir, row.ref, MAX_BYTES) : await readFile(path);
+      const now = inside.length ? row : await stat(path).catch(() => row);
+      write.run(
+        row.packId,
+        row.ref,
+        row.size,
+        Math.round('mtimeMs' in now ? (now as { mtimeMs: number }).mtimeMs : row.mtime),
+        crc32(buf),
+        sha256OfBuffer(buf),
+      );
       done++;
     } catch (e) {
       // Unreadable, gone, or an archive that will not open. Recorded as nothing so it is not tried
       // again on every pass; it will be picked up if the file itself changes.
-      write.run(row.packId, row.ref, row.size, row.mtime, '');
+      write.run(row.packId, row.ref, row.size, row.mtime, 0, '');
       log.warn('hashes', `could not read ${row.ref}`, e instanceof Error ? e.message : e);
     }
   }
@@ -120,4 +140,47 @@ export function stillToHash(db: DatabaseSync): number {
     )
     .get(MAX_BYTES) as { n: number };
   return row.n;
+}
+
+/**
+ * CRC-32 collides, so a shared size and CRC is a strong hint and not an answer. These are the only
+ * files worth reading in full: everything else has already been told apart by a number the archive
+ * handed over for nothing. On a library of game assets this is a few hundred files out of a
+ * hundred thousand.
+ */
+async function settleCollisions(d: HashDeps, limit: number): Promise<number> {
+  if (!d.keepGoing()) return 0;
+  const rows = d.db
+    .prepare(
+      `SELECT h.pack_id AS packId, h.ref AS ref, h.size AS size, h.mtime AS mtime
+         FROM file_hashes h
+         JOIN (SELECT size, crc FROM file_hashes WHERE sha256 = '' AND crc != 0
+                GROUP BY size, crc HAVING count(*) > 1) g
+           ON g.size = h.size AND g.crc = h.crc
+        WHERE h.sha256 = ''
+        ORDER BY h.pack_id, h.ref
+        LIMIT ?`,
+    )
+    .all(limit) as { packId: string; ref: string; size: number; mtime: number }[];
+  if (!rows.length) return 0;
+  const write = d.db.prepare('UPDATE file_hashes SET sha256 = ? WHERE pack_id = ? AND ref = ?');
+  let done = 0;
+  for (const row of rows) {
+    if (!d.keepGoing()) break;
+    const dir = d.packDir(row.packId);
+    if (!dir) continue;
+    try {
+      const { file, inside } = parseRef(row.ref);
+      const sha = inside.length
+        ? sha256OfBuffer(await readPackFile(dir, row.ref, MAX_BYTES))
+        : await sha256OfFile(join(dir, ...file.split('/')));
+      write.run(sha, row.packId, row.ref);
+      done++;
+    } catch (e) {
+      // Nothing more to try: leave it told apart by size and CRC alone.
+      write.run('-', row.packId, row.ref);
+      log.warn('hashes', `could not settle ${row.ref}`, e instanceof Error ? e.message : e);
+    }
+  }
+  return done;
 }

@@ -178,9 +178,8 @@ export const READ: Tool[] = [
     input: z.object({ packId: z.string(), ref: z.string() }),
     run: async (args, ctx) => {
       const q = ctx.library.require().queries;
-      const sha = q.hashOf(args.packId, args.ref);
-      if (!sha) return { read: false, note: 'This file has not been read yet, so nothing can be said about what else matches it.', elsewhere: [] };
-      const all = q.byHash(sha).filter((a) => !(a.packId === args.packId && a.ref === args.ref));
+      const all = q.sameAs(args.packId, args.ref);
+      if (!all) return { read: false, note: 'This file has not been read yet, so nothing can be said about what else matches it.', elsewhere: [] };
       return { read: true, elsewhere: all.map(assetOut) };
     },
   }),

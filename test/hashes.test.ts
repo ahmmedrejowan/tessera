@@ -106,8 +106,33 @@ describe('what the contents let it answer', () => {
     await index.sync(root);
     while (stillToHash(index.db) > 0) await hashSome({ db: index.db, packDir: () => pack.dir, keepGoing: () => true }, 50);
 
-    const sha = q.hashOf(pack.meta.id, 'original/kit.zip!a.png');
-    expect(sha).toBeTruthy();
-    expect(q.byHash(sha!).length).toBeGreaterThanOrEqual(1);
+    // Told apart by the CRC the archive already stored: nothing was decompressed to learn it, so
+    // there is no SHA-256 and no reason to want one.
+    const crc = index.db.prepare("SELECT crc, sha256 FROM file_hashes WHERE ref = ?").get('original/kit.zip!a.png') as { crc: number; sha256: string };
+    expect(crc.crc).toBeGreaterThan(0);
+    expect(crc.sha256).toBe('');
+    // And the question it exists to answer still gets an answer.
+    expect(q.sameAs(pack.meta.id, 'original/kit.zip!a.png')).toEqual([]);
+  });
+
+  it('reads in full only the files that share a size and a CRC', async () => {
+    const root = tempDir();
+    await createLibrary(root, 'Twins');
+    const pack = await createPack(root, 'Twin Kit', { status: 'library', license: { id: 'CC0-1.0' }, source: { url: 'https://example.test/t' } } as never);
+    await writeZip(join(pack.dir, 'original', 'kit.zip'), { 'a.png': 'THE SAME BYTES', 'b.png': 'THE SAME BYTES', 'c.png': 'different' });
+    const index = new LibraryIndex(':memory:');
+    const q = new LibraryQueries(index.db);
+    await index.sync(root);
+    while ((await hashSome({ db: index.db, packDir: () => pack.dir, keepGoing: () => true }, 50)) > 0);
+
+    const rows = index.db.prepare('SELECT ref, sha256 FROM file_hashes ORDER BY ref').all() as { ref: string; sha256: string }[];
+    // Only what is inside the archive: the zip itself is a loose file, so it is read either way.
+    const inside = rows.filter((r) => r.ref.includes('!'));
+    const settled = inside.filter((r) => r.sha256 !== '');
+    // The twins were worth reading; the odd one out was not.
+    expect(settled.map((r) => r.ref.split('!')[1]).sort()).toEqual(['a.png', 'b.png']);
+    expect(inside.find((r) => r.ref.endsWith('c.png'))!.sha256).toBe('');
+    const twins = q.sameAs(pack.meta.id, 'original/kit.zip!a.png')!;
+    expect(twins.map((t) => t.ref.split('!')[1])).toEqual(['b.png']);
   });
 });
