@@ -61,6 +61,24 @@ export const sha256OfRef = async (packDir: string, ref: string): Promise<string>
 };
 
 /**
+ * Both numbers for a loose file in one pass, a chunk at a time.
+ *
+ * Reading the whole file in and hashing the buffer meant a 200 MB model was 200 MB of memory and
+ * a long synchronous hash with nothing else able to run. A stream hands the thread back between
+ * chunks and never holds more than one.
+ */
+async function stampOfFile(path: string): Promise<{ crc32: number; sha256: string }> {
+  const h = createHash('sha256');
+  let crc = 0;
+  for await (const chunk of createReadStream(path)) {
+    const b = chunk as Buffer;
+    h.update(b);
+    crc = crc32(b, crc);
+  }
+  return { crc32: crc, sha256: h.digest('hex') };
+}
+
+/**
  * Work out the contents of files that have none recorded, or whose recorded one is stale.
  *
  * Returns how many it did. Safe to call again at any time: it picks up where it left off, and a
@@ -125,15 +143,22 @@ export async function hashSome(d: HashDeps, limit = BATCH): Promise<number> {
       // A loose file has to be read to be known at all, so once it is open both are taken in the
       // same pass: the CRC costs nothing next to the read, and this way it never needs reading twice.
       const path = join(dir, ...file.split('/'));
-      const buf = inside.length ? await readPackFile(dir, row.ref, MAX_BYTES) : await readFile(path);
+      // Inside an archive the bytes have to be gathered to be decompressed; a loose file is
+      // streamed, so neither memory nor the thread is held for the length of a large one.
+      const stamp = inside.length
+        ? await (async () => {
+            const b = await readPackFile(dir, row.ref, MAX_BYTES);
+            return { crc32: crc32(b), sha256: sha256OfBuffer(b) };
+          })()
+        : await stampOfFile(path);
       const now = inside.length ? row : await stat(path).catch(() => row);
       write.run(
         row.packId,
         row.ref,
         row.size,
         Math.round('mtimeMs' in now ? (now as { mtimeMs: number }).mtimeMs : row.mtime),
-        crc32(buf),
-        sha256OfBuffer(buf),
+        stamp.crc32,
+        stamp.sha256,
       );
       done++;
     } catch (e) {
