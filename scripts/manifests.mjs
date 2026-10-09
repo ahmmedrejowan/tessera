@@ -67,7 +67,7 @@ function file(assets, sums, name) {
 
 const name = (os, arch, ext) => `Tessera-${version}-${os}-${arch}.${ext}`;
 
-// ---- Homebrew: brew install --cask, which also clears the quarantine flag on the way in ----
+// ---- Homebrew: brew install --cask, with the quarantine flag taken off on the way in ----
 function cask(f) {
   const arm = f(name('mac', 'arm64', 'dmg'));
   const intel = f(name('mac', 'x64', 'dmg'));
@@ -91,6 +91,16 @@ function cask(f) {
   depends_on :macos
 
   app "Tessera.app"
+
+  # Homebrew quarantines what it installs, and these builds are signed ad-hoc rather than with a
+  # paid certificate, so Gatekeeper would stop the first launch exactly as it does for someone who
+  # downloaded the dmg by hand. Taking the flag off here is what makes installing through Homebrew
+  # worth recommending: it is the one route that does not send a person to Privacy & Security.
+  postflight do
+    system_command "/usr/bin/xattr",
+                   args: ["-dr", "com.apple.quarantine", "#{appdir}/Tessera.app"],
+                   sudo: false
+  end
 
   zap trash: [
     "~/Library/Application Support/Tessera",

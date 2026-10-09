@@ -155,8 +155,8 @@ export const ORGANISE: Tool[] = [
     summary: 'Record that one folder or one file inside a pack came under different terms. Written as a rule on the pack; the most exact rule wins for a file.',
     input: z.object({
       packId: z.string(),
-      path: z.string().describe('A folder or file inside the pack, as the app shows it (archives appear as folders).'),
-      license: z.string().nullable(),
+      path: z.string().describe('A folder or file inside the pack, as list_files gives it in `path` (not `ref`): archives appear as folders.'),
+      license: z.string().nullable().describe('An SPDX id, or null to take an existing rule away.'),
       creditLine: z.string().nullable().default(null),
     }),
     run: async (args, ctx) => {
@@ -171,11 +171,15 @@ export const ORGANISE: Tool[] = [
         throw new Error(`Nothing in this pack is at “${args.path}”. Use a path as list_files shows it${folders.length ? `, for instance a folder like ${folders.slice(0, 3).map((f) => `“${f}”`).join(', ')}` : ''}.`);
       }
       const rules = pack.meta.licenses.filter((r) => r.path.toLowerCase() !== at);
-      await ctx.library.editPack(args.packId, {
-        licenses: [...rules, { path: args.path, license: { id: args.license, attribution: args.creditLine, proof: [], notes: '' } }].sort((a, b) => a.path.localeCompare(b.path)),
-      });
-      ctx.note(`An agent set the license for ${args.path}`);
-      return { done: true, files: covers.length };
+      // No license means take the rule away, not write an empty one: a rule saying nothing leaves
+      // the files it covers with no license at all, which is worse than the pack's own terms and
+      // was the only thing this tool could not undo.
+      const next = args.license === null
+        ? rules
+        : [...rules, { path: args.path, license: { id: args.license, attribution: args.creditLine, proof: [], notes: '' } }];
+      await ctx.library.editPack(args.packId, { licenses: next.sort((a, b) => a.path.localeCompare(b.path)) });
+      ctx.note(args.license === null ? `An agent removed the license rule for ${args.path}` : `An agent set the license for ${args.path}`);
+      return { done: true, files: covers.length, removed: args.license === null };
     },
   }),
   define({

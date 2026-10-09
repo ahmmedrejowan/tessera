@@ -144,6 +144,17 @@ describe('what a pack says about itself', () => {
     expect(pack(app, arcade.id)!.meta.licenses.some((r) => r.path === 'Models')).toBe(true);
   });
 
+  it('takes a rule away again when given no license, rather than leaving an empty one', async () => {
+    const { app, arcade } = await ready();
+    await callTool(app, 'set_file_license', { packId: arcade.id, path: 'Models', license: 'CC-BY-4.0' });
+    expect(pack(app, arcade.id)!.meta.licenses.some((r) => r.path === 'Models')).toBe(true);
+    const gone = (await callTool(app, 'set_file_license', { packId: arcade.id, path: 'Models', license: null })) as { removed: boolean };
+    expect(gone.removed).toBe(true);
+    // Gone, not present-and-empty: a rule with no license strips the files it covers of the
+    // pack's own terms, which is worse than never having set one.
+    expect(pack(app, arcade.id)!.meta.licenses.some((r) => r.path === 'Models')).toBe(false);
+  });
+
   it('refuses a rule that would cover nothing, rather than reading as done', async () => {
     const { app, arcade } = await ready();
     await expect(callTool(app, 'set_file_license', { packId: arcade.id, path: 'Nowhere', license: 'CC0-1.0' })).rejects.toThrow(/Nothing in this pack/);
