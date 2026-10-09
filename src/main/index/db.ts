@@ -168,12 +168,19 @@ function open(path: string): DatabaseSync {
   db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA temp_store = MEMORY;');
   const { user_version: version } = db.prepare('PRAGMA user_version').get() as { user_version: number };
   if (version !== SCHEMA_VERSION) {
+    // Before BEGIN, not after: this pragma is a no-op inside a transaction, so setting it there
+    // looks right, changes nothing, and the cascade below still fires.
+    db.exec('PRAGMA foreign_keys = OFF');
     db.exec('BEGIN');
     // Everything here is derived from the library on disk, so it is cheaper to rebuild than to
     // migrate. `file_hashes` is the exception: it is what the files contain, it costs an hour to
-    // work out again, and it is not in DROP for that reason. It therefore has to be brought
-    // forward rather than recreated, which is why its table and indexes are IF NOT EXISTS and why
-    // new columns are added here.
+    // work out again, and it is not in DROP for that reason.
+    //
+    // Keeping it out of DROP is not enough on its own. With foreign keys on, SQLite does an
+    // implicit DELETE FROM before dropping a table, and that fires ON DELETE CASCADE: dropping
+    // `packs` emptied `file_hashes` on the way past, so an update threw away every checksum it
+    // was supposed to be protecting. They go off for the rebuild and back on afterwards; nothing
+    // in here depends on them, because every one of these tables is about to be recreated.
     for (const t of DROP) db.exec(`DROP TABLE IF EXISTS ${t}`);
     // The kept table first, then its new columns, then everything else: an index on a column
     // added in this upgrade cannot be built before the column is there.
@@ -182,6 +189,7 @@ function open(path: string): DatabaseSync {
     db.exec(SCHEMA);
     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
     db.exec('COMMIT');
+    db.exec('PRAGMA foreign_keys = ON');
   }
   return db;
 }

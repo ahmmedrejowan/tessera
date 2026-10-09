@@ -15,8 +15,13 @@ describe('opening a library an older version wrote', () => {
     const path = join(tempDir(), 'index.sqlite');
     const old = new DatabaseSync(path);
     // 1.0.0's shape: file_hashes with no crc column, and the usual derived tables.
-    old.exec(`CREATE TABLE packs (id TEXT PRIMARY KEY, folder TEXT);
-      CREATE TABLE file_hashes (pack_id TEXT NOT NULL, ref TEXT NOT NULL, size INTEGER NOT NULL, mtime INTEGER NOT NULL, sha256 TEXT NOT NULL, PRIMARY KEY (pack_id, ref));
+    // With the real foreign key, and a pack for it to point at. Without those this test passed
+    // while the upgrade was deleting every row: dropping `packs` fires ON DELETE CASCADE, so the
+    // table being carefully kept out of the drop list was emptied on the way past anyway.
+    old.exec(`PRAGMA foreign_keys = ON;
+      CREATE TABLE packs (id TEXT PRIMARY KEY, folder TEXT);
+      CREATE TABLE file_hashes (pack_id TEXT NOT NULL REFERENCES packs(id) ON DELETE CASCADE, ref TEXT NOT NULL, size INTEGER NOT NULL, mtime INTEGER NOT NULL, sha256 TEXT NOT NULL, PRIMARY KEY (pack_id, ref));
+      INSERT INTO packs (id, folder) VALUES ('pack-1', 'Pack One');
       INSERT INTO file_hashes VALUES ('pack-1', 'original/a.png', 10, 1, 'deadbeef');
       PRAGMA user_version = 14;`);
     old.close();
