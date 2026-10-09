@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { setImmediate as yieldToLoop } from 'node:timers/promises';
 import { createReadStream } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -69,20 +70,32 @@ export async function hashSome(d: HashDeps, limit = BATCH): Promise<number> {
   // A library can be closed while this is between batches, which leaves the database shut and its
   // statements finalised. That is an ordinary end to the work, not a fault, so it stops quietly.
   if (!d.keepGoing()) return 0;
+  // A batch should stay inside one pack, so an archive is opened once rather than reopened and
+  // its whole table of contents reparsed for every file. Ordering the whole query by pack did
+  // that, but made SQLite sort every unhashed row in the library to hand back twenty-four: the
+  // sort cost more than the hashing. Pick a pack that still owes work, then take that pack's
+  // files, which the (pack_id, role) index answers directly.
+  const next = d.db
+    .prepare(
+      `SELECT a.pack_id AS packId
+         FROM assets a
+         LEFT JOIN file_hashes h ON h.pack_id = a.pack_id AND h.ref = a.ref
+        WHERE a.size > 0 AND a.size <= ?
+          AND (h.sha256 IS NULL OR h.size != a.size OR h.mtime != a.mtime)
+        LIMIT 1`,
+    )
+    .get(MAX_BYTES) as { packId: string } | undefined;
+  if (!next) return settleCollisions(d, limit);
   const rows = d.db
     .prepare(
       `SELECT a.pack_id AS packId, a.ref AS ref, a.size AS size, a.mtime AS mtime
          FROM assets a
          LEFT JOIN file_hashes h ON h.pack_id = a.pack_id AND h.ref = a.ref
-        WHERE a.size > 0 AND a.size <= ?
+        WHERE a.pack_id = ? AND a.size > 0 AND a.size <= ?
           AND (h.sha256 IS NULL OR h.size != a.size OR h.mtime != a.mtime)
-        -- By pack, so a batch stays inside one archive. Unordered, a batch of files scattered
-        -- across a library's packs reopens an archive per file and parses its whole central
-        -- directory again each time, which costs far more than the hashing.
-        ORDER BY a.pack_id, a.ref
         LIMIT ?`,
     )
-    .all(MAX_BYTES, limit) as { packId: string; ref: string; size: number; mtime: number }[];
+    .all(next.packId, MAX_BYTES, limit) as { packId: string; ref: string; size: number; mtime: number }[];
   if (!rows.length) return settleCollisions(d, limit);
 
   if (!d.keepGoing()) return 0;
@@ -90,6 +103,10 @@ export async function hashSome(d: HashDeps, limit = BATCH): Promise<number> {
   let done = 0;
   for (const row of rows) {
     if (!d.keepGoing()) break;
+    // Between files, not just between batches. Hashing a file is synchronous once its bytes are
+    // in hand, so a batch of two dozen held the main thread for a quarter of a second at a time:
+    // long enough to drop a dozen frames and make scrolling stutter while this runs.
+    await yieldToLoop();
     const dir = d.packDir(row.packId);
     if (!dir) continue;
     try {
@@ -167,6 +184,7 @@ async function settleCollisions(d: HashDeps, limit: number): Promise<number> {
   let done = 0;
   for (const row of rows) {
     if (!d.keepGoing()) break;
+    await yieldToLoop();
     const dir = d.packDir(row.packId);
     if (!dir) continue;
     try {
