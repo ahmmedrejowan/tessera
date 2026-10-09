@@ -107,6 +107,7 @@ export class LibraryService {
         // a batch running alongside a delete stopped a pack ever reaching the bin. Batches are
         // small, so waiting writes are never held up for long.
         const turn = await this.takeWriteTurn();
+        const began = Date.now();
         let did = 0;
         try {
           if (this.current !== lib) return;
@@ -122,8 +123,11 @@ export class LibraryService {
           turn();
         }
         if (!did) return;
-        // A breath between batches, so a big library does not hold the main process to itself.
-        await new Promise((r) => setTimeout(r, 25));
+        // A breath as long as the batch took, so this never has more than half the main process
+        // and the window stays answerable while it works. A flat 25ms did not: a batch of two
+        // dozen files out of an archive runs for a few hundred milliseconds, so the pause was a
+        // twentieth of the time and a library of this size felt frozen for as long as it ran.
+        await new Promise((r) => setTimeout(r, Math.min(1000, Math.max(25, Date.now() - began))));
       }
     } catch (e) {
       // A library closed underneath this leaves the database shut and its statements finalised.
