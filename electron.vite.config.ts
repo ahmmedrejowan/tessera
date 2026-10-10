@@ -13,7 +13,12 @@ export default defineConfig({
       // Where published releases are listed; empty while the project is private.
       __TESSERA_UPDATE_FEED__: JSON.stringify(process.env.TESSERA_UPDATE_FEED ?? ''),
     },
-    build: { externalizeDeps: true },
+    build: {
+      externalizeDeps: true,
+      // A second entry: the process that reads and hashes files, forked at runtime. It has to be
+      // its own file because it is its own process, not something the main bundle can call into.
+      rollupOptions: { input: { index: resolve('src/main/index.ts'), hashWorker: resolve('src/main/index/hashWorker.ts') } },
+    },
   },
   preload: {
     resolve: { alias: shared },
