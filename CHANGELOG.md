@@ -1,5 +1,50 @@
 # What's new in Tessera
 
+## 1.0.1: a library of real size (9 October 2026)
+
+A fix release, written while moving a library of 564 packs and 141,609 files into 1.0.0. Nothing
+here is new; all of it is 1.0.0 failing at a size the first release had never been given.
+
+### Browsing is no longer a freeze
+
+Choosing a license or a kind while browsing **packs** locked the window, for seconds or longer.
+A pack records its own license, but the filter reached into every asset in the library to answer a
+question already written on the pack: a tenth of a second's work done as a seven second scan, and
+once for every heading in the filter list. It reads the pack now. Filtering by source or creator
+was never affected, which is what made it so hard to see.
+
+### Scrolling is smooth
+
+A grid of tens of thousands of things told the rest of the app about every row the scroll crossed,
+and the app redrew every tile each time. It now notices a new page rather than a new row.
+
+### Reading what your files contain
+
+Tessera works out the contents of every file so it can tell you what you already have. On a large
+library this took around an hour, and for all of it the window was slow and said nothing about why.
+
+- It is **visible work** now, with a count and progress, next to everything else.
+- Three quarters of a library sits inside zips, and a zip already records a checksum for each file
+  it holds. That is taken rather than worked out again, so most files are never read at all, and
+  full checksums are kept for the few that need telling apart.
+- It gives way between files, so the window stays answerable while it runs.
+
+### Updating keeps what it already worked out
+
+**This is the important one.** Opening a 1.0.0 library in a newer version threw away every
+checksum it had and spent the hour again, quietly, because the part that must survive an update
+was being recreated instead of carried forward. It is carried forward now.
+
+### Smaller things
+
+- `brew install --cask` really does clear the download flag now. The notes claimed it already did;
+  it did not, and Gatekeeper stopped the first launch exactly as for a hand-downloaded dmg.
+- A pack whose files could not be drawn kept being asked for, for ever, instead of being noted and
+  left alone, which held a core at nothing.
+- A license recorded for part of a pack can be taken away again.
+- Agent tools say the things that are only obvious once you have got them wrong, chiefly that
+  adding several packs answers in name order rather than the order you asked.
+
 ## 1.0.0: the first release (30 September 2026)
 
 Tessera keeps every game asset you have collected in one place, with its license and its source on

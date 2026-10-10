@@ -4,7 +4,7 @@ import { UserError } from '../errors';
 import { assetPath, isIgnored } from '@shared/assets';
 import { PACK_DIRS } from '../library/layout';
 import { isZip, listZip, readZipEntry } from './zip';
-import { readCachedEntry } from './zipCache';
+import { cachedEntryInfo, readCachedEntry } from './zipCache';
 
 /**
  * A file in a pack, addressed by its `ref`: the path from the pack's folder with forward slashes,
@@ -171,4 +171,31 @@ export async function readPackFile(packDir: string, ref: string, maxBytes = 512 
     return readCachedEntry(key, source, inside[depth]!, depth === inside.length - 1 ? maxBytes : NESTED_MAX);
   };
   return read(inside.length - 1);
+}
+
+/**
+ * Size and CRC-32 of one file of a pack, taken from the archive's table of contents where it sits
+ * in one. Nothing is read or decompressed, so this costs the same for a 2 GB file as a 2 KB one.
+ * Null for a loose file, which keeps no such record and has to be read to be known.
+ */
+export async function packFileStamp(packDir: string, ref: string): Promise<{ size: number; crc32: number } | null> {
+  const { file, inside } = parseRef(ref);
+  if (!inside.length) return null;
+  const path = insidePack(packDir, file);
+  if (!path) return null;
+  const s = await stat(path).catch(() => null);
+  if (!s) return null;
+  // Only the outermost archive is read straight from disk; a nested one still has to come out of
+  // its parent, and that parent's own entry is what names it.
+  const read = (depth: number): Promise<Buffer> =>
+    readCachedEntry(
+      depth === 0 ? path : [`${path}@${s.size}:${s.mtimeMs}`, ...inside.slice(0, depth)].join('!'),
+      depth === 0 ? path : () => read(depth - 1),
+      inside[depth]!,
+      NESTED_MAX,
+    );
+  const last = inside.length - 1;
+  const key = last === 0 ? path : [`${path}@${s.size}:${s.mtimeMs}`, ...inside.slice(0, last)].join('!');
+  const source = last === 0 ? path : () => read(last - 1);
+  return cachedEntryInfo(key, source, inside[last]!).catch(() => null);
 }

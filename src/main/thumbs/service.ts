@@ -104,6 +104,9 @@ export interface ThumbDeps {
  * and time, so a changed file gets a new one and an unchanged file is never drawn twice. Failures
  * leave a `.fail` marker so broken files aren't retried on every scroll.
  */
+/** Restarts of the drawing window a job may sit through before it is written off. */
+const RECYCLE_TRIES = 3;
+
 export class ThumbService {
   private readonly queue = new Map<string, Queued>();
   private counter = 0;
@@ -222,15 +225,23 @@ export class ThumbService {
       // which is how one bad model used to cost a whole library its previews. Put it back once
       // instead: the window it waits on now is a fresh one.
       if ((e as Error)?.name === 'RecycledError') {
-        // Never a permanent mark. A second file that hangs, in the same pack, would put this job
-        // behind a second culprit and condemn it on the retry, which is the very thing recycling
-        // was added to prevent. A few attempts, then let it go without a marker so it is tried
-        // again next time rather than written off for ever.
-        if ((q.retried ?? 0) < 3) this.queue.set(q.name, { ...q, retried: (q.retried ?? 0) + 1 });
-        return;
+        // A second file that hangs, in the same pack, puts this job behind a second culprit, so
+        // one restart is not evidence about the file. Try it again on a fresh window.
+        if ((q.retried ?? 0) < RECYCLE_TRIES) {
+          this.queue.set(q.name, { ...q, retried: (q.retried ?? 0) + 1 });
+          return;
+        }
+        // After that, mark it. Leaving it unmarked was worse: the next grid refresh asks for it
+        // again, it queues behind the same slow models, and on a library with thousands of them
+        // the queue never empties and the main process spins for ever without drawing anything.
+        // A wrong mark costs one preview and is undone by Settings, file previews, "retry
+        // failed"; the treadmill cannot be undone from the app at all.
+        log.warn('thumbs', `gave up on ${q.job.url} after ${RECYCLE_TRIES} restarts of the drawing window`);
+        await writeFile(join(dir, `${q.name}.fail`), 'Never got its turn: the drawing window kept restarting.').catch(() => undefined);
+      } else {
+        log.warn('thumbs', `could not draw ${q.job.url}`, e instanceof Error ? e.message : e);
+        await writeFile(join(dir, `${q.name}.fail`), e instanceof Error ? e.message : String(e)).catch(() => undefined);
       }
-      log.warn('thumbs', `could not draw ${q.job.url}`, e instanceof Error ? e.message : e);
-      await writeFile(join(dir, `${q.name}.fail`), e instanceof Error ? e.message : String(e)).catch(() => undefined);
       state = 'failed';
     }
     for (const key of q.keys) this.ready[key] = state;

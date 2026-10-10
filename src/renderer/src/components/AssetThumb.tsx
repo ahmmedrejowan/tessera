@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import type { AssetRow } from '@shared/query';
 import { assetKey } from '@shared/urls';
 import { useBrowse } from '../state/browse';
@@ -24,7 +24,12 @@ type ThumbAsset = Pick<AssetRow, 'packId' | 'ref' | 'ext' | 'type' | 'kind'>;
  * icon for its type while there's nothing better. Waveforms and font samples are masks tinted with
  * the theme. Small images (pixel art) are scaled up with hard edges instead of blurred.
  */
-export function AssetThumb({ asset, size, rounded = 8 }: { asset: ThumbAsset; size: number; rounded?: number }) {
+/**
+ * Memoised on purpose. A grid shows dozens of these and the page around them re-renders whenever
+ * anything moves; without this each of them re-ran its thumbnail lookup on every one of those,
+ * which is what made scrolling a large library feel heavy.
+ */
+export const AssetThumb = memo(function AssetThumb({ asset, size, rounded = 8 }: { asset: ThumbAsset; size: number; rounded?: number }) {
   const state = useThumb(assetKey(asset.packId, asset.ref));
   const background = useBrowse((s) => s.tileBackground);
   const [pixelated, setPixelated] = useState(false);
@@ -69,4 +74,4 @@ export function AssetThumb({ asset, size, rounded = 8 }: { asset: ThumbAsset; si
       )}
     </div>
   );
-}
+});

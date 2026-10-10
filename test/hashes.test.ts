@@ -5,7 +5,7 @@
  * question behind "have I got this already", "did that bundle repeat itself" and "where in my
  * library did this file in my game come from".
  */
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -13,7 +13,7 @@ vi.mock('electron', () => import('./fake-electron'));
 
 import { LibraryIndex } from '../src/main/index/indexer';
 import { LibraryQueries } from '../src/main/index/query';
-import { hashSome, stillToHash } from '../src/main/index/hashes';
+import { hashSome, stillToHash, forgetOrphanHashes } from '../src/main/index/hashes';
 import { createLibrary } from '../src/main/library/layout';
 import { createPack } from '../src/main/library/packs';
 import { tempDir } from './helpers';
@@ -106,8 +106,120 @@ describe('what the contents let it answer', () => {
     await index.sync(root);
     while (stillToHash(index.db) > 0) await hashSome({ db: index.db, packDir: () => pack.dir, keepGoing: () => true }, 50);
 
-    const sha = q.hashOf(pack.meta.id, 'original/kit.zip!a.png');
-    expect(sha).toBeTruthy();
-    expect(q.byHash(sha!).length).toBeGreaterThanOrEqual(1);
+    // Told apart by the CRC the archive already stored: nothing was decompressed to learn it, so
+    // there is no SHA-256 and no reason to want one.
+    const crc = index.db.prepare("SELECT crc, sha256 FROM file_hashes WHERE ref = ?").get('original/kit.zip!a.png') as { crc: number; sha256: string };
+    expect(crc.crc).toBeGreaterThan(0);
+    expect(crc.sha256).toBe('');
+    // And the question it exists to answer still gets an answer.
+    expect(q.sameAs(pack.meta.id, 'original/kit.zip!a.png')).toEqual([]);
+  });
+
+  it('answers "what else is this file" from whichever of the two it has', async () => {
+    const root = tempDir();
+    await createLibrary(root, 'Same');
+    const pack = await createPack(root, 'Kit', { status: 'library', license: { id: 'CC0-1.0' }, source: { url: 'https://example.test/s' } } as never);
+    await writeZip(join(pack.dir, 'original', 'kit.zip'), { 'a.png': 'TWINS', 'b.png': 'TWINS', 'c.png': 'alone' });
+    const index = new LibraryIndex(':memory:');
+    const q = new LibraryQueries(index.db);
+    await index.sync(root);
+
+    // Before anything has been read, nothing can be said: not the same as "nothing matches".
+    expect(q.sameAs(pack.meta.id, 'original/kit.zip!a.png')).toBeNull();
+
+    while ((await hashSome({ db: index.db, packDir: () => pack.dir, keepGoing: () => true }, 50)) > 0);
+
+    // The twins were worth reading in full, so they are settled by hash.
+    const twins = q.sameAs(pack.meta.id, 'original/kit.zip!a.png')!;
+    expect(twins.map((t) => t.ref.split('!')[1])).toEqual(['b.png']);
+    // The odd one out was told apart by its CRC alone, and still answers.
+    expect(q.sameAs(pack.meta.id, 'original/kit.zip!c.png')).toEqual([]);
+  });
+
+  it('notes a file it cannot read instead of asking for it again for ever', async () => {
+    const root = tempDir();
+    await createLibrary(root, 'Broken');
+    const pack = await createPack(root, 'Kit', { status: 'library', license: { id: 'CC0-1.0' }, source: { url: 'https://example.test/b' } } as never);
+    mkdirSync(join(pack.dir, 'original', 'M'), { recursive: true });
+    writeFileSync(join(pack.dir, 'original', 'M', 'a.glb'), 'a');
+    const index = new LibraryIndex(':memory:');
+    await index.sync(root);
+
+    // The pack's folder has gone out from under it: every file in the batch fails.
+    let passes = 0;
+    while ((await hashSome({ db: index.db, packDir: () => join(root, 'nowhere'), keepGoing: () => true }, 50)) > 0) {
+      if (++passes > 5) break;
+    }
+    // Written down rather than left unread, so the next pass does not try it again for ever, and
+    // counted as progress, so one unreadable pack does not look like "nothing left to do".
+    const rows = index.db.prepare("SELECT sha256, crc FROM file_hashes").all() as { sha256: string; crc: number }[];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => r.sha256 === '' && r.crc === 0)).toBe(true);
+    expect(passes).toBeLessThanOrEqual(5);
+    // And nothing is left claiming to be unread.
+    expect(stillToHash(index.db)).toBe(0);
+  });
+
+  it('forgets the contents of a pack the library no longer holds', async () => {
+    const root = tempDir();
+    await createLibrary(root, 'Gone');
+    const pack = await createPack(root, 'Kit', { status: 'library', license: { id: 'CC0-1.0' }, source: { url: 'https://example.test/g' } } as never);
+    mkdirSync(join(pack.dir, 'original', 'M'), { recursive: true });
+    writeFileSync(join(pack.dir, 'original', 'M', 'a.glb'), 'a');
+    const index = new LibraryIndex(':memory:');
+    await index.sync(root);
+    while ((await hashSome({ db: index.db, packDir: () => pack.dir, keepGoing: () => true }, 50)) > 0);
+    expect((index.db.prepare('SELECT count(*) AS n FROM file_hashes').get() as { n: number }).n).toBeGreaterThan(0);
+
+    // A pack that went away while the app was closed. The rebuild holds foreign keys off, so
+    // nothing clears these on its own any more.
+    // Foreign keys off, as the rebuild has them: with them on the cascade clears these rows, and
+    // it is precisely because the rebuild cannot afford that cascade that orphans can exist.
+    index.db.exec('PRAGMA foreign_keys = OFF');
+    index.db.exec("DELETE FROM packs WHERE id = '" + pack.meta.id + "'");
+    index.db.exec('PRAGMA foreign_keys = ON');
+    expect(forgetOrphanHashes(index.db)).toBeGreaterThan(0);
+    expect((index.db.prepare('SELECT count(*) AS n FROM file_hashes').get() as { n: number }).n).toBe(0);
+    // And asking again when there is nothing to forget costs nothing and removes nothing.
+    expect(forgetOrphanHashes(index.db)).toBe(0);
+  });
+
+  it('counts the files still owing a full read, so the work is not called finished early', async () => {
+    const root = tempDir();
+    await createLibrary(root, 'Twins');
+    const pack = await createPack(root, 'Twin Kit', { status: 'library', license: { id: 'CC0-1.0' }, source: { url: 'https://example.test/t' } } as never);
+    await writeZip(join(pack.dir, 'original', 'kit.zip'), { 'a.png': 'THE SAME BYTES', 'b.png': 'THE SAME BYTES' });
+    const index = new LibraryIndex(':memory:');
+    await index.sync(root);
+    // One pass over the files themselves: every row now has a CRC and nothing is unread.
+    while ((await hashSome({ db: index.db, packDir: () => pack.dir, keepGoing: () => true }, 50)) > 0) {
+      const left = stillToHash(index.db);
+      if (left === 0) break;
+    }
+    // Whatever is left must be reported as left. Counting only unread files said zero here while
+    // two files still owed a SHA, so the caller returned early and never settled them.
+    const unsettled = index.db.prepare("SELECT count(*) AS n FROM file_hashes WHERE sha256 = '' AND crc != 0").get() as { n: number };
+    if (unsettled.n > 0) expect(stillToHash(index.db)).toBeGreaterThan(0);
+  });
+
+  it('reads in full only the files that share a size and a CRC', async () => {
+    const root = tempDir();
+    await createLibrary(root, 'Twins');
+    const pack = await createPack(root, 'Twin Kit', { status: 'library', license: { id: 'CC0-1.0' }, source: { url: 'https://example.test/t' } } as never);
+    await writeZip(join(pack.dir, 'original', 'kit.zip'), { 'a.png': 'THE SAME BYTES', 'b.png': 'THE SAME BYTES', 'c.png': 'different' });
+    const index = new LibraryIndex(':memory:');
+    const q = new LibraryQueries(index.db);
+    await index.sync(root);
+    while ((await hashSome({ db: index.db, packDir: () => pack.dir, keepGoing: () => true }, 50)) > 0);
+
+    const rows = index.db.prepare('SELECT ref, sha256 FROM file_hashes ORDER BY ref').all() as { ref: string; sha256: string }[];
+    // Only what is inside the archive: the zip itself is a loose file, so it is read either way.
+    const inside = rows.filter((r) => r.ref.includes('!'));
+    const settled = inside.filter((r) => r.sha256 !== '');
+    // The twins were worth reading; the odd one out was not.
+    expect(settled.map((r) => r.ref.split('!')[1]).sort()).toEqual(['a.png', 'b.png']);
+    expect(inside.find((r) => r.ref.endsWith('c.png'))!.sha256).toBe('');
+    const twins = q.sameAs(pack.meta.id, 'original/kit.zip!a.png')!;
+    expect(twins.map((t) => t.ref.split('!')[1])).toEqual(['b.png']);
   });
 });

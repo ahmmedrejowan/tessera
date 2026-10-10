@@ -13,9 +13,17 @@ export const BRING: Tool[] = [
     name: 'import_paths',
     group: 'bring',
     title: 'Add packs from this computer',
-    summary: 'Add folders or archives as packs, in one go. Each becomes a pack; anything whose license is not certain waits in Review.',
+    summary:
+      'Add folders or archives as packs, in one go. Each becomes a pack; anything whose license is not certain waits in Review. ' +
+      'What comes back is sorted by pack name, NOT in the order the paths were given, and one path can become several packs, ' +
+      'so never pair added[i] with paths[i]. Match on name, or call this once per path, or read each new pack to see what it holds.',
     input: z.object({
-      paths: z.array(z.string()).min(1).describe('Absolute paths to folders or archive files.'),
+      paths: z
+        .array(z.string())
+        .min(1)
+        .describe(
+          'Absolute paths to folders or archive files. The order is not kept in the answer: see the summary before matching results back to these.',
+        ),
       eachInside: z.union([z.boolean(), z.literal('auto')]).default('auto').describe('true: treat a folder as many packs, one per thing inside. auto decides from what is in it.'),
       keep: z
         .boolean()
@@ -31,7 +39,15 @@ export const BRING: Tool[] = [
       // should do as a side effect of adding one. Indexing in place removes nothing either.
       const result = await ctx.library.import(items, false, false, false, args.keep);
       ctx.note(`An agent ${args.keep ? 'indexed' : 'added'} ${result.added.length} pack${result.added.length === 1 ? '' : 's'}`, args.paths.join(', '));
-      return { added: result.added.map((p) => ({ id: p.id, name: p.name, status: p.status })), failed: result.failed, keptWhereTheyAre: args.keep };
+      // Sorted by name, and a folder can become many packs, so position says nothing about which
+      // path a pack came from. Said here as well as in the summary because getting this wrong is
+      // silent: details end up on the wrong pack and nothing complains.
+      return {
+        added: result.added.map((p) => ({ id: p.id, name: p.name, status: p.status })),
+        failed: result.failed,
+        keptWhereTheyAre: args.keep,
+        note: 'added is sorted by name, not by the order of paths. Do not pair them by position.',
+      };
     },
   }),
   define({

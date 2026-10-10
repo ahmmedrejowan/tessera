@@ -10,7 +10,7 @@ import type { BinEntry, CollectionChange, CollectionResult, Detected, FolderKind
 import { UserError } from './errors';
 import { listPackFiles, parseRef } from './index/files';
 import { LibraryIndex } from './index/indexer';
-import { hashSome } from './index/hashes';
+import { forgetOrphanHashes, hashSome, stillToHash } from './index/hashes';
 import { planImport } from './import/plan';
 import { copyTree, movable, runImport, type ImportDeps } from './import/run';
 import { LibraryQueries } from './index/query';
@@ -96,20 +96,30 @@ export class LibraryService {
    */
   private async readContents(): Promise<void> {
     if (this.hashing) return;
+    const lib0 = this.current;
+    if (!lib0) return;
+    // Nothing to do is the common case once a library has settled, and it must not put a job on
+    // screen every time the folder is read.
+    const outstanding = stillToHash(lib0.index.db);
+    if (!outstanding) return;
     this.hashing = true;
+    // Visible work, not a secret. Reading a big library's contents takes a while, and an app at
+    // half a core with nothing to show for it looks broken rather than busy.
+    const job = this.d.jobs.start('Reading what the files contain');
+    let done = 0;
     try {
-      const lib = this.current;
-      if (!lib) return;
+      const lib = lib0;
       for (;;) {
-        if (this.current !== lib) return;
+        if (this.current !== lib) break;
         // Each batch takes its turn in the same queue as everything else that touches the library.
         // Reading a file holds it open, and Windows will not delete a file something has open, so
         // a batch running alongside a delete stopped a pack ever reaching the bin. Batches are
         // small, so waiting writes are never held up for long.
         const turn = await this.takeWriteTurn();
+        const began = Date.now();
         let did = 0;
         try {
-          if (this.current !== lib) return;
+          if (this.current !== lib) break;
           did = await hashSome({
             db: lib.index.db,
             packDir: (packId) => {
@@ -121,15 +131,22 @@ export class LibraryService {
         } finally {
           turn();
         }
-        if (!did) return;
-        // A breath between batches, so a big library does not hold the main process to itself.
-        await new Promise((r) => setTimeout(r, 25));
+        done += did;
+        job.update(Math.min(1, done / outstanding), `${done} of ${outstanding} files`);
+        if (!did) break;
+        // A breath as long as the batch took, so this never has more than half the main process
+        // and the window stays answerable while it works. A flat 25ms did not: a batch of two
+        // dozen files out of an archive runs for a few hundred milliseconds, so the pause was a
+        // twentieth of the time and a library of this size felt frozen for as long as it ran.
+        await new Promise((r) => setTimeout(r, Math.min(1000, Math.max(25, Date.now() - began))));
       }
+      job.done(done ? `${done} files read` : 'Nothing new to read');
     } catch (e) {
       // A library closed underneath this leaves the database shut and its statements finalised.
       // That is how the work ends when somebody switches library, not something to report.
       const closed = /database is not open|statement has been finalized/i.test(e instanceof Error ? e.message : String(e));
-      if (!closed && this.current) log.warn('hashes', 'could not finish reading file contents', e);
+      if (closed || !this.current) job.done('Stopped');
+      else job.fail(e);
     } finally {
       this.hashing = false;
     }
@@ -272,6 +289,10 @@ export class LibraryService {
         // decides which files are hidden.
         await sweepBin(lib.root, this.d.binKeepDays()).catch(() => 0);
         lib.index.setHidden((await readBin(lib.root)).filter((e) => e.kind === 'file' && e.hiddenOnly).map((e) => ({ packId: e.packId, ref: e.ref })));
+        // Packs are all back by now, so anything still pointing at one that is not is from a pack
+        // that went away, and nothing will ever match it again.
+        const orphans = forgetOrphanHashes(lib.index.db);
+        if (orphans) log.info('hashes', `forgot the contents of ${orphans} files whose pack has gone`);
         job.done(result.changed || result.removed ? `${result.changed} changed, ${result.removed} removed` : 'Up to date');
         if (this.state.status === 'ready') this.setState({ ...this.state, problems: result.problems });
         if (result.changed || result.removed || collectionsChanged) this.d.onIndexChanged();

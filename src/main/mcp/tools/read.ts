@@ -121,7 +121,9 @@ export const READ: Tool[] = [
     name: 'list_files',
     group: 'read',
     title: 'The files in a pack',
-    summary: 'Every file of one pack, one by one, with the license covering each. Use it when you need a particular file rather than the pack.',
+    summary:
+      'Every file of one pack, one by one, with the license covering each. Use it when you need a particular file rather than the pack. '
+      + 'Each file gives two addresses: `path` is what the app shows and what set_file_license wants; `ref` is the internal one, with `!` where a file sits inside an archive, and is what get_asset and the game tools want. They are not interchangeable.',
     input: z.object({
       packId: z.string(),
       only: z.enum(['assets', 'everything']).default('assets').describe('assets: the files that count as assets. everything: supporting files and documents too.'),
@@ -174,13 +176,18 @@ export const READ: Tool[] = [
     name: 'where_else_is_this',
     group: 'read',
     title: 'Where else this exact file is',
-    summary: 'Every place in the library holding the same file as this one, by contents rather than by name. Use it before adding something to see whether it is already there, or to find which pack a file really came from.',
-    input: z.object({ packId: z.string(), ref: z.string() }),
+    summary:
+      'Every place in the library holding the same file as this one, by contents rather than by name. Use it before adding something to see '
+      + 'whether it is already there, or to find which pack a file really came from. `read: false` means the contents have not been looked at '
+      + 'yet, which is not the same as no matches: wait for the "Reading what the files contain" job and ask again.',
+    input: z.object({
+      packId: z.string(),
+      ref: z.string().describe("The file's `ref` from list_files, not its `path`."),
+    }),
     run: async (args, ctx) => {
       const q = ctx.library.require().queries;
-      const sha = q.hashOf(args.packId, args.ref);
-      if (!sha) return { read: false, note: 'This file has not been read yet, so nothing can be said about what else matches it.', elsewhere: [] };
-      const all = q.byHash(sha).filter((a) => !(a.packId === args.packId && a.ref === args.ref));
+      const all = q.sameAs(args.packId, args.ref);
+      if (!all) return { read: false, note: 'This file has not been read yet, so nothing can be said about what else matches it.', elsewhere: [] };
       return { read: true, elsewhere: all.map(assetOut) };
     },
   }),

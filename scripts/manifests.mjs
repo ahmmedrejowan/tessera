@@ -6,7 +6,7 @@
 // published beside them, and writes a Homebrew cask, a Scoop manifest, an Arch PKGBUILD and a
 // Chocolatey package. Nothing is invented: if a file or its checksum is missing the run fails
 // rather than describing something that is not there.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,6 +14,8 @@ const REPO = process.env.GITHUB_REPOSITORY ?? 'ahmmedrejowan/tessera';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HOME = `https://github.com/${REPO}`;
 const DESC = 'Desktop library for game assets, with their licenses and sources on record';
+// One copyright line for the whole project, the same one the installers are built with.
+const COPYRIGHT = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).build.copyright;
 
 const tag = process.argv[2];
 const outDir = process.argv[3] ?? join(ROOT, 'dist-manifests');
@@ -65,7 +67,7 @@ function file(assets, sums, name) {
 
 const name = (os, arch, ext) => `Tessera-${version}-${os}-${arch}.${ext}`;
 
-// ---- Homebrew: brew install --cask, which also clears the quarantine flag on the way in ----
+// ---- Homebrew: brew install --cask, with the quarantine flag taken off on the way in ----
 function cask(f) {
   const arm = f(name('mac', 'arm64', 'dmg'));
   const intel = f(name('mac', 'x64', 'dmg'));
@@ -89,6 +91,16 @@ function cask(f) {
   depends_on :macos
 
   app "Tessera.app"
+
+  # Homebrew quarantines what it installs, and these builds are signed ad-hoc rather than with a
+  # paid certificate, so Gatekeeper would stop the first launch exactly as it does for someone who
+  # downloaded the dmg by hand. Taking the flag off here is what makes installing through Homebrew
+  # worth recommending: it is the one route that does not send a person to Privacy & Security.
+  postflight do
+    system_command "/usr/bin/xattr",
+                   args: ["-dr", "com.apple.quarantine", "#{appdir}/Tessera.app"],
+                   sudo: false
+  end
 
   zap trash: [
     "~/Library/Application Support/Tessera",
@@ -196,6 +208,7 @@ function chocoNuspec() {
     <projectUrl>https://tessera.rejowan.com</projectUrl>
     <!-- Chocolatey asks for an icon on a CDN, pinned to the tag rather than to a moving branch. -->
     <iconUrl>https://cdn.jsdelivr.net/gh/${REPO}@${tag}/build/icon.png</iconUrl>
+    <copyright>${COPYRIGHT}</copyright>
     <licenseUrl>${HOME}/blob/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <projectSourceUrl>${HOME}</projectSourceUrl>
@@ -203,7 +216,8 @@ function chocoNuspec() {
     <bugTrackerUrl>${HOME}/issues</bugTrackerUrl>
     <tags>gamedev assets unity godot unreal electron</tags>
     <summary>${DESC}</summary>
-    <description>${DESC}. Keep every pack you collect, with its license and source on record, find the piece you need in seconds, and copy it into your game with the credits written for you.</description>
+    <!-- Not the summary again: Chocolatey shows both, one above the other. -->
+    <description>Tessera keeps every asset pack you collect in one place, with its license and where it came from written down. Search across models, textures, audio and fonts to find the piece you need in seconds, then copy it into your game with the credits written for you. Your library stays ordinary files in a folder you choose, and there is no account and no telemetry.</description>
     <releaseNotes>${HOME}/releases/tag/${tag}</releaseNotes>
   </metadata>
   <files>
