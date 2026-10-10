@@ -115,6 +115,51 @@ describe('what the contents let it answer', () => {
     expect(q.sameAs(pack.meta.id, 'original/kit.zip!a.png')).toEqual([]);
   });
 
+  it('answers "what else is this file" from whichever of the two it has', async () => {
+    const root = tempDir();
+    await createLibrary(root, 'Same');
+    const pack = await createPack(root, 'Kit', { status: 'library', license: { id: 'CC0-1.0' }, source: { url: 'https://example.test/s' } } as never);
+    await writeZip(join(pack.dir, 'original', 'kit.zip'), { 'a.png': 'TWINS', 'b.png': 'TWINS', 'c.png': 'alone' });
+    const index = new LibraryIndex(':memory:');
+    const q = new LibraryQueries(index.db);
+    await index.sync(root);
+
+    // Before anything has been read, nothing can be said: not the same as "nothing matches".
+    expect(q.sameAs(pack.meta.id, 'original/kit.zip!a.png')).toBeNull();
+
+    while ((await hashSome({ db: index.db, packDir: () => pack.dir, keepGoing: () => true }, 50)) > 0);
+
+    // The twins were worth reading in full, so they are settled by hash.
+    const twins = q.sameAs(pack.meta.id, 'original/kit.zip!a.png')!;
+    expect(twins.map((t) => t.ref.split('!')[1])).toEqual(['b.png']);
+    // The odd one out was told apart by its CRC alone, and still answers.
+    expect(q.sameAs(pack.meta.id, 'original/kit.zip!c.png')).toEqual([]);
+  });
+
+  it('notes a file it cannot read instead of asking for it again for ever', async () => {
+    const root = tempDir();
+    await createLibrary(root, 'Broken');
+    const pack = await createPack(root, 'Kit', { status: 'library', license: { id: 'CC0-1.0' }, source: { url: 'https://example.test/b' } } as never);
+    mkdirSync(join(pack.dir, 'original', 'M'), { recursive: true });
+    writeFileSync(join(pack.dir, 'original', 'M', 'a.glb'), 'a');
+    const index = new LibraryIndex(':memory:');
+    await index.sync(root);
+
+    // The pack's folder has gone out from under it: every file in the batch fails.
+    let passes = 0;
+    while ((await hashSome({ db: index.db, packDir: () => join(root, 'nowhere'), keepGoing: () => true }, 50)) > 0) {
+      if (++passes > 5) break;
+    }
+    // Written down rather than left unread, so the next pass does not try it again for ever, and
+    // counted as progress, so one unreadable pack does not look like "nothing left to do".
+    const rows = index.db.prepare("SELECT sha256, crc FROM file_hashes").all() as { sha256: string; crc: number }[];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => r.sha256 === '' && r.crc === 0)).toBe(true);
+    expect(passes).toBeLessThanOrEqual(5);
+    // And nothing is left claiming to be unread.
+    expect(stillToHash(index.db)).toBe(0);
+  });
+
   it('forgets the contents of a pack the library no longer holds', async () => {
     const root = tempDir();
     await createLibrary(root, 'Gone');
