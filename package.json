@@ -184,6 +184,7 @@
     "electron-winstaller": false
   },
   "overrides": {
-    "source-map-js": "^1.2.2"
+    "source-map-js": "^1.2.2",
+    "@electron/get": "^5.1.0"
   }
 }
