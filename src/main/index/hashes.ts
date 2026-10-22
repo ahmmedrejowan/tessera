@@ -5,8 +5,9 @@ import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { crc32 } from 'node:zlib';
-import { packFileStamp, parseRef, readPackFile } from './files';
+import { parseRef, readPackFile } from './files';
 import { log } from '../log';
+import { hashes } from './hashPool';
 
 /**
  * What every file in the library actually contains.
@@ -118,61 +119,41 @@ export async function hashSome(d: HashDeps, limit = BATCH): Promise<number> {
 
   if (!d.keepGoing()) return 0;
   const write = d.db.prepare('INSERT OR REPLACE INTO file_hashes (pack_id, ref, size, mtime, crc, sha256) VALUES (?, ?, ?, ?, ?, ?)');
+
+  // The whole batch goes out at once, to a process whose slowness nobody can feel. Reading and
+  // hashing is the expensive half and none of it needs the index; writing what came back is a few
+  // milliseconds and stays here, where the only writer has always been.
+  const ask = rows.map((r) => ({ packDir: d.packDir(r.packId) ?? '', ref: r.ref, mode: 'stamp' as const }));
+  const answers = await hashes.stamp(ask.filter((a) => a.packDir));
+  if (!d.keepGoing()) return 0;
+
   let done = 0;
+  let at = 0;
   for (const row of rows) {
-    if (!d.keepGoing()) break;
-    // Between files, not just between batches. Hashing a file is synchronous once its bytes are
-    // in hand, so a batch of two dozen held the main thread for a quarter of a second at a time:
-    // long enough to drop a dozen frames and make scrolling stutter while this runs.
-    await yieldToLoop();
     const dir = d.packDir(row.packId);
     if (!dir) continue;
-    try {
-      const { file, inside } = parseRef(row.ref);
-      if (inside.length) {
-        // Inside an archive: the table of contents already holds the CRC, so nothing is read.
-        // Whether this file is worth reading in full is decided later, by whether anything else
-        // turns out to share its size and CRC.
-        const stamp = await packFileStamp(dir, row.ref);
-        if (stamp) {
-          // row.size, not the archive's: the staleness check compares this against assets.size,
-          // and a row that disagrees with its own predicate is re-stamped for ever.
-          write.run(row.packId, row.ref, row.size, row.mtime, stamp.crc32, '');
-          done++;
-          continue;
-        }
+    const answer = answers[at++];
+    if (answer?.ok) {
+      const { stamp } = answer;
+      // row.size, not the archive's: the staleness check compares this against assets.size, and a
+      // row that disagrees with its own predicate is re-stamped for ever.
+      let mtime = row.mtime;
+      if (!stamp.size) {
+        // Read rather than looked up, so its time on disk may have moved since the index saw it.
+        const { file } = parseRef(row.ref);
+        const now = await stat(join(dir, ...file.split('/'))).catch(() => null);
+        if (now) mtime = Math.round(now.mtimeMs);
       }
-      // A loose file has to be read to be known at all, so once it is open both are taken in the
-      // same pass: the CRC costs nothing next to the read, and this way it never needs reading twice.
-      const path = join(dir, ...file.split('/'));
-      // Inside an archive the bytes have to be gathered to be decompressed; a loose file is
-      // streamed, so neither memory nor the thread is held for the length of a large one.
-      const stamp = inside.length
-        ? await (async () => {
-            const b = await readPackFile(dir, row.ref, MAX_BYTES);
-            return { crc32: crc32(b), sha256: sha256OfBuffer(b) };
-          })()
-        : await stampOfFile(path);
-      const now = inside.length ? row : await stat(path).catch(() => row);
-      write.run(
-        row.packId,
-        row.ref,
-        row.size,
-        Math.round('mtimeMs' in now ? (now as { mtimeMs: number }).mtimeMs : row.mtime),
-        stamp.crc32,
-        stamp.sha256,
-      );
+      write.run(row.packId, row.ref, row.size, mtime, stamp.crc32, stamp.sha256);
       done++;
-    } catch (e) {
-      // Unreadable, gone, or an archive that will not open. Recorded as nothing so it is not tried
-      // again on every pass; it will be picked up if the file itself changes.
-      write.run(row.packId, row.ref, row.size, row.mtime, 0, '');
-      // Counted: the row was written, so this file will not be asked for again. Without it a
-      // batch where every file failed looked like no work left, and the caller stopped for the
-      // session with other packs still unread.
-      done++;
-      log.warn('hashes', `could not read ${row.ref}`, e instanceof Error ? e.message : e);
+      continue;
     }
+    // Unreadable, gone, or an archive that will not open. Recorded as nothing so it is not tried
+    // again on every pass; it will be picked up if the file itself changes. Counted, because the
+    // row was written: a batch where every file failed is progress, not "nothing left to do".
+    write.run(row.packId, row.ref, row.size, row.mtime, 0, '');
+    done++;
+    log.warn('hashes', `could not read ${row.ref}`, answer?.ok === false ? answer.error : 'no answer');
   }
   return done;
 }
@@ -243,24 +224,25 @@ async function settleCollisions(d: HashDeps, limit: number): Promise<number> {
   // report every unreadable file as a copy of every other. Clearing the CRC takes the row out of
   // its collision group instead, so it is not asked for again and claims nothing.
   const giveUp = d.db.prepare('UPDATE file_hashes SET crc = 0 WHERE pack_id = ? AND ref = ?');
+
+  // Read in full, which is the one thing a CRC cannot do for us, and again somewhere else.
+  const ask = rows.map((r) => ({ packDir: d.packDir(r.packId) ?? '', ref: r.ref, mode: 'settle' as const }));
+  const answers = await hashes.stamp(ask.filter((a) => a.packDir));
+  if (!d.keepGoing()) return 0;
+
   let done = 0;
+  let at = 0;
   for (const row of rows) {
-    if (!d.keepGoing()) break;
-    await yieldToLoop();
-    const dir = d.packDir(row.packId);
-    if (!dir) continue;
-    try {
-      const { file, inside } = parseRef(row.ref);
-      const sha = inside.length
-        ? sha256OfBuffer(await readPackFile(dir, row.ref, MAX_BYTES))
-        : await sha256OfFile(join(dir, ...file.split('/')));
-      write.run(sha, row.packId, row.ref);
+    if (!d.packDir(row.packId)) continue;
+    const answer = answers[at++];
+    if (answer?.ok && answer.stamp.sha256) {
+      write.run(answer.stamp.sha256, row.packId, row.ref);
       done++;
-    } catch (e) {
-      giveUp.run(row.packId, row.ref);
-      done++;
-      log.warn('hashes', `could not settle ${row.ref}`, e instanceof Error ? e.message : e);
+      continue;
     }
+    giveUp.run(row.packId, row.ref);
+    done++;
+    log.warn('hashes', `could not settle ${row.ref}`, answer?.ok === false ? answer.error : 'no answer');
   }
   return done;
 }
