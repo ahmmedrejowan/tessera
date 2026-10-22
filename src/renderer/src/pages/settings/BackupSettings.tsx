@@ -24,6 +24,7 @@ import { useEffect, useState } from 'react';
 import { call, on } from '../../api';
 import { failed, notify } from '../../notices/store';
 import type { BackupStatus } from '@shared/types';
+import { cloudHandoff } from '@shared/storage';
 import { md } from '../../theme';
 import { Row } from './parts';
 import { ToolSetup } from '../setup/ToolSetup';
@@ -254,6 +255,8 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
   const [pausing, setPausing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   if (!status) return null;
+  /** The app that still has to upload this, when the backups go into one of its folders. */
+  const handoff = cloudHandoff(status.target);
 
   if (!status.available) {
     return (
@@ -284,10 +287,26 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
     <>
       <KeptWarning />
       <Row
-        title={status.running ? 'Backing up…' : status.lastBackupAt ? `Last backup ${ago(status.lastBackupAt)}` : 'No backup yet'}
+        title={
+          status.running
+            ? 'Backing up…'
+            : !status.lastBackupAt
+              ? 'No backup yet'
+              : // Where another app does the uploading, the time is when the files were written
+                // here, not when they arrived anywhere. Say the part that is true.
+                handoff
+                ? `Written for ${handoff} ${ago(status.lastBackupAt)}`
+                : `Last backup ${ago(status.lastBackupAt)}`
+        }
         body={
           <>
             To {status.repoPath}
+            {handoff && (
+              <span style={{ display: 'block' }}>
+                Tessera is done once the files are written. {handoff} uploads them afterwards, on its own schedule, and does not tell Tessera when that
+                finishes, so they are still only on this computer until it does.
+              </span>
+            )}
             {status.lastError && <span style={{ color: md('error'), display: 'block' }}>Last attempt failed: {status.lastError}</span>}
           </>
         }

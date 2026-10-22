@@ -41,7 +41,17 @@ import type { Role } from '../theme/m3';
 
 /** One line on how a library is kept safe: backups and sync. */
 export function libraryStatus(l: LibrarySummary): string {
-  const backup = !l.backup.on ? 'Not backed up' : l.backup.failing ? 'Last backup failed' : l.backup.lastBackupAt ? `Backed up ${timeAgo(l.backup.lastBackupAt)}` : 'No backup yet';
+  // Where another app does the uploading, the time is when the files were written here, not when
+  // they reached it, so this says written rather than backed up. Settings has the whole of it.
+  const backup = !l.backup.on
+    ? 'Not backed up'
+    : l.backup.failing
+      ? 'Last backup failed'
+      : !l.backup.lastBackupAt
+        ? 'No backup yet'
+        : l.backup.handoff
+          ? `Written for ${l.backup.handoff} ${timeAgo(l.backup.lastBackupAt)}`
+          : `Backed up ${timeAgo(l.backup.lastBackupAt)}`;
   const sync = l.sync.on ? (l.sync.whileClosed ? ' · Syncs' : ' · Syncs while open') : '';
   return backup + sync;
 }

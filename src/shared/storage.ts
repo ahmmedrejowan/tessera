@@ -9,6 +9,8 @@
  * - A server of your own: SFTP or WebDAV.
  */
 
+import { cloudService } from './folders';
+
 export type Provider =
   | 'folder'
   | 'icloud'
@@ -130,6 +132,24 @@ export const GROUPS: { id: ProviderGroup; label: string }[] = [
   { id: 'storage', label: 'Cloud storage' },
   { id: 'server', label: 'Your own server' },
 ];
+
+/**
+ * The app that will carry this backup the rest of the way, or null when nothing will.
+ *
+ * A folder inside Google Drive, Dropbox, OneDrive or iCloud is written like any other folder, and
+ * the app whose folder it is uploads it afterwards, on its own schedule and behind whatever else
+ * it has queued. Tessera has finished when the bytes are on this disk; it cannot watch the upload
+ * and has no way of learning when it ends. Everywhere else Tessera does the sending itself, so
+ * there is nobody to wait for and this is null: signing in uploads through rclone, and the object
+ * stores and the servers are written to directly.
+ *
+ * Whenever this names an app, the backup is still only on this computer, and nothing should say
+ * otherwise.
+ */
+export function cloudHandoff(t: StorageTarget | null): string | null {
+  if (!t || t.provider !== 'folder') return null;
+  return cloudService(t.values.path ?? '');
+}
 
 /** What's missing before a target can be used, or null. Sign-in providers also need a remote. */
 export function targetProblem(t: StorageTarget): string | null {
