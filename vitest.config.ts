@@ -21,6 +21,10 @@ export default defineConfig({
         'src/main/menu.ts',
         'src/main/drag.ts',
         'src/main/thumbs/renderWindow.ts',
+        // The entry of a process of its own, which only Electron can fork. What it does once it is
+        // running is stamp.ts, covered on its own, and the pool that talks to it is covered by
+        // standing in for the child.
+        'src/main/index/hashWorker.ts',
       ],
       // The floor, not the goal: a little under what the suite covers today, so that a change
       // which quietly stops testing something fails here rather than going unnoticed. A system
