@@ -10,7 +10,17 @@ import type { SettingsStore } from '../settings';
 import { findTool } from '../tools/find';
 import { bundledTool } from '../tools/install';
 import { describeTarget, targetProblem, withoutSecrets, type StorageTarget } from '@shared/storage';
-import { Kopia } from './kopia';
+import { Kopia, type SnapshotProgress } from './kopia';
+
+/** One short line on where a backup has got to, from whichever parts Kopia gave. */
+function progressText(p: SnapshotProgress): string {
+  const size = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : n >= 1e6 ? `${Math.round(n / 1e6)} MB` : `${Math.round(n / 1e3)} KB`);
+  const parts: string[] = [];
+  if (p.uploaded !== null) parts.push(`${size(p.uploaded)} sent`);
+  else if (p.hashed !== null) parts.push(`${size(p.hashed)} read`);
+  if (p.left) parts.push(`about ${p.left} left`);
+  return parts.join(' · ') || 'Only what changed since the last backup is stored';
+}
 import { restoreLibrary } from './restore';
 import { kopiaStorage, type RcloneSetup } from './storage';
 
@@ -261,7 +271,10 @@ export class BackupService {
     try {
       await this.d.jobs.run(`Backing up “${name}”`, async (job) => {
         job.update(null, 'Only what changed since the last backup is stored');
-        const snap = await kopia.snapshot(source, password, name);
+        // Until Kopia has seen enough to estimate there is no fraction to give, so the bar stays
+        // as it was and the line says what has gone up so far: better than a number that would
+        // have to be invented.
+        const snap = await kopia.snapshot(source, password, name, (p) => job.update(p.done, progressText(p)));
         job.update(1, `${snap.files.toLocaleString()} files`);
       });
       await this.patch(id, { lastBackupAt: new Date().toISOString(), lastError: null });
