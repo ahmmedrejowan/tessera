@@ -231,7 +231,8 @@ export interface LibrarySummary {
   open: boolean;
   /** The folder is there and still holds this library (not moved, drive connected). */
   found: boolean;
-  backup: { on: boolean; lastBackupAt: string | null; failing: boolean };
+  /** `handoff` names the app that has still to upload it; see cloudHandoff in shared/storage. */
+  backup: { on: boolean; lastBackupAt: string | null; failing: boolean; handoff: string | null };
   sync: { on: boolean; whileClosed: boolean };
 }
 

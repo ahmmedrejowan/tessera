@@ -16,7 +16,7 @@ import { bundledTool, installTool } from './tools/install';
 import { backupPlaces, findBackups, RestoreService, storeAt } from './backup/restore';
 import { RcloneAuth } from './backup/rclone';
 import { hostKeys, keyFileNeedsPassphrase } from './backup/ssh';
-import { describeTarget, providerInfo, type StorageTarget } from '@shared/storage';
+import { cloudHandoff, describeTarget, providerInfo, type StorageTarget } from '@shared/storage';
 import { generatePassword, saveToKeychain } from './backup/password';
 import { writeRecoveryKit } from './backup/kit';
 import { findTool } from './tools/find';
@@ -406,7 +406,12 @@ async function librarySummaries(): Promise<LibrarySummary[]> {
         lastOpenedAt: r.lastOpenedAt,
         open: r.id === openId,
         found: !!info && (info.id === r.id || r.id.startsWith('unread-')),
-        backup: { on: !!r.backup, lastBackupAt: r.backup?.lastBackupAt ?? null, failing: !!r.backup?.lastError },
+        backup: {
+          on: !!r.backup,
+          lastBackupAt: r.backup?.lastBackupAt ?? null,
+          failing: !!r.backup?.lastError,
+          handoff: cloudHandoff(r.backup?.target ?? null),
+        },
         sync: { on: r.sync.enabled, whileClosed: r.sync.whileClosed },
       };
     }),

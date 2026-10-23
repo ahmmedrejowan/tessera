@@ -3,6 +3,7 @@
  * the owner allows it.
  */
 import { z } from 'zod';
+import { cloudHandoff } from '@shared/storage';
 import { define, absolute } from './shared';
 import type { Tool } from './shared';
 
@@ -165,6 +166,9 @@ export const SYSTEM: Tool[] = [
           where: backup.target?.provider ?? null,
           every: backup.intervalHours ? `${backup.intervalHours} hours` : 'only when asked',
           lastBackupAt: backup.lastBackupAt,
+          // Named when the backups go into another app's folder: that app uploads them on its own
+          // schedule, so lastBackupAt is when they were written here, not when they left.
+          awaitingUploadBy: cloudHandoff(backup.target),
           lastError: backup.lastError,
           runningNow: backup.running,
         },
