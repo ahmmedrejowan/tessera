@@ -9,13 +9,36 @@ import CircularProgress from '@mui/material/CircularProgress';
 import LinearProgress from '@mui/material/LinearProgress';
 import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { LEVELS, showDetails } from '../notices/NoticeHost';
-import { useNotices, type Notice } from '../notices/store';
+import { isArchived, useNotices, type Notice } from '../notices/store';
+import type { Job } from '@shared/types';
 import { useJobs } from '../state/library';
 import { useNav } from '../state/nav';
 import { md, SHAPE } from '../theme';
 import { timeText } from '../components/labels';
+
+/** Where a job's topic leads. Kept here so the main process never has to know a route. */
+const TOPICS = { backups: { to: 'settings', section: 'backups' } } as const;
+
+/** Makes a job row open the page that says more about it, by click or by keyboard. */
+function openTopic(topic: NonNullable<Job['topic']>, close: () => void) {
+  const go = () => {
+    close();
+    useNav.getState().go({ ...TOPICS[topic] });
+  };
+  return {
+    role: 'button',
+    tabIndex: 0,
+    style: { cursor: 'pointer' },
+    onClick: go,
+    onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      go();
+    },
+  };
+}
 
 const ago = (at: number) => {
   const s = Math.round((Date.now() - at) / 1000);
@@ -59,6 +82,15 @@ function HistoryItem({ n, onOpen }: { n: Notice; onOpen: () => void }) {
 export function Activity() {
   const jobs = useJobs();
   const history = useNotices((s) => s.history);
+  /**
+   * What this panel lists: what has not been read, and nothing from before today.
+   *
+   * It used to show the last six whatever their state, so "Mark all as read" set a flag that
+   * nothing rendered and appeared to do nothing at all, and yesterday's messages sat there as
+   * though they had just arrived. Nothing is lost by leaving: Notifications keeps the lot, with
+   * exactly this divide between what is recent and what is archived.
+   */
+  const unread = history.filter((n) => !isArchived(n));
   const unseen = useNotices((s) => s.unseen);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const running = jobs.filter((j) => j.state === 'running');
@@ -103,7 +135,10 @@ export function Activity() {
                 Activity
               </Typography>
               {jobs.map((j) => (
-                <div key={j.id}>
+                // A job that has somewhere to go is the way of getting there: a backup says in
+                // Settings how much it has sent and how long is left, and this is where somebody
+                // is when they wonder.
+                <div key={j.id} {...(j.topic ? openTopic(j.topic, () => setAnchor(null)) : {})}>
                   <Typography variant="labelLarge" sx={{ color: md('onSurface') }}>
                     {j.label}
                   </Typography>
@@ -116,7 +151,7 @@ export function Activity() {
               ))}
             </div>
           )}
-          {!jobs.length && !history.length && (
+          {!jobs.length && !unread.length && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '20px 8px', textAlign: 'center' }}>
               <NotificationsNoneOutlined sx={{ fontSize: 28, color: md('onSurfaceVariant') }} />
               <Typography variant="titleSmall" sx={{ color: md('onSurface') }}>
@@ -127,7 +162,7 @@ export function Activity() {
               </Typography>
             </div>
           )}
-          {history.length > 0 && (
+          {unread.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                 <Typography variant="titleSmall" sx={{ color: md('onSurface') }}>
@@ -137,7 +172,7 @@ export function Activity() {
                   Mark all as read
                 </Button>
               </div>
-              {history.slice(0, 6).map((n) => (
+              {unread.slice(0, 6).map((n) => (
                 <HistoryItem key={n.id} n={n} onOpen={() => setAnchor(null)} />
               ))}
             </div>

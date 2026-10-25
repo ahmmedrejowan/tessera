@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { BackupStatus, LibraryBackup, LibraryRecord, Snapshot } from '@shared/types';
+import type { BackupProgress, BackupStatus, LibraryBackup, LibraryRecord, Snapshot } from '@shared/types';
 import { byRecent, patchRecord, recordOf } from '../libraries';
 import { UserError } from '../errors';
 import type { Jobs } from '../jobs';
@@ -10,7 +10,47 @@ import type { SettingsStore } from '../settings';
 import { findTool } from '../tools/find';
 import { bundledTool } from '../tools/install';
 import { describeTarget, targetProblem, withoutSecrets, type StorageTarget } from '@shared/storage';
-import { Kopia } from './kopia';
+import { Kopia, type SnapshotProgress } from './kopia';
+
+const size = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : n >= 1e6 ? `${Math.round(n / 1e6)} MB` : `${Math.round(n / 1e3)} KB`);
+
+/** One short line on where a backup has got to, from whichever parts Kopia gave. */
+function progressText(p: SnapshotProgress): string {
+  const parts: string[] = [];
+  if (p.uploaded !== null) parts.push(`${size(p.uploaded)} sent`);
+  else if (p.hashed !== null) parts.push(`${size(p.hashed)} read`);
+  if (p.left) parts.push(`about ${p.left} left`);
+  return parts.join(' · ') || 'Only what changed since the last backup is stored';
+}
+
+/**
+ * How fast bytes are going up, over the last few seconds rather than the whole run.
+ *
+ * An average over the whole backup is wrong in the way that matters: it goes on reporting the
+ * slow first minute long after the connection has got going, and it barely moves when a backup
+ * stalls, which is exactly when somebody is watching it. A short window answers the question
+ * actually being asked, which is whether it is still going and how fast it is going now.
+ */
+class Speed {
+  private seen: { at: number; bytes: number }[] = [];
+
+  add(bytes: number): void {
+    const at = Date.now();
+    this.seen.push({ at, bytes });
+    // Keep the last ten seconds, and always enough to measure across.
+    while (this.seen.length > 2 && this.seen[0]!.at < at - 10_000) this.seen.shift();
+  }
+
+  get perSecond(): number | null {
+    if (this.seen.length < 2) return null;
+    const first = this.seen[0]!;
+    const last = this.seen.at(-1)!;
+    const seconds = (last.at - first.at) / 1000;
+    // A count that repeated or went backwards is not a speed.
+    if (seconds < 1 || last.bytes < first.bytes) return null;
+    return (last.bytes - first.bytes) / seconds;
+  }
+}
 import { restoreLibrary } from './restore';
 import { kopiaStorage, type RcloneSetup } from './storage';
 
@@ -61,6 +101,8 @@ const storeKey = (t: StorageTarget) => JSON.stringify([t.provider, Object.entrie
 export class BackupService {
   /** Libraries being backed up now. */
   private readonly running = new Set<string>();
+  /** Where each running backup has got to, by library. Emptied when it ends, however it ends. */
+  private readonly progress = new Map<string, BackupProgress>();
   private timer: NodeJS.Timeout | null = null;
 
   constructor(private readonly d: Deps) {}
@@ -132,6 +174,7 @@ export class BackupService {
       lastBackupAt: entry?.lastBackupAt ?? null,
       lastError: entry?.lastError ?? null,
       running: !!lib && this.running.has(lib.id),
+      progress: (lib && this.progress.get(lib.id)) ?? null,
       paused: !!entry?.paused,
       others: lib ? others : [],
     };
@@ -259,11 +302,28 @@ export class BackupService {
     this.running.add(id);
     this.d.onChange();
     try {
+      const speed = new Speed();
+      let told = 0;
       await this.d.jobs.run(`Backing up “${name}”`, async (job) => {
         job.update(null, 'Only what changed since the last backup is stored');
-        const snap = await kopia.snapshot(source, password, name);
+        // Until Kopia has seen enough to estimate there is no fraction to give, so the bar stays
+        // as it was and the line says what has gone up so far: better than a number that would
+        // have to be invented.
+        const snap = await kopia.snapshot(source, password, name, (p) => {
+          if (p.uploaded !== null) speed.add(p.uploaded);
+          this.progress.set(id, { ...p, bytesPerSecond: speed.perSecond });
+          job.update(p.done, progressText(p));
+          // Kopia talks several times a second. The activity bar takes every word of it, but the
+          // settings page is a React query away, so it is told about once a second: often enough
+          // to watch, rarely enough that it is not re-rendering the window instead of backing up.
+          const now = Date.now();
+          if (now - told >= 1000) {
+            told = now;
+            this.d.onChange();
+          }
+        });
         job.update(1, `${snap.files.toLocaleString()} files`);
-      });
+      }, 'backups');
       await this.patch(id, { lastBackupAt: new Date().toISOString(), lastError: null });
       return true;
     } catch (e) {
@@ -272,6 +332,7 @@ export class BackupService {
       throw e;
     } finally {
       this.running.delete(id);
+      this.progress.delete(id);
       this.d.onChange();
     }
   }

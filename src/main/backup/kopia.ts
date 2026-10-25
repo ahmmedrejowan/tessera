@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Snapshot } from '@shared/types';
@@ -12,6 +12,76 @@ import { storageError, type KopiaStorage } from './storage';
  */
 
 export type { Snapshot };
+
+/**
+ * How far a backup has got, as far as Kopia has said.
+ *
+ * Every part is its own answer and any of them can be missing, because Kopia says different
+ * amounts at different stages: nothing is estimated until it has looked at enough, and a backup
+ * where nothing changed uploads nothing at all.
+ */
+export interface SnapshotProgress {
+  /** 0 to 1, or null while Kopia is still working out how much there is. */
+  done: number | null;
+  /** Bytes sent to the store so far. */
+  uploaded: number | null;
+  /** Bytes read from the library so far. */
+  hashed: number | null;
+  /** Files read so far. */
+  hashedFiles: number | null;
+  /** Files Kopia already had and did not need to read again. */
+  cachedFiles: number | null;
+  /** Bytes it did not need to read again. */
+  cached: number | null;
+  /** Files being read at this moment. */
+  hashing: number | null;
+  /** What Kopia thinks the whole thing comes to, once it has an opinion. */
+  total: number | null;
+  /** Kopia's own estimate of the time left ("25m0s"), when it has one. */
+  left: string | null;
+}
+
+const UNITS: Record<string, number> = { B: 1, KB: 1e3, MB: 1e6, GB: 1e9, TB: 1e12, KIB: 1024, MIB: 1024 ** 2, GIB: 1024 ** 3, TIB: 1024 ** 4 };
+
+const bytes = (n: string, unit: string): number | null => {
+  const mult = UNITS[unit.toUpperCase()];
+  return mult === undefined ? null : Number(n) * mult;
+};
+
+/**
+ * What a progress line from Kopia says, or null when it is not one.
+ *
+ * Kopia writes a line like
+ *   * 0 hashing, 812 hashed (1.2 GB), 44 cached (90 MB), uploaded 503.1 MB, estimated 7.6 GB (15.8%) 25m0s left
+ * and, before it has looked at enough to guess, the same without the estimate. Nothing here
+ * insists on the whole shape: each part is looked for on its own, and a line that has none of
+ * them is not a progress line. A Kopia that words this differently loses the progress bar and
+ * keeps the backup, which is the right way round for something only being watched.
+ */
+export function readProgress(line: string): SnapshotProgress | null {
+  const size = /(\d+(?:\.\d+)?)\s*([KMGT]i?B|B)/i;
+  const pct = /\(\s*(\d+(?:\.\d+)?)\s*%\s*\)/.exec(line);
+  const up = new RegExp(`uploaded\\s+${size.source}`, 'i').exec(line);
+  const hashed = new RegExp(`(\\d+)\\s+hashed\\s*\\(${size.source}\\)`, 'i').exec(line);
+  const cached = new RegExp(`(\\d+)\\s+cached\\s*\\(${size.source}\\)`, 'i').exec(line);
+  const total = new RegExp(`estimated\\s+${size.source}`, 'i').exec(line);
+  const hashing = /(\d+)\s+hashing\b/i.exec(line);
+  const left = /(\d+[hms][\dhms]*)\s+left/i.exec(line);
+  if (!pct && !up && !hashed) return null;
+  const done = pct ? Math.min(1, Math.max(0, Number(pct[1]) / 100)) : null;
+  const count = (m: RegExpExecArray | null) => (m ? Number(m[1]) : null);
+  return {
+    done: done !== null && Number.isFinite(done) ? done : null,
+    uploaded: up ? bytes(up[1]!, up[2]!) : null,
+    hashed: hashed ? bytes(hashed[2]!, hashed[3]!) : null,
+    hashedFiles: count(hashed),
+    cached: cached ? bytes(cached[2]!, cached[3]!) : null,
+    cachedFiles: count(cached),
+    hashing: count(hashing),
+    total: total ? bytes(total[1]!, total[2]!) : null,
+    left: left ? left[1]! : null,
+  };
+}
 
 interface ListedSnapshot {
   id: string;
@@ -107,11 +177,62 @@ export class Kopia {
     await this.run(['policy', 'set', source, '--keep-latest=10', '--keep-hourly=0', '--keep-daily=14', '--keep-weekly=8', '--keep-monthly=12', '--keep-annual=3'], password);
   }
 
-  /** Back up `source`; `name` labels the snapshot so another computer can tell what it is. */
-  async snapshot(source: string, password: string, name?: string): Promise<Snapshot> {
-    const out = await this.run(['snapshot', 'create', source, '--json', ...(name ? [`--description=${DESCRIPTION}${name}`] : [])], password);
+  /**
+   * Back up `source`; `name` labels the snapshot so another computer can tell what it is.
+   *
+   * This is the one command long enough that watching it matters: a first backup of a large
+   * library is half an hour or more, and the others are run and forgotten. Kopia says where it has
+   * got to on its error stream as it goes, so this one is spawned and read line by line rather
+   * than run through `run`, which hands back everything only once the process has ended.
+   */
+  async snapshot(source: string, password: string, name?: string, onProgress?: (p: SnapshotProgress) => void): Promise<Snapshot> {
+    // `--progress` is not optional here: Kopia writes its progress line only when it believes a
+    // person is watching, and a pipe is not a terminal, so without this it says nothing at all
+    // until it has finished. Found by reading what it actually wrote, not by reading the flag.
+    const args = ['snapshot', 'create', source, '--json', '--progress', ...(name ? [`--description=${DESCRIPTION}${name}`] : [])];
+    const out = await this.stream(args, password, onProgress);
     const s = JSON.parse(out) as { id: string; startTime: string; endTime: string; rootEntry?: { summ?: { size?: number; files?: number } } };
     return { id: s.id, startTime: s.startTime, endTime: s.endTime, size: s.rootEntry?.summ?.size ?? 0, files: s.rootEntry?.summ?.files ?? 0 };
+  }
+
+  /** Run a command, reading its error stream as it goes. Resolves with everything it wrote out. */
+  private stream(args: string[], password: string, onProgress?: (p: SnapshotProgress) => void): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const p = spawn(this.exe, [...args, `--config-file=${this.config}`], {
+        env: { ...process.env, KOPIA_PASSWORD: password, KOPIA_CHECK_FOR_UPDATES: 'false' },
+      });
+      let out = '';
+      let tail: string[] = [];
+      let rest = '';
+      p.stdout.on('data', (d: Buffer) => (out += d.toString()));
+      p.stderr.on('data', (d: Buffer) => {
+        // Kopia redraws one line as it works, so the separator is a carriage return as often as a
+        // newline, and the last piece is held back until the rest of it arrives.
+        const chunk = rest + d.toString();
+        const lines = chunk.split(/[\r\n]+/);
+        rest = lines.pop() ?? '';
+        for (const line of lines) {
+          const l = line.trim();
+          if (!l) continue;
+          // Kept for the error message, which is the last thing it says before giving up.
+          tail = [...tail, l].slice(-2);
+          const progress = readProgress(l);
+          if (progress && onProgress) onProgress(progress);
+        }
+      });
+      // The same stop as every other command has, so a wedged backup cannot run forever. Six
+      // hours is long enough for a first backup of a large library over a slow connection.
+      const cutOff = setTimeout(() => p.kill(), 6 * 60 * 60_000);
+      p.on('error', (e) => {
+        clearTimeout(cutOff);
+        reject(new KopiaError(storageError(e.message)));
+      });
+      p.on('close', (code) => {
+        clearTimeout(cutOff);
+        if (code === 0) return resolve(out);
+        reject(new KopiaError(storageError(tail.join(' ') || `kopia exited with ${String(code)}`)));
+      });
+    });
   }
 
   async list(source: string, password: string): Promise<Snapshot[]> {

@@ -287,6 +287,11 @@ export interface Job {
   progress: number | null;
   state: 'running' | 'done' | 'failed';
   error?: string;
+  /**
+   * What this job is about, when there is somewhere in the window that says more about it.
+   * A name rather than a route: the main process should not know how the window is laid out.
+   */
+  topic?: 'backups';
 }
 
 /**
@@ -467,6 +472,28 @@ export interface CollectionChange {
   delete?: boolean;
 }
 
+/** Where a backup has got to, while one is running. Any part can be missing; see SnapshotProgress. */
+export interface BackupProgress {
+  /** 0 to 1, or null until Kopia has an estimate to divide by. */
+  done: number | null;
+  /** Bytes sent to the store so far. */
+  uploaded: number | null;
+  /** Bytes read from the library so far, and how many files that was. */
+  hashed: number | null;
+  hashedFiles: number | null;
+  /** What Kopia already had and did not read again. */
+  cached: number | null;
+  cachedFiles: number | null;
+  /** Files being read at this moment. */
+  hashing: number | null;
+  /** The whole thing, as Kopia estimates it. */
+  total: number | null;
+  /** Kopia's own guess at the time left, as it words it ("25m0s"). */
+  left: string | null;
+  /** Bytes a second, measured over the last few seconds rather than the whole run. */
+  bytesPerSecond: number | null;
+}
+
 export interface BackupStatus {
   /** Kopia is installed. */
   available: boolean;
@@ -484,6 +511,8 @@ export interface BackupStatus {
   lastBackupAt: string | null;
   lastError: string | null;
   running: boolean;
+  /** Where the running backup has got to, or null when none is running. */
+  progress: BackupProgress | null;
   /** Set up, but not backing up on its own until it is turned back on. */
   paused: boolean;
   /** Other libraries' backups this one could join (same place, same password). */
