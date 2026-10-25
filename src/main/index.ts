@@ -23,6 +23,7 @@ import { findTool } from './tools/find';
 import { applySystemProxy } from './tools/proxy';
 import { LibraryService } from './libraryService';
 import { BackupService, findKopia } from './backup/service';
+import { stopAllKopia } from './backup/kopia';
 import { registerDrag } from './drag';
 import { installMenu } from './menu';
 import { fileSecret, keychainAvailable } from './secrets';
@@ -708,4 +709,8 @@ app.on('before-quit', () => {
   reports.dispose();
   renderWindow?.close();
   sync.shutdown();
+  // A backup is not ours to leave running. Nothing here stopped it before, so quitting part way
+  // through left a Kopia and its rclone uploading to somebody's Drive with no app to report to,
+  // and the next start would set another going beside it.
+  stopAllKopia();
 });

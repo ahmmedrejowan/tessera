@@ -1,4 +1,4 @@
-import { execFile, spawn } from 'node:child_process';
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Snapshot } from '@shared/types';
@@ -99,6 +99,29 @@ const totals = (r: ListedSnapshot) => ({ size: r.rootEntry?.summ?.size ?? r.stat
 
 export class KopiaError extends Error {}
 
+/**
+ * Every Kopia running right now, so that quitting can stop them.
+ *
+ * A Kopia is made fresh for each piece of work rather than kept, so there is no one object to ask;
+ * they are counted here instead. Kopia is also not the end of it: reaching a cloud drive, it starts
+ * an rclone of its own, which is why these are asked to stop rather than killed outright. Kopia
+ * takes that to mean stop, and takes its rclone down with it. Killed outright, it cannot, and the
+ * rclone is left behind holding a connection to somebody's Drive with nothing to report to.
+ */
+const live = new Set<ChildProcess>();
+
+/**
+ * Stop every Kopia, and with it every rclone. Called as the app quits.
+ *
+ * What it is interrupting is a snapshot, which is safe to interrupt: content already written to
+ * the store is kept and found again by the next backup, so nothing uploaded is wasted. Only the
+ * reading of the library has to be done over.
+ */
+export function stopAllKopia(): void {
+  for (const p of live) p.kill('SIGTERM');
+  live.clear();
+}
+
 /** Snapshots Tessera makes are described as "Tessera: <library name>". */
 const DESCRIPTION = 'Tessera: ';
 
@@ -123,11 +146,12 @@ export class Kopia {
 
   private run(args: string[], password: string, timeoutMs = 6 * 60 * 60_000, extraEnv: Record<string, string> = {}): Promise<string> {
     return new Promise((resolve, reject) => {
-      execFile(
+      const child = execFile(
         this.exe,
         [...args, `--config-file=${this.config}`],
         { env: { ...process.env, ...extraEnv, KOPIA_PASSWORD: password, KOPIA_CHECK_FOR_UPDATES: 'false' }, maxBuffer: 256 * 1024 * 1024, timeout: timeoutMs },
         (err, stdout, stderr) => {
+          live.delete(child);
           if (!err) return resolve(stdout);
           // Kopia's own message is the useful part: the last non-empty lines of stderr.
           const lines = stderr.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -135,6 +159,7 @@ export class Kopia {
           reject(new KopiaError(storageError(message)));
         },
       );
+      live.add(child);
     });
   }
 
@@ -201,6 +226,7 @@ export class Kopia {
       const p = spawn(this.exe, [...args, `--config-file=${this.config}`], {
         env: { ...process.env, KOPIA_PASSWORD: password, KOPIA_CHECK_FOR_UPDATES: 'false' },
       });
+      live.add(p);
       let out = '';
       let tail: string[] = [];
       let rest = '';
@@ -225,10 +251,12 @@ export class Kopia {
       const cutOff = setTimeout(() => p.kill(), 6 * 60 * 60_000);
       p.on('error', (e) => {
         clearTimeout(cutOff);
+        live.delete(p);
         reject(new KopiaError(storageError(e.message)));
       });
       p.on('close', (code) => {
         clearTimeout(cutOff);
+        live.delete(p);
         if (code === 0) return resolve(out);
         reject(new KopiaError(storageError(tail.join(' ') || `kopia exited with ${String(code)}`)));
       });

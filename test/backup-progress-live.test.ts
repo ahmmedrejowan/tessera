@@ -14,7 +14,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { Kopia, type SnapshotProgress } from '../src/main/backup/kopia';
+import { Kopia, stopAllKopia, type SnapshotProgress } from '../src/main/backup/kopia';
 
 function findKopia(): string | null {
   const given = process.env.TESSERA_KOPIA;
@@ -72,5 +72,33 @@ describe.skipIf(!exe)('a real backup says where it has got to', () => {
 
     // Any fraction Kopia gave is a fraction.
     for (const p of seen) if (p.done !== null) expect(p.done).toBeGreaterThanOrEqual(0), expect(p.done).toBeLessThanOrEqual(1);
+  }, 180_000);
+
+  it('stops when the app quits, instead of being left behind', async () => {
+    // Quitting used to leave the backup running with nothing to report to, and the next start
+    // would set another going beside it. This asks whether a running one actually stops.
+    const repo = join(root, 'repo2');
+    const data = join(root, 'data2');
+    const dir = join(root, 'kopia2');
+    for (const d of [repo, data, dir]) mkdirSync(d, { recursive: true });
+    for (let i = 0; i < 40; i++) {
+      const buf = Buffer.alloc(2 * 1024 * 1024);
+      for (let j = 0; j < buf.length; j += 4) buf.writeUInt32LE((i * 40503 + j * 2654435761) >>> 0, j);
+      writeFileSync(join(data, `blob-${i}.bin`), buf);
+    }
+
+    const password = 'tessera-test-password';
+    const kopia = new Kopia(exe!, dir);
+    await kopia.connect({ type: 'filesystem', args: ['--path', repo], env: {} }, password, true);
+
+    // The child is registered as it is spawned, which happens before this call returns, so the
+    // quit lands on a Kopia that is genuinely running. Waiting for a given moment first only
+    // raced a local store that finishes in under a second; where it is stopped does not change
+    // what is being asked, which is whether quitting stops it at all.
+    const snapshot = kopia.snapshot(data, password, 'Quit Test');
+    stopAllKopia();
+
+    // It ends, and says it did not finish rather than pretending it did.
+    await expect(snapshot).rejects.toThrow();
   }, 180_000);
 });
