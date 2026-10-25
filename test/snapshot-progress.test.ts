@@ -26,12 +26,30 @@ const FULL = '* 0 hashing, 812 hashed (1.2 GB), 44 cached (90 MB), uploaded 503.
 const EARLY = REAL[1]!;
 
 describe('how far a backup has got', () => {
-  it('reads the fraction, what has gone up, and how long is left', () => {
+  it('reads every number in the line, not only the fraction', () => {
     const p = readProgress(FULL)!;
     expect(p.done).toBeCloseTo(0.158, 3);
     expect(p.uploaded).toBe(503.1e6);
+    expect(p.total).toBe(7.6e9);
     expect(p.hashed).toBe(1.2e9);
+    expect(p.hashedFiles).toBe(812);
+    expect(p.cached).toBe(90e6);
+    expect(p.cachedFiles).toBe(44);
+    expect(p.hashing).toBe(0);
     expect(p.left).toBe('25m0s');
+  });
+
+  it('tells the three sizes in one line apart', () => {
+    // hashed, cached and uploaded all look alike; mixing them up would report the wrong thing
+    // as sent, which is the number somebody waiting is actually watching.
+    const p = readProgress('* 2 hashing, 5 hashed (111 MB), 7 cached (222 MB), uploaded 333 MB, estimated 444 MB (75%) 1m2s left')!;
+    expect(p.hashed).toBe(111e6);
+    expect(p.cached).toBe(222e6);
+    expect(p.uploaded).toBe(333e6);
+    expect(p.total).toBe(444e6);
+    expect(p.hashedFiles).toBe(5);
+    expect(p.cachedFiles).toBe(7);
+    expect(p.hashing).toBe(2);
   });
 
   it('gives no fraction while Kopia is still working out how much there is', () => {

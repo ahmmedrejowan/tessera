@@ -16,16 +16,16 @@ export class Jobs {
     return [...this.jobs.values()];
   }
 
-  start(label: string, detail = ''): JobHandle {
-    const job: Job = { id: randomUUID(), label, detail, progress: null, state: 'running' };
+  start(label: string, detail = '', topic?: Job['topic']): JobHandle {
+    const job: Job = { id: randomUUID(), label, detail, progress: null, state: 'running', ...(topic ? { topic } : {}) };
     this.jobs.set(job.id, job);
     this.changed();
     return new JobHandle(job, () => this.changed(), () => this.finish(job.id));
   }
 
   /** Run `fn` as a job, marking it done or failed. */
-  async run<T>(label: string, fn: (job: JobHandle) => Promise<T>): Promise<T> {
-    const job = this.start(label);
+  async run<T>(label: string, fn: (job: JobHandle) => Promise<T>, topic?: Job['topic']): Promise<T> {
+    const job = this.start(label, '', topic);
     try {
       const out = await fn(job);
       job.done();

@@ -13,14 +13,30 @@ import { storageError, type KopiaStorage } from './storage';
 
 export type { Snapshot };
 
-/** How far a backup has got, as far as Kopia has said. */
+/**
+ * How far a backup has got, as far as Kopia has said.
+ *
+ * Every part is its own answer and any of them can be missing, because Kopia says different
+ * amounts at different stages: nothing is estimated until it has looked at enough, and a backup
+ * where nothing changed uploads nothing at all.
+ */
 export interface SnapshotProgress {
   /** 0 to 1, or null while Kopia is still working out how much there is. */
   done: number | null;
-  /** Bytes sent to the store so far, or null when the line did not say. */
+  /** Bytes sent to the store so far. */
   uploaded: number | null;
-  /** Bytes read from the library so far, or null when the line did not say. */
+  /** Bytes read from the library so far. */
   hashed: number | null;
+  /** Files read so far. */
+  hashedFiles: number | null;
+  /** Files Kopia already had and did not need to read again. */
+  cachedFiles: number | null;
+  /** Bytes it did not need to read again. */
+  cached: number | null;
+  /** Files being read at this moment. */
+  hashing: number | null;
+  /** What Kopia thinks the whole thing comes to, once it has an opinion. */
+  total: number | null;
   /** Kopia's own estimate of the time left ("25m0s"), when it has one. */
   left: string | null;
 }
@@ -43,16 +59,26 @@ const bytes = (n: string, unit: string): number | null => {
  * keeps the backup, which is the right way round for something only being watched.
  */
 export function readProgress(line: string): SnapshotProgress | null {
+  const size = /(\d+(?:\.\d+)?)\s*([KMGT]i?B|B)/i;
   const pct = /\(\s*(\d+(?:\.\d+)?)\s*%\s*\)/.exec(line);
-  const up = /uploaded\s+(\d+(?:\.\d+)?)\s*([KMGT]i?B|B)/i.exec(line);
-  const hashed = /(\d+(?:\.\d+)?)\s*([KMGT]i?B|B)\s*\)\s*,\s*\d+\s+cached/i.exec(line);
+  const up = new RegExp(`uploaded\\s+${size.source}`, 'i').exec(line);
+  const hashed = new RegExp(`(\\d+)\\s+hashed\\s*\\(${size.source}\\)`, 'i').exec(line);
+  const cached = new RegExp(`(\\d+)\\s+cached\\s*\\(${size.source}\\)`, 'i').exec(line);
+  const total = new RegExp(`estimated\\s+${size.source}`, 'i').exec(line);
+  const hashing = /(\d+)\s+hashing\b/i.exec(line);
   const left = /(\d+[hms][\dhms]*)\s+left/i.exec(line);
   if (!pct && !up && !hashed) return null;
   const done = pct ? Math.min(1, Math.max(0, Number(pct[1]) / 100)) : null;
+  const count = (m: RegExpExecArray | null) => (m ? Number(m[1]) : null);
   return {
     done: done !== null && Number.isFinite(done) ? done : null,
     uploaded: up ? bytes(up[1]!, up[2]!) : null,
-    hashed: hashed ? bytes(hashed[1]!, hashed[2]!) : null,
+    hashed: hashed ? bytes(hashed[2]!, hashed[3]!) : null,
+    hashedFiles: count(hashed),
+    cached: cached ? bytes(cached[2]!, cached[3]!) : null,
+    cachedFiles: count(cached),
+    hashing: count(hashing),
+    total: total ? bytes(total[1]!, total[2]!) : null,
     left: left ? left[1]! : null,
   };
 }

@@ -20,7 +20,7 @@ import Select from '@mui/material/Select';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { call, on } from '../../api';
 import { failed, notify } from '../../notices/store';
 import type { BackupStatus } from '@shared/types';
@@ -246,6 +246,40 @@ export function BackupSettings() {
   );
 }
 
+const size = (n: number) =>
+  n >= 1e9 ? `${(n / 1e9).toFixed(2)} GB` : n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : n >= 1e3 ? `${Math.round(n / 1e3)} KB` : `${Math.round(n)} B`;
+
+/**
+ * Everything Kopia has said about the backup that is running.
+ *
+ * A bar on its own answers "is it moving"; this is for the other questions, which are how much of
+ * it is left, how fast it is going, and whether the slow part is reading the library or sending
+ * it. Each line appears only once there is something true to put in it: Kopia estimates nothing
+ * until it has looked at enough, and a backup where little changed uploads almost nothing.
+ */
+function RunningDetail({ p }: { p: BackupStatus['progress'] }) {
+  if (!p) return <span style={{ display: 'block', color: md('onSurfaceVariant') }}>Starting…</span>;
+  const rows: [string, string][] = [];
+  if (p.done !== null) rows.push(['Done', `${(p.done * 100).toFixed(1)}%`]);
+  if (p.uploaded !== null) rows.push(['Sent', p.total !== null ? `${size(p.uploaded)} of about ${size(p.total)}` : size(p.uploaded)]);
+  if (p.bytesPerSecond !== null) rows.push(['Speed', `${size(p.bytesPerSecond)}/s`]);
+  if (p.left) rows.push(['Left', `about ${p.left}`]);
+  if (p.hashed !== null) rows.push(['Read', `${size(p.hashed)}${p.hashedFiles !== null ? ` · ${p.hashedFiles.toLocaleString()} files` : ''}`]);
+  // Worth saying: on a second backup this is most of the library, and explains why so little goes up.
+  if (p.cachedFiles) rows.push(['Unchanged', `${p.cachedFiles.toLocaleString()} files${p.cached !== null ? ` · ${size(p.cached)}` : ''}`]);
+  if (!rows.length) return <span style={{ display: 'block', color: md('onSurfaceVariant') }}>Looking at the library…</span>;
+  return (
+    <span style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 12, rowGap: 2, marginTop: 6 }}>
+      {rows.map(([k, v]) => (
+        <Fragment key={k}>
+          <span style={{ color: md('onSurfaceVariant') }}>{k}</span>
+          <span style={{ color: md('onSurface'), fontVariantNumeric: 'tabular-nums' }}>{v}</span>
+        </Fragment>
+      ))}
+    </span>
+  );
+}
+
 function BackupRows({ onSetup }: { onSetup: () => void }) {
   const client = useQueryClient();
   useEffect(() => on('backup:changed', () => void client.invalidateQueries({ queryKey: ['backup'] })), [client]);
@@ -301,13 +335,17 @@ function BackupRows({ onSetup }: { onSetup: () => void }) {
         body={
           <>
             To {status.repoPath}
+            {status.running && <RunningDetail p={status.progress} />}
             {handoff && (
               <span style={{ display: 'block' }}>
                 Tessera is done once the files are written. {handoff} uploads them afterwards, on its own schedule, and does not tell Tessera when that
                 finishes, so they are still only on this computer until it does.
               </span>
             )}
-            {status.lastError && <span style={{ color: md('error'), display: 'block' }}>Last attempt failed: {status.lastError}</span>}
+            {/* While one is running, what went wrong last time is over: saying both at once reads
+                as though the backup on screen is the one that failed. It comes back if this one
+                fails too, and goes for good when one succeeds. */}
+            {!status.running && status.lastError && <span style={{ color: md('error'), display: 'block' }}>Last attempt failed: {status.lastError}</span>}
           </>
         }
       >
