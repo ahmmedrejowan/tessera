@@ -56,13 +56,11 @@
 | macOS, Homebrew | `brew tap ahmmedrejowan/tessera && brew install --cask tessera` |
 | Windows, Chocolatey | `choco install tessera` |
 | Windows, Scoop | `scoop bucket add tessera https://github.com/ahmmedrejowan/scoop-tessera && scoop install tessera` |
-| Windows, winget | `winget install Rejowan.Tessera` (**not yet**, see below) |
+| Windows, winget | `winget install Rejowan.Tessera` |
 | Arch, Manjaro | `yay -S tessera-bin` (**not yet**, see below) |
 
-The winget submission passes every check and is waiting on a moderator at
-[microsoft/winget-pkgs#441739](https://github.com/microsoft/winget-pkgs/pull/441739). A PKGBUILD is
-written on every release but nothing is published to the AUR yet. Both commands are given so you
-know what they will be, not because they work today.
+A PKGBUILD is written on every release, but nothing is published to the AUR yet. That command is
+given so you know what it will be, not because it works today.
 
 Homebrew 7 asks before it loads anything from a tap that is not its own. If it does, run
 `brew trust --cask ahmmedrejowan/tessera/tessera` and install again.

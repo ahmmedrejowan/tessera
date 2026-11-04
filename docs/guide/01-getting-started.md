@@ -14,12 +14,13 @@ Take the file for your system from the [install page](/install), or use a packag
 | System | What to type |
 |--------|--------------|
 | macOS | `brew tap ahmmedrejowan/tessera && brew install --cask tessera` |
+| Windows, winget | `winget install Rejowan.Tessera` |
 | Windows, Chocolatey | `choco install tessera` |
 | Windows, Scoop | `scoop bucket add tessera https://github.com/ahmmedrejowan/scoop-tessera` then `scoop install tessera` |
 
 The builds are not signed with paid Apple or Microsoft certificates, so macOS and Windows each ask
-once the first time you open it. Installing with a package manager skips that: Homebrew, Scoop and
-Chocolatey all clear the download flag as they go.
+once the first time you open it. Installing with a package manager skips that: Homebrew, Scoop,
+winget and Chocolatey all clear the download flag as they go.
 
 If you took the file yourself, the shortest way past it on a Mac is one line, once Tessera is in
 Applications:
